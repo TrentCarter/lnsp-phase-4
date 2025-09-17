@@ -33,41 +33,14 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## 📂 KEY COMMANDS
 
-### Nemotron-VMMoE Commands
+### General Commands
 ```bash
-# Download datasets
-./.venv/bin/python3 scripts/download_lightweight_datasets.py
 
-# Convert text to vectors (GTR-T5 768D)
-./.venv/bin/python3 scripts/convert_to_vectors.py
-
-# Train Minimal Mamba (✅ WORKING ARCHITECTURE - Sep 4th script)
-TOKENIZERS_PARALLELISM=false ./.venv/bin/python3 app/nemotron_vmmoe/minimal_mamba_trainer.py \
-  --data-file data/nemotron_vectors/tiny_stories/vectors_f32.npy \
-  --epochs 5 --batch-size 32 --validation-split 0.1 \
-  --early-stopping-patience 3 --grad-clip 1.0 \
-  --checkpoint-dir checkpoints/mamba_production
-
-# Test Dual Pipeline System (✅ BREAKTHROUGH - Sep 10th)
-TOKENIZERS_PARALLELISM=false ./.venv/bin/python3 working_dual_pipeline_test.py \
-  --checkpoint checkpoints/mamba_production_v2/best_model.pt
-
-# Control Roundtrip Testing (✅ WORKING - Sep 12th)
-TOKENIZERS_PARALLELISM=false ./.venv/bin/python3 -m app.cli.control_roundtrip \
-  --curated data/curated_val.jsonl \
-  --decoder-mode ielab \
-  --gtr-model-name sentence-transformers/gtr-t5-base \
-  --encoder-normalize true
 ```
 
 ### Data Generation
 ```bash
-# Concept Pipeline
-./.venv/bin/python3 scripts/complete_concept_pipeline.py --count 10 --clean
 
-# QA Dataset Generation
-TOKENIZERS_PARALLELISM=false OMP_NUM_THREADS=1 ./.venv/bin/python3 \
-  scripts/qa_triplet_dataset_cli.py --input [DATA] --output-dir [DIR] --count [N]
 ```
 
 ## 🏗️ ARCHITECTURE OVERVIEW
