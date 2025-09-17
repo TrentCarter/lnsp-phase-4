@@ -7,6 +7,7 @@ This file provides guidance to Claude Code when working with this repository.
 2. **NEVER run training without permission** - 
 3. **FOCUS on 768D GTR-T5 only** (no STELLA 1024D until requested)
 4. **Vec2Text Usage**: See `docs/how_to_use_jxe_and_ielab.md` for CORRECT vec2text implementation
+5. TAKEAWAY: JXE can use MPS or CPU,  IELAB can ONLY use CPU. GTR-T5 can use MPS (CPU untested here)
 
 ## 🔊 AUDIO NOTIFICATIONS
 ```bash
