@@ -1,0 +1,222 @@
+{
+  "project": {
+    "metadata": {
+      "id": "VMMoE_Production_V1p15_Phase2Arithmetic",
+      "name": "VMMoE Production Training v1.15 - Phase 2 Arithmetic Reasoning",
+      "description": "Phase 2 enhancement: vector arithmetic loss for analogy completion (A:B :: C:D), intensified normalization, increased capacity",
+      "version": "1.15.0",
+      "created_date": "2025-08-17",
+      "training_date": "2025-08-17T12:xx",
+      "notes": "Phase 2 features: arithmetic_weight=0.1 for analogy reasoning, L2 penalty 3.3x boost (0.003→0.01), n_layers=7 (+40% capacity), small dataset multiplier=4.0, norm_clip=2.0"
+    },
+    "model": "sentence-transformers/gtr-t5-base",
+    "local_model_path": "data/teacher_models/gtr-t5-base"
+  },
+  "training": {
+    "architecture": {
+      "mamba_config": {
+        "d_model": 768,
+        "n_layers": 7,
+        "d_state": 24,
+        "d_conv": 6,
+        "expand": 1.75,
+        "dt_rank": "auto",
+        "dt_min": 0.001,
+        "dt_max": 0.1,
+        "dt_init": "xavier",
+        "dt_scale": 0.9,
+        "bias": false,
+        "conv_bias": true,
+        "dropout": 0.15,
+        "layer_norm_epsilon": 1e-5
+      },
+      "positional_config": {
+        "mode": "hybrid",
+        "learned_weight": 0.7,
+        "sinusoidal_weight": 0.3,
+        "max_len": 512,
+        "dropout": 0.1,
+        "learned_config": {
+          "embedding_dim": 768,
+          "max_position_embeddings": 512
+        },
+        "sinusoidal_config": {
+          "embedding_dim": 768,
+          "temperature": 10000.0
+        }
+      },
+      "peft_config": {
+        "enabled": true,
+        "adapter_type": "lora",
+        "lora_rank": 12,
+        "lora_alpha": 24,
+        "lora_dropout": 0.05,
+        "target_modules": [
+          "in_proj",
+          "x_proj",
+          "dt_proj",
+          "A_log",
+          "D",
+          "out_proj"
+        ],
+        "modules_to_save": [
+          "layer_norm"
+        ]
+      }
+    },
+    "loss_config": {
+      "loss_type": "triplet",
+      "margin_start": 0.05,
+      "margin_end": 0.08,
+      "margin_schedule": "constant",
+      "cosine_weight": 0.6,
+      "mse_weight": 0.15,
+      "contrastive_weight": 0.15,
+      "orthogonality_weight": 0.005,
+      "arithmetic_weight": 0.1,
+      "temperature": 0.05,
+      "label_smoothing": 0.05,
+      "normalization_enforcement": {
+        "enabled": true,
+        "l2_penalty_weight": 0.01,
+        "cosine_similarity_threshold": 0.03,
+        "normalize_embeddings": true,
+        "stability_epsilon": 1e-8,
+        "unit_norm_final": true
+      }
+    },
+    "optimization": {
+      "optimizer": "AdamW",
+      "learning_rate": 4e-05,
+      "weight_decay": 0.02,
+      "gradient_clipping": 2.0,
+      "warmup_steps": 300,
+      "scheduler": "constant_with_warmup",
+      "betas": [0.9, 0.98],
+      "eps": 1e-08
+    },
+    "data": {
+      "batch_size": 24,
+      "sequence_length": 16,
+      "num_workers": 2,
+      "shuffle": true,
+      "drop_last": true,
+      "concept_databases": [
+        "data/databases/sat_analogies_768_training",
+        "data/databases/turney_lra_768_training",
+        "data/databases/bats_768_training",
+        "data/databases/hyperlex_768_training",
+        "data/databases/qa_training_triplets_768d",
+        "data/databases/concept_vector_db_768_training"
+      ],
+      "database_weighting": {
+        "enabled": true,
+        "balance_factor": 0.8,
+        "rotation_cycle": 1500,
+        "min_database_batches": 15,
+        "boost_small_datasets": true,
+        "small_dataset_threshold": 1000,
+        "small_dataset_multiplier": 4.0
+      },
+      "augmentation": {
+        "enabled": true,
+        "noise_std": 0.006,
+        "dropout_prob": 0.03,
+        "mixup_alpha": 0.15
+      }
+    },
+    "training_params": {
+      "epochs": 3,
+      "steps_per_epoch": 2325,
+      "validation_frequency": 1,
+      "checkpoint_frequency": 500,
+      "device_priority": [
+        "mps",
+        "cuda",
+        "cpu"
+      ],
+      "seed": 42,
+      "deterministic": false
+    },
+    "early_stopping": {
+      "enabled": true,
+      "patience": 2,
+      "min_delta": 0.001,
+      "monitor": "val/loss",
+      "mode": "min",
+      "min_epochs": 1,
+      "loss_target": 0.001,
+      "loss_target_enabled": false,
+      "verbose": true,
+      "restore_best_weights": true,
+      "additional_criteria": {
+        "max_d_ap": 0.15,
+        "min_d_an": 0.10,
+        "max_overfit_ratio": 2.0,
+        "min_ap_cos": 0.03
+      },
+      "intra_epoch": {
+        "enabled": true,
+        "min_cos_similarity": 0.5,
+        "max_norm_ratio": 30.0,
+        "degradation_patience": 3,
+        "min_degradation_threshold": 0.05
+      }
+    },
+    "regularization": {
+      "dropout": 0.12,
+      "attention_dropout": 0.05,
+      "weight_decay": 0.02,
+      "gradient_noise": {
+        "enabled": true,
+        "noise_std": 0.001
+      }
+    },
+    "logging": {
+      "level": "INFO",
+      "log_interval": 50,
+      "save_model_checkpoints": true,
+      "save_optimizer_state": false,
+      "wandb": {
+        "enabled": false,
+        "project": "vmmoe-phase2",
+        "run_name": "v1p15-arithmetic-reasoning"
+      },
+      "mlflow": {
+        "enabled": true,
+        "experiment_name": "VMMoE_Phase2_v1p15",
+        "run_name": "SingleEpoch_Arithmetic_NormBoost",
+        "tracking_uri": "sqlite:///mlflow.db",
+        "artifact_location": "output/test/mlflow/artifacts"
+      }
+    }
+  },
+  "evaluation": {
+    "validation_split": 0.1,
+    "metrics": ["cosine_similarity", "triplet_accuracy", "vector_arithmetic_accuracy"],
+    "eval_frequency": 1
+  },
+  "mlflow": {
+    "enabled": true,
+    "experiment_name": "VMMoE_Phase2_v1p15",
+    "run_name_prefix": "SingleEpoch_Arithmetic_NormBoost",
+    "tracking_uri": "sqlite:///mlflow.db",
+    "artifact_location": "output/test/mlflow/artifacts",
+    "log_parameters": true,
+    "log_metrics_frequency": 1,
+    "log_models": true,
+    "log_artifacts": true
+  },
+  "checkpointing": {
+    "enabled": true,
+    "save_frequency": 500,
+    "max_checkpoints": 5,
+    "save_optimizer": false
+  },
+  "outputs": {
+    "model_save_path": "output/vmmoe_stable_v1p15",
+    "logs_path": "output/logs",
+    "plots_path": "output/plots",
+    "checkpoints_path": "output/checkpoints"
+  }
+}

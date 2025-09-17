@@ -1,0 +1,132 @@
+{
+  "project": {
+    "metadata": {
+      "id": "CRAWL_v1p0_TMD_Physics",
+      "name": "CRAWL Phase - TMD Physics Reasoning",
+      "version": "1.0.0",
+      "description": "CRAWL phase training with 20 physics TMD triplets for controllable reasoning proof-of-concept",
+      "created_date": "2025-08-28",
+      "phase": "CRAWL"
+    },
+    "architecture": "VMMoE",
+    "dataset_source": "TMD Physics Triplets",
+    "training_mode": "tmd_prediction"
+  },
+  
+  "training": {
+    "data": {
+      "mode": "tmd",
+      "tmd_file_path": "data/crawl_phase/physics_tmd.json",
+      "encoder_model_path": "data/teacher_models/gtr-t5-base",
+      "batch_size": 4,
+      "sequence_length": 1,
+      "include_test_concepts": false,
+      "num_workers": 0
+    },
+    
+    "architecture": {
+      "hidden_size": 768,
+      "vocab_size": 768,
+      "mamba_config": {
+        "d_model": 768,
+        "n_layers": 2,
+        "expand": 2,
+        "d_conv": 4,
+        "dt_rank": "auto",
+        "d_state": 16
+      },
+      "prediction_head": {
+        "input_dim": 768,
+        "output_dim": 768,
+        "normalize_output": true
+      },
+      "output_projection": {
+        "enabled": false
+      },
+      "positional_config": {
+        "type": "learned",
+        "mode": "legacy",
+        "max_position_embeddings": 2,
+        "embedding_dim": 768
+      },
+      "peft_config": {
+        "enabled": false
+      },
+      "normalization_enforcement": {
+        "unit_norm_final": true
+      }
+    },
+    
+    "loss_config": {
+      "type": "tmd_prediction",
+      "prediction_weight": 1.0,
+      "reconstruction_weight": 0.0,
+      "cosine_weight": 0.0,
+      "cosine_threshold": 0.3
+    },
+    
+    "optimization": {
+      "optimizer": "AdamW",
+      "learning_rate": 1e-4,
+      "weight_decay": 0.01,
+      "gradient_clipping": 1.0,
+      "scheduler": "cosine",
+      "scheduler_params": {
+        "T_max": 200
+      }
+    },
+    
+    "training_params": {
+      "epochs": 200,
+      "early_stopping_patience": 50,
+      "gradient_clip_norm": 1.0,
+      "eval_every_n_epochs": 10,
+      "steps_per_epoch": 1,
+      "num_workers": 0
+    }
+  },
+  
+  "evaluation": {
+    "validation_split": 0.2,
+    "metrics": [
+      "prediction_loss", 
+      "reconstruction_loss",
+      "pred_target_cosine",
+      "input_target_cosine",
+      "vector_norms"
+    ]
+  },
+  
+  "mlflow": {
+    "enabled": true,
+    "tracking_uri": "sqlite:///mlflow.db",
+    "experiment_name": "CRAWL_TMD_Physics",
+    "run_name_prefix": "crawl_tmd",
+    "artifact_location": "output/crawl_phase/mlflow_artifacts",
+    "log_model": true,
+    "log_artifacts": true
+  },
+  
+  "checkpointing": {
+    "enabled": true,
+    "save_every_n_epochs": 25,
+    "checkpoint_dir": "output/crawl_phase_v1p0",
+    "keep_last_n": 3,
+    "save_best_only": false,
+    "monitor_metric": "val_loss",
+    "mode": "min"
+  },
+  
+  "output": {
+    "base_path": "output/crawl_phase_v1p0",
+    "save_predictions": true,
+    "save_model_config": true,
+    "generate_report": true
+  },
+  
+  "resources": {
+    "device": "auto",
+    "mixed_precision": false,
+    "compile_model": false
+  }
+}

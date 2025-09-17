@@ -1,0 +1,190 @@
+{
+  "project": {
+    "name": "VMMoE_v1p24_AnalogyFocused",
+    "version": "1.24",
+    "description": "Analogy-focused VMMoE with dedicated analogy loss - V1.23 fixes + explicit analogical reasoning training",
+    "timestamp": "2025-08-18T12:10:00",
+    "author": "AI Assistant",
+    "tags": ["VMMoE", "analogical_reasoning", "anti_collapse", "lora_rank_32", "bats_focus"],
+    "metadata": {
+      "id": "v1p24_analogy_focused",
+      "experiment_type": "analogical_reasoning",
+      "baseline": "v1p23_sequence_fix",
+      "key_innovation": "dedicated_analogy_loss_0.7"
+    }
+  },
+  "training": {
+    "patience": 5,
+    "min_delta": 0.001,
+    "save_every_n_epochs": 1,
+    "early_stopping_metric": "anchor_positive_distance",
+    "early_stopping_mode": "min",
+    "early_stopping_patience": 2,
+    "training_params": {
+      "batch_size": 24,
+      "num_workers": 2,
+      "epochs": 3,
+      "steps_per_epoch": 2000,
+      "validation_frequency": 1,
+      "checkpoint_frequency": 500,
+      "device_priority": ["mps", "cuda", "cpu"],
+      "mixed_precision": false,
+      "compile_model": false,
+      "seed": 42,
+      "deterministic": false
+    },
+    "architecture": {
+      "mamba_config": {
+        "d_model": 768,
+        "n_layers": 6,
+        "d_state": 16,
+        "d_conv": 4,
+        "expand": 2.0
+      },
+      "positional_config": {
+        "mode": "learned",
+        "max_len": 512,
+        "dropout": 0.05,
+        "learned_config": {
+          "embedding_dim": 768,
+          "max_position_embeddings": 512
+        }
+      },
+      "peft_config": {
+        "enabled": true,
+        "lora_config": {
+          "r": 32,
+          "lora_alpha": 64,
+          "lora_dropout": 0.05,
+          "target_modules": ["in_proj", "out_proj", "x_proj", "dt_proj"],
+          "bias": "none",
+          "task_type": "FEATURE_EXTRACTION",
+          "init_lora_weights": "gaussian"
+        },
+        "freeze_base": true,
+        "unfreeze_layers": ["out_proj"]
+      }
+    },
+    "loss_config": {
+      "loss_type": "anti_collapse",
+      "anti_collapse_config": {
+        "reconstruction_weight": 0.2,
+        "variance_weight": 0.1,
+        "triplet_weight": 0.4,
+        "reconstruction_type": "mse",
+        "target_std": 0.1,
+        "margin": 0.15
+      },
+      "analogy_weight": 0.7,
+      "margin_start": 0.05,
+      "margin_end": 0.20,
+      "margin_schedule": "linear",
+      "cosine_weight": 0.3,
+      "mse_weight": 0.3,
+      "contrastive_weight": 0.05,
+      "positive_clustering_weight": 0.02,
+      "orthogonality_weight": 0.02,
+      "arithmetic_weight": 0.08,
+      "temperature": 0.1,
+      "label_smoothing": 0.0,
+      "normalization_enforcement": {
+        "enabled": true,
+        "l2_penalty_weight": 0.003,
+        "cosine_similarity_threshold": 0.85,
+        "normalize_embeddings": false,
+        "stability_epsilon": 1e-8,
+        "unit_norm_final": true
+      }
+    },
+    "optimization": {
+      "optimizer": "AdamW",
+      "learning_rate": 8e-05,
+      "weight_decay": 0.01,
+      "gradient_clipping": 1.0,
+      "warmup_steps": 300,
+      "scheduler": "cosine",
+      "betas": [0.9, 0.95],
+      "eps": 1e-08,
+      "gradient_accumulation_steps": 2
+    },
+    "data": {
+      "batch_size": 16,
+      "sequence_length": 1,
+      "num_workers": 2,
+      "shuffle": true,
+      "drop_last": true,
+      "concept_databases": [
+        "data/databases/bats_768_training",
+        "data/databases/sat_analogies_768_training",
+        "data/databases/turney_lra_768_training",
+        "data/databases/hyperlex_768_training",
+        "data/databases/qa_training_triplets_768d"
+      ],
+      "database_weighting": {
+        "enabled": true,
+        "balance_factor": 0.9,
+        "rotation_cycle": 1000,
+        "weights": {
+          "bats_768_training": 0.5,
+          "sat_analogies_768_training": 0.2,
+          "turney_lra_768_training": 0.15,
+          "hyperlex_768_training": 0.1,
+          "qa_training_triplets_768d": 0.05
+        }
+      }
+    }
+  },
+  "mlflow": {
+    "experiment_name": "VMMoE_AnalogyFocused_v1p24",
+    "run_name": "analogy_focused_lora32_bats_heavy",
+    "run_name_prefix": "v1p24_analogy",
+    "tracking_uri": "sqlite:///mlflow.db",
+    "log_model": true,
+    "log_artifacts": true,
+    "tags": {
+      "version": "1.24",
+      "architecture": "VMMoE",
+      "focus": "analogical_reasoning",
+      "lora_rank": 32,
+      "primary_dataset": "BATS"
+    }
+  },
+  "outputs": {
+    "model_save_path": "output/vmmoe_analogy_focused_v1p24",
+    "logs_path": "output/logs",
+    "plots_path": "output/plots",
+    "checkpoints_path": "output/checkpoints"
+  },
+  "checkpointing": {
+    "resume_from_checkpoint": null,
+    "save_optimizer_state": true,
+    "save_scheduler_state": true,
+    "checkpoint_format": "pytorch"
+  },
+  "monitoring": {
+    "log_every_n_steps": 50,
+    "validate_every_n_steps": 250,
+    "log_gradients": false,
+    "log_learning_rate": true,
+    "log_loss_components": true,
+    "track_memory_usage": true
+  },
+  "evaluation": {
+    "validation_split": 0.15,
+    "metrics": [
+      "anchor_positive_distance",
+      "anchor_negative_distance",
+      "positive_negative_distance",
+      "triplet_accuracy",
+      "cosine_similarity_mean",
+      "reconstruction_loss"
+    ],
+    "save_predictions": true,
+    "compute_analogies": true,
+    "analogy_test_cases": [
+      {"anchor": "king", "relation": "queen", "query": "man", "expected": "woman"},
+      {"anchor": "paris", "relation": "france", "query": "london", "expected": "england"},
+      {"anchor": "hot", "relation": "cold", "query": "big", "expected": "small"}
+    ]
+  }
+}

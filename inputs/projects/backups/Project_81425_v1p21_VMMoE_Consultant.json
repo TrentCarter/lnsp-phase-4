@@ -1,0 +1,262 @@
+{
+  "project": {
+    "metadata": {
+      "id": "VMMoE_Consultant_V1p21",
+      "name": "VMMoE Consultant Training v1.21 - Autoencoder First Strategy",
+      "description": "CONSULTANT FIX: Deeper architecture (6 layers) + reconstruction priority (0.7 weight) + higher LR to escape collapse",
+      "version": "1.21.0",
+      "created_date": "2025-08-17",
+      "training_date": "2025-08-17T22:xx",
+      "notes": "Consultant strategy: Learn autoencoder identity function first (0.7 recon), then add metric learning (0.2 triplet). 6 layers for complexity."
+    },
+    "model": "sentence-transformers/gtr-t5-base",
+    "local_model_path": "data/teacher_models/gtr-t5-base"
+  },
+  "training": {
+    "architecture": {
+      "mamba_config": {
+        "d_model": 768,
+        "n_layers": 6,
+        "d_state": 16,
+        "d_conv": 4,
+        "expand": 2.0,
+        "dt_rank": "auto",
+        "dt_min": 0.001,
+        "dt_max": 0.1,
+        "dt_init": "xavier",
+        "dt_scale": 1.0,
+        "bias": false,
+        "conv_bias": true,
+        "dropout": 0.1,
+        "layer_norm_epsilon": 1e-5
+      },
+      "positional_config": {
+        "mode": "learned",
+        "max_len": 512,
+        "dropout": 0.05,
+        "learned_config": {
+          "embedding_dim": 768,
+          "max_position_embeddings": 512
+        }
+      },
+      "peft_config": {
+        "enabled": true,
+        "lora_config": {
+          "r": 32,
+          "lora_alpha": 64,
+          "lora_dropout": 0.05,
+          "target_modules": ["in_proj", "out_proj", "x_proj", "dt_proj"],
+          "bias": "none",
+          "task_type": "FEATURE_EXTRACTION",
+          "init_lora_weights": "gaussian"
+        },
+        "freeze_base": true,
+        "unfreeze_layers": ["out_proj"]
+      }
+    },
+    "loss_config": {
+      "loss_type": "anti_collapse",
+      "anti_collapse_config": {
+        "reconstruction_weight": 0.7,
+        "variance_weight": 0.1,
+        "triplet_weight": 0.2,
+        "reconstruction_type": "mse",
+        "target_std": 0.1,
+        "margin": 0.15
+      },
+      "margin_start": 0.05,
+      "margin_end": 0.20,
+      "margin_schedule": "linear",
+      "cosine_weight": 0.4,
+      "mse_weight": 0.5,
+      "contrastive_weight": 0.03,
+      "positive_clustering_weight": 0.02,
+      "orthogonality_weight": 0.02,
+      "arithmetic_weight": 0.05,
+      "temperature": 0.1,
+      "label_smoothing": 0.0,
+      "normalization_enforcement": {
+        "enabled": true,
+        "l2_penalty_weight": 0.003,
+        "cosine_similarity_threshold": 0.85,
+        "normalize_embeddings": false,
+        "stability_epsilon": 1e-8,
+        "unit_norm_final": true
+      }
+    },
+    "optimization": {
+      "optimizer": "AdamW",
+      "learning_rate": 1e-04,
+      "weight_decay": 0.01,
+      "gradient_clipping": 1.0,
+      "warmup_steps": 300,
+      "scheduler": "cosine",
+      "betas": [0.9, 0.95],
+      "eps": 1e-08,
+      "gradient_accumulation_steps": 2
+    },
+    "data": {
+      "batch_size": 16,
+      "sequence_length": 16,
+      "num_workers": 2,
+      "shuffle": true,
+      "drop_last": true,
+      "concept_databases": [
+        "data/databases/sat_analogies_768_training",
+        "data/databases/turney_lra_768_training",
+        "data/databases/bats_768_training",
+        "data/databases/hyperlex_768_training",
+        "data/databases/qa_training_triplets_768d"
+      ],
+      "database_weighting": {
+        "enabled": true,
+        "balance_factor": 0.8,
+        "rotation_cycle": 1000,
+        "weights": {
+          "sat_analogies_768_training": 0.25,
+          "turney_lra_768_training": 0.25,
+          "bats_768_training": 0.25,
+          "hyperlex_768_training": 0.15,
+          "qa_training_triplets_768d": 0.10
+        }
+      },
+      "augmentation": {
+        "enabled": true,
+        "noise_std": 0.01,
+        "dropout_prob": 0.05,
+        "mixup_alpha": 0.2
+      }
+    },
+    "training_params": {
+      "epochs": 3,
+      "steps_per_epoch": 1000,
+      "validation_frequency": 1,
+      "checkpoint_frequency": 200,
+      "device_priority": [
+        "mps",
+        "cuda",
+        "cpu"
+      ],
+      "seed": 42,
+      "deterministic": false,
+      "mixed_precision": false
+    },
+    "early_stopping": {
+      "enabled": true,
+      "patience": 3,
+      "min_delta": 0.001,
+      "monitor": "val/reconstruction_cosine",
+      "mode": "max",
+      "min_epochs": 1,
+      "verbose": true,
+      "restore_best_weights": true,
+      "additional_criteria": {
+        "min_reconstruction_cos": 0.85,
+        "min_batch_std": 0.05,
+        "max_d_ap": 0.05,
+        "min_d_an": 0.10,
+        "max_overfit_ratio": 3.0
+      },
+      "intra_epoch": {
+        "enabled": true,
+        "min_cos_similarity": 0.80,
+        "max_norm_ratio": 3.0,
+        "degradation_patience": 5,
+        "min_degradation_threshold": 0.03,
+        "positive_clustering_threshold": 0.0,
+        "generalization_threshold": 0.30,
+        "collapse_detection": {
+          "enabled": true,
+          "min_pairwise_distance": 0.01,
+          "max_identical_outputs": 0.1
+        }
+      }
+    },
+    "regularization": {
+      "dropout": 0.1,
+      "attention_dropout": 0.05,
+      "weight_decay": 0.01,
+      "gradient_noise": {
+        "enabled": true,
+        "eta": 0.01,
+        "gamma": 0.55
+      },
+      "stochastic_depth": {
+        "enabled": false,
+        "drop_rate": 0.1
+      }
+    }
+  },
+  "mlflow": {
+    "tracking_uri": "sqlite:///mlflow.db",
+    "experiment_name": "VMMoE_Consultant_V1p21",
+    "run_name": "autoencoder_first_strategy",
+    "run_name_prefix": "v1p21_consultant",
+    "tags": {
+      "model_type": "VMMoE",
+      "version": "1.21",
+      "architecture": "6-layer",
+      "loss": "anti_collapse",
+      "strategy": "autoencoder_first",
+      "reconstruction_weight": "0.7",
+      "triplet_weight": "0.2",
+      "layers": "6",
+      "expand": "2.0",
+      "learning_rate": "1e-04"
+    },
+    "log_frequency": 10,
+    "log_gradients": false,
+    "log_model": true,
+    "log_artifacts": true
+  },
+  "outputs": {
+    "model_save_path": "output/vmmoe_consultant_v1p21",
+    "log_dir": "output/logs",
+    "tensorboard_dir": "output/tensorboard/vmmoe_v1p21",
+    "save_best_only": false,
+    "save_last": true,
+    "save_frequency": 500,
+    "num_checkpoints_to_keep": 5
+  },
+  "checkpointing": {
+    "enabled": true,
+    "save_best_only": false,
+    "save_last": true,
+    "checkpoint_frequency": 200,
+    "num_checkpoints_to_keep": 5,
+    "monitor": "val/reconstruction_cosine",
+    "mode": "max"
+  },
+  "monitoring": {
+    "enabled": true,
+    "metrics": [
+      "loss",
+      "d_ap",
+      "d_an",
+      "reconstruction_cosine",
+      "reconstruction_mse",
+      "batch_std",
+      "mean_pairwise_distance",
+      "variance_loss",
+      "triplet_loss",
+      "reconstruction_loss"
+    ],
+    "visualization": {
+      "enabled": true,
+      "frequency": 500,
+      "plot_embeddings": true,
+      "plot_gradients": false,
+      "plot_attention": false,
+      "collapse_detection_plots": true,
+      "autoencoder_quality_plots": true
+    }
+  },
+  "evaluation": {
+    "validation_split": 0.1,
+    "metrics": ["loss", "cosine_similarity", "euclidean_distance", "reconstruction_quality"],
+    "visualization": {
+      "enabled": true,
+      "frequency": 500
+    }
+  }
+}

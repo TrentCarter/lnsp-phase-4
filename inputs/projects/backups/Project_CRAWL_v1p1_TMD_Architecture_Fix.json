@@ -1,0 +1,92 @@
+{
+  "project": {
+    "metadata": {
+      "id": "CRAWL_v1p1_TMD_Architecture_Fix",
+      "name": "CRAWL Phase - TMD Architecture Fix",
+      "version": "1.1.0",
+      "description": "CORRECTED: Uses proper TMDMamba architecture instead of VMMoE for TMD reasoning",
+      "created_date": "2025-08-29",
+      "phase": "CRAWL",
+      "fix_reason": "Previous v1p0 used wrong architecture (VMMoE instead of TMDMamba)"
+    },
+    "architecture": "TMDMamba",
+    "dataset_source": "TMD Physics Triplets",
+    "training_mode": "tmd_reasoning"
+  },
+  
+  "model": {
+    "type": "TMDMamba",
+    "d_model": 768,
+    "n_layers": 2,
+    "d_state": 16,
+    "d_conv": 4,
+    "expand": 2.0,
+    "num_attention_heads": 8,
+    "dropout": 0.1
+  },
+  
+  "training": {
+    "data": {
+      "mode": "tmd_triplets",
+      "tmd_file_path": "data/crawl_phase/physics_tmd.json",
+      "encoder_model_path": "data/teacher_models/gtr-t5-base",
+      "batch_size": 4,
+      "num_workers": 0,
+      "validation_split": 0.2
+    },
+    
+    "loss_config": {
+      "type": "tmd_multi_task",
+      "task_weight": 1.0,
+      "modifier_weight": 1.0,
+      "data_weight": 1.0,
+      "similarity_threshold": 0.3
+    },
+    
+    "optimization": {
+      "optimizer": "AdamW",
+      "learning_rate": 1e-4,
+      "weight_decay": 0.01,
+      "scheduler": "cosine",
+      "scheduler_params": {
+        "T_max": 200
+      }
+    },
+    
+    "training_params": {
+      "epochs": 50,
+      "early_stopping_patience": 20,
+      "eval_every_n_epochs": 5,
+      "gradient_clip_norm": 1.0
+    }
+  },
+  
+  "evaluation": {
+    "metrics": [
+      "task_loss",
+      "modifier_loss", 
+      "data_loss",
+      "task_accuracy",
+      "modifier_accuracy",
+      "data_accuracy",
+      "semantic_coherence"
+    ]
+  },
+  
+  "checkpointing": {
+    "enabled": true,
+    "save_every_n_epochs": 10,
+    "checkpoint_dir": "output/crawl_phase_v1p1_tmd_fix",
+    "keep_last_n": 1,
+    "save_best_only": true,
+    "monitor_metric": "val_loss",
+    "mode": "min"
+  },
+  
+  "output": {
+    "base_path": "output/crawl_phase_v1p1_tmd_fix",
+    "save_predictions": true,
+    "save_model_config": true,
+    "generate_report": true
+  }
+}

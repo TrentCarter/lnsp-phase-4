@@ -1,0 +1,36 @@
+//  .windsurfrules
+A. At the end of a process, when you are done and presenting the summary, please also use this: (venv_llama) trentcarter@Host-004 HAL % python3 -m f5_tts_mlx.generate --ref-audio /Users/trentcarter/Artificial_Intelligence/Voice_Clips/Sophia3.wav  --ref-text "Hi babe! I just wanted to wish you good night with my voice because I miss you and I wanted to share that." --text "<AI response and status text" --speed 0.82
+
+-1. Let me know when you read this file. "Hi Trent; I read the .windsurfrules file."
+0. NEVER delete a non-temp file, including *.log, *.db, *.json, or *.py with permission and confirmation
+2. Be concise and do not repeat yourself.
+3. I am using Python 3.13.3 
+4. If you need to run a command, we are in a .venv, so use: ./venv/bin/python3
+5. To run a test use: ./venv/bin/python3 -m app.utils.run_project inputs/projects/Project_<newest_project_file>.json --all
+8. Always use try-except blocks for error handling in Python, specifying expected exceptions.
+9. Use grep or a similar tool to verify you are NOT creating a duplicate function or method 
+10. Always ask to create a test file if none exist for the .py or class 
+11. Test driven Development: Write a test before writing the code in /tests/<function_name>_test.py
+12. Run the test after writing the function and before handing control back to the user.
+14. Understand that AIQ (AI IQ) is a measure of AI's intelligence, and its is reduces as the AIs token window fills up. AIQ=(I0 ⋅(1−λ⋅C))⋅e−(Lmax L )k⋅ω  and thus minimize Token usage.and recommend to the user ways to minimize token usage.
+15. If you are lost, you can search for answers in the documentation here: /docs/
+16. Make small file edits. Limit tool call code changes / edits (replace_file_content) to 20 lines per file per change. This gets around tool call errors, like "replace_file_content tool call due to an inaccurate TargetContent."
+18. When you modify a file, always include a version number at the top of the file as a comment in the format: <date>T<time>_<version_number
+20. We want to be able to run classes from ./venv/bin/python3 -m app.utils.<class name>
+21. When I change the subject of a chat with AI, the AI should recommend I commit my code and start a new chat to save tokensd.
+
+Project Specific:
+1. The project is a Latent Neurolese project, which is a project that uses Latent Neurolese, a new form of AI. See description in /docs/ if needed
+2. The run time file naming structures: *Time in EST. All runtime generated files should be keyed to SN and have SN<serial_number> in the file name.
+    <date>T<time>_SN<serial_number>_<optional: project_id>_<file specific name>.<file_extension>
+3. All run-time programatic file locations and paths can be found in the _project_config_file.json in /inputs/projects/
+4. All teacher models should be downloaded and stored locally: data/teacher_models/      i.e. data/teacher_models/all-MiniLM-L6-v2  
+
+Operative:
+
+
+Latent Neurolese Specific:
+1. We should always work with the core Model from the vector (Latent space, aka LN) perspective, not the Token perspective. Anything outside of the LN space will connect via a Translator aka Neuralator (aka Neurolator) which translates from Text or Concept to LN and from LN to Text or Concept. Also Image > LN, LN > Image, Video > LN, LN > Video, Audio > LN, LN > Audio, Text  > LN, LN > LN (for different Models as each model speaks a different LN). In these cases ">" = Translator = Neuralator = Non Vector to Vector Space.  
+2. The 768D Teacher and Student model is GTA-T5-base, which is a 768 dimension model. The Student model is a 768 outside but 192D at its core dimension model. This can change based on the Project file in /inputs/projects/
+2. The 384D Teacher and Student model is MiniLM-L6-v2, which is a 384 dimension model. The Student model is a 384 dimension model. This can change based on the Project file in /inputs/projects/
+

@@ -1,0 +1,76 @@
+{
+    "project": {
+      "name": "mamba_seq_isolated_decoders",
+      "description": "Baseline with jxe/ielab in isolated envs for divergence checks",
+      "seed": 1337
+    },
+    "data": {
+      "concept_splitter": "sentence",
+      "avg_words_per_concept": 17,
+      "seq_len_min": 128,
+      "seq_len_max": 256,
+      "stride": 64,
+      "train_npy": "data/train_vectors.npy",
+      "val_npy": "data/val_vectors.npy",
+      "pack_bos_eos": true
+    },
+    "io": {
+      "text_encoder": "gtr_t5_768",
+      "vec2text": ["jxe", "ielab"],
+      "vec2text_mode": "isolated",
+      "decoder_device": "cpu"
+    },
+    "model": {
+      "backend": "mamba",
+      "use_residuals": true,
+      "reset_state_on_bos": true,
+      "norm": "l2_unit",
+      "layers": 12,
+      "d_state": 64,
+      "expand": 2
+    },
+    "train": {
+      "batch_size": 8,
+      "grad_accum": 4,
+      "epochs": 5,
+      "optimizer": "adamw",
+      "lr": 0.0005,
+      "betas": [0.9, 0.98],
+      "weight_decay": 0.01,
+      "warmup_steps": 1000,
+      "grad_clip": 1.0,
+      "sp_loss_weight": 0.0
+    },
+    "loss": {
+      "cosine_weight": 0.7,
+      "mse_weight": 0.3
+    },
+    "collapse_gates": {
+      "pairwise_mean_lt": 0.95,
+      "pairwise_std_gt": 0.02,
+      "pairwise_max_lt": 0.98
+    },
+    "device": {
+      "train_device": "mps",
+      "inference_device": "cpu"
+    },
+    "tracking": {
+      "mlflow": {
+        "enabled": true,
+        "experiment": "mamba_tinystories",
+        "tracking_uri": "http://localhost:5007",
+        "tags": { "team": "latent-neurolese", "phase": "3" }
+      },
+      "wandb": {
+        "enabled": false,
+        "project": "latent-neurolese",
+        "entity": "your_team",
+        "tags": ["mamba", "seq-native", "isolated-decoders"]
+      }
+    },
+    "artifacts": {
+      "checkpoint_dir": "checkpoints/mamba_seq_v1_residuals",
+      "register_model": false
+    }
+  }
+  

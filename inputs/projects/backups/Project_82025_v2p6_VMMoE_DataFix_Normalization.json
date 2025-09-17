@@ -1,0 +1,298 @@
+{
+  "project": {
+    "name": "VMMoE_v2p6_DataFix_Normalization",
+    "version": "2.6",
+    "description": "CRITICAL FIXES: Load all 43K vectors, strengthen normalization for vec2text compatibility, 15 epochs for convergence",
+    "timestamp": "2025-08-25T00:00:00",
+    "author": "AI Assistant + User",
+    "tags": ["VMMoE", "concept_sequences", "data_fix", "normalization_fix", "15_epochs"],
+    "metadata": {
+      "id": "v2p6_data_norm_fix",
+      "experiment_type": "production_training",
+      "baseline": "v2p5_quick_validation",
+      "key_innovations": [
+        "removed_max_vectors_limit_to_load_all_43488_vectors",
+        "strengthened_normalization_for_vec2text_compatibility",
+        "added_reconstruction_loss_to_maintain_decodability",
+        "increased_epochs_to_15_for_better_convergence",
+        "adjusted_learning_rate_for_stability"
+      ],
+      "critical_fixes": {
+        "data_loading": "No max_vectors limit - loads all 43,488 vectors",
+        "normalization": "Unit norm final enabled + stronger L2 penalty",
+        "reconstruction": "Added 0.2 weight to maintain GTR-T5 space compatibility",
+        "cosine_preservation": "Added 0.1 weight to prevent aggressive transformation"
+      },
+      "expected_outcomes": [
+        "all_43488_vectors_loaded_and_used",
+        "vmmoe_output_norm_near_1.0",
+        "vec2text_compatibility_maintained",
+        "coherent_cascade_outputs",
+        "20_percent_next_concept_accuracy"
+      ],
+      "data_stats": {
+        "sequences": 1986,
+        "total_concepts": 43488,
+        "vectors": 43488,
+        "faiss_index": "20250822T114404_SN002588_concept_sequences_768.idx"
+      }
+    }
+  },
+  "training": {
+    "patience": 5,
+    "min_delta": 0.0005,
+    "save_every_n_epochs": 1,
+    "early_stopping_metric": "val/total_loss",
+    "early_stopping_mode": "min",
+    "early_stopping_patience": 5,
+    "force_full_epochs": true,
+    "training_params": {
+      "batch_size": 16,
+      "num_workers": 4,
+      "epochs": 15,
+      "steps_per_epoch": null,
+      "validation_frequency": 1,
+      "checkpoint_frequency": 100,
+      "device_priority": ["mps", "cuda", "cpu"],
+      "mixed_precision": false,
+      "gradient_checkpointing": false,
+      "gradient_accumulation_steps": 1,
+      "max_grad_norm": 1.0,
+      "warmup_steps": 100,
+      "log_every_n_steps": 10,
+      "progress_bar": true,
+      "enable_profiling": false,
+      "deterministic": false,
+      "benchmark": true,
+      "optimizer": "AdamW"
+    },
+    "optimizer": {
+      "type": "AdamW",
+      "optimizer": "AdamW",
+      "learning_rate": 5e-5,
+      "lr": 5e-5,
+      "betas": [0.9, 0.999],
+      "eps": 1e-8,
+      "weight_decay": 0.01,
+      "amsgrad": false,
+      "foreach": true,
+      "maximize": false,
+      "capturable": false,
+      "differentiable": false,
+      "fused": false
+    },
+    "scheduler": {
+      "type": "CosineAnnealingLR",
+      "T_max": 500,
+      "eta_min": 1e-6,
+      "last_epoch": -1,
+      "verbose": false
+    },
+    "loss_config": {
+      "loss_type": "next_concept_prediction",
+      "type": "sequence_prediction",
+      "prediction_loss_weight": 0.7,
+      "reconstruction_loss_weight": 0.2,
+      "cosine_similarity_weight": 0.1,
+      "cross_entropy_weight": 0.7,
+      "coherence_weight": 0.05,
+      "label_smoothing": 0.1,
+      "ignore_index": -100,
+      "reduction": "mean",
+      "temperature": 0.5,
+      "margin": 0.1,
+      "normalization_enforcement": {
+        "enabled": true,
+        "unit_norm_final": true,
+        "l2_penalty_weight": 0.01,
+        "cosine_similarity_threshold": 0.02,
+        "normalize_embeddings": true,
+        "stability_epsilon": 1e-8
+      },
+      "anti_collapse_config": {
+        "enabled": true,
+        "reconstruction_weight": 0.2,
+        "cosine_preservation_weight": 0.1
+      }
+    },
+    "optimization": {
+      "optimizer": "AdamW",
+      "learning_rate": 5e-5,
+      "weight_decay": 0.01,
+      "gradient_clipping": 1.0,
+      "warmup_steps": 100,
+      "scheduler": "cosine",
+      "eta_min": 1e-6,
+      "betas": [0.9, 0.999],
+      "eps": 1e-8,
+      "gradient_accumulation_steps": 1
+    },
+    "data": {
+      "sequence_mode": true,
+      "sequence_length": 32,
+      "batch_size": 16,
+      "num_workers": 4,
+      "shuffle": true,
+      "drop_last": true,
+      "data_type": "concept_sequences",
+      "max_vectors": null,
+      "load_all_sequences": true,
+      "sequence_sampling": "full",
+      "concept_sequence_databases": [
+        "data/databases/concept_sequences_768_vectors"
+      ],
+      "sequence_metadata_db": "data/databases/concept_sequences_metadata.db",
+      "faiss_index_path": "data/databases/concept_sequences_768_vectors/20250822T114404_SN002588_concept_sequences_768.idx",
+      "database_config": {
+        "path": "data/databases/concept_sequences_768_vectors",
+        "max_sequences": null,
+        "load_all": true
+      },
+      "sequence_packing": {
+        "enabled": true,
+        "max_sequences_per_batch": 16,
+        "padding_strategy": "longest",
+        "truncation_strategy": "longest_first",
+        "pack_efficiency_target": 0.8
+      },
+      "validation_split": 0.1,
+      "test_split": 0.05
+    },
+    "architecture": {
+      "model_type": "MambaLMHeadModel",
+      "mamba_config": {
+        "d_model": 768,
+        "n_layers": 8,
+        "d_state": 16,
+        "d_conv": 4,
+        "expand": 1.0,
+        "bidirectional": false,
+        "norm_type": "rmsnorm",
+        "norm_eps": 1e-5,
+        "ssm_activation": "silu",
+        "gated": true
+      },
+      "output_projection": {
+        "enabled": true,
+        "hidden_dim": 768,
+        "activation": "gelu",
+        "dropout": 0.1,
+        "normalize_output": true
+      },
+      "base_model": "state-spaces/mamba-130m",
+      "hidden_size": 768,
+      "intermediate_size": 1536,
+      "num_hidden_layers": 24,
+      "vocab_size": 50280,
+      "state_size": 16,
+      "num_heads": 1,
+      "head_dim": null,
+      "use_bias": false,
+      "use_conv_bias": true,
+      "conv_kernel": 4,
+      "expand_factor": 2,
+      "dt_rank": "auto",
+      "dt_min": 0.001,
+      "dt_max": 0.1,
+      "dt_init": "random",
+      "dt_scale": 1.0,
+      "dt_init_floor": 1e-4,
+      "rms_norm": true,
+      "norm_epsilon": 1e-5,
+      "tie_word_embeddings": true,
+      "pad_token_id": 50256,
+      "bos_token_id": 50256,
+      "eos_token_id": 50256,
+      "prediction_head": {
+        "type": "linear",
+        "input_dim": 768,
+        "output_dim": 768,
+        "bias": false,
+        "activation": "gelu",
+        "dropout": 0.1,
+        "layer_norm": true,
+        "residual": true,
+        "normalize_output": true
+      },
+      "peft_config": null,
+      "freeze_base": false,
+      "positional_config": {
+        "type": "learned",
+        "mode": "learned",
+        "max_length": 512,
+        "embedding_dim": 768
+      },
+      "sequence_config": {
+        "max_length": 32,
+        "sequence_length": 32
+      }
+    },
+    "checkpoint_dir": "output/vmmoe_data_norm_fix_v2p6",
+    "experiment_name": "vmmoe_data_norm_fix_v2p6",
+    "run_name": "v2p6_15epoch_all_vectors"
+  },
+  "mlflow": {
+    "enabled": true,
+    "tracking_uri": "sqlite:///mlflow.db",
+    "experiment_name": "vmmoe_data_norm_fix_v2p6",
+    "run_name": "v2p6_15epoch_all_vectors",
+    "run_name_prefix": "v2p6_fix",
+    "log_models": true,
+    "log_metrics": true,
+    "log_params": true,
+    "log_artifacts": true,
+    "log_system_metrics": true,
+    "log_input_examples": false,
+    "log_metrics_frequency": 1,
+    "registered_model_name": null,
+    "tags": {
+      "version": "v2p6",
+      "type": "production_training",
+      "epochs": "15",
+      "purpose": "fix_data_loading_and_normalization",
+      "vectors": "43488",
+      "critical_fixes": "data_loading_normalization_reconstruction"
+    }
+  },
+  "evaluation": {
+    "validation_split": 0.1
+  },
+  "checkpointing": {
+    "checkpoint_dir": "output/vmmoe_data_norm_fix_v2p6",
+    "save_best": true,
+    "embed_config": true
+  },
+  "model": {
+    "vmmoe": {
+      "enabled": true,
+      "num_experts": 8,
+      "expert_dim": 768,
+      "gating": {
+        "type": "top_k",
+        "k": 2,
+        "noise_epsilon": 0.01,
+        "capacity_factor": 1.25,
+        "drop_tokens": false,
+        "use_rts": false,
+        "use_tutel": false,
+        "moe_eval_capacity_factor": 1.0,
+        "moe_min_capacity": 4,
+        "gate_logits_norm": false,
+        "gating_temperature": 1.0
+      }
+    },
+    "normalization_enforcement": {
+      "enabled": true,
+      "unit_norm_final": true,
+      "target_norm": 1.0,
+      "norm_penalty_weight": 0.01,
+      "norm_epsilon": 1e-6,
+      "enforce_during_training": true,
+      "enforce_during_inference": true,
+      "norm_type": "l2",
+      "clamp_norm": true,
+      "clamp_min": 0.9,
+      "clamp_max": 1.1
+    }
+  }
+}

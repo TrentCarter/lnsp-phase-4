@@ -1,0 +1,191 @@
+{
+  "project": {
+    "metadata": {
+      "id": "Project_v1p0_VMamba_768D",
+      "name": "Vector Mamba Mixture of Experts - Token-Free Architecture",
+      "description": "768D GTR-T5-Base Vector-native Mamba with SSM dynamics, starting with mono-expert then scaling to 16 domain experts",
+      "version": "1.0.0_VMamba_768D",
+      "created_date": "2025-08-13",
+      "pipeline_type": "vector_mamba_moe",
+      "architecture_type": "mamba_ssm_with_moe"
+    },
+    "model": "sentence-transformers/gtr-t5-base",
+    "local_model_path": "data/teacher_models/gtr-t5-base"
+  },
+  "training": {
+    "architecture": {
+      "model_type": "vector_mamba_moe",
+      "input_dim": 768,
+      "output_dim": 768,
+      "vector_native": true,
+      "token_free": true,
+      "mamba_config": {
+        "d_model": 768,
+        "n_layers": 12,
+        "d_state": 16,
+        "d_conv": 4,
+        "expand": 2.0,
+        "dt_rank": "auto",
+        "dt_min": 0.001,
+        "dt_max": 0.1,
+        "dt_init": "random",
+        "dt_scale": 1.0,
+        "bias": false,
+        "conv_bias": true,
+        "use_fast_path": true
+      },
+      "moe_config": {
+        "num_experts": 1,
+        "target_experts": 16,
+        "top_k": 1,
+        "target_top_k": 2,
+        "expert_capacity": 1.25,
+        "load_balancing_weight": 0.01,
+        "router_temperature": 1.0,
+        "domain_boost": 2.0
+      },
+      "positional_config": {
+        "mode": "learned",
+        "max_len": 4096,
+        "alternatives": ["none", "rope"]
+      },
+      "domains": [
+        "science_math",
+        "programming",
+        "general_knowledge",
+        "social_reasoning",
+        "creative",
+        "technical_docs",
+        "conversational",
+        "analytical",
+        "factual",
+        "procedural",
+        "conceptual",
+        "medical",
+        "legal",
+        "business",
+        "philosophical",
+        "linguistic"
+      ]
+    },
+    "loss_config": {
+      "loss_type": "triplet",
+      "margin_start": 0.2,
+      "margin_end": 0.5,
+      "margin_schedule": "linear",
+      "cosine_weight": 0.7,
+      "mse_weight": 0.2,
+      "contrastive_weight": 0.1,
+      "orthogonality_weight": 0.01,
+      "load_balancing_weight": 0.01
+    },
+    "optimization": {
+      "optimizer": "AdamW",
+      "learning_rate": 1e-5,
+      "weight_decay": 0.05,
+      "gradient_clipping": 1.0,
+      "warmup_steps": 1000,
+      "scheduler": "cosine",
+      "scheduler_patience": 10,
+      "scheduler_factor": 0.5
+    },
+    "data": {
+      "batch_size": 8,
+      "sequence_length": 32,
+      "max_sequence_length": 512,
+      "num_workers": 0,
+      "shuffle": true,
+      "drop_last": true,
+      "concept_databases": [
+        "data/databases/concept_vector_db_768_training"
+      ],
+      "database_mode": "read_only",
+      "triplet_generation": {
+        "mode": "domain_aware",
+        "negative_sampling": "hard",
+        "positive_augmentation": true
+      }
+    },
+    "training_params": {
+      "epochs": 2,
+      "steps_per_epoch": 10,
+      "validation_frequency": 5,
+      "checkpoint_frequency": 10,
+      "early_stopping_patience": 20,
+      "mixed_precision": true,
+      "device_priority": ["mps", "cuda", "cpu"]
+    }
+  },
+  "evaluation": {
+    "metrics": [
+      "retrieval_at_1",
+      "retrieval_at_5",
+      "retrieval_at_10",
+      "mean_cosine_similarity",
+      "triplet_accuracy",
+      "domain_accuracy"
+    ],
+    "validation_split": 0.1,
+    "test_split": 0.1,
+    "evaluation_batch_size": 64
+  },
+  "mlflow": {
+    "tracking_uri": "http://localhost:5006",
+    "experiment_name": "vmmoe_development",
+    "run_name_prefix": "vmmoe_mono_expert",
+    "log_models": true,
+    "log_metrics_frequency": 10,
+    "log_gradients": true,
+    "log_parameters": true,
+    "artifact_location": "output/vmmoe/mlflow"
+  },
+  "checkpointing": {
+    "checkpoint_dir": "output/vmmoe",
+    "naming_pattern": "{date}T{time}_SN{serial}_VMamba_{epoch}.pth",
+    "save_best": true,
+    "save_last": true,
+    "max_checkpoints": 10,
+    "embed_config": true,
+    "metadata_to_save": [
+      "project_config",
+      "training_state",
+      "optimizer_state",
+      "scheduler_state",
+      "metrics_history"
+    ]
+  },
+  "infrastructure": {
+    "device": "auto",
+    "device_map": {
+      "mps": "mps",
+      "cuda": "cuda:0",
+      "cpu": "cpu"
+    },
+    "memory_fraction": 0.9,
+    "pin_memory": true,
+    "benchmark": true,
+    "deterministic": false,
+    "seed": 42
+  },
+  "expansion": {
+    "expansion_phase": 4,
+    "clustering_method": "kmeans",
+    "clustering_samples": 10000,
+    "expert_initialization": "from_clusters",
+    "router_pretraining_epochs": 2,
+    "fine_tuning_epochs": 50,
+    "freeze_experts_initially": true
+  },
+  "production": {
+    "export_formats": ["torchscript", "onnx"],
+    "quantization": false,
+    "pruning": false,
+    "distillation": false,
+    "deployment_target": "local",
+    "serving_config": {
+      "max_batch_size": 128,
+      "timeout_ms": 5000,
+      "num_threads": 8
+    }
+  }
+}

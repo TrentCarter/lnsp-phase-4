@@ -1,0 +1,186 @@
+{
+  "project": {
+    "metadata": {
+      "id": "81425_v1p11_TEST_FAST",
+      "name": "VMMoE HyperLex FAST TEST - 5 MIN MAX",
+      "version": "1.11-test",
+      "description": "FAST TEST CONFIG - Runs in 5 minutes for quick validation",
+      "author": "VMMoE Team",
+      "created": "2025-08-16",
+      "tags": ["vmmoe", "test", "fast", "debug"]
+    },
+    "project_structure": {
+      "root": ".",
+      "inputs": "inputs",
+      "outputs": "output/test_fast",
+      "data": "data"
+    }
+  },
+  "pipeline": {
+    "stages": ["training"],
+    "parallel_execution": false,
+    "continue_on_failure": false
+  },
+  "training": {
+    "model_type": "VectorMambaMoE",
+    "architecture": {
+      "mamba_config": {
+        "d_model": 768,
+        "n_layers": 2,
+        "d_state": 16,
+        "d_conv": 4,
+        "expand": 2
+      },
+      "positional_config": {
+        "mode": "hybrid",
+        "max_len": 1024,
+        "learned_weight": 0.7,
+        "sinusoidal_weight": 0.3,
+        "temperature": 1.0,
+        "dropout": 0.05
+      },
+      "peft_config": {
+        "enabled": false,
+        "type": "lora",
+        "rank": 8,
+        "alpha": 16,
+        "dropout": 0.05,
+        "target_modules": ["linear_layers"]
+      }
+    },
+    "training_params": {
+      "epochs": 1,
+      "batch_size": 32,
+      "learning_rate": 5e-05,
+      "gradient_clip": 1.0,
+      "weight_decay": 0.01,
+      "warmup_steps": 10,
+      "device_priority": ["mps", "cuda", "cpu"],
+      "seed": 42,
+      "num_workers": 4,
+      "max_steps": 100,
+      "log_frequency": 10
+    },
+    "loss_config": {
+      "loss_type": "triplet",
+      "margin_start": 0.05,
+      "margin_end": 0.08,
+      "margin_schedule": "constant",
+      "cosine_weight": 0.6,
+      "mse_weight": 0.15,
+      "contrastive_weight": 0.2,
+      "orthogonality_weight": 0.002,
+      "temperature": 0.05,
+      "label_smoothing": 0.05,
+      "normalization_enforcement": {
+        "enabled": true,
+        "l2_penalty_weight": 0.001,
+        "cosine_similarity_threshold": 0.05,
+        "normalize_embeddings": true,
+        "stability_epsilon": 1e-8
+      }
+    },
+    "optimization": {
+      "optimizer": "AdamW",
+      "learning_rate": 5e-05,
+      "weight_decay": 0.01,
+      "gradient_clipping": 1.0,
+      "warmup_steps": 10,
+      "scheduler": "constant_with_warmup",
+      "betas": [0.9, 0.98],
+      "eps": 1e-08
+    },
+    "early_stopping": {
+      "enabled": true,
+      "metric": "anchor_positive_distance",
+      "patience": 3,
+      "min_delta": 0.002,
+      "mode": "min",
+      "stop_on_divergence": true,
+      "divergence_threshold": 0.5,
+      "max_epochs": 1
+    },
+    "data": {
+      "databases": [
+        {
+          "path": "data/databases/concept_vector_db_768_training.faiss",
+          "metadata_path": "data/databases/concept_vector_db_768_training_metadata.db",
+          "dimension": 768,
+          "type": "training",
+          "sampling_weight": 0.5
+        },
+        {
+          "path": "data/databases/hyperlex_768_training.faiss",
+          "metadata_path": "data/databases/hyperlex_768_training_metadata.db",
+          "dimension": 768,
+          "type": "training",
+          "sampling_weight": 0.5
+        }
+      ],
+      "multi_database": {
+        "enabled": true,
+        "sampling_strategy": "weighted",
+        "batch_rotation": true
+      },
+      "train_split": 0.9,
+      "val_split": 0.1,
+      "shuffle": true,
+      "prefetch_factor": 2
+    }
+  },
+  "output": {
+    "checkpoint_dir": "output/test_fast",
+    "log_dir": "output/test_fast/logs",
+    "visualization_dir": "output/test_fast/visualizations",
+    "save_frequency": 50,
+    "save_best_only": true,
+    "metrics": {
+      "track": ["loss", "triplet_loss", "anchor_positive_distance", "anchor_negative_distance"],
+      "log_frequency": 10,
+      "visualization": {
+        "enabled": true,
+        "types": ["loss_curves", "distance_distributions", "domain_clusters"],
+        "frequency": 50
+      }
+    },
+    "artifacts": {
+      "save_model": true,
+      "save_config": true,
+      "save_logs": true,
+      "mlflow": {
+        "enabled": true,
+        "experiment_name": "VMMoE_TEST_FAST",
+        "tracking_uri": "sqlite:///mlflow.db",
+        "artifact_location": "output/test/mlflow/artifacts"
+      }
+    }
+  },
+  "evaluation": {
+    "validation_split": 0.1,
+    "metrics": ["cosine_similarity", "triplet_accuracy"],
+    "eval_frequency": 1
+  },
+  "mlflow": {
+    "enabled": true,
+    "experiment_name": "VMMoE_TEST_FAST",
+    "run_name_prefix": "FastTest_5min",
+    "tracking_uri": "sqlite:///mlflow.db",
+    "artifact_location": "output/test/mlflow/artifacts",
+    "log_parameters": true,
+    "log_metrics_frequency": 1,
+    "log_models": false,
+    "log_artifacts": false
+  },
+  "checkpointing": {
+    "enabled": true,
+    "save_frequency": 50,
+    "max_checkpoints": 2,
+    "save_optimizer": false
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "handlers": ["console", "file"],
+    "file_path": "output/test_fast/training.log"
+  }
+}

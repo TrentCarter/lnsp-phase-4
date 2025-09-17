@@ -1,0 +1,171 @@
+{
+    "version": "1.0",
+    "documentation": {
+      "description": "Central configuration for all file paths and locations used in the Latent Neurolese project",
+      "usage": "This file should be loaded and referenced by all components that read or write files",
+      "maintenance": "When adding new file types or directories, add them here rather than hardcoding in Python files"
+    },
+    "timestamp_format": {
+      "date": "YYMMDD",
+      "time": "HHMMSS",
+      "timezone": "US/Eastern"
+    },
+    "file_management": {
+      "description": "Defines base directories, naming conventions, and file patterns for all system files",
+      "naming_convention": "{date}T{time}_{id}_{serial}_{project_id}_{descriptor}.{ext}",
+      "naming_convention_desc": "Standard naming convention for generated files. Variables: date=YYMMDD, time=HHMMSS, id=job_id, serial=SN number, project_id=project identifier",
+      "base_dirs": {
+        "description": "Base directories for different types of files",
+        "output": "output",
+        "data": "data", 
+        "logs": "output/logs",
+        "checkpoints": "output/test/checkpoints",
+        "results": "output/test/results",
+        "artifacts": "output/test/artifacts",
+        "images": "output/test/images",
+        "cache": "output/cache",
+        "testing_cache": "data/cached_testing_data",
+        "inputs": "inputs",
+        "mlflow": "output/test/mlflow",
+        "teacher_models": "data/teacher_models",
+
+        "teacher_model_all_minilm_l12_v2": "{file_management.base_dirs.teacher_models}/all-MiniLM-L12-v2",
+        "teacher_model_all_mpnet_base_v2": "{file_management.base_dirs.teacher_models}/all-mpnet-base-v2",
+        "teacher_model_all_minilm_l6_v2": "{file_management.base_dirs.teacher_models}/all-MiniLM-L6-v2"
+      },
+      "input_dirs": {
+        "description": "Directories containing input files used by the system",
+        "datasets": "{file_management.base_dirs.inputs}/datasets",
+        "templates": "{file_management.base_dirs.inputs}/templates",
+        "projects": "{file_management.base_dirs.inputs}/projects"
+      },
+      "file_patterns": {
+        "description": "Standardized patterns for different file types using variables from naming_convention",
+        "checkpoint": "{file_management.base_dirs.checkpoints}/{date}T{time}_{id}_SN{serial:06d}_checkpoint.pth",
+        "model_final": "{file_management.base_dirs.checkpoints}/{date}T{time}_{id}_SN{serial:06d}_{project_id}_model_final.pth",
+        "training_log": "{file_management.base_dirs.logs}/{date}T{time}_SN{serial:06d}_training.log",
+        "results_report": "{file_management.base_dirs.results}/{date}T{time}_SN{serial:06d}_{project_id}_report.json",
+        "validation_results": "{file_management.base_dirs.artifacts}/{date}T{time}_{id}_SN{serial:06d}_{validation_type}_results.json",
+        "ln_validation_results": "{file_management.base_dirs.artifacts}/{date}T{time}_SN{serial:06d}_{project_id}_ln_validation_results.json",
+        "test_results": "{file_management.base_dirs.artifacts}/{date}T{time}_{id}_SN{serial:06d}_{project_id}_test_results.json",
+        "validation_log": "{file_management.base_dirs.logs}/{date}T{time}_SN{serial:06d}_{validation_type}.log",
+        "embeddings_cache": "{file_management.base_dirs.cache}/{date}T{time}_{id}_SN{serial:06d}_embeddings.pkl",
+        "duplets": "{file_management.base_dirs.artifacts}/{date}T{time}_SN{serial:06d}_{dataset}_duplets.json",
+        "triplets": "{file_management.base_dirs.artifacts}/{date}T{time}_SN{serial:06d}_{dataset}_triplets.json",
+        "cached_triplets": "{file_management.base_dirs.cache}/{date}T{time}_SN{serial:06d}_cached_triplets_{param_hash}_{num_triplets}_{embedding_dim}.json",
+        "cached_triplets_metadata": "{file_management.base_dirs.cache}/{date}T{time}_SN{serial:06d}_cached_triplets_{param_hash}_metadata.json",
+        "semantic_gps_history": "{file_management.base_dirs.artifacts}/{date}T{time}_SN{serial:06d}_{project_id}_semantic_gps_history.json",
+        "testing_cached_duplets": "{file_management.base_dirs.testing_cache}/duplets_{samples}_{dataset_hash}.json",
+        "testing_cached_triplets": "{file_management.base_dirs.testing_cache}/triplets_{samples}_{dataset_hash}_{num_triplets}.json",
+        "training_loss_curve": "{file_management.base_dirs.images}/{date}T{time}_SN{serial:06d}_training_loss_curve.png",
+        "similarity_histogram": "{file_management.base_dirs.images}/{date}T{time}_SN{serial:06d}_similarity_hist.png",
+        "mlflow_metadata": "{file_management.base_dirs.mlflow}/{date}T{time}_SN{serial:06d}_{project_id}_mlflow.json"
+      }
+    },
+    "training": {
+      "description": "Configuration specific to training processes and outputs",
+      "outputs": {
+        "checkpoints_dir": "{file_management.base_dirs.checkpoints}",
+        "logs_dir": "{file_management.base_dirs.logs}",
+        "final_model": "{file_management.file_patterns.model_final}",
+        "training_log": "{file_management.file_patterns.training_log}",
+        "semantic_gps_history": "{file_management.file_patterns.semantic_gps_history}"
+      }
+    },
+    "testing": {
+      "description": "Configuration specific to testing and evaluation processes",
+      "outputs": {
+        "results_dir": "{file_management.base_dirs.results}",
+        "artifacts_dir": "{file_management.base_dirs.artifacts}",
+        "duplets": "{file_management.file_patterns.duplets}",
+        "comprehensive_results": "{file_management.file_patterns.results_report}",
+        "validation_results": "{file_management.file_patterns.validation_results}",
+        "validation_logs": "{file_management.file_patterns.validation_log}",
+        "ln_validation_results": "{file_management.file_patterns.ln_validation_results}",
+        "semantic_gps_history": "{file_management.file_patterns.semantic_gps_history}"
+      }
+    },
+    "pipeline": {
+      "description": "Configuration for the overall processing pipeline and execution parameters",
+      "optimization": {
+        "mixed_precision": false,
+        "gradient_accumulation": 1,
+        "dataloader_workers": 2,
+        "pin_memory": true
+      },
+      "cleanup": {
+        "intermediate_files": true,
+        "temp_directories": true,
+        "preserve_final_artifacts": true
+      },
+      "automated_analysis": {
+        "vector_diversity": {
+          "enabled": true,
+          "mode_collapse_detection": true,
+          "distribution_analysis": true
+        },
+        "training_stability": {
+          "enabled": true,
+          "loss_divergence_check": true,
+          "gradient_explosion_check": true,
+          "convergence_analysis": true
+        },
+        "performance_benchmarks": {
+          "enabled": true,
+          "baseline_comparison": true,
+          "efficiency_metrics": true,
+          "compression_quality": true
+        }
+      },
+      "quality_assurance": {
+        "pre_flight_checks": {
+          "config_validation": true,
+          "data_availability": true,
+          "dependency_check": true
+        },
+        "during_execution": {
+          "progress_monitoring": true,
+          "anomaly_detection": true,
+          "intermediate_validation": true
+        },
+        "post_execution": {
+          "results_validation": true,
+          "artifact_verification": true,
+          "performance_comparison": true,
+          "success_criteria_check": true
+        }
+      },
+      "notifications": {
+        "progress_updates": {
+          "enabled": true,
+          "frequency": "per_stage",
+          "include_metrics": true
+        },
+        "completion": {
+          "enabled": true,
+          "include_summary": true,
+          "include_pass_fail_status": true
+        },
+        "errors": {
+          "enabled": true,
+          "include_stack_trace": false,
+          "include_recovery_suggestions": true
+        }
+      },
+      "experimental_features": {
+        "dynamic_hyperparameter_tuning": true,
+        "automated_architecture_search": false,
+        "multi_domain_validation": true,
+        "ensemble_evaluation": false
+      }
+    },
+    "vector_db": {
+      "description": "Filename patterns and options for FAISS index and id-mapping files",
+      "index_filename": "faiss_index_{source_token}_{source_count}_{dim}d.idx",
+      "mapping_filename": "id_mapping_{source_token}_{source_count}_{dim}d.pkl",
+      "multi_source_token": "multi",
+      "unknown_source_token": "unknown",
+      "dimensions": [384, 768, 1024],
+      "mode_in_dirname": true
+    }
+  }

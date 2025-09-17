@@ -1,0 +1,308 @@
+{
+  "project": {
+    "name": "VMMoE_v2p10_ExtremePreservation",
+    "version": "2.10", 
+    "description": "EXTREME PRESERVATION FOCUS: Critical fix for aggressive transformation problem. Reduces prediction weight to 0.2, increases reconstruction to 0.6, targets 0.7 cosine similarity to achieve vec2text compatibility",
+    "timestamp": "2025-08-25T11:30:00",
+    "author": "AI Assistant + User",
+    "tags": ["VMMoE", "extreme_preservation", "cosine_0.7_target", "reconstruction_0.6", "cascade_fix"],
+    "metadata": {
+      "id": "v2p10_extreme_preservation",
+      "experiment_type": "preservation_focused_aggressive_fix",
+      "baseline": "v2p9_hybrid_optimization_preservation",
+      "critical_problem": "v2p9_still_0.043_cosine_aggressive_transformation_despite_hybrid",
+      "key_innovations": [
+        "extreme_preservation_prediction_0.2_vs_0.4_previous",
+        "reconstruction_weight_0.6_vs_0.4_previous_massive_increase",
+        "cosine_target_0.7_vs_0.6_previous_higher_compatibility",
+        "maintained_v2p9_performance_optimizations_sequence_12",
+        "unit_norm_final_true_normalization_enforcement",
+        "35_epochs_extended_for_preservation_convergence"
+      ],
+      "extreme_strategy": {
+        "theory": "Sacrifice some prediction accuracy for massive preservation gains",
+        "prediction_reduced": "0.2 weight allows model to focus less on next-token accuracy",
+        "reconstruction_increased": "0.6 weight forces model to preserve input similarity",
+        "cosine_target_increased": "0.7 target demands high semantic preservation",
+        "expected_tradeoff": "Lower prediction accuracy but compatible vector transformations"
+      },
+      "expected_outcomes": [
+        "vmmoe_cosine_greater_than_0.3_finally_achieved",
+        "cascade_warnings_eliminated_t5_vmmoe_vec2text",
+        "coherent_vmmoe_ielab_outputs_no_homoclasmic_nonsense",
+        "acceptable_prediction_accuracy_75_percent_plus",
+        "vec2text_compatibility_restored_across_cascade"
+      ],
+      "success_criteria": [
+        "vmmoe_output_cosine_greater_than_0.3_critical",
+        "no_cascade_warnings_in_pipeline_testing",
+        "ielab_coherent_text_after_vmmoe_transformation",
+        "training_convergence_below_4.5_acceptable_tradeoff"
+      ]
+    }
+  },
+  "training": {
+    "patience": 5,
+    "min_delta": 0.0005,
+    "save_every_n_epochs": 1,
+    "early_stopping_metric": "val/total_loss",
+    "early_stopping_mode": "min",
+    "early_stopping_patience": 10,
+    "force_full_epochs": true,
+    "training_params": {
+      "batch_size": 16,
+      "num_workers": 4,
+      "epochs": 35,
+      "steps_per_epoch": null,
+      "validation_frequency": 1,
+      "checkpoint_frequency": 100,
+      "device_priority": ["mps", "cuda", "cpu"],
+      "mixed_precision": false,
+      "gradient_checkpointing": false,
+      "gradient_accumulation_steps": 1,
+      "max_grad_norm": 1.0,
+      "warmup_steps": 150,
+      "log_every_n_steps": 10,
+      "progress_bar": true,
+      "enable_profiling": false,
+      "deterministic": false,
+      "benchmark": true,
+      "optimizer": "AdamW"
+    },
+    "optimizer": {
+      "type": "AdamW",
+      "optimizer": "AdamW",
+      "learning_rate": 2e-5,
+      "lr": 2e-5,
+      "betas": [0.9, 0.999],
+      "eps": 1e-8,
+      "weight_decay": 0.01,
+      "amsgrad": false,
+      "foreach": true,
+      "maximize": false,
+      "capturable": false,
+      "differentiable": false,
+      "fused": false
+    },
+    "scheduler": {
+      "type": "CosineAnnealingLR",
+      "T_max": 1050,
+      "eta_min": 1e-6,
+      "last_epoch": -1,
+      "verbose": false
+    },
+    "loss_config": {
+      "loss_type": "next_concept_prediction",
+      "type": "sequence_prediction",
+      "prediction_loss_weight": 0.2,
+      "reconstruction_loss_weight": 0.6,
+      "cosine_similarity_weight": 0.2,
+      "cross_entropy_weight": 0.2,
+      "coherence_weight": 0.02,
+      "label_smoothing": 0.1,
+      "ignore_index": -100,
+      "reduction": "mean",
+      "temperature": 0.3,
+      "margin": 0.05,
+      "cosine_similarity_target": 0.7,
+      "cosine_similarity_tolerance": 0.3,
+      "normalization_enforcement": {
+        "enabled": true,
+        "unit_norm_final": true,
+        "l2_penalty_weight": 0.015,
+        "cosine_similarity_threshold": 0.01,
+        "normalize_embeddings": true,
+        "stability_epsilon": 1e-8
+      },
+      "anti_collapse_config": {
+        "enabled": true,
+        "reconstruction_weight": 0.6,
+        "cosine_preservation_weight": 0.2,
+        "similarity_target": 0.7,
+        "similarity_tolerance": 0.25
+      }
+    },
+    "optimization": {
+      "optimizer": "AdamW",
+      "learning_rate": 2e-5,
+      "weight_decay": 0.01,
+      "gradient_clipping": 1.0,
+      "warmup_steps": 150,
+      "scheduler": "cosine",
+      "eta_min": 1e-6,
+      "betas": [0.9, 0.999],
+      "eps": 1e-8,
+      "gradient_accumulation_steps": 1
+    },
+    "data": {
+      "sequence_mode": true,
+      "sequence_length": 12,
+      "batch_size": 16,
+      "num_workers": 4,
+      "shuffle": true,
+      "drop_last": false,
+      "data_type": "concept_sequences",
+      "max_vectors": null,
+      "load_all_sequences": true,
+      "sequence_sampling": "full",
+      "concept_sequence_databases": [
+        "data/databases/concept_sequences_768_vectors"
+      ],
+      "sequence_metadata_db": "data/databases/concept_sequences_metadata.db",
+      "faiss_index_path": "data/databases/concept_sequences_768_vectors/20250822T114404_SN002588_concept_sequences_768.idx",
+      "database_config": {
+        "path": "data/databases/concept_sequences_768_vectors",
+        "max_sequences": null,
+        "load_all": true
+      },
+      "sequence_packing": {
+        "enabled": true,
+        "max_sequences_per_batch": 16,
+        "padding_strategy": "longest",
+        "truncation_strategy": "longest_first",
+        "pack_efficiency_target": 0.8
+      },
+      "validation_split": 0.1,
+      "test_split": 0.05
+    },
+    "architecture": {
+      "model_type": "MambaLMHeadModel",
+      "mamba_config": {
+        "d_model": 768,
+        "n_layers": 8,
+        "d_state": 16,
+        "d_conv": 4,
+        "expand": 1.0,
+        "bidirectional": false,
+        "norm_type": "rmsnorm",
+        "norm_eps": 1e-5,
+        "ssm_activation": "silu",
+        "gated": true
+      },
+      "output_projection": {
+        "enabled": true,
+        "hidden_dim": 768,
+        "activation": "gelu",
+        "dropout": 0.1,
+        "normalize_output": true,
+        "preserve_similarity": true
+      },
+      "base_model": "state-spaces/mamba-130m",
+      "hidden_size": 768,
+      "intermediate_size": 1536,
+      "num_hidden_layers": 24,
+      "vocab_size": 50280,
+      "state_size": 16,
+      "num_heads": 1,
+      "head_dim": null,
+      "use_bias": false,
+      "use_conv_bias": true,
+      "conv_kernel": 4,
+      "expand_factor": 2,
+      "dt_rank": "auto",
+      "dt_min": 0.001,
+      "dt_max": 0.1,
+      "dt_init": "random",
+      "dt_scale": 1.0,
+      "dt_init_floor": 1e-4,
+      "rms_norm": true,
+      "norm_epsilon": 1e-5,
+      "tie_word_embeddings": true,
+      "pad_token_id": 50256,
+      "bos_token_id": 50256,
+      "eos_token_id": 50256,
+      "prediction_head": {
+        "type": "linear",
+        "input_dim": 768,
+        "output_dim": 768,
+        "bias": false,
+        "activation": "gelu",
+        "dropout": 0.1,
+        "layer_norm": true,
+        "residual": true,
+        "normalize_output": true,
+        "preserve_similarity": true
+      },
+      "peft_config": null,
+      "freeze_base": false,
+      "positional_config": {
+        "type": "learned",
+        "mode": "learned",
+        "max_length": 512,
+        "embedding_dim": 768
+      },
+      "sequence_config": {
+        "max_length": 12,
+        "sequence_length": 12
+      }
+    },
+    "checkpoint_dir": "output/vmmoe_extreme_preservation_v2p10",
+    "experiment_name": "vmmoe_extreme_preservation_v2p10",
+    "run_name": "v2p10_35epoch_extreme_preservation"
+  },
+  "mlflow": {
+    "enabled": true,
+    "tracking_uri": "sqlite:///mlflow.db",
+    "experiment_name": "vmmoe_extreme_preservation_v2p10",
+    "run_name": "v2p10_35epoch_extreme_preservation",
+    "run_name_prefix": "v2p10_extreme",
+    "log_models": true,
+    "log_metrics": true,
+    "log_params": true,
+    "log_artifacts": true,
+    "log_system_metrics": true,
+    "log_input_examples": false,
+    "log_metrics_frequency": 1,
+    "registered_model_name": null,
+    "tags": {
+      "version": "v2p10",
+      "type": "extreme_preservation",
+      "epochs": "35",
+      "purpose": "fix_aggressive_transformation_cosine_0.7_target",
+      "vectors": "43488",
+      "sequence_length": "12",
+      "critical_fix": "extreme_preservation_reconstruction_0.6"
+    }
+  },
+  "evaluation": {
+    "validation_split": 0.1
+  },
+  "checkpointing": {
+    "checkpoint_dir": "output/vmmoe_extreme_preservation_v2p10",
+    "save_best": true,
+    "embed_config": true
+  },
+  "model": {
+    "vmmoe": {
+      "enabled": true,
+      "num_experts": 8,
+      "expert_dim": 768,
+      "gating": {
+        "type": "top_k",
+        "k": 2,
+        "noise_epsilon": 0.01,
+        "capacity_factor": 1.25,
+        "drop_tokens": false,
+        "use_rts": false,
+        "use_tutel": false,
+        "moe_eval_capacity_factor": 1.0,
+        "moe_min_capacity": 4,
+        "gate_logits_norm": false,
+        "gating_temperature": 1.0
+      }
+    },
+    "normalization_enforcement": {
+      "enabled": true,
+      "unit_norm_final": true,
+      "target_norm": 1.0,
+      "norm_penalty_weight": 0.015,
+      "norm_epsilon": 1e-6,
+      "enforce_during_training": true,
+      "enforce_during_inference": true,
+      "norm_type": "l2",
+      "clamp_norm": true,
+      "clamp_min": 0.95,
+      "clamp_max": 1.05
+    }
+  }
+}

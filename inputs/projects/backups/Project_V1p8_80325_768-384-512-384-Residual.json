@@ -1,0 +1,433 @@
+{
+  "project": {
+    "metadata": {
+      "id": "Project_V1p8_80325_768_Pyramid_SGPS_384D_Residual",
+      "name": "GTR-T5-Base Pyramid LN V1p8 with 384D Student and 512D Residual",
+      "description": "768D GTR-T5-Base → 768→384→512→384+Residual→512→384→768 Pyramid Architecture with SGPS, 384D bottleneck for 10-100M concepts",
+      "version": "1.8.0_GTR_Pyramid_SGPS_384D_Residual",
+      "created_date": "2025-08-03",
+      "pipeline_type": "pyramid_attention_nuclear_compression_with_sgps_residual",
+      "architecture_type": "768→384→512→384→512→384→768"
+    },
+    "model": "sentence-transformers/gtr-t5-base",
+    "local_model_path": "data/teacher_models/gtr-t5-base"
+  },
+  "training": {
+    "architecture": {
+      "model_type": "pyramid_lnsp_with_semantic_gps",
+      "input_dim": 768,
+      "student_dim": 384,
+      "teacher_dim": 768,
+      "semantic_gps_config": {
+        "enabled": true,
+        "d_model": 384,
+        "max_concepts": 50,
+        "n_domains": 8,
+        "temperature": 0.1,
+        "use_dynamic_routing": true,
+        "topographic_attention": true,
+        "coordinate_tracking": true
+      },
+      "pyramid_ln_config": {
+        "vector_native": true,
+        "token_free": true,
+        "nuclear_compression": true,
+        "attention_enabled": true,
+        "residual_connections": true,
+        "symmetric_architecture": true,
+        "compression_stages": [
+          {"layer": "input_norm", "dim": 768, "type": "layer_norm"},
+          {"layer": "input_dropout", "rate": 0.1, "type": "dropout"},
+          {"layer": "compress_1", "in": 768, "out": 384, "type": "linear", "activation": "gelu"},
+          {"layer": "compress_norm_1", "dim": 384, "type": "layer_norm"},
+          {"layer": "compress_dropout_1", "rate": 0.1, "type": "dropout"},
+          {"layer": "semantic_gps", "dim": 384, "type": "semantic_gps", "dynamic_routing": true},
+          {"layer": "projection_head", "dim": 384, "type": "dimension_partitioning", "core_dims": 256, "spatial_dims": 64, "sequential_dims": 64},
+          {"layer": "compress_2", "in": 384, "out": 512, "type": "linear", "activation": "gelu", "residual": true},
+          {"layer": "compress_norm_2", "dim": 512, "type": "layer_norm"},
+          {"layer": "compress_dropout_2", "rate": 0.1, "type": "dropout"},
+          {"layer": "nuclear_compress", "in": 512, "out": 384, "type": "linear", "activation": "gelu"},
+          {"layer": "bottleneck_norm", "dim": 384, "type": "layer_norm"},
+          {"layer": "bottleneck_dropout", "rate": 0.15, "type": "dropout"},
+          {"layer": "multi_head_attention", "dim": 384, "heads": 6, "type": "attention"},
+          {"layer": "attention_norm", "dim": 384, "type": "layer_norm"},
+          {"layer": "attention_dropout", "rate": 0.1, "type": "dropout"},
+          {"layer": "nuclear_expand", "in": 384, "out": 512, "type": "linear", "activation": "gelu", "residual": true},
+          {"layer": "expand_norm_1", "dim": 512, "type": "layer_norm"},
+          {"layer": "expand_dropout_1", "rate": 0.1, "type": "dropout"},
+          {"layer": "expand_2", "in": 512, "out": 384, "type": "linear", "activation": "gelu", "residual": true},
+          {"layer": "expand_norm_2", "dim": 384, "type": "layer_norm"},
+          {"layer": "expand_dropout_2", "rate": 0.1, "type": "dropout"},
+          {"layer": "projection_decode", "dim": 384, "type": "dimension_reconstruction", "core_dims": 256, "spatial_dims": 64, "sequential_dims": 64},
+          {"layer": "teacher_align", "in": 384, "out": 768, "type": "linear", "activation": "gelu"},
+          {"layer": "output_norm", "dim": 768, "type": "layer_norm"},
+          {"layer": "output_l2_normalize", "dim": 768, "type": "l2_normalize"}
+        ]
+      },
+      "residual_config": {
+        "enabled": true,
+        "skip_layers": ["compress_2", "nuclear_expand"],
+        "projection": true,
+        "dim": 512
+      },
+      "attention_config": {
+        "num_heads": 8,
+        "dim_head": 48,
+        "attention_dropout": 0.1,
+        "scale_attention": true,
+        "use_flash_attention": true,
+        "attention_bias": true,
+        "topographic_attention": true,
+        "nuclear_attention": {
+          "enabled": true,
+          "heads": 6,
+          "dim_head": 64,
+          "dropout": 0.1
+        }
+      },
+      "semantic_preservation": {
+        "diversity_weight": 1.0,
+        "alignment_weight": 0.1,
+        "attention_diversity_weight": 0.15,
+        "gps_clustering_loss_weight": 0.2,
+        "gps_smoothness_loss_weight": 0.1,
+        "gps_separation_loss_weight": 0.05,
+        "gps_efficiency_loss_weight": 0.1,
+        "gps_topographic_loss_weight": 0.15,
+        "bottleneck_dim": 384,
+        "diversity_enforcement": "extreme",
+        "attention_diversity_enabled": true,
+        "concept_separation_target": 0.75
+      },
+      "sequential_positioning": {
+        "enabled": true,
+        "max_sequence_length": 512,
+        "fusion_strategy": "weighted_sum",
+        "spatial_weight": 0.6,
+        "sequential_weight": 0.4,
+        "concept_memory_size": 1000,
+        "transition_predictor": {
+          "enabled": true,
+          "hidden_dim": 256,
+          "num_layers": 2,
+          "dropout": 0.1
+        },
+        "loss_weights": {
+          "spatial_consistency_weight": 0.3,
+          "sequential_consistency_weight": 0.2,
+          "hybrid_consistency_weight": 0.2
+        },
+        "sequence_data_strategy": "simple_triplet",
+        "min_sequence_length": 3,
+        "max_concepts_per_sequence": 20,
+        "sequence_overlap_ratio": 0.2
+      },
+      "projection_head": {
+        "enabled": true,
+        "type": "dimension_partitioning",
+        "d_model": 384,
+        "core_dims": 256,
+        "spatial_dims": 64,
+        "sequential_dims": 64,
+        "use_learned_weights": true,
+        "partition_strategy": "learned_routing",
+        "fusion_method": "weighted_concatenation",
+        "normalization": "layer_norm",
+        "dropout_rate": 0.1,
+        "residual_connections": true,
+        "gating_mechanism": {
+          "enabled": true,
+          "gate_type": "sigmoid",
+          "learnable_bias": true
+        },
+        "reconstruction_loss_weight": 0.2,
+        "dimension_consistency_weight": 0.1,
+        "spatial_coherence_weight": 0.15,
+        "sequential_coherence_weight": 0.1,
+        "cross_component_regularization": 0.05,
+        "analysis_config": {
+          "enabled": true,
+          "log_component_analysis": true,
+          "dimension_separation_check": true
+        },
+        "fallback_strategy": "additive_fusion",
+        "integration_point": "semantic_gps_layer"
+      },
+      "qa_projection_head": {
+        "enabled": true,
+        "type": "question_answering",
+        "nuclear_dim": 384,
+        "output_dim": 768,
+        "hidden_dims": [512, 768],
+        "dropout_rate": 0.1,
+        "use_layer_norm": true,
+        "activation": "gelu",
+        "loss_weight": 0.5,
+        "regularization": {
+          "weight_decay": 0.01,
+          "gradient_clipping": 1.0
+        },
+        "training_config": {
+          "warmup_steps": 1000,
+          "learning_rate_schedule": "cosine",
+          "min_learning_rate": 1e-6
+        }
+      },
+      "reconstruction_head": {
+        "enabled": true,
+        "type": "linear_reconstruction",
+        "input_dim": 384,
+        "output_dim": 768,
+        "hidden_dims": [512, 768],
+        "dropout_rate": 0.1,
+        "use_layer_norm": true,
+        "activation": "gelu",
+        "loss_weight": 0.3
+      },
+      "advanced_features": {
+        "residual_scaling": 0.8,
+        "layer_scale": true,
+        "stochastic_depth": 0.1,
+        "adaptive_layer_norm": false,
+        "nuclear_diversity_scheduling": true
+      },
+      "regularization_config": {
+        "use_spectral_norm": false,
+        "weight_decay": 0.01,
+        "gradient_clipping": 0.9,
+        "layer_dropout_schedule": "linear"
+      }
+    },
+    "early_stopping": {
+      "enabled": true,
+      "patience": 15,
+      "min_delta": 0.001,
+      "monitor": "total_loss",
+      "mode": "min",
+      "min_epochs": 20,
+      "loss_target": 0.180,
+      "loss_target_enabled": true,
+      "nuclear_diversity_target": 0.75,
+      "attention_diversity_target": 0.3,
+      "semantic_coherence_target": 0.65,
+      "gps_clustering_target": 3.5,
+      "gps_separation_target": -35
+    },
+    "data": {
+      "epochs": 10,
+      "vector_preprocessing": {
+        "enabled": true,
+        "vectorization_model": "sentence-transformers/gtr-t5-base",
+        "normalize_vectors": true,
+        "vector_format": "float32",
+        "batch_processing": true,
+        "cache_vectors": true,
+        "dimension_validation": true
+      },
+      "caching": {
+        "duplet_cache": true,
+        "triplet_cache": true,
+        "vector_cache": true,
+        "cache_compression": true,
+        "max_cache_size_gb": 10,
+        "cache_validation": true
+      },
+      "sampling": {
+        "samples_per_batch": 5000,
+        "num_batches": "1",
+        "negative_sampling": "semantic_hard_attention",
+        "triplet_mining": "nuclear_attention_optimized",
+        "diversity_sampling": true,
+        "hard_negative_ratio": 0.3,
+        "semantic_domain_balancing": true,
+        "concept_frequency_weighting": true,
+        "dynamic_difficulty_adjustment": true
+      },
+      "triplet_generation": {
+        "strategy": "enhanced_semantic_gps",
+        "use_gpu_acceleration": true,
+        "batch_size": 1000,
+        "max_triplets_per_concept": 10,
+        "semantic_similarity_threshold": 0.7,
+        "diversity_threshold": 0.3,
+        "quality_filtering": true,
+        "cross_domain_triplets": true,
+        "gps_guided_generation": {
+          "enabled": true,
+          "coordinate_based_sampling": true,
+          "spatial_diversity_enforcement": true,
+          "topographic_awareness": true
+        },
+        "projection_head_integration": {
+          "enabled": true,
+          "core_component_weight": 0.4,
+          "spatial_component": "derived_from_anchor",
+          "sequential_component": "positional_encoding"
+        }
+      },
+      "dataset_paths": {
+        "conceptnet": "data/compositional_reasoner/conceptnet_1M.json"
+      },
+      "loss_components": {
+        "gps_clustering_loss": {
+          "type": "coordinate_clustering",
+          "description": "GPS coordinate clustering"
+        },
+        "gps_smoothness_loss": {
+          "type": "coordinate_smoothness",
+          "description": "Smooth GPS transitions"
+        },
+        "gps_separation_loss": {
+          "type": "coordinate_separation",
+          "description": "Distinct semantic domains"
+        },
+        "gps_efficiency_loss": {
+          "type": "coordinate_efficiency",
+          "description": "Prevent coordinate overcrowding"
+        }
+      }
+    }
+  },
+  "validation": {
+    "semantic_pairs": {
+      "enabled": true,
+      "evaluation_method": "continuous_scoring",
+      "target_overall_score": 0.5,
+      "minimum_individual_score": 0.6,
+      "cross_domain_max_score": 0.4,
+      "test_cases": [
+        {
+          "pair": ["science", "mathematics"],
+          "description": "Related fields",
+          "expected": 0.8
+        },
+        {
+          "pair": ["happy", "sad"],
+          "description": "Emotional opposites",
+          "expected": 0.2
+        },
+        {
+          "pair": ["dog", "car"],
+          "description": "Unrelated concepts",
+          "expected": 0.1
+        },
+        {
+          "pair": ["apple", "fruit"],
+          "description": "Category-instance",
+          "expected": 0.85
+        },
+        {
+          "pair": ["king", "queen"],
+          "description": "Gendered counterparts",
+          "expected": 0.85
+        },
+        {
+          "pair": ["water", "ice"],
+          "description": "State variants",
+          "expected": 0.75
+        },
+        {
+          "pair": ["phone", "communication"],
+          "description": "Tool-purpose",
+          "expected": 0.8
+        },
+        {
+          "pair": ["sun", "star"],
+          "description": "Instance-category",
+          "expected": 0.9
+        }
+      ]
+    },
+    "hierarchy": {
+      "enabled": true,
+      "evaluation_method": "continuous_scoring",
+      "target_overall_score": 0.5,
+      "minimum_individual_score": 0.6,
+      "cross_domain_max_score": 0.4,
+      "input_files": [
+        "data/vector_hierarchy/hyperlex_data/hyperlex-all.txt"
+      ],
+      "sample_size": 500,
+      "default_expected_value": 0.6
+    },
+    "nuclear_diversity_metrics": {
+      "enabled": true,
+      "diversity_threshold": 0.85,
+      "coherence_threshold": 0.7,
+      "overall_score_target": 0.8
+    }
+  },
+  "logging": {
+    "interval": 10,
+    "checkpoint_interval": "best_val",
+    "metrics_to_track": [
+      "nuclear_diversity_score",
+      "semantic_coherence_score",
+      "compression_efficiency",
+      "vector_similarity_preservation",
+      "semantic_gps_coordinates",
+      "projection_mse",
+      "projection_cosine",
+      "residual_contribution"
+    ]
+  },
+  "deployment": {
+    "vector_input_only": true,
+    "text_preprocessing_pipeline": "external"
+  },
+  "pipeline": {
+    "stages": [
+      "duplet_generation",
+      "triplet_extraction",
+      "train",
+      "test"
+    ]
+  },
+  "evaluation": {
+    "test_framework": "vector_native_ln_testing",
+    "primary_metric": "continuous_semantic_score",
+    "target_overall_score": 0.65,
+    "semantic_gps_validation": true,
+    "concept_separation_analysis": true,
+    "success_criteria": {
+      "nuclear_diversity_min": 0.7,
+      "semantic_coherence_min": 0.6,
+      "compression_efficiency_min": 1.4,
+      "target_grade": "A+ LN Master"
+    }
+  },
+  "coordinate_precision_testing": {
+    "enabled": true,
+    "tolerance": 1e-4,
+    "cross_model_consistency": true,
+    "dimension_stability_threshold": 0.001
+  },
+  "research": {
+    "mechanistic_interpretability": {
+      "enabled": true,
+      "track_concepts": ["glucose", "democracy", "intelligence", "energy"],
+      "compression_analysis": true,
+      "concept_tracking_layers": ["input_384", "compressed_384", "output_384"],
+      "semantic_gps_mapping": true
+    },
+    "nuclear_diversity_analysis": {
+      "concept_separation_matrix": true,
+      "diversity_gradients": true,
+      "compression_quality_metrics": true
+    }
+  },
+  "experimental_features": {
+    "anchored_semantic_gps": {
+      "enabled": true,
+      "universal_coordinate_system": true,
+      "landmark_registry_path": "data/semantic_landmarks/universal_landmarks.pkl",
+      "calibration_enabled": true
+    },
+    "ai_geosemantics": {
+      "enabled": true,
+      "semantic_navigation": true,
+      "concept_surgery": true,
+      "interpretability_tools": true
+    }
+  }
+}

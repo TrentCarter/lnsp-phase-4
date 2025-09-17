@@ -1,0 +1,294 @@
+{
+  "project": {
+    "name": "VMMoE_v2p4_ConceptSequences_MassiveDataScale",
+    "version": "2.4",
+    "description": "MASSIVE DATA SCALE Training: 1,359 sequences × 43,488 vectors (13× data increase) for realistic 4-8 hour training time",
+    "timestamp": "2025-08-22T17:30:00",
+    "author": "AI Assistant + User",
+    "tags": ["VMMoE", "concept_sequences", "massive_data_scale", "13x_increase", "43k_vectors"],
+    "metadata": {
+      "id": "v2p4_concept_sequences_massive_scale",
+      "experiment_type": "massive_data_scaling",
+      "baseline": "v2p3_optimal_fixed",
+      "key_innovation": "13x_data_increase_realistic_training_duration",
+      "data_architecture_alignment": "mamba_43488_vectors_1359_sequences",
+      "critical_achievements": [
+        "1359_concept_sequences_generated",
+        "43488_training_vectors_created", 
+        "13x_data_increase_from_v2p3",
+        "realistic_4_to_8_hour_training_time",
+        "faiss_index_20250822T114404_ready"
+      ],
+      "data_scaling_stats": {
+        "sequences_before": 154,
+        "sequences_after": 1359,
+        "concepts_before": 1375,
+        "concepts_after": 16982,
+        "vectors_generated": 43488,
+        "scaling_factor": "13x",
+        "expected_training_time": "4-8_hours"
+      },
+      "token_equivalent": "43488_vectors_x_17.9_tokens_per_concept_equals_778k_tokens"
+    }
+  },
+  "training": {
+    "patience": 5,
+    "min_delta": 0.0001,
+    "save_every_n_epochs": 5,
+    "early_stopping_metric": "val/total_loss",
+    "early_stopping_mode": "min",
+    "early_stopping_patience": 15,
+    "force_full_epochs": true,
+    "training_params": {
+      "batch_size": 16,
+      "num_workers": 4,
+      "epochs": 30,
+      "steps_per_epoch": null,
+      "validation_frequency": 1,
+      "checkpoint_frequency": 100,
+      "device_priority": ["mps", "cuda", "cpu"],
+      "mixed_precision": false,
+      "compile_model": false,
+      "seed": 42,
+      "deterministic": false
+    },
+    "architecture": {
+      "mamba_config": {
+        "d_model": 768,
+        "n_layers": 8,
+        "d_state": 16,
+        "d_conv": 4,
+        "expand": 1.0,
+        "explicit_hidden_size": 768,
+        "dimension_validation": true
+      },
+      "positional_config": {
+        "mode": "learned",
+        "max_len": 32,
+        "dropout": 0.1,
+        "learned_config": {
+          "embedding_dim": 768,
+          "max_position_embeddings": 32
+        }
+      },
+      "sequence_config": {
+        "sequence_length": 32,
+        "concept_embedding_dim": 768,
+        "next_concept_prediction": true,
+        "masked_concept_probability": 0.15,
+        "sequence_packing": {
+          "enabled": true,
+          "pack_multiple_sequences": true,
+          "padding_token_id": 0,
+          "attention_mask_enabled": true
+        }
+      },
+      "peft_config": {
+        "enabled": true,
+        "lora_config": {
+          "r": 16,
+          "lora_alpha": 32,
+          "lora_dropout": 0.1,
+          "target_modules": ["in_proj", "out_proj", "x_proj", "dt_proj"],
+          "bias": "none",
+          "task_type": "CAUSAL_LM",
+          "init_lora_weights": "gaussian"
+        },
+        "freeze_base": false,
+        "unfreeze_layers": ["output_projection", "prediction_head"]
+      }
+    },
+    "loss_config": {
+      "loss_type": "next_concept_prediction",
+      "prediction_config": {
+        "cross_entropy_weight": 0.7,
+        "masked_lm_weight": 0.3,
+        "sequence_coherence_weight": 0.1,
+        "label_smoothing": 0.1
+      },
+      "auxiliary_losses": {
+        "concept_similarity_loss": 0.1,
+        "sequence_order_loss": 0.05,
+        "domain_consistency_loss": 0.05
+      },
+      "normalization_enforcement": {
+        "enabled": true,
+        "l2_penalty_weight": 0.001,
+        "unit_norm_final": true,
+        "stability_epsilon": 1e-8
+      }
+    },
+    "optimization": {
+      "optimizer": "AdamW",
+      "learning_rate": 3e-05,
+      "weight_decay": 0.01,
+      "gradient_clipping": 1.0,
+      "warmup_steps": 300,
+      "scheduler": "cosine",
+      "betas": [0.9, 0.95],
+      "eps": 1e-08,
+      "gradient_accumulation_steps": 2
+    },
+    "data": {
+      "batch_size": 16,
+      "sequence_length": 32,
+      "num_workers": 4,
+      "shuffle": true,
+      "drop_last": true,
+      "data_type": "concept_sequences",
+      "concept_sequence_databases": [
+        "data/databases/concept_sequences_768_vectors"
+      ],
+      "sequence_metadata_db": "data/databases/concept_sequences_metadata.db",
+      "faiss_index_path": "data/databases/concept_sequences_768_vectors/20250822T114404_SN002588_concept_sequences_768.idx",
+      "sequence_packing": {
+        "enabled": true,
+        "max_sequences_per_batch": 16,
+        "padding_strategy": "longest",
+        "truncation_strategy": "longest_first",
+        "pack_efficiency_target": 0.8
+      },
+      "domain_filtering": {
+        "enabled": true,
+        "allowed_domains": ["Programming", "Algorithms"],
+        "domain_balancing": true
+      },
+      "data_augmentation": {
+        "concept_masking": {
+          "enabled": true,
+          "mask_probability": 0.15,
+          "mask_token": "[MASK]"
+        },
+        "sequence_shuffling": {
+          "enabled": false,
+          "shuffle_probability": 0.0
+        }
+      },
+      "massive_scale_config": {
+        "total_sequences": 1359,
+        "total_vectors": 43488,
+        "concepts_per_sequence_avg": 32,
+        "tokens_per_concept_avg": 17.9,
+        "total_token_equivalent": 778752,
+        "expected_steps_per_epoch": 2716,
+        "expected_training_duration_hours": "4-8"
+      }
+    }
+  },
+  "mlflow": {
+    "experiment_name": "VMMoE_ConceptSequences_v2p4",
+    "run_name": "massive_data_scale_43k_vectors",
+    "run_name_prefix": "v2p4_massive",
+    "tracking_uri": "sqlite:///mlflow.db",
+    "log_model": true,
+    "log_artifacts": true,
+    "tags": {
+      "version": "2.4",
+      "architecture": "VMMoE_ConceptSequences_MassiveDataScale",
+      "training": "massive_43k_vectors_1359_sequences",
+      "sequence_length": "32",
+      "token_equivalent": "778k",
+      "dataset": "apps_concept_sequences_scaled",
+      "experiment": "massive_data_scaling_13x_increase",
+      "epochs": "30",
+      "data_scale": "43488_vectors_1359_sequences",
+      "key_achievement": "13x_data_increase_realistic_training_time",
+      "faiss_index": "20250822T114404_SN002588"
+    }
+  },
+  "outputs": {
+    "model_save_path": "output/vmmoe_concept_sequences_v2p4",
+    "logs_path": "output/logs",
+    "plots_path": "output/plots",
+    "checkpoints_path": "output/checkpoints"
+  },
+  "checkpointing": {
+    "resume_from_checkpoint": null,
+    "save_optimizer_state": true,
+    "save_scheduler_state": true,
+    "checkpoint_format": "pytorch",
+    "backup_checkpoints": 5
+  },
+  "monitoring": {
+    "log_every_n_steps": 50,
+    "validate_every_n_steps": 200,
+    "log_gradients": false,
+    "log_learning_rate": true,
+    "log_loss_components": true,
+    "track_memory_usage": true,
+    "architecture_validation": {
+      "verify_d_model": true,
+      "check_parameter_count": true,
+      "log_model_dimensions": true,
+      "validate_expansion": true
+    },
+    "training_completion": {
+      "checkpoint_every_epoch": true,
+      "validate_completion": true,
+      "export_final_metrics": true,
+      "completion_summary": true
+    },
+    "data_utilization": {
+      "track_sequence_usage": true,
+      "log_packing_efficiency": true,
+      "monitor_data_coverage": true,
+      "target_utilization_percent": 80,
+      "massive_scale_tracking": {
+        "sequences_per_epoch": 1359,
+        "vectors_per_epoch": 43488,
+        "unique_concept_coverage": true,
+        "domain_distribution_tracking": true
+      }
+    },
+    "sequence_metrics": {
+      "concept_prediction_accuracy": true,
+      "sequence_coherence_score": true,
+      "domain_classification_accuracy": true,
+      "next_concept_perplexity": true,
+      "massive_scale_metrics": {
+        "concept_diversity_score": true,
+        "sequence_complexity_distribution": true,
+        "training_convergence_rate": true
+      }
+    }
+  },
+  "evaluation": {
+    "validation_split": 0.2,
+    "metrics": [
+      "sequence_perplexity",
+      "concept_prediction_accuracy",
+      "masked_concept_accuracy",
+      "sequence_coherence_score",
+      "domain_consistency",
+      "analogical_reasoning_score",
+      "massive_scale_convergence_rate",
+      "concept_diversity_utilization"
+    ],
+    "save_predictions": true,
+    "compute_analogies": true,
+    "sequence_test_cases": [
+      {
+        "input_sequence": ["Problem part 1", "Input example 1", "Output example 1", "Solution approach", "Algorithm type"],
+        "expected_next": "optimization_technique"
+      },
+      {
+        "input_sequence": ["binary_search", "sorted_array", "logarithmic_complexity", "implementation"],
+        "expected_next": "edge_case_handling"
+      },
+      {
+        "input_sequence": ["class_definition", "constructor", "method_implementation", "validation"],
+        "expected_next": "test_case_generation"
+      },
+      {
+        "input_sequence": ["dynamic_programming", "state_transition", "memoization", "base_case"],
+        "expected_next": "recursive_solution"
+      }
+    ],
+    "massive_scale_evaluation": {
+      "sample_size_for_evaluation": 1000,
+      "cross_domain_generalization": true,
+      "sequence_length_robustness": [8, 16, 24, 32],
+      "concept_prediction_at_scale": true
+    }
+  }
+}
