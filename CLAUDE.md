@@ -4,11 +4,9 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## 🚨 CRITICAL RULES
 1. **NEVER USE FUCKING SAMPLE DATA!!!** - NO placeholder/template/hardcoded text lists
-2. **NEVER run training without permission** - No automatic `app.vmmoe.training.trainer`
-3. **ALWAYS verify inference matches training architecture**
-4. **FOCUS on 768D GTR-T5 only** (no STELLA 1024D until requested)
-5. **ALWAYS use generative vec2text** - Never use retrieval/similarity matching
-6. **Vec2Text Usage**: See `docs/how_to_use_jxe_and_ielab.md` for CORRECT vec2text implementation
+2. **NEVER run training without permission** - 
+3. **FOCUS on 768D GTR-T5 only** (no STELLA 1024D until requested)
+4. **Vec2Text Usage**: See `docs/how_to_use_jxe_and_ielab.md` for CORRECT vec2text implementation
 
 ## 🔊 AUDIO NOTIFICATIONS
 ```bash
@@ -21,15 +19,8 @@ This file provides guidance to Claude Code when working with this repository.
 ```
 
 ## 📍 CURRENT STATUS (2025-09-15)
-- **Vector Database:** VALIDATED ✅ 2.2M vectors, perfect encoding quality
-- **Vec2Text Decoding:** WORKING ✅ 0.68-0.98 cosine similarity with isolated backend
-- **Data Pipeline:** COMPLETE ✅ Encode → Store → Decode roundtrip proven
-- **Segmentation:** 4-word mechanical chunks (44 segments per document)
-- **Database Location:** `data/nemotron_vectors/tiny_stories/vectors_f32.npy`
 - **Vec2Text Usage:** Must use `vec_text_vect_isolated.py` with `--vec2text-backend isolated`
-- **Quality Verified:** All tested vectors achieve 1.000000 cosine similarity with fresh encoding
-- **Ready for Training:** Mamba model can start immediately with validated data
-- **Design Decision:** Choose between 4-word chunks vs semantic concept re-segmentation
+
 
 ## 📂 KEY COMMANDS
 
