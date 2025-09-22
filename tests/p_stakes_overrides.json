@@ -1,0 +1,19 @@
+{
+  "P1": ["src/ingest_factoid.py", "src/loaders/"],
+  "P2": ["src/pipeline/"],
+  "P3": ["src/prompt_extractor.py"],
+  "P4": ["src/prompt_extractor.py"],
+  "P5": ["src/llm_bridge.py"],
+  "P6": ["src/tmd_encoder.py"],
+  "P7": ["src/vectorizer.py"],
+  "P8": ["src/vectorizer.py", "src/faiss_index.py"],
+  "P9": ["src/integrations/lightrag_adapter.py"],
+  "P10": ["src/db_postgres.py"],
+  "P11": ["src/db_faiss.py", "src/faiss_index.py", "artifacts/faiss_fw1k.ivf"],
+  "P12": ["src/db_neo4j.py"],
+  "P13": ["src/eval_runner.py", "eval/"],
+  "P14": ["src/pipeline/"],
+  "P15": ["tmp_trainer/"],
+  "P16": ["src/api/"],
+  "P17": ["src/integrations/"]
+}

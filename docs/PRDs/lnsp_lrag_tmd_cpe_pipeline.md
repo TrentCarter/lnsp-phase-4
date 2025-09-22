@@ -594,7 +594,7 @@ Other (Storage, Misc)	~500GB (~5KB/item); cloud ~$0.02/GB/mo (GCP/AWS standard, 
 Total	Range accounts for buffers; prices fallen (e.g., inference -30% YoY). Self-host: ~$5-10 electric. Scale linearly for larger sets.	$48-65 (low end) to $90-120 (with overruns)
 
 
-Response from ChatGPT-5:  What I’m fixing (blunt + brief)
+Response from ChatGPT-5:What I’m fixing (blunt + brief)
 * Storage math inconsistency: You say “~10 KB per concept” (2 KB text + 6.3 KB vector + 1.5 KB graph ≈ ~9.8 KB). Later you say “~5 KB”. The correct planning number is ~10 KB/entry (without replicas/compression).
 * TMD ambiguity: You note “TMD = 16 bits total” and store a 16D float vector. Keep both: (1) a compact uint16 bitfield for deterministic filtering and (2) a learned TMD_dense (16D float) for fusion. Don’t conflate them.
 * Lane_Index width: You specify 0–32,767 (15 bits) but store int16. Keep int16 signed (–32768..32767) or switch to uint16 if you want the full 0..65535; I’ll use int2 (Postgres) with a CHECK to enforce 0..32767.
@@ -837,10 +837,10 @@ H. Retrieval recipe (P16) — precise order of ops
 I. Storage planning (reconciled)
 Per concept (no compression, 1× replica):
 * Text DB: ≈ 2.0 KB (fields + JSON + overhead; varies by lengths)
-* Vector DB: 3,136 + 3,072 + 64 + 3,072 ≈ 9,344 B if you keep all vectors. You listed 6.3 KB because you’re counting fused+concept only; decide policy:
+* Vector DB: 3,136 + 3,072 + 64 + 3,072 ≈ 9,344 B if you keep all vectors.You listed 6.3 KB because you’re counting fused+concept only; decide policy:
     * Lean (recommended): keep fused (784D) and question_vec (optional); rebuild concept_vec if needed. → ~3.1–6.2 KB
     * Full: keep fused + concept + question + tmd_dense → ~9.4 KB
-* Graph DB: ~1.5 KB average (3 edges @ ~500 B). Total (lean): ~2 KB + ~3.1–6.2 KB + ~1.5 KB → ~6.6–9.7 KB Total (full): ~12.9 KB. Pick and document one. Your earlier “~10 KB” is a good median.
+* Graph DB: ~1.5 KB average (3 edges @ ~500 B).Total (lean): ~2 KB + ~3.1–6.2 KB + ~1.5 KB → ~6.6–9.7 KBTotal (full): ~12.9 KB. Pick and document one. Your earlier “~10 KB” is a good median.
 
 J. Ingestion → Train wiring (ops you’ll actually run)
 * Queues: Redis streams or Kafka topics: chunks → missions → interrogations → vectors → graph → validate → train.

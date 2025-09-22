@@ -20,9 +20,9 @@ import re
 # LLM integration setup
 USE_LLM = os.getenv("LNSP_USE_LLM", "false").lower() == "true"
 try:
-    from .llm_bridge import annotate_with_llama
+    from .llm_bridge import annotate_with_llm  # unified backend
 except Exception:
-    annotate_with_llama = None
+    annotate_with_llm = None
 
 def _load_npz_catalog(npz_path: str):
     import numpy as np
@@ -366,7 +366,7 @@ def evaluate(
         cpe = _cpe_from_item(item)
 
         # --- LLM override (opt-in) ---
-        if USE_LLM and annotate_with_llama:
+        if USE_LLM and annotate_with_llm:
             # prepare a few snippets for the LLM (best-effort)
             top_items = data.get("items") or data.get("results") or []
             top_docs = []
@@ -379,11 +379,13 @@ def evaluate(
                     snippet = it["metadata"]["concept_text"]
                 top_docs.append({"doc_id": did, "text": snippet or ""})
             try:
-                anno = annotate_with_llama(query=query,
-                                           top_docs=top_docs,
-                                           method_hint=tmd["method"],
-                                           concept_hint=(cpe.get("concept") or ""),
-                                           expected_ids=(cpe.get("expected") or []))
+                anno = annotate_with_llm(
+                    query=query,
+                    top_docs=top_docs,
+                    method_hint=tmd["method"],
+                    concept_hint=cpe.get("concept") or "",
+                    expected_ids=cpe.get("expected") or [],
+                )
                 proposition = anno.get("proposition", proposition) or proposition
                 tmd = anno.get("tmd", tmd) or tmd
                 cpe = anno.get("cpe", cpe) or cpe

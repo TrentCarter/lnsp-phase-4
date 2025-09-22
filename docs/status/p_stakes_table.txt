@@ -1,0 +1,21 @@
++------+--------------------------------------------------------------+-------+----------------------------------------+
+|Stake |Title                                                         |Status |Artifact                                |
++------+--------------------------------------------------------------+-------+----------------------------------------+
+|P1    |P1: Corpus Ingestion	Load raw datasets into memory	Raw fil... |✅      |src/ingest_factoid.py                   |
+|P2    |P2: Smart Chunking	Split documents into semantic units	Doc... |✅      |src/pipeline                            |
+|P3    |P3: Content Classification	Identify chunk type (math/fact/... |✅      |src/prompt_extractor.py                 |
+|P4    |P4: Mission Generation	Create extraction prompts	Labeled c... |✅      |src/prompt_extractor.py                 |
+|P5    |P5: LLM Interrogation	Extract concepts via Teacher LLM	Mis... |✅      |src/llm_bridge.py                       |
+|P6    |P6: TMD Encoding	Generate 16D metadata vector	TMD text (D,... |✅      |src/tmd_encoder.py                      |
+|P7    |P7: Concept Embedding	Encode concepts to vectors	Concept t... |✅      |src/vectorizer.py                       |
+|P8    |P8: Vector Fusion	Combine TMD + concept vectors	TMD [16D] ... |✅      |src/vectorizer.py                       |
+|P9    |P9: Graph Extraction	Parse relationships to triples	Relati... |✅      |src/integrations/lightrag_adapter.py    |
+|P10   |P10: Text DB Storage	Store CPE + metadata	Full CPE entries... |✅      |src/db_postgres.py                      |
+|P11   |P11: Vector DB Storage	Index vectors for search	Fused vect... |✅      |src/db_faiss.py                         |
+|P12   |P12: Graph DB Storage	Store relationship network	Graph tri... |✅      |src/db_neo4j.py                         |
+|P13   |P13: Echo Validation	Test retrieval quality	Probe question... |✅      |src/eval_runner.py                      |
+|P14   |P14: Batch Optimization	Group similar missions	Mission que... |✅      |src/pipeline                            |
+|P15   |P15: LNSP Training	Train vector-native model	Validated con... |✅      |tmp_trainer                             |
+|P16   |P16: Multi-RAG Query	Hierarchical retrieval	User query	Rel... |✅      |src/api                                 |
+|P17   |P17: MoE Inference	Generate response	Retrieved concepts	Fi... |✅      |src/integrations                        |
++------+--------------------------------------------------------------+-------+----------------------------------------+

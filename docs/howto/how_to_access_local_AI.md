@@ -4,7 +4,11 @@ This guide explains how to use the local LLM integration for generating meaningf
 
 ## Overview
 
-LNSP can optionally use a local Llama model (via Ollama) to generate rich, contextual annotations instead of deterministic placeholders. This dramatically improves the quality of evaluation metadata.
+LNSP can optionally use local or remote LLM services to generate rich, contextual annotations instead of deterministic placeholders. This dramatically improves the quality of evaluation metadata.
+
+**Supported Backends:**
+- **Ollama** (default): Local models via Ollama API
+- **OpenAI-Compatible**: Any OpenAI-compatible API (vLLM, LM Studio, OpenRouter, actual OpenAI, etc.)
 
 ## Quick Start
 
@@ -49,6 +53,78 @@ export OLLAMA_URL="http://localhost:11434/api/chat"
   --out eval/results_with_llm.jsonl
 ```
 
+## Alternative Backend Setup
+
+### Option A: Ollama (Default - Local)
+
+Follow the Quick Start section above for Ollama setup.
+
+### Option B: OpenAI-Compatible APIs
+
+For vLLM, LM Studio, OpenRouter, or actual OpenAI:
+
+```bash
+# Enable LLM integration
+export LNSP_USE_LLM=true
+
+# Specify OpenAI-compatible backend
+export LNSP_LLM_BACKEND=openai
+
+# Configure API endpoint and credentials
+export OPENAI_BASE_URL="http://localhost:8000/v1"  # vLLM/LM Studio/etc.
+export OPENAI_API_KEY="sk-local"                   # API key (use "sk-local" for local servers)
+
+# Specify the model
+export LNSP_LLM_MODEL="qwen2.5"                    # Model name (backend-specific)
+
+# Optional: Set domain for annotations
+export LNSP_DOMAIN_DEFAULT="FACTOIDWIKI"
+```
+
+**Common OpenAI-Compatible Setups:**
+
+**vLLM Server:**
+```bash
+# Start vLLM server (separate terminal)
+python -m vllm.entrypoints.openai.api_server --model Qwen/Qwen2.5-7B-Instruct --port 8000
+
+# Configure LNSP to use vLLM
+export LNSP_LLM_BACKEND=openai
+export OPENAI_BASE_URL="http://localhost:8000/v1"
+export OPENAI_API_KEY="sk-local"
+export LNSP_LLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
+```
+
+**LM Studio:**
+```bash
+# Start LM Studio server through the GUI (usually port 1234)
+
+# Configure LNSP to use LM Studio
+export LNSP_LLM_BACKEND=openai
+export OPENAI_BASE_URL="http://localhost:1234/v1"
+export OPENAI_API_KEY="sk-local"
+export LNSP_LLM_MODEL="your-model-name"  # As shown in LM Studio
+```
+
+**OpenRouter (Cloud):**
+```bash
+# Configure LNSP to use OpenRouter
+export LNSP_LLM_BACKEND=openai
+export OPENAI_BASE_URL="https://openrouter.ai/api/v1"
+export OPENAI_API_KEY="sk-or-v1-..."  # Your OpenRouter API key
+export LNSP_LLM_MODEL="meta-llama/llama-3.1-8b-instruct"
+```
+
+### Backend Auto-Detection
+
+The system can automatically detect the backend based on environment variables:
+
+- If `OLLAMA_HOST` or `OLLAMA_URL` is set → Uses Ollama backend
+- If `OPENAI_BASE_URL` is set → Uses OpenAI-compatible backend
+- Otherwise → Defaults to Ollama backend
+
+You can override this by explicitly setting `LNSP_LLM_BACKEND=ollama|openai`.
+
 ## Configuration
 
 ### Environment Variables
@@ -56,12 +132,20 @@ export OLLAMA_URL="http://localhost:11434/api/chat"
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `LNSP_USE_LLM` | `false` | Enable/disable LLM integration |
-| `LNSP_LLM_MODEL` | `llama3:8b` | Ollama model name to use |
+| `LNSP_LLM_BACKEND` | `ollama` | Backend to use: `ollama` or `openai` |
+| `LNSP_LLM_MODEL` | `llama3:8b` | Model name (backend-specific) |
+| `LNSP_DOMAIN_DEFAULT` | `FACTOIDWIKI` | Default domain for annotations |
 | `LNSP_OFFLINE_NPZ` | None | Path to NPZ file for document snippets |
-| `OLLAMA_URL` | `http://localhost:11434/api/chat` | Ollama API endpoint |
+| **Ollama Backend** | | |
+| `OLLAMA_HOST` | `http://localhost:11434` | Ollama server URL |
+| `OLLAMA_URL` | `http://localhost:11434` | Alternative Ollama server URL |
+| **OpenAI-Compatible Backend** | | |
+| `OPENAI_BASE_URL` | `http://localhost:8000/v1` | API base URL |
+| `OPENAI_API_KEY` | `sk-local` | API key |
 
 ### Available Models
 
+**Ollama Models:**
 The integration works with any Ollama-compatible model. Recommended options:
 
 - **llama3.1:8b** - Good balance of quality and speed
@@ -73,6 +157,17 @@ Check available models:
 ```bash
 ollama list
 ```
+
+**OpenAI-Compatible Models:**
+Model availability depends on your chosen provider:
+
+- **vLLM**: Any HuggingFace model compatible with vLLM
+  - `Qwen/Qwen2.5-7B-Instruct`
+  - `meta-llama/Llama-3.1-8B-Instruct`
+  - `microsoft/Phi-3-mini-128k-instruct`
+- **LM Studio**: Models available in LM Studio's catalog
+- **OpenRouter**: See [openrouter.ai/models](https://openrouter.ai/models) for available models
+- **OpenAI**: `gpt-4`, `gpt-3.5-turbo`, etc.
 
 ## Output Comparison
 
@@ -210,9 +305,9 @@ LNSP_USE_LLM=true LNSP_LLM_MODEL="llama3.1:8b" \
   --out test_result.jsonl
 ```
 
-### Full Evaluation with LLM
+### Full Evaluation with LLM (Ollama)
 ```bash
-# Complete evaluation with all enhancements
+# Complete evaluation with all enhancements (Ollama)
 export LNSP_USE_LLM=true
 export LNSP_LLM_MODEL="llama3.1:8b"
 export LNSP_OFFLINE_NPZ=artifacts/fw1k_vectors.npz
@@ -224,6 +319,25 @@ export LNSP_LEXICAL_FALLBACK=true
   --top-k 8 \
   --timeout 15 \
   --out eval/enhanced_results.jsonl
+```
+
+### Full Evaluation with LLM (OpenAI-Compatible)
+```bash
+# Complete evaluation using vLLM backend
+export LNSP_USE_LLM=true
+export LNSP_LLM_BACKEND=openai
+export OPENAI_BASE_URL="http://localhost:8000/v1"
+export OPENAI_API_KEY="sk-local"
+export LNSP_LLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
+export LNSP_OFFLINE_NPZ=artifacts/fw1k_vectors.npz
+export LNSP_LEXICAL_FALLBACK=true
+
+./venv/bin/python -m src.eval_runner \
+  --queries eval/day3_eval.jsonl \
+  --api http://localhost:8080/search \
+  --top-k 8 \
+  --timeout 15 \
+  --out eval/enhanced_results_vllm.jsonl
 ```
 
 This integration transforms LNSP from using placeholder annotations to generating rich, contextual metadata that provides genuine insights into retrieval performance and query understanding.

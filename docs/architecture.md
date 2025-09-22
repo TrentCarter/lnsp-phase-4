@@ -385,3 +385,79 @@ The LNSP pipeline is now **production-ready** for scaling to the full 10k+ Facto
 - KG construction: entity/edge extraction via PromptTemplateType.EDGE_EXTRACT
 - Lane-awareness: L1_FACTOID hits dense first; L2_GRAPH expands via KGEdgeType in [MENTIONS, LINKS_TO, IS_A]
 - Safety: require version >=1.3.9 due to CVE fix; pinned to 1.4.8.2
+
+## LLM Integration Architecture (2025-09-22)
+
+### Multi-Backend LLM Bridge
+
+**Component:** `src/llm_bridge.py` - Unified LLM annotation backend supporting multiple providers
+
+**Supported Backends:**
+- **Ollama** (default): Local models via Ollama API (llama3:8b, llama3.1:70b, etc.)
+- **OpenAI-Compatible**: Any OpenAI-compatible API (vLLM, LM Studio, OpenRouter, actual OpenAI, etc.)
+
+**Backend Selection Logic:**
+1. Explicit: `LNSP_LLM_BACKEND=ollama|openai`
+2. Auto-detection: Based on environment variables (`OLLAMA_HOST`, `OPENAI_BASE_URL`)
+3. Fallback: Defaults to `ollama` for local-first development
+
+**Environment Variables:**
+```bash
+# Backend selection
+LNSP_LLM_BACKEND=ollama|openai        # Explicit backend choice
+LNSP_LLM_MODEL=llama3:8b              # Model identifier
+
+# Ollama configuration
+OLLAMA_HOST=http://localhost:11434    # Ollama server URL
+OLLAMA_URL=http://localhost:11434     # Alternative var name
+
+# OpenAI-compatible configuration
+OPENAI_BASE_URL=http://localhost:8000/v1  # API base URL
+OPENAI_API_KEY=sk-local               # API key
+
+# Domain configuration
+LNSP_DOMAIN_DEFAULT=FACTOIDWIKI       # Default domain for annotations
+```
+
+**Integration Points:**
+- **Eval Runner** (`src/eval_runner.py`): Opt-in LLM annotation generation with `LNSP_USE_LLM=true`
+- **Graceful Fallback**: Deterministic logic when LLM unavailable or disabled
+- **Unified API**: Single `annotate_with_llm()` function regardless of backend
+
+**Annotation Schema:**
+```json
+{
+  "proposition": "Concise truth-statement answering the query",
+  "tmd": {
+    "task": "RETRIEVE",
+    "method": "HYBRID|DENSE|GRAPH",
+    "domain": "FACTOIDWIKI"
+  },
+  "cpe": {
+    "concept": "Extracted concept from query",
+    "probe": "Query text",
+    "expected": ["doc_id_1", "doc_id_2"]
+  }
+}
+```
+
+**Usage Example:**
+```bash
+# Enable LLM annotations with Ollama
+export LNSP_USE_LLM=true
+export LNSP_LLM_MODEL=llama3:8b
+python -m src.eval_runner --queries eval/day3_eval.jsonl --api http://localhost:8080/search
+
+# Enable LLM annotations with OpenAI-compatible API
+export LNSP_USE_LLM=true
+export LNSP_LLM_BACKEND=openai
+export OPENAI_BASE_URL=http://localhost:8000/v1
+export LNSP_LLM_MODEL=qwen2.5
+python -m src.eval_runner --queries eval/day3_eval.jsonl --api http://localhost:8080/search
+```
+
+**Benefits:**
+- **Provider flexibility**: Works with any LLM backend/hosting solution
+- **Local-first**: Defaults to Ollama for development without external dependencies
+- **Production-ready**: Supports hosted APIs for production workloads
+- **Backward compatibility**: Existing Ollama setups continue working unchanged
