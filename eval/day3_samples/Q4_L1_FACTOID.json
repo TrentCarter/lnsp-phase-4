@@ -1,0 +1,108 @@
+{
+  "query": "Which former UK Conservative Party leader continued to promote so-called 'And' politics?",
+  "lane_req": "L1_FACTOID",
+  "lane_resp": "L1_FACTOID",
+  "gold": [
+    "enwiki-00000024-0006-0000"
+  ],
+  "hit": false,
+  "latency_ms": 77.88,
+  "top_k": 8,
+  "results": [
+    {
+      "id": "ebd1a8f6-384a-59d2-9009-cffb3348ba8f",
+      "score": 9.0,
+      "why": null
+    },
+    {
+      "id": "ad5c0089-9b82-5c9f-b435-b553b2ca1555",
+      "score": 6.0,
+      "why": null
+    },
+    {
+      "id": "7c08e7d2-d7e6-5614-ab2e-ecb509bcdebd",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "bb5068ec-3184-5f8d-8101-aefa0786c521",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "d6dddc69-8517-52a9-915a-0cecbad36186",
+      "score": 3.0,
+      "why": null
+    },
+    {
+      "id": "1e3afbdf-e46f-5322-81aa-1f2dc4fa3058",
+      "score": 3.0,
+      "why": null
+    },
+    {
+      "id": "1557cc16-a727-57a0-8784-475b902bfe88",
+      "score": 3.0,
+      "why": null
+    },
+    {
+      "id": "9bdb6269-4c00-50af-a074-c8715515daee",
+      "score": 3.0,
+      "why": null
+    }
+  ],
+  "raw": {
+    "lane": "L1_FACTOID",
+    "mode": "HYBRID",
+    "items": [
+      {
+        "id": "ebd1a8f6-384a-59d2-9009-cffb3348ba8f",
+        "doc_id": "enwiki-00000024-0006-0000",
+        "score": 9.0,
+        "why": null
+      },
+      {
+        "id": "ad5c0089-9b82-5c9f-b435-b553b2ca1555",
+        "doc_id": "enwiki-00000024-0003-0000",
+        "score": 6.0,
+        "why": null
+      },
+      {
+        "id": "7c08e7d2-d7e6-5614-ab2e-ecb509bcdebd",
+        "doc_id": "enwiki-00000024-0001-0000",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "bb5068ec-3184-5f8d-8101-aefa0786c521",
+        "doc_id": "enwiki-00000118-0005-0000",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "d6dddc69-8517-52a9-915a-0cecbad36186",
+        "doc_id": "enwiki-00000002-0003-0000",
+        "score": 3.0,
+        "why": null
+      },
+      {
+        "id": "1e3afbdf-e46f-5322-81aa-1f2dc4fa3058",
+        "doc_id": "enwiki-00000003-0001-0000",
+        "score": 3.0,
+        "why": null
+      },
+      {
+        "id": "1557cc16-a727-57a0-8784-475b902bfe88",
+        "doc_id": "enwiki-00000012-0006-0000",
+        "score": 3.0,
+        "why": null
+      },
+      {
+        "id": "9bdb6269-4c00-50af-a074-c8715515daee",
+        "doc_id": "enwiki-00000012-0007-0000",
+        "score": 3.0,
+        "why": null
+      }
+    ],
+    "trace_id": "58f9378a"
+  }
+}

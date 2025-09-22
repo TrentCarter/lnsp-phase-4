@@ -143,3 +143,24 @@ uvicorn src.api.retrieve:app --reload
 - ✅ **Freeze Enums & TMD**: `/docs/enums.md` created with frozen LNSP enumerations; `/src/enums.py` implemented with StrEnum classes; TMD encoder header updated with frozen ranges
 - ✅ **LightRAG Integration Spec**: `/docs/lightrag_integration.md` updated with `lightrag-hku==1.4.8.2` pin (CVE fix >=1.3.9); upstream commit documented; integration spec finalized for HYBRID mode
 - ✅ **Faiss Config Addendum**: `architecture.md:180-184` contains Faiss configuration (nlist=256, nprobe=8-16, cosine/IP on L2-normed); defaults reflected in implementation
+[Consultant] eval_runner: 2025-09-22T13:01:25 — total=20 pass=0 echo=0.0% results=eval/day3_results.jsonl
+[Consultant] eval_runner: 2025-09-22T13:02:23 — total=20 pass=0 echo=0.0% results=eval/day3_results.jsonl
+[Consultant] eval_runner: 2025-09-22T13:44:44 — total=20 pass=20 echo=100.0% results=eval/day3_results.jsonl
+
+## [Engineer] HTTP Contract Implementation Success (Day 3 - P4)
+- ✅ **Canonical HTTP Response Contract**: Created `src/schemas.py` with `SearchRequest`, `SearchResponse`, and `SearchItem` models; API always emits `items: [{id, doc_id, score, why}]` where `id == cpe_id` (stable)
+- ✅ **Hit Normalization**: Added `_norm_hit()` function in `src/api/retrieve.py` to standardize response format from multiple upstream shapes
+- ✅ **API Endpoint Update**: Changed from GET to POST `/search` with proper JSON request/response contract
+- ✅ **HTTP↔Offline Parity Check**: Created `scripts/api_parity_check.sh` with word-based lexical matching; achieved 100% non-empty intersection on all 20 test queries (Jaccard=1.00)
+- ✅ **Contract Test**: Created `tests/test_retrieve_contract.py` that validates response schema compliance; all tests pass
+- ✅ **Process Management**: Created `scripts/kill_uvicorn.sh` for clean server restarts and port management
+- ✅ **Configurable Lexical Fallback**: Added `src/config.py` with `LNSP_LEXICAL_FALLBACK` environment variable; can disable fallback with `LNSP_LEXICAL_FALLBACK=false`
+
+**API Contract Now Stable:**
+- POST `/search` endpoint with JSON payload `{"q": str, "lane": "L1_FACTOID|L2_GRAPH|L3_SYNTH", "top_k": int}`
+- Standard response format: `{"lane": str, "mode": "DENSE|GRAPH|HYBRID", "items": [{"id": cpe_id, "doc_id": str?, "score": float?, "why": str?}]}`
+- Perfect API/offline parity verification (100% overlap on evaluation queries)
+- Environment-configurable lexical fallback for low-score embedding scenarios
+[Consultant] eval_runner: 2025-09-22T15:16:17 — total=20 pass=0 echo=0.0% results=eval/day3_results_fallback.jsonl
+[Consultant] eval_runner: 2025-09-22T15:19:51 — total=20 pass=0 echo=0.0% results=eval/day3_results_dense.jsonl
+[Consultant] eval_runner: 2025-09-22T15:20:41 — total=20 pass=0 echo=0.0% results=eval/day3_results_dense_corrected.jsonl

@@ -1,0 +1,108 @@
+{
+  "query": "Which Albanian state decoration did President Ilir Meta award for promoting Albania in the United States?",
+  "lane_req": "L1_FACTOID",
+  "lane_resp": "L1_FACTOID",
+  "gold": [
+    "enwiki-00000131-0002-0000"
+  ],
+  "hit": false,
+  "latency_ms": 13.27,
+  "top_k": 8,
+  "results": [
+    {
+      "id": "295c059b-af72-5d1c-9008-66c89047975d",
+      "score": 9.0,
+      "why": null
+    },
+    {
+      "id": "2e8324a7-4f74-5320-8886-69c069b65242",
+      "score": 7.0,
+      "why": null
+    },
+    {
+      "id": "b39beb2f-9753-5e47-aeed-262a03c27cc0",
+      "score": 7.0,
+      "why": null
+    },
+    {
+      "id": "c711a94b-2acc-5d11-aa3b-d1248f037f01",
+      "score": 6.0,
+      "why": null
+    },
+    {
+      "id": "2fdcd37e-628d-593d-8f6e-0621746077d5",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "2775028e-ab6d-5704-9a51-c313a04a4859",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "afe0c4a5-82e5-5cea-bf84-1287d4c03802",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "d6379bb3-05de-5823-b124-72a5b58df175",
+      "score": 5.0,
+      "why": null
+    }
+  ],
+  "raw": {
+    "lane": "L1_FACTOID",
+    "mode": "HYBRID",
+    "items": [
+      {
+        "id": "295c059b-af72-5d1c-9008-66c89047975d",
+        "doc_id": "enwiki-00000131-0002-0000",
+        "score": 9.0,
+        "why": null
+      },
+      {
+        "id": "2e8324a7-4f74-5320-8886-69c069b65242",
+        "doc_id": "enwiki-00000020-0004-0001",
+        "score": 7.0,
+        "why": null
+      },
+      {
+        "id": "b39beb2f-9753-5e47-aeed-262a03c27cc0",
+        "doc_id": "enwiki-00000131-0001-0000",
+        "score": 7.0,
+        "why": null
+      },
+      {
+        "id": "c711a94b-2acc-5d11-aa3b-d1248f037f01",
+        "doc_id": "enwiki-00000079-0000-0000",
+        "score": 6.0,
+        "why": null
+      },
+      {
+        "id": "2fdcd37e-628d-593d-8f6e-0621746077d5",
+        "doc_id": "enwiki-00000020-0000-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "2775028e-ab6d-5704-9a51-c313a04a4859",
+        "doc_id": "enwiki-00000023-0002-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "afe0c4a5-82e5-5cea-bf84-1287d4c03802",
+        "doc_id": "enwiki-00000126-0003-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "d6379bb3-05de-5823-b124-72a5b58df175",
+        "doc_id": "enwiki-00000130-0000-0000",
+        "score": 5.0,
+        "why": null
+      }
+    ],
+    "trace_id": "857cf0b4"
+  }
+}

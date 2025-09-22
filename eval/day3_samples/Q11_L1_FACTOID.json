@@ -1,0 +1,108 @@
+{
+  "query": "Which controversial UK 'Go Home' vans campaign drew criticism from politicians like Nick Clegg and Yvette Cooper?",
+  "lane_req": "L1_FACTOID",
+  "lane_resp": "L1_FACTOID",
+  "gold": [
+    "enwiki-00000081-0002-0000"
+  ],
+  "hit": false,
+  "latency_ms": 15.31,
+  "top_k": 8,
+  "results": [
+    {
+      "id": "364f152d-7fcb-507e-b4cb-aa91a56ac7df",
+      "score": 6.0,
+      "why": null
+    },
+    {
+      "id": "3163d399-1161-557b-93b3-37b12fe89d9d",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "0f8d8d9d-b8f9-58fa-95d7-b844e73f26b7",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "df4356d2-d094-5854-82ea-5ad9d778586e",
+      "score": 3.0,
+      "why": null
+    },
+    {
+      "id": "d0f6bd86-549a-5bb0-963b-737ee326023c",
+      "score": 3.0,
+      "why": null
+    },
+    {
+      "id": "60297855-8026-5b11-ac76-13668166a782",
+      "score": 3.0,
+      "why": null
+    },
+    {
+      "id": "19954403-ffa8-5e46-9363-4a529e11d89f",
+      "score": 3.0,
+      "why": null
+    },
+    {
+      "id": "23616924-3e58-55e4-99a7-fd5a92e0c778",
+      "score": 3.0,
+      "why": null
+    }
+  ],
+  "raw": {
+    "lane": "L1_FACTOID",
+    "mode": "HYBRID",
+    "items": [
+      {
+        "id": "364f152d-7fcb-507e-b4cb-aa91a56ac7df",
+        "doc_id": "enwiki-00000081-0000-0000",
+        "score": 6.0,
+        "why": null
+      },
+      {
+        "id": "3163d399-1161-557b-93b3-37b12fe89d9d",
+        "doc_id": "enwiki-00000081-0002-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "0f8d8d9d-b8f9-58fa-95d7-b844e73f26b7",
+        "doc_id": "enwiki-00000081-0000-0001",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "df4356d2-d094-5854-82ea-5ad9d778586e",
+        "doc_id": "enwiki-00000002-0002-0000",
+        "score": 3.0,
+        "why": null
+      },
+      {
+        "id": "d0f6bd86-549a-5bb0-963b-737ee326023c",
+        "doc_id": "enwiki-00000063-0005-0000",
+        "score": 3.0,
+        "why": null
+      },
+      {
+        "id": "60297855-8026-5b11-ac76-13668166a782",
+        "doc_id": "enwiki-00000118-0004-0000",
+        "score": 3.0,
+        "why": null
+      },
+      {
+        "id": "19954403-ffa8-5e46-9363-4a529e11d89f",
+        "doc_id": "enwiki-00000121-0017-0000",
+        "score": 3.0,
+        "why": null
+      },
+      {
+        "id": "23616924-3e58-55e4-99a7-fd5a92e0c778",
+        "doc_id": "enwiki-00000121-0026-0000",
+        "score": 3.0,
+        "why": null
+      }
+    ],
+    "trace_id": "0a32ae75"
+  }
+}

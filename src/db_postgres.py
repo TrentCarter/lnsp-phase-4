@@ -1,11 +1,18 @@
+import json
 import os
-import psycopg2
-import psycopg2.extras
+
+try:
+    import psycopg2
+    import psycopg2.extras
+except ImportError:  # pragma: no cover - environment dependency
+    psycopg2 = None
 
 PG_DSN = os.getenv("PG_DSN", "host=localhost dbname=lnsp user=lnsp password=lnsp")
 
 
 def connect():
+    if psycopg2 is None:
+        raise RuntimeError("psycopg2 not available")
     conn = psycopg2.connect(PG_DSN)
     conn.autocommit = True
     return conn
@@ -51,7 +58,7 @@ class PostgresDB:
         self.enabled = enabled
         self.dsn = dsn
         self.conn = None
-        if self.enabled:
+        if self.enabled and psycopg2 is not None:
             try:
                 self.conn = connect()
                 print("[PostgresDB] Connected")
@@ -59,6 +66,9 @@ class PostgresDB:
                 print(f"[PostgresDB] Connection failed: {exc} — using stub mode")
                 self.enabled = False
                 self.conn = None
+        elif self.enabled:
+            print("[PostgresDB] psycopg2 missing — falling back to stub mode")
+            self.enabled = False
         else:
             print("[PostgresDB] Running in stub mode")
 

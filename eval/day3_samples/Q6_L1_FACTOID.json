@@ -1,0 +1,108 @@
+{
+  "query": "Whose drag strip was credited by a deputy sheriff with reducing Los Angeles street racing when it was open?",
+  "lane_req": "L1_FACTOID",
+  "lane_resp": "L1_FACTOID",
+  "gold": [
+    "enwiki-00000033-0004-0001"
+  ],
+  "hit": false,
+  "latency_ms": 14.87,
+  "top_k": 8,
+  "results": [
+    {
+      "id": "7b5c2699-d413-50c4-afe5-df6048369ec1",
+      "score": 6.0,
+      "why": null
+    },
+    {
+      "id": "18d577fd-05c9-545b-8bae-d43960611272",
+      "score": 6.0,
+      "why": null
+    },
+    {
+      "id": "c39d7e87-5ab6-537f-ab6e-61e84daf92c1",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "c48a48cb-ce01-56c3-ac24-b207d9f9bee4",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "d6dddc69-8517-52a9-915a-0cecbad36186",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "2e8324a7-4f74-5320-8886-69c069b65242",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "edc4ed89-9bde-551c-911a-28096518c4e1",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "074d235a-6d99-5476-b9b4-1582c365c992",
+      "score": 4.0,
+      "why": null
+    }
+  ],
+  "raw": {
+    "lane": "L1_FACTOID",
+    "mode": "HYBRID",
+    "items": [
+      {
+        "id": "7b5c2699-d413-50c4-afe5-df6048369ec1",
+        "doc_id": "enwiki-00000033-0004-0001",
+        "score": 6.0,
+        "why": null
+      },
+      {
+        "id": "18d577fd-05c9-545b-8bae-d43960611272",
+        "doc_id": "enwiki-00000033-0005-0000",
+        "score": 6.0,
+        "why": null
+      },
+      {
+        "id": "c39d7e87-5ab6-537f-ab6e-61e84daf92c1",
+        "doc_id": "enwiki-00000033-0003-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "c48a48cb-ce01-56c3-ac24-b207d9f9bee4",
+        "doc_id": "enwiki-00000090-0014-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "d6dddc69-8517-52a9-915a-0cecbad36186",
+        "doc_id": "enwiki-00000002-0003-0000",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "2e8324a7-4f74-5320-8886-69c069b65242",
+        "doc_id": "enwiki-00000020-0004-0001",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "edc4ed89-9bde-551c-911a-28096518c4e1",
+        "doc_id": "enwiki-00000022-0002-0000",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "074d235a-6d99-5476-b9b4-1582c365c992",
+        "doc_id": "enwiki-00000025-0004-0000",
+        "score": 4.0,
+        "why": null
+      }
+    ],
+    "trace_id": "7742824d"
+  }
+}

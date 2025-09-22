@@ -79,8 +79,12 @@ def process_sample(
         # Extract CPE using prompt template
         extraction = extract_cpe_from_text(sample["contents"])
 
-        # Generate CPE ID
-        cpe_id = str(uuid.uuid4())
+        # Generate a deterministic CPE ID so eval sets can reference stable identifiers
+        source_id = sample.get("id")
+        if source_id:
+            cpe_id = str(uuid.uuid5(uuid.NAMESPACE_URL, source_id))
+        else:
+            cpe_id = str(uuid.uuid4())
 
         # Build TMD encoding
         domain_code = extraction["domain_code"]
@@ -106,7 +110,7 @@ def process_sample(
             "content_type": "factual",
             "dataset_source": "factoid-wiki-large",
             "chunk_position": {
-                "doc_id": sample["id"],
+                "doc_id": sample.get("id", cpe_id),
                 "start": 0,
                 "end": len(sample["contents"])
             },

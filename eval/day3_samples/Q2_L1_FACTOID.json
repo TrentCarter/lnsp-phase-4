@@ -1,0 +1,108 @@
+{
+  "query": "Which EP did Daisy Berkowitz and THEE PAUSE finally release after health delays, under the Mr Conrad Samsung banner?",
+  "lane_req": "L1_FACTOID",
+  "lane_resp": "L1_FACTOID",
+  "gold": [
+    "enwiki-00000012-0008-0000"
+  ],
+  "hit": false,
+  "latency_ms": 77.93,
+  "top_k": 8,
+  "results": [
+    {
+      "id": "48ce7a63-96d5-5239-a72f-01cc89963483",
+      "score": 13.0,
+      "why": null
+    },
+    {
+      "id": "9bdb6269-4c00-50af-a074-c8715515daee",
+      "score": 8.0,
+      "why": null
+    },
+    {
+      "id": "1f0b557e-c96d-5018-a3a3-2eaf0f14cc13",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "1557cc16-a727-57a0-8784-475b902bfe88",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "bbc2d841-dae8-57b5-aa72-3b89290ba4e1",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "b6dcfffa-7906-54c9-8306-c8ca8069cd43",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "0b93710d-e9c5-55ac-b8a7-6d39d65f7c18",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "b2d1b8fd-a19c-5177-8385-8dc0f034def4",
+      "score": 4.0,
+      "why": null
+    }
+  ],
+  "raw": {
+    "lane": "L1_FACTOID",
+    "mode": "HYBRID",
+    "items": [
+      {
+        "id": "48ce7a63-96d5-5239-a72f-01cc89963483",
+        "doc_id": "enwiki-00000012-0008-0000",
+        "score": 13.0,
+        "why": null
+      },
+      {
+        "id": "9bdb6269-4c00-50af-a074-c8715515daee",
+        "doc_id": "enwiki-00000012-0007-0000",
+        "score": 8.0,
+        "why": null
+      },
+      {
+        "id": "1f0b557e-c96d-5018-a3a3-2eaf0f14cc13",
+        "doc_id": "enwiki-00000012-0005-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "1557cc16-a727-57a0-8784-475b902bfe88",
+        "doc_id": "enwiki-00000012-0006-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "bbc2d841-dae8-57b5-aa72-3b89290ba4e1",
+        "doc_id": "enwiki-00000012-0000-0000",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "b6dcfffa-7906-54c9-8306-c8ca8069cd43",
+        "doc_id": "enwiki-00000012-0001-0000",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "0b93710d-e9c5-55ac-b8a7-6d39d65f7c18",
+        "doc_id": "enwiki-00000012-0002-0000",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "b2d1b8fd-a19c-5177-8385-8dc0f034def4",
+        "doc_id": "enwiki-00000020-0005-0000",
+        "score": 4.0,
+        "why": null
+      }
+    ],
+    "trace_id": "46a1c985"
+  }
+}

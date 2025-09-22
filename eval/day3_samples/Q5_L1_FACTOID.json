@@ -1,0 +1,108 @@
+{
+  "query": "Which album's later release split the original five-part suite 'Babbacombe' Lee into separate tracks with credits?",
+  "lane_req": "L1_FACTOID",
+  "lane_resp": "L1_FACTOID",
+  "gold": [
+    "enwiki-00000028-0006-0000"
+  ],
+  "hit": false,
+  "latency_ms": 77.46,
+  "top_k": 8,
+  "results": [
+    {
+      "id": "91857d29-63e7-5274-8c4a-7e35d8f5ab3c",
+      "score": 11.0,
+      "why": null
+    },
+    {
+      "id": "d6dddc69-8517-52a9-915a-0cecbad36186",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "cb1da91b-5d7b-5e56-be7e-a3296728f3eb",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "17ea7ded-7e12-52cc-84e0-f732e1f7a069",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "7779cc26-88a3-505d-81ae-214d516767f6",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "faf883ce-805f-562c-ba76-fb9195039244",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "d97c8db7-56c5-5cb7-90b3-0ce1378bd02b",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "d4f7276a-1f2d-5565-901f-0552e79d9e8b",
+      "score": 4.0,
+      "why": null
+    }
+  ],
+  "raw": {
+    "lane": "L1_FACTOID",
+    "mode": "HYBRID",
+    "items": [
+      {
+        "id": "91857d29-63e7-5274-8c4a-7e35d8f5ab3c",
+        "doc_id": "enwiki-00000028-0006-0000",
+        "score": 11.0,
+        "why": null
+      },
+      {
+        "id": "d6dddc69-8517-52a9-915a-0cecbad36186",
+        "doc_id": "enwiki-00000002-0003-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "cb1da91b-5d7b-5e56-be7e-a3296728f3eb",
+        "doc_id": "enwiki-00000028-0000-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "17ea7ded-7e12-52cc-84e0-f732e1f7a069",
+        "doc_id": "enwiki-00000028-0001-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "7779cc26-88a3-505d-81ae-214d516767f6",
+        "doc_id": "enwiki-00000028-0009-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "faf883ce-805f-562c-ba76-fb9195039244",
+        "doc_id": "enwiki-00000089-0028-0001",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "d97c8db7-56c5-5cb7-90b3-0ce1378bd02b",
+        "doc_id": "enwiki-00000113-0002-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "d4f7276a-1f2d-5565-901f-0552e79d9e8b",
+        "doc_id": "enwiki-00000003-0004-0000",
+        "score": 4.0,
+        "why": null
+      }
+    ],
+    "trace_id": "555b77b3"
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "query": "Which literary magazine named after the number 900 was launched as part of the Novecento Italiano movement?",
+  "lane_req": "L1_FACTOID",
+  "lane_resp": "L1_FACTOID",
+  "gold": [
+    "enwiki-00000016-0001-0000"
+  ],
+  "hit": false,
+  "latency_ms": 75.81,
+  "top_k": 8,
+  "results": [
+    {
+      "id": "d627a08c-4c2a-5208-b91f-fd2aed02f410",
+      "score": 11.0,
+      "why": null
+    },
+    {
+      "id": "7365fb2c-2564-544a-8b1e-3031adc7ca7f",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "74d5a11f-ec0a-5874-982e-d943e6725490",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "cb1da91b-5d7b-5e56-be7e-a3296728f3eb",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "af38f75e-7780-5058-bc61-e6f6b4e1109a",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "c276875e-606f-55fd-b21c-fccec2a30ee5",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "c2108b73-879f-50fb-9f23-0609f17363fb",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "0f8d8d9d-b8f9-58fa-95d7-b844e73f26b7",
+      "score": 5.0,
+      "why": null
+    }
+  ],
+  "raw": {
+    "lane": "L1_FACTOID",
+    "mode": "HYBRID",
+    "items": [
+      {
+        "id": "d627a08c-4c2a-5208-b91f-fd2aed02f410",
+        "doc_id": "enwiki-00000016-0001-0000",
+        "score": 11.0,
+        "why": null
+      },
+      {
+        "id": "7365fb2c-2564-544a-8b1e-3031adc7ca7f",
+        "doc_id": "enwiki-00000016-0000-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "74d5a11f-ec0a-5874-982e-d943e6725490",
+        "doc_id": "enwiki-00000020-0004-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "cb1da91b-5d7b-5e56-be7e-a3296728f3eb",
+        "doc_id": "enwiki-00000028-0000-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "af38f75e-7780-5058-bc61-e6f6b4e1109a",
+        "doc_id": "enwiki-00000036-0001-0001",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "c276875e-606f-55fd-b21c-fccec2a30ee5",
+        "doc_id": "enwiki-00000075-0003-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "c2108b73-879f-50fb-9f23-0609f17363fb",
+        "doc_id": "enwiki-00000078-0002-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "0f8d8d9d-b8f9-58fa-95d7-b844e73f26b7",
+        "doc_id": "enwiki-00000081-0000-0001",
+        "score": 5.0,
+        "why": null
+      }
+    ],
+    "trace_id": "76d0f09c"
+  }
+}

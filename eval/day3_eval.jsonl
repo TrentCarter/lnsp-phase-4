@@ -1,20 +1,20 @@
-{"id":"Q1","lane":"L1_FACTOID","query":"Define FactoidWiki and its purpose.","gold":["doc_000123"],"type":"exact"}
-{"id":"Q2","lane":"L1_FACTOID","query":"What's the curated chunk size target?","gold":["doc_000045"],"type":"scalar"}
-{"id":"Q3","lane":"L2_GRAPH","query":"Which pages does <EntityA> link to directly?","gold":["doc_000201","doc_000233"],"type":"edge_out"}
-{"id":"Q4","lane":"L2_GRAPH","query":"What mentions <EntityB>?","gold":["doc_000332"],"type":"edge_in"}
-{"id":"Q5","lane":"L3_SYNTH","query":"Summarize origins and contributors of FactoidWiki.","gold":["doc_000123","doc_000207","doc_000344"],"type":"synthesis"}
-{"id":"Q6","lane":"L1_FACTOID","query":"Paraphrase: 'goal of the project'","gold":["doc_000045"],"type":"paraphrase"}
-{"id":"Q7","lane":"L2_GRAPH","query":"Is <EntityC> a subtype of <EntityD>?","gold":["doc_000411"],"type":"isa"}
-{"id":"Q8","lane":"L1_FACTOID","query":"Chunk normalization pipeline steps?","gold":["doc_000072"],"type":"list"}
-{"id":"Q9","lane":"L2_GRAPH","query":"Two-hop related to <EntityE> via LINKS_TO then IS_A.","gold":["doc_000510"],"type":"2hop"}
-{"id":"Q10","lane":"L1_FACTOID","query":"TMD components and roles.","gold":["doc_000081"],"type":"definition"}
-{"id":"Q11","lane":"L3_SYNTH","query":"Contrast LightRAG vs flat RAG here.","gold":["doc_000210","doc_000345"],"type":"compare"}
-{"id":"Q12","lane":"L1_FACTOID","query":"Where do scripts live (path)?","gold":["doc_000015"],"type":"path"}
-{"id":"Q13","lane":"L2_GRAPH","query":"Aliases for <EntityF>.","gold":["doc_000266"],"type":"aliases"}
-{"id":"Q14","lane":"L1_FACTOID","query":"What's IVF/PQ config used?","gold":["doc_000900"],"type":"config"}
-{"id":"Q15","lane":"L3_SYNTH","query":"End-to-end pipeline summary.","gold":["doc_000001","doc_000050","doc_000090"],"type":"synthesis"}
-{"id":"Q16","lane":"L1_FACTOID","query":"How to run 1k ingest?","gold":["doc_000015"],"type":"howto"}
-{"id":"Q17","lane":"L2_GRAPH","query":"'Part-of' hierarchy for <EntityG>.","gold":["doc_000701"],"type":"part_of"}
-{"id":"Q18","lane":"L1_FACTOID","query":"Distance metric choice?","gold":["doc_000900"],"type":"scalar"}
-{"id":"Q19","lane":"L3_SYNTH","query":"Risks & mitigations for embedding inversion.","gold":["doc_000777"],"type":"risk"}
-{"id":"Q20","lane":"L1_FACTOID","query":"API endpoint for search?","gold":["doc_000012"],"type":"api"}
+{"id": "Q1", "lane": "L1_FACTOID", "query": "What is the debut studio album released by Portuguese singer Cláudia Pascoal in March 2020?", "gold": ["enwiki-00000000-0000-0000"], "type": "album"}
+{"id": "Q2", "lane": "L1_FACTOID", "query": "Which EP did Daisy Berkowitz and THEE PAUSE finally release after health delays, under the Mr Conrad Samsung banner?", "gold": ["enwiki-00000012-0008-0000"], "type": "music_release"}
+{"id": "Q3", "lane": "L1_FACTOID", "query": "Which literary magazine named after the number 900 was launched as part of the Novecento Italiano movement?", "gold": ["enwiki-00000016-0001-0000"], "type": "magazine"}
+{"id": "Q4", "lane": "L1_FACTOID", "query": "Which former UK Conservative Party leader continued to promote so-called 'And' politics?", "gold": ["enwiki-00000024-0006-0000"], "type": "politics"}
+{"id": "Q5", "lane": "L1_FACTOID", "query": "Which album's later release split the original five-part suite 'Babbacombe' Lee into separate tracks with credits?", "gold": ["enwiki-00000028-0006-0000"], "type": "album_history"}
+{"id": "Q6", "lane": "L1_FACTOID", "query": "Whose drag strip was credited by a deputy sheriff with reducing Los Angeles street racing when it was open?", "gold": ["enwiki-00000033-0004-0001"], "type": "motorsport"}
+{"id": "Q7", "lane": "L1_FACTOID", "query": "Which Ebichū compilation album blends heavy metal, melocore, and electro styles?", "gold": ["enwiki-00000048-0002-0000"], "type": "music_genre"}
+{"id": "Q8", "lane": "L1_FACTOID", "query": "In which Kinsey Millhone mystery does ex-con Alvin Limardo hire her to deliver a $25,000 check?", "gold": ["enwiki-00000063-0001-0000"], "type": "mystery_plot"}
+{"id": "Q9", "lane": "L1_FACTOID", "query": "Which Italian comedy film packs cameos from Arbore, De Crescenzo, and other celebrities?", "gold": ["enwiki-00000069-0003-0000"], "type": "film"}
+{"id": "Q10", "lane": "L1_FACTOID", "query": "Which drug trafficker's teacher linked him to supplier Ivan Arguellas for steady cocaine access?", "gold": ["enwiki-00000075-0007-0000"], "type": "crime"}
+{"id": "Q11", "lane": "L1_FACTOID", "query": "Which controversial UK 'Go Home' vans campaign drew criticism from politicians like Nick Clegg and Yvette Cooper?", "gold": ["enwiki-00000081-0002-0000"], "type": "policy"}
+{"id": "Q12", "lane": "L1_FACTOID", "query": "Which early programming example printed 'hello, world!' on a terminal using multiple variables in the B language?", "gold": ["enwiki-00000088-0004-0000"], "type": "computing"}
+{"id": "Q13", "lane": "L1_FACTOID", "query": "Which David Bowie album's retrospective reviews praise his artistic growth alongside Robert Fripp's contributions?", "gold": ["enwiki-00000089-0026-0000"], "type": "album_review"}
+{"id": "Q14", "lane": "L1_FACTOID", "query": "Which Emily Dickinson poem uses seafaring imagery like 'Sea' and 'Gale' to portray hope?", "gold": ["enwiki-00000092-0006-0000"], "type": "poetry"}
+{"id": "Q15", "lane": "L1_FACTOID", "query": "Which spiritual movement drew early members from William Dudley Pelley's Silver Shirts organization?", "gold": ["enwiki-00000104-0006-0001"], "type": "religion"}
+{"id": "Q16", "lane": "L1_FACTOID", "query": "In which Kinsey Millhone case does Kenneth Voigt try to secure a fortune for his daughter Shelby?", "gold": ["enwiki-00000108-0001-0001"], "type": "mystery_plot"}
+{"id": "Q17", "lane": "L1_FACTOID", "query": "Which novel leaves Kinsey wondering if Renata faked her death after Jaffe's body washes ashore?", "gold": ["enwiki-00000114-0007-0000"], "type": "mystery_plot"}
+{"id": "Q18", "lane": "L1_FACTOID", "query": "Which Australian frog species was rediscovered by scientist Luke Pearce in 2009?", "gold": ["enwiki-00000119-0001-0001"], "type": "wildlife"}
+{"id": "Q19", "lane": "L1_FACTOID", "query": "Which New Zealand drifting racer nicknamed 'Mad Mike' is sponsored by Red Bull?", "gold": ["enwiki-00000126-0000-0000"], "type": "motorsport"}
+{"id": "Q20", "lane": "L1_FACTOID", "query": "Which Albanian state decoration did President Ilir Meta award for promoting Albania in the United States?", "gold": ["enwiki-00000131-0002-0000"], "type": "honor"}

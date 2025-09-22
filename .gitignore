@@ -263,3 +263,19 @@ mlflow.db
 
 # MLArtifacts directory
 mlartifacts/
+*.npz
+
+# Vector databases and indices
+*.npz
+*.ivf
+*.faiss
+*.index
+
+# Model artifacts
+*.pkl
+*.joblib
+*.onnx
+
+# Large data files
+*.hdf5
+*.parquet

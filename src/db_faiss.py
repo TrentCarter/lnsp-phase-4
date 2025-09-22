@@ -1,3 +1,4 @@
+import os
 import numpy as np
 try:
     import faiss
@@ -49,8 +50,12 @@ class FaissDB:
             print(f"[FaissDB] No fused_vec in CPE record {cpe_record['cpe_id']}")
             return False
         vector = np.array(cpe_record['fused_vec'], dtype=np.float32)
+        chunk_position = cpe_record.get('chunk_position') or {}
+        doc_id = chunk_position.get('doc_id', '')
+
         self.vectors_stored.append({
             'cpe_id': cpe_record['cpe_id'],
+            'doc_id': doc_id,
             'vector': vector,
             'lane_index': cpe_record.get('lane_index', 0),
             'concept_text': cpe_record.get('concept_text', ''),
@@ -67,9 +72,91 @@ class FaissDB:
             cpe_ids = np.array([v['cpe_id'] for v in self.vectors_stored])
             lane_indices = np.array([v['lane_index'] for v in self.vectors_stored])
             concept_texts = np.array([v['concept_text'] for v in self.vectors_stored])
-            np.savez(self.output_path, vectors=vectors, cpe_ids=cpe_ids, lane_indices=lane_indices, concept_texts=concept_texts)
+            doc_ids = np.array([v.get('doc_id', '') for v in self.vectors_stored])
+            np.savez(
+                self.output_path,
+                vectors=vectors,
+                cpe_ids=cpe_ids,
+                lane_indices=lane_indices,
+                concept_texts=concept_texts,
+                doc_ids=doc_ids,
+            )
             print(f"[FaissDB] Saved {len(self.vectors_stored)} vectors to {self.output_path}")
             return True
         except Exception as exc:
             print(f"[FaissDB] Error saving: {exc}")
             return False
+
+    def load(self, npz_path: str) -> bool:
+        """Load vectors from NPZ file and build index."""
+        try:
+            if not os.path.exists(npz_path):
+                return False
+            npz = np.load(npz_path)
+            vectors = npz['vectors'].astype(np.float32)
+            self.cpe_ids = npz['cpe_ids']
+            self.lane_indices = npz.get('lane_indices', np.zeros(len(vectors)))
+            self.concept_texts = npz.get('concept_texts', [''] * len(vectors))
+            if 'doc_ids' in npz.files:
+                self.doc_ids = npz['doc_ids']
+            else:
+                self.doc_ids = np.array([''] * len(vectors))
+
+            # Build index with loaded vectors
+            if len(vectors) > 0:
+                if faiss is not None:
+                    try:
+                        # Use flat index for small datasets
+                        if len(vectors) < 32:
+                            self.index = faiss.IndexFlatIP(vectors.shape[1])
+                        else:
+                            self.index = build_index(vectors, min(32, len(vectors)//2))
+                        if self.index:
+                            normalized_vecs = l2_normalize(vectors)
+                            self.index.add(normalized_vecs)
+                            print(f"[FaissDB] Loaded and built index with {len(vectors)} vectors")
+                            return True
+                    except Exception as e:
+                        print(f"[FaissDB] Error building index: {e}")
+                        return False
+            return False
+        except Exception as exc:
+            print(f"[FaissDB] Error loading {npz_path}: {exc}")
+            return False
+
+    def search(self, query_vec: np.ndarray, topk: int = 5, use_lightrag: bool = False):
+        """Search for similar vectors."""
+        if self.index is None:
+            return []
+
+        try:
+            query_normalized = l2_normalize(query_vec.reshape(1, -1))
+            scores, indices = self.index.search(query_normalized, topk)
+
+            # Return results in the format expected by the API
+            results = []
+            for i, (score, idx) in enumerate(zip(scores[0], indices[0])):
+                if idx >= 0 and idx < len(self.cpe_ids):  # Valid index
+                    doc_id = ''
+                    if hasattr(self, 'doc_ids') and len(self.doc_ids) > idx:
+                        doc_id = str(self.doc_ids[idx])
+
+                    result = {
+                        'cpe_id': str(self.cpe_ids[idx]),
+                        'score': float(score),
+                        'rank': i + 1,
+                        'lane_index': int(self.lane_indices[idx]) if hasattr(self, 'lane_indices') else 0,
+                        'retriever': 'faiss',
+                        'metadata': {
+                            'concept_text': str(self.concept_texts[idx]) if hasattr(self, 'concept_texts') else ''
+                        }
+                    }
+                    if doc_id:
+                        result['doc_id'] = doc_id
+                        result['metadata']['doc_id'] = doc_id
+
+                    results.append(result)
+            return results
+        except Exception as exc:
+            print(f"[FaissDB] Search error: {exc}")
+            return []

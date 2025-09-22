@@ -1,0 +1,61 @@
+{
+  "query": "Is <EntityC> a subtype of <EntityD>?",
+  "lane_req": "L2_GRAPH",
+  "lane_resp": "L2_GRAPH",
+  "gold": [
+    "doc_000411"
+  ],
+  "hit": false,
+  "latency_ms": 79.43,
+  "top_k": 3,
+  "results": [
+    {
+      "id": "3fc9d298-0600-47f8-9255-59dec694036c",
+      "score": 0.0
+    },
+    {
+      "id": "310d2799-d228-40e7-b8a2-42eefaa7a8e5",
+      "score": 0.0
+    },
+    {
+      "id": "6797e530-ffd2-42ea-b5e1-ecdd6f80eda6",
+      "score": 0.0
+    }
+  ],
+  "raw": {
+    "query": "Is <EntityC> a subtype of <EntityD>?",
+    "lane_index": 4096,
+    "results": [
+      {
+        "cpe_id": "3fc9d298-0600-47f8-9255-59dec694036c",
+        "score": 0.0,
+        "rank": 1,
+        "lane_index": 18432,
+        "retriever": "faiss",
+        "metadata": {
+          "concept_text": "! (The Dismemberment Plan album), Personnel The following people were involved in the making of ! :."
+        }
+      },
+      {
+        "cpe_id": "310d2799-d228-40e7-b8a2-42eefaa7a8e5",
+        "score": 0.0,
+        "rank": 2,
+        "lane_index": 18432,
+        "retriever": "faiss",
+        "metadata": {
+          "concept_text": "! (The Dismemberment Plan album) ! is the debut studio album by American indie rock band The Dismemberment Plan."
+        }
+      },
+      {
+        "cpe_id": "6797e530-ffd2-42ea-b5e1-ecdd6f80eda6",
+        "score": 0.0,
+        "rank": 3,
+        "lane_index": 18432,
+        "retriever": "faiss",
+        "metadata": {
+          "concept_text": "! (Cláudia Pascoal album) ! is the debut studio album by Portuguese singer Cláudia Pascoal."
+        }
+      }
+    ]
+  }
+}

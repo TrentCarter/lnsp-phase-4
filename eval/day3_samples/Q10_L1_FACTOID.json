@@ -1,0 +1,108 @@
+{
+  "query": "Which drug trafficker's teacher linked him to supplier Ivan Arguellas for steady cocaine access?",
+  "lane_req": "L1_FACTOID",
+  "lane_resp": "L1_FACTOID",
+  "gold": [
+    "enwiki-00000075-0007-0000"
+  ],
+  "hit": false,
+  "latency_ms": 14.69,
+  "top_k": 8,
+  "results": [
+    {
+      "id": "5a3b42de-1490-54a4-a499-8640ba138da7",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "faf883ce-805f-562c-ba76-fb9195039244",
+      "score": 5.0,
+      "why": null
+    },
+    {
+      "id": "494cf253-c623-5cb6-8049-df150059ee85",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "6b48eb11-7717-5477-bef1-7a136f53ba52",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "8dc521df-1976-513c-80f1-52b7d1f88f43",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "b8e7fd58-66ec-53d1-bb5d-e4b7c027a077",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "3d686d1f-7b53-5be4-841c-1746e112205b",
+      "score": 4.0,
+      "why": null
+    },
+    {
+      "id": "df4356d2-d094-5854-82ea-5ad9d778586e",
+      "score": 3.0,
+      "why": null
+    }
+  ],
+  "raw": {
+    "lane": "L1_FACTOID",
+    "mode": "HYBRID",
+    "items": [
+      {
+        "id": "5a3b42de-1490-54a4-a499-8640ba138da7",
+        "doc_id": "enwiki-00000075-0007-0000",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "faf883ce-805f-562c-ba76-fb9195039244",
+        "doc_id": "enwiki-00000089-0028-0001",
+        "score": 5.0,
+        "why": null
+      },
+      {
+        "id": "494cf253-c623-5cb6-8049-df150059ee85",
+        "doc_id": "enwiki-00000075-0000-0000",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "6b48eb11-7717-5477-bef1-7a136f53ba52",
+        "doc_id": "enwiki-00000075-0009-0000",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "8dc521df-1976-513c-80f1-52b7d1f88f43",
+        "doc_id": "enwiki-00000089-0027-0000",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "b8e7fd58-66ec-53d1-bb5d-e4b7c027a077",
+        "doc_id": "enwiki-00000109-0011-0000",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "3d686d1f-7b53-5be4-841c-1746e112205b",
+        "doc_id": "enwiki-00000128-0005-0000",
+        "score": 4.0,
+        "why": null
+      },
+      {
+        "id": "df4356d2-d094-5854-82ea-5ad9d778586e",
+        "doc_id": "enwiki-00000002-0002-0000",
+        "score": 3.0,
+        "why": null
+      }
+    ],
+    "trace_id": "58039cc9"
+  }
+}

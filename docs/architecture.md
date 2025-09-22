@@ -206,11 +206,43 @@ CREATE INDEX concept_domain_index IF NOT EXISTS FOR (c:Concept) ON (c.domain_cod
   - Optional demo server if needed: `8001`
 
 ### API Service Endpoints
-- **Retrieval API**: `http://127.0.0.1:8080`
+- **Retrieval API**: `http://127.0.0.1:8080` (production standard)
   - Health Check: `GET /healthz` - Returns system status and npz path
-  - Search: `GET /search?q={query}&k={topk}` - Lane-aware retrieval with LightRAG hybrid mode
+  - **Search: `POST /search`** - Lane-aware retrieval with canonical response contract
   - Launch (production): `./venv/bin/uvicorn src.api.retrieve:app --reload --port 8080 --host 0.0.0.0`
-  - Launch (current): `./venv/bin/uvicorn src.api.retrieve:app --reload --port 8001 --host 127.0.0.1`
+
+#### POST /search Contract (2025-09-22)
+
+**Request Schema:**
+```json
+{
+  "q": "What is artificial intelligence?",      // Required: query string (1-512 chars)
+  "lane": "L1_FACTOID",                        // Required: L1_FACTOID|L2_GRAPH|L3_SYNTH
+  "top_k": 8                                   // Optional: 1-100, default 8
+}
+```
+
+**Response Schema:**
+```json
+{
+  "lane": "L1_FACTOID",                        // Echo request lane
+  "mode": "DENSE",                             // DENSE|GRAPH|HYBRID (actual mode used)
+  "items": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",  // Canonical: cpe_id (stable)
+      "doc_id": "enwiki:12345",                      // Optional: upstream document ID
+      "score": 0.87,                                 // Optional: similarity/ranking score
+      "why": "Dense embedding match"                 // Optional: retrieval explanation
+    }
+  ]
+}
+```
+
+**Key Contract Guarantees:**
+- `id` field always equals `cpe_id` (stable UUID for consistent evaluation)
+- Response always includes `items` array (empty array if no results)
+- Lane routing: L1_FACTOID→dense, L2_GRAPH→graph expansion, L3_SYNTH→hybrid
+- Lexical fallback configurable via `LNSP_LEXICAL_FALLBACK` environment variable
 
 ### Port Conflict Resolution
 If you encounter port conflicts on your development machine:

@@ -1,5 +1,9 @@
 import os
-from neo4j import GraphDatabase
+
+try:
+    from neo4j import GraphDatabase
+except ImportError:  # pragma: no cover - optional dependency
+    GraphDatabase = None
 
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
@@ -7,6 +11,8 @@ NEO4J_PASS = os.getenv("NEO4J_PASS", "password")
 
 
 def get_driver():
+    if GraphDatabase is None:
+        raise RuntimeError("neo4j driver not available")
     return GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASS))
 
 
@@ -33,7 +39,7 @@ class Neo4jDB:
     def __init__(self, enabled: bool = True):
         self.enabled = enabled
         self.driver = None
-        if self.enabled:
+        if self.enabled and GraphDatabase is not None:
             try:
                 self.driver = get_driver()
                 if self.driver:
@@ -44,6 +50,9 @@ class Neo4jDB:
             except Exception as exc:
                 print(f"[Neo4jDB] Connection error: {exc}")
                 self.enabled = False
+        elif self.enabled:
+            print("[Neo4jDB] neo4j driver missing — falling back to stub mode")
+            self.enabled = False
         else:
             print("[Neo4jDB] Running in stub mode")
 
