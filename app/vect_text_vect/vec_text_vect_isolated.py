@@ -54,10 +54,10 @@ class IsolatedVecTextVectOrchestrator:
         
         # Environment paths
         self.venv_paths = {
-            'jxe': self.project_root / 'venv_jxe',
-            'ielab': self.project_root / 'venv_ielab', 
-            'vmmoe': self.project_root / 'venv_vmmoe',
-            'mamba': self.project_root / 'venv_vmmoe' # Assuming same venv for now
+            'jxe': self.project_root / 'venv',
+            'ielab': self.project_root / 'venv',
+            'vmmoe': self.project_root / 'venv',
+            'mamba': self.project_root / 'venv' # Using unified venv
         }
         
         if self.debug:
@@ -121,9 +121,9 @@ class IsolatedVecTextVectOrchestrator:
         else:
             wrapper_path = self.project_root / 'app' / 'vect_text_vect' / 'subscriber_wrappers' / f'{subscriber_name}_wrapper.py'
         
-        # For now, if venv doesn't exist, try using the main venv311
+        # For now, if venv doesn't exist, try using the main venv
         if not venv_path or not venv_path.exists():
-            venv_path = self.project_root / 'venv311'
+            venv_path = self.project_root / 'venv'
             if not venv_path.exists():
                 if self.debug:
                     print(f"[DEBUG] No virtual environment found for {subscriber_name}")

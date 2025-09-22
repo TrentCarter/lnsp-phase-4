@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: lnsp
+      POSTGRES_USER: lnsp
+      POSTGRES_PASSWORD: lnsp
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  neo4j:
+    image: neo4j:5
+    environment:
+      - NEO4J_AUTH=neo4j/password
+    ports: ["7687:7687", "7474:7474"]
+    volumes:
+      - neo4j:/data
+volumes:
+  pgdata: {}
+  neo4j: {}

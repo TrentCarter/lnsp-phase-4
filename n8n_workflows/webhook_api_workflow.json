@@ -1,0 +1,118 @@
+{
+  "name": "Vec2Text API Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vec2text",
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "id": "webhook-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "vec2text-webhook-001"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate incoming request\nconst body = $input.item.json.body;\n\nif (!body || !body.text) {\n  return {\n    json: {\n      error: \"Missing 'text' parameter in request body\",\n      status: 400\n    }\n  };\n}\n\nconst subscribers = body.subscribers || 'jxe,ielab';\n// Use MPS if only JXE, CPU if IELab is included\nconst device = subscribers === 'jxe' ? 'mps' : 'cpu';\n\nconst config = {\n  text: body.text,\n  subscribers: subscribers,\n  steps: body.steps || 1,\n  backend: body.backend || 'isolated',\n  format: body.format || 'json',\n  device: device\n};\n\nreturn {\n  json: config\n};"
+      },
+      "id": "validate-001",
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd /Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4 && VEC2TEXT_FORCE_PROJECT_VENV=1 VEC2TEXT_DEVICE={{$json[\"device\"]}} TOKENIZERS_PARALLELISM=false ./venv/bin/python3 app/vect_text_vect/vec_text_vect_isolated.py --input-text \"{{$json[\"text\"]}}\" --subscribers {{$json[\"subscribers\"]}} --vec2text-backend isolated --output-format json --steps 1"
+      },
+      "id": "execute-001",
+      "name": "Process Vec2Text",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "try {\n  const output = $input.item.json.stdout;\n  const stderr = $input.item.json.stderr;\n  \n  // Try to extract JSON from output\n  const jsonMatch = output.match(/{[\\s\\S]*}/);\n  \n  if (jsonMatch) {\n    const result = JSON.parse(jsonMatch[0]);\n    \n    return {\n      json: {\n        status: \"success\",\n        request: $node[\"Validate Request\"].json,\n        result: result,\n        processing_time: new Date().toISOString()\n      }\n    };\n  } else if (stderr) {\n    return {\n      json: {\n        status: \"error\",\n        request: $node[\"Validate Request\"].json,\n        error: stderr,\n        processing_time: new Date().toISOString()\n      }\n    };\n  } else {\n    return {\n      json: {\n        status: \"warning\",\n        request: $node[\"Validate Request\"].json,\n        raw_output: output,\n        message: \"Processing completed but no JSON output found\",\n        processing_time: new Date().toISOString()\n      }\n    };\n  }\n} catch (error) {\n  return {\n    json: {\n      status: \"error\",\n      request: $node[\"Validate Request\"].json,\n      error: error.message,\n      processing_time: new Date().toISOString()\n    }\n  };\n}"
+      },
+      "id": "format-001",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond-001",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Request": {
+      "main": [
+        [
+          {
+            "node": "Process Vec2Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Vec2Text": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "webhook-v1",
+  "id": "vec2text_webhook_001",
+  "meta": {
+    "instanceId": "n8n-lnsp-phase4"
+  },
+  "tags": []
+}

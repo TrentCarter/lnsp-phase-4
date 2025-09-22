@@ -1,0 +1,224 @@
+[
+  {
+    "id": "enwiki-00000000-0000-0000",
+    "concept": "Photosynthesis in plants converts light energy into chemical energy.",
+    "domain": "science",
+    "task": "fact_retrieval",
+    "modifier": "biochemical",
+    "mission": "Extract the primary biological fact from the passage.",
+    "probe": "What process converts light energy into chemical energy in plants?",
+    "expected": "Photosynthesis converts light energy into chemical energy in plants.",
+    "relations": [
+      {"subj": "photosynthesis", "pred": "occurs_in", "obj": "plants", "confidence": 0.91}
+    ]
+  },
+  {
+    "id": "enwiki-00000001-0000-0000",
+    "concept": "Pythagoras established that the square of the hypotenuse equals the sum of the squares of the legs in a right triangle.",
+    "domain": "math",
+    "task": "mathematical_proof",
+    "modifier": "logical",
+    "mission": "Identify the core theorem referenced in the math exposition.",
+    "probe": "What relationship did Pythagoras establish for right triangles?",
+    "expected": "The square of the hypotenuse equals the sum of the squares of the other two sides.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000002-0000-0000",
+    "concept": "Ada Lovelace is recognized as the first computer programmer.",
+    "domain": "tech",
+    "task": "fact_retrieval",
+    "modifier": "historical",
+    "mission": "Extract the primary claim about the historical figure.",
+    "probe": "Who is regarded as the first computer programmer?",
+    "expected": "Ada Lovelace is considered the first computer programmer.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000003-0000-0000",
+    "concept": "The Eiffel Tower was completed in 1889 for the Paris Exposition.",
+    "domain": "history",
+    "task": "fact_retrieval",
+    "modifier": "temporal",
+    "mission": "Pull the key historical fact about the monument.",
+    "probe": "When was the Eiffel Tower completed and for what event?",
+    "expected": "It was completed in 1889 for the Paris Exposition.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000004-0000-0000",
+    "concept": "Vincent van Gogh painted Starry Night in 1889 while at Saint-Rémy.",
+    "domain": "art",
+    "task": "fact_retrieval",
+    "modifier": "descriptive",
+    "mission": "Summarize the art fact.",
+    "probe": "Which artist painted Starry Night and when?",
+    "expected": "Vincent van Gogh painted Starry Night in 1889 while at Saint-Rémy.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000005-0000-0000",
+    "concept": "Einstein's theory of general relativity describes gravity as the curvature of spacetime.",
+    "domain": "science",
+    "task": "summarization",
+    "modifier": "analytical",
+    "mission": "Capture the theoretical claim in the physics excerpt.",
+    "probe": "How does general relativity describe gravity?",
+    "expected": "Gravity is the curvature of spacetime.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000006-0000-0000",
+    "concept": "The Great Barrier Reef is the world's largest coral reef system.",
+    "domain": "environment",
+    "task": "fact_retrieval",
+    "modifier": "descriptive",
+    "mission": "Extract the ecological superlative stated.",
+    "probe": "What is the world's largest coral reef system?",
+    "expected": "The Great Barrier Reef is the world's largest coral reef system.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000007-0000-0000",
+    "concept": "The Supreme Court of the United States consists of nine justices appointed for life.",
+    "domain": "law",
+    "task": "fact_retrieval",
+    "modifier": "regulatory",
+    "mission": "Record the legal structure detailed in the passage.",
+    "probe": "How many justices serve on the U.S. Supreme Court and what is their term?",
+    "expected": "Nine justices serve for life.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000008-0000-0000",
+    "concept": "In economics, inflation denotes the rate at which the general price level increases over time.",
+    "domain": "economics",
+    "task": "definition_matching",
+    "modifier": "analytical",
+    "mission": "Identify the economic definition in the text.",
+    "probe": "What does inflation denote in economics?",
+    "expected": "It is the rate at which the general price level increases over time.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000009-0000-0000",
+    "concept": "The moon Europa likely harbors a subsurface ocean beneath its icy crust.",
+    "domain": "science",
+    "task": "hypothesis_testing",
+    "modifier": "probabilistic",
+    "mission": "Capture the scientific hypothesis about the Jovian moon.",
+    "probe": "What does evidence suggest about Europa's subsurface?",
+    "expected": "Europa likely has a subsurface ocean beneath its ice.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000010-0000-0000",
+    "concept": "Shakespeare's Macbeth explores the corrosive effects of unchecked ambition.",
+    "domain": "literature",
+    "task": "summarization",
+    "modifier": "interpretive",
+    "mission": "Summarize the literary theme discussed.",
+    "probe": "What theme does Macbeth explore?",
+    "expected": "It explores the destructive impact of unchecked ambition.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000011-0000-0000",
+    "concept": "The Manhattan Project produced the first nuclear weapons during World War II.",
+    "domain": "history",
+    "task": "fact_retrieval",
+    "modifier": "historical",
+    "mission": "Extract the key historical fact about the project.",
+    "probe": "What was produced by the Manhattan Project?",
+    "expected": "The first nuclear weapons were produced during World War II.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000012-0000-0000",
+    "concept": "Mars has the tallest volcano in the solar system, Olympus Mons.",
+    "domain": "science",
+    "task": "fact_retrieval",
+    "modifier": "comparative",
+    "mission": "Identify the planetary fact in the astronomy note.",
+    "probe": "Which volcano is the tallest in the solar system and where is it located?",
+    "expected": "Olympus Mons on Mars is the tallest volcano in the solar system.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000013-0000-0000",
+    "concept": "The human genome contains approximately three billion base pairs.",
+    "domain": "science",
+    "task": "fact_retrieval",
+    "modifier": "quantitative",
+    "mission": "Extract the quantitative genetic fact.",
+    "probe": "How many base pairs are in the human genome?",
+    "expected": "About three billion base pairs.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000014-0000-0000",
+    "concept": "The Kyoto Protocol mandated binding greenhouse gas reduction targets for developed nations.",
+    "domain": "politics",
+    "task": "policy_recommendation",
+    "modifier": "regulatory",
+    "mission": "Capture the policy obligation described.",
+    "probe": "What did the Kyoto Protocol require of developed countries?",
+    "expected": "It required binding greenhouse gas reduction targets.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000015-0000-0000",
+    "concept": "The mitochondrion functions as the powerhouse of the cell by generating ATP.",
+    "domain": "science",
+    "task": "relationship_extraction",
+    "modifier": "functional",
+    "mission": "Describe the cellular role presented.",
+    "probe": "Why is the mitochondrion called the powerhouse of the cell?",
+    "expected": "It produces ATP, supplying energy to the cell.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000016-0000-0000",
+    "concept": "Beethoven was completely deaf when he composed his Ninth Symphony.",
+    "domain": "art",
+    "task": "fact_retrieval",
+    "modifier": "historical",
+    "mission": "Extract the historical music fact.",
+    "probe": "What was Beethoven's condition while composing the Ninth Symphony?",
+    "expected": "He was completely deaf.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000017-0000-0000",
+    "concept": "The first programmable digital computer, ENIAC, was completed in 1945.",
+    "domain": "tech",
+    "task": "fact_retrieval",
+    "modifier": "historical",
+    "mission": "Capture the computing milestone.",
+    "probe": "When was ENIAC completed and what was it?",
+    "expected": "ENIAC, the first programmable digital computer, was completed in 1945.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000018-0000-0000",
+    "concept": "The Golden Gate Bridge spans 1.7 miles across the Golden Gate strait.",
+    "domain": "engineering",
+    "task": "fact_retrieval",
+    "modifier": "structural",
+    "mission": "Summarize the engineering statistic mentioned.",
+    "probe": "How long is the Golden Gate Bridge and what does it cross?",
+    "expected": "It spans 1.7 miles across the Golden Gate strait.",
+    "relations": []
+  },
+  {
+    "id": "enwiki-00000019-0000-0000",
+    "concept": "CRISPR-Cas9 allows targeted editing of DNA sequences.",
+    "domain": "science",
+    "task": "relationship_extraction",
+    "modifier": "experimental",
+    "mission": "Identify the gene-editing capability described.",
+    "probe": "What does CRISPR-Cas9 enable scientists to do?",
+    "expected": "It enables targeted editing of DNA sequences.",
+    "relations": []
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "name": "lnsp_factoid_extractor_v1",
+  "description": "Extract CPE (Concept, Probe, Expected answer) with frozen TMD enums and relations.",
+  "system": "You are an expert LNSP extraction agent. Given a FactoidWiki chunk, produce a single JSON object using the provided schema. Only emit valid enum values (see enums.md).",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "concept": {"type": "string", "description": "Atomic proposition distilled from the passage."},
+      "domain": {"type": "string", "enum": ["science", "math", "tech", "engineering", "medicine", "psychology", "philosophy", "history", "literature", "art", "economics", "law", "politics", "education", "environment", "sociology"]},
+      "task": {"type": "string", "enum": ["fact_retrieval", "definition_matching", "analogical_reasoning", "causal_inference", "classification", "entity_recognition", "relationship_extraction", "schema_adherence", "summarization", "paraphrasing", "translation", "sentiment_analysis", "argument_evaluation", "hypothesis_testing", "code_generation", "function_calling", "mathematical_proof", "diagram_interpretation", "temporal_reasoning", "spatial_reasoning", "ethical_evaluation", "policy_recommendation", "roleplay_simulation", "creative_writing", "instruction_following", "error_detection", "output_repair", "question_generation", "conceptual_mapping", "knowledge_distillation", "tool_use", "prompt_completion"]},
+      "modifier": {"type": "string", "enum": ["biochemical", "evolutionary", "computational", "logical", "ethical", "historical", "legal", "philosophical", "emotional", "technical", "creative", "abstract", "concrete", "visual", "auditory", "spatial", "temporal", "quantitative", "qualitative", "procedural", "declarative", "comparative", "analogical", "causal", "hypothetical", "experimental", "narrative", "descriptive", "prescriptive", "diagnostic", "predictive", "reflective", "strategic", "tactical", "symbolic", "functional", "structural", "semantic", "syntactic", "pragmatic", "normative", "regulatory", "collaborative", "adversarial", "instructional", "evaluative", "generative", "interpretive", "analytical", "operational", "contextual", "metacognitive", "motivational", "persuasive", "investigative", "probabilistic", "deterministic", "heuristic", "empathic", "cultural", "economic", "political", "educational", "resilient"]},
+      "mission": {"type": "string", "description": "Instruction given to the LLM agent for extraction."},
+      "probe": {"type": "string", "description": "Question that validates the concept."},
+      "expected": {"type": "string", "description": "Reference answer to the probe."},
+      "relations": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "subj": {"type": "string"},
+            "pred": {"type": "string"},
+            "obj": {"type": "string"},
+            "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+          },
+          "required": ["subj", "pred", "obj"]
+        }
+      }
+    },
+    "required": ["concept", "domain", "task", "modifier", "mission", "probe", "expected", "relations"],
+    "additionalProperties": false
+  }
+}

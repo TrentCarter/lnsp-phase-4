@@ -1,0 +1,20 @@
+{"id":"Q1","lane":"L1_FACTOID","query":"Define FactoidWiki and its purpose.","gold":["doc_000123"],"type":"exact"}
+{"id":"Q2","lane":"L1_FACTOID","query":"What's the curated chunk size target?","gold":["doc_000045"],"type":"scalar"}
+{"id":"Q3","lane":"L2_GRAPH","query":"Which pages does <EntityA> link to directly?","gold":["doc_000201","doc_000233"],"type":"edge_out"}
+{"id":"Q4","lane":"L2_GRAPH","query":"What mentions <EntityB>?","gold":["doc_000332"],"type":"edge_in"}
+{"id":"Q5","lane":"L3_SYNTH","query":"Summarize origins and contributors of FactoidWiki.","gold":["doc_000123","doc_000207","doc_000344"],"type":"synthesis"}
+{"id":"Q6","lane":"L1_FACTOID","query":"Paraphrase: 'goal of the project'","gold":["doc_000045"],"type":"paraphrase"}
+{"id":"Q7","lane":"L2_GRAPH","query":"Is <EntityC> a subtype of <EntityD>?","gold":["doc_000411"],"type":"isa"}
+{"id":"Q8","lane":"L1_FACTOID","query":"Chunk normalization pipeline steps?","gold":["doc_000072"],"type":"list"}
+{"id":"Q9","lane":"L2_GRAPH","query":"Two-hop related to <EntityE> via LINKS_TO then IS_A.","gold":["doc_000510"],"type":"2hop"}
+{"id":"Q10","lane":"L1_FACTOID","query":"TMD components and roles.","gold":["doc_000081"],"type":"definition"}
+{"id":"Q11","lane":"L3_SYNTH","query":"Contrast LightRAG vs flat RAG here.","gold":["doc_000210","doc_000345"],"type":"compare"}
+{"id":"Q12","lane":"L1_FACTOID","query":"Where do scripts live (path)?","gold":["doc_000015"],"type":"path"}
+{"id":"Q13","lane":"L2_GRAPH","query":"Aliases for <EntityF>.","gold":["doc_000266"],"type":"aliases"}
+{"id":"Q14","lane":"L1_FACTOID","query":"What's IVF/PQ config used?","gold":["doc_000900"],"type":"config"}
+{"id":"Q15","lane":"L3_SYNTH","query":"End-to-end pipeline summary.","gold":["doc_000001","doc_000050","doc_000090"],"type":"synthesis"}
+{"id":"Q16","lane":"L1_FACTOID","query":"How to run 1k ingest?","gold":["doc_000015"],"type":"howto"}
+{"id":"Q17","lane":"L2_GRAPH","query":"'Part-of' hierarchy for <EntityG>.","gold":["doc_000701"],"type":"part_of"}
+{"id":"Q18","lane":"L1_FACTOID","query":"Distance metric choice?","gold":["doc_000900"],"type":"scalar"}
+{"id":"Q19","lane":"L3_SYNTH","query":"Risks & mitigations for embedding inversion.","gold":["doc_000777"],"type":"risk"}
+{"id":"Q20","lane":"L1_FACTOID","query":"API endpoint for search?","gold":["doc_000012"],"type":"api"}

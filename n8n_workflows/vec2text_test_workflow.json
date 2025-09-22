@@ -1,0 +1,112 @@
+{
+  "name": "Vec2Text Testing Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "4b5e1c5f-d3a2-4e8f-b123-abc123456789",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Test texts for vec2text processing\nconst testTexts = [\n  \"What is the role of glucose in diabetes?\",\n  \"Artificial intelligence and machine learning\",\n  \"Neural networks process information\"\n];\n\n// Return array of items for processing\nreturn testTexts.map(text => ({\n  json: {\n    input_text: text,\n    timestamp: new Date().toISOString()\n  }\n}));"
+      },
+      "id": "a1b2c3d4-e5f6-g7h8-i9j0-klmnopqrstuv",
+      "name": "Generate Test Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd /Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4 && VEC2TEXT_FORCE_PROJECT_VENV=1 VEC2TEXT_DEVICE=cpu TOKENIZERS_PARALLELISM=false ./venv/bin/python3 app/vect_text_vect/vec_text_vect_isolated.py --input-text \"{{$json.input_text}}\" --subscribers jxe,ielab --vec2text-backend isolated --output-format json --steps 1"
+      },
+      "id": "b2c3d4e5-f6g7-h8i9-j0k1-lmnopqrstuvw",
+      "name": "Execute Vec2Text",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse the command output\ntry {\n  const output = $input.item.json.stdout;\n  \n  // Extract JSON from output if it contains non-JSON text\n  const jsonMatch = output.match(/{[\\s\\S]*}/);\n  \n  if (jsonMatch) {\n    const result = JSON.parse(jsonMatch[0]);\n    \n    return {\n      json: {\n        original_text: $node[\"Generate Test Data\"].json.input_text,\n        timestamp: $node[\"Generate Test Data\"].json.timestamp,\n        processing_result: result,\n        success: true\n      }\n    };\n  } else {\n    return {\n      json: {\n        original_text: $node[\"Generate Test Data\"].json.input_text,\n        timestamp: $node[\"Generate Test Data\"].json.timestamp,\n        error: \"No JSON found in output\",\n        raw_output: output,\n        success: false\n      }\n    };\n  }\n} catch (error) {\n  return {\n    json: {\n      original_text: $node[\"Generate Test Data\"].json.input_text,\n      timestamp: $node[\"Generate Test Data\"].json.timestamp,\n      error: error.message,\n      success: false\n    }\n  };\n}"
+      },
+      "id": "c3d4e5f6-g7h8-i9j0-k1l2-mnopqrstuvwx",
+      "name": "Parse Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Format results for display\nconst data = $input.item.json;\n\nconst summary = {\n  test_input: data.original_text || 'N/A',\n  timestamp: data.timestamp || new Date().toISOString(),\n  success: data.success || false,\n  processing_result: data.processing_result || null,\n  error: data.error || null,\n  formatted_output: `=== VEC2TEXT TEST RESULT ===\\nInput: ${data.original_text || 'N/A'}\\nSuccess: ${data.success ? 'YES' : 'NO'}\\nTimestamp: ${data.timestamp || 'N/A'}\\n${data.success ? 'Result: ' + JSON.stringify(data.processing_result, null, 2) : 'Error: ' + (data.error || 'Unknown error')}`\n};\n\nreturn {\n  json: summary\n};"
+      },
+      "id": "d4e5f6g7-h8i9-j0k1-l2m3-nopqrstuvwxy",
+      "name": "Display Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Generate Test Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Test Data": {
+      "main": [
+        [
+          {
+            "node": "Execute Vec2Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Vec2Text": {
+      "main": [
+        [
+          {
+            "node": "Parse Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Results": {
+      "main": [
+        [
+          {
+            "node": "Display Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "38a7e5ab-1234-5678-9abc-def012345678",
+  "id": "vec2text_test_001",
+  "meta": {
+    "instanceId": "n8n-lnsp-phase4"
+  },
+  "tags": []
+}

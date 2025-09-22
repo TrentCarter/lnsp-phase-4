@@ -2,6 +2,8 @@
 outputs/
 logs/
 output/
+data/
+
 
 # Ignore compiled Python files
 *.pyc
