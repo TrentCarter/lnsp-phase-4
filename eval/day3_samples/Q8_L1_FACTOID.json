@@ -5,49 +5,39 @@
   "gold": [
     "enwiki-00000063-0001-0000"
   ],
-  "hit": false,
-  "latency_ms": 78.18,
-  "top_k": 8,
+  "hit": true,
+  "latency_ms": 14.81,
+  "top_k": 5,
   "results": [
     {
       "id": "27b0abcc-dd20-5765-811c-fe8942a486f0",
       "score": 10.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000063-0001-0000"
     },
     {
       "id": "fc26ab9a-b879-520a-ab4f-f91531d8147c",
       "score": 7.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000076-0002-0000"
     },
     {
       "id": "7c4a83ab-548f-5db1-88c9-b394e13aa983",
       "score": 6.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000027-0002-0000"
     },
     {
       "id": "076a466a-185e-52ad-9812-ae8bc8e32517",
       "score": 6.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000076-0001-0000"
     },
     {
       "id": "6861921c-5318-5ce3-9b22-53111d20a6ff",
       "score": 6.0,
-      "why": null
-    },
-    {
-      "id": "f219651d-8c23-5033-8f68-8b80cffef85a",
-      "score": 6.0,
-      "why": null
-    },
-    {
-      "id": "edc4ed89-9bde-551c-911a-28096518c4e1",
-      "score": 5.0,
-      "why": null
-    },
-    {
-      "id": "7d701d03-b69f-5269-aad8-a3de04482c00",
-      "score": 5.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000115-0003-0001"
     }
   ],
   "raw": {
@@ -83,26 +73,21 @@
         "doc_id": "enwiki-00000115-0003-0001",
         "score": 6.0,
         "why": null
-      },
-      {
-        "id": "f219651d-8c23-5033-8f68-8b80cffef85a",
-        "doc_id": "enwiki-00000133-0003-0000",
-        "score": 6.0,
-        "why": null
-      },
-      {
-        "id": "edc4ed89-9bde-551c-911a-28096518c4e1",
-        "doc_id": "enwiki-00000022-0002-0000",
-        "score": 5.0,
-        "why": null
-      },
-      {
-        "id": "7d701d03-b69f-5269-aad8-a3de04482c00",
-        "doc_id": "enwiki-00000027-0000-0000",
-        "score": 5.0,
-        "why": null
       }
     ],
-    "trace_id": "435c8552"
+    "trace_id": "351d17f8"
+  },
+  "proposition": "In which Kinsey Millhone mystery does ex-con Alvin Limardo hire her to deliver a $25,000 check?",
+  "tmd": {
+    "task": "RETRIEVE",
+    "method": "HYBRID",
+    "domain": "FACTOIDWIKI"
+  },
+  "cpe": {
+    "concept": null,
+    "probe": "In which Kinsey Millhone mystery does ex-con Alvin Limardo hire her to deliver a $25,000 check?",
+    "expected": [
+      "enwiki-00000063-0001-0000"
+    ]
   }
 }

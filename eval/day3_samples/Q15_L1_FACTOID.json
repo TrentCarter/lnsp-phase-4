@@ -5,49 +5,39 @@
   "gold": [
     "enwiki-00000104-0006-0001"
   ],
-  "hit": false,
-  "latency_ms": 79.95,
-  "top_k": 8,
+  "hit": true,
+  "latency_ms": 13.82,
+  "top_k": 5,
   "results": [
     {
       "id": "f76d7005-5262-5f70-bd4b-54ed60eb64d1",
       "score": 9.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000104-0006-0001"
     },
     {
       "id": "ed7ae068-f6b1-5208-8715-af482dfb0a46",
       "score": 3.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000013-0004-0000"
     },
     {
       "id": "f80459ba-1666-5720-879a-1d001f5640e9",
       "score": 3.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000015-0002-0002"
     },
     {
       "id": "baefb731-2694-5197-b0a1-6addd8aef70c",
       "score": 3.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000015-0003-0000"
     },
     {
       "id": "ef435cee-14ac-5b80-9670-5ed529d96580",
       "score": 3.0,
-      "why": null
-    },
-    {
-      "id": "c2108b73-879f-50fb-9f23-0609f17363fb",
-      "score": 3.0,
-      "why": null
-    },
-    {
-      "id": "3d686d1f-7b53-5be4-841c-1746e112205b",
-      "score": 3.0,
-      "why": null
-    },
-    {
-      "id": "f219651d-8c23-5033-8f68-8b80cffef85a",
-      "score": 3.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000033-0004-0000"
     }
   ],
   "raw": {
@@ -83,26 +73,21 @@
         "doc_id": "enwiki-00000033-0004-0000",
         "score": 3.0,
         "why": null
-      },
-      {
-        "id": "c2108b73-879f-50fb-9f23-0609f17363fb",
-        "doc_id": "enwiki-00000078-0002-0000",
-        "score": 3.0,
-        "why": null
-      },
-      {
-        "id": "3d686d1f-7b53-5be4-841c-1746e112205b",
-        "doc_id": "enwiki-00000128-0005-0000",
-        "score": 3.0,
-        "why": null
-      },
-      {
-        "id": "f219651d-8c23-5033-8f68-8b80cffef85a",
-        "doc_id": "enwiki-00000133-0003-0000",
-        "score": 3.0,
-        "why": null
       }
     ],
-    "trace_id": "b08652cd"
+    "trace_id": "107d4afd"
+  },
+  "proposition": "Which spiritual movement drew early members from William Dudley Pelley's Silver Shirts organization?",
+  "tmd": {
+    "task": "RETRIEVE",
+    "method": "HYBRID",
+    "domain": "FACTOIDWIKI"
+  },
+  "cpe": {
+    "concept": null,
+    "probe": "Which spiritual movement drew early members from William Dudley Pelley's Silver Shirts organization?",
+    "expected": [
+      "enwiki-00000104-0006-0001"
+    ]
   }
 }

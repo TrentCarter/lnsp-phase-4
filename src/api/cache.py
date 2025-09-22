@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Tuple, Any, List
+from typing import Tuple, List, Optional
 from ..schemas import SearchItem, Lane
 
 @lru_cache(maxsize=2048)
@@ -15,7 +15,7 @@ class SearchCache:
         self._maxsize = maxsize
         self._lru_order = []
 
-    def get(self, lane: str, query: str, top_k: int) -> List[SearchItem] | None:
+    def get(self, lane: str, query: str, top_k: int) -> Optional[List[SearchItem]]:
         """Get cached search results."""
         key = cached_search_key(lane, query, top_k)
         if key in self._cache:

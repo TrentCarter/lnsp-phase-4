@@ -5,49 +5,39 @@
   "gold": [
     "enwiki-00000048-0002-0000"
   ],
-  "hit": false,
-  "latency_ms": 13.66,
-  "top_k": 8,
+  "hit": true,
+  "latency_ms": 19.49,
+  "top_k": 5,
   "results": [
     {
       "id": "d36a0fcd-911b-57c8-b32a-2aa3fb672b2b",
       "score": 6.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000048-0002-0000"
     },
     {
       "id": "1e3afbdf-e46f-5322-81aa-1f2dc4fa3058",
       "score": 3.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000003-0001-0000"
     },
     {
       "id": "94525f61-26ba-596e-bf02-ababf5348f6c",
       "score": 3.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000048-0001-0000"
     },
     {
       "id": "6a55a84f-eb22-558a-b4e5-83fde16d50df",
       "score": 3.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000048-0003-0000"
     },
     {
       "id": "a5b0fbe2-2f15-5dba-bddb-55fd3f525a61",
       "score": 3.0,
-      "why": null
-    },
-    {
-      "id": "8dc521df-1976-513c-80f1-52b7d1f88f43",
-      "score": 3.0,
-      "why": null
-    },
-    {
-      "id": "d6dddc69-8517-52a9-915a-0cecbad36186",
-      "score": 2.0,
-      "why": null
-    },
-    {
-      "id": "d4f7276a-1f2d-5565-901f-0552e79d9e8b",
-      "score": 2.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000089-0026-0001"
     }
   ],
   "raw": {
@@ -83,26 +73,21 @@
         "doc_id": "enwiki-00000089-0026-0001",
         "score": 3.0,
         "why": null
-      },
-      {
-        "id": "8dc521df-1976-513c-80f1-52b7d1f88f43",
-        "doc_id": "enwiki-00000089-0027-0000",
-        "score": 3.0,
-        "why": null
-      },
-      {
-        "id": "d6dddc69-8517-52a9-915a-0cecbad36186",
-        "doc_id": "enwiki-00000002-0003-0000",
-        "score": 2.0,
-        "why": null
-      },
-      {
-        "id": "d4f7276a-1f2d-5565-901f-0552e79d9e8b",
-        "doc_id": "enwiki-00000003-0004-0000",
-        "score": 2.0,
-        "why": null
       }
     ],
-    "trace_id": "73081b6a"
+    "trace_id": "4acf8436"
+  },
+  "proposition": "Which Ebichū compilation album blends heavy metal, melocore, and electro styles?",
+  "tmd": {
+    "task": "RETRIEVE",
+    "method": "HYBRID",
+    "domain": "FACTOIDWIKI"
+  },
+  "cpe": {
+    "concept": null,
+    "probe": "Which Ebichū compilation album blends heavy metal, melocore, and electro styles?",
+    "expected": [
+      "enwiki-00000048-0002-0000"
+    ]
   }
 }

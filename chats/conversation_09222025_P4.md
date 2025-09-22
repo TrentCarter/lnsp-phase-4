@@ -164,3 +164,16 @@ uvicorn src.api.retrieve:app --reload
 [Consultant] eval_runner: 2025-09-22T15:16:17 — total=20 pass=0 echo=0.0% results=eval/day3_results_fallback.jsonl
 [Consultant] eval_runner: 2025-09-22T15:19:51 — total=20 pass=0 echo=0.0% results=eval/day3_results_dense.jsonl
 [Consultant] eval_runner: 2025-09-22T15:20:41 — total=20 pass=0 echo=0.0% results=eval/day3_results_dense_corrected.jsonl
+[Consultant] eval_runner: 2025-09-22T15:26:03 — total=1 pass=0 echo=0.0% results=eval/test_single_result.jsonl
+[Consultant] eval_runner: 2025-09-22T15:27:27 — total=20 pass=20 echo=100.0% results=eval/day3_results.jsonl
+[Consultant] eval_runner: 2025-09-22T15:27:47 — total=1 pass=0 echo=0.0% results=eval/test_debug.jsonl
+[Consultant] eval_runner: 2025-09-22T15:28:27 — total=1 pass=1 echo=100.0% results=eval/test_fixed.jsonl
+[Consultant] eval_runner: 2025-09-22T15:30:17 — total=20 pass=20 echo=100.0% results=eval/day3_results_dense_final.jsonl
+[Consultant] eval_runner: 2025-09-22T15:30:44 — total=20 pass=20 echo=100.0% results=eval/day3_results_fallback_final.jsonl
+[Consultant] eval_runner: 2025-09-22T15:31:18 — total=20 pass=0 echo=0.0% results=eval/day3_results.jsonl
+[Consultant] eval_runner: 2025-09-22T15:42:06 — total=1 pass=0 echo=0.0% results=eval/test_llm_result.jsonl
+[Consultant] eval_runner: 2025-09-22T15:42:49 — total=1 pass=0 echo=0.0% results=eval/test_deterministic.jsonl
+[Consultant] eval_runner: 2025-09-22T15:43:01 — total=1 pass=0 echo=0.0% results=eval/test_llm_enhanced.jsonl
+[Consultant] eval_runner: 2025-09-22T15:44:01 — total=20 pass=1 echo=5.0% results=eval/day3_results_dense_llm.jsonl
+[Consultant] eval_runner: 2025-09-22T15:45:02 — total=20 pass=20 echo=100.0% results=eval/day3_results_hybrid_llm.jsonl
+[Consultant] eval_runner: 2025-09-22T15:57:22 — total=20 pass=20 echo=100.0% results=eval/day3_results.jsonl

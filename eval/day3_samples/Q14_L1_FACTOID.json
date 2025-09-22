@@ -5,49 +5,39 @@
   "gold": [
     "enwiki-00000092-0006-0000"
   ],
-  "hit": false,
-  "latency_ms": 13.47,
-  "top_k": 8,
+  "hit": true,
+  "latency_ms": 13.16,
+  "top_k": 5,
   "results": [
     {
       "id": "c2c9f08c-241c-5268-a1e5-acd234580954",
       "score": 6.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000092-0006-0000"
     },
     {
       "id": "bcc49d54-f1e8-5c40-8108-c3513ecd110f",
       "score": 5.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000092-0000-0000"
     },
     {
       "id": "0ecf3873-8c10-5474-89ce-a5863975a831",
       "score": 4.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000065-0004-0000"
     },
     {
       "id": "4a1db1c2-78ff-5d4c-8bc8-f1a4f2b46c38",
       "score": 4.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000076-0005-0001"
     },
     {
       "id": "4c715f13-34e6-503b-8614-7408016f0f28",
       "score": 4.0,
-      "why": null
-    },
-    {
-      "id": "dedef822-d5fb-529e-ba4f-18ba8b68a4be",
-      "score": 4.0,
-      "why": null
-    },
-    {
-      "id": "1e3afbdf-e46f-5322-81aa-1f2dc4fa3058",
-      "score": 3.0,
-      "why": null
-    },
-    {
-      "id": "9bdb6269-4c00-50af-a074-c8715515daee",
-      "score": 3.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000092-0001-0000"
     }
   ],
   "raw": {
@@ -83,26 +73,21 @@
         "doc_id": "enwiki-00000092-0001-0000",
         "score": 4.0,
         "why": null
-      },
-      {
-        "id": "dedef822-d5fb-529e-ba4f-18ba8b68a4be",
-        "doc_id": "enwiki-00000092-0008-0000",
-        "score": 4.0,
-        "why": null
-      },
-      {
-        "id": "1e3afbdf-e46f-5322-81aa-1f2dc4fa3058",
-        "doc_id": "enwiki-00000003-0001-0000",
-        "score": 3.0,
-        "why": null
-      },
-      {
-        "id": "9bdb6269-4c00-50af-a074-c8715515daee",
-        "doc_id": "enwiki-00000012-0007-0000",
-        "score": 3.0,
-        "why": null
       }
     ],
-    "trace_id": "7f9b5c30"
+    "trace_id": "5e1a0692"
+  },
+  "proposition": "Which Emily Dickinson poem uses seafaring imagery like 'Sea' and 'Gale' to portray hope?",
+  "tmd": {
+    "task": "RETRIEVE",
+    "method": "HYBRID",
+    "domain": "FACTOIDWIKI"
+  },
+  "cpe": {
+    "concept": null,
+    "probe": "Which Emily Dickinson poem uses seafaring imagery like 'Sea' and 'Gale' to portray hope?",
+    "expected": [
+      "enwiki-00000092-0006-0000"
+    ]
   }
 }

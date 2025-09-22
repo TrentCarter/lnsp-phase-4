@@ -3,20 +3,20 @@
 ## Summary
 
 - Total queries: **20**
-- Pass: **0**  |  Fail: **20**
-- Echo pass: **0.0%**
-- Mean latency: **117.43 ms**
+- Pass: **20**  |  Fail: **0**
+- Echo pass: **100.0%**
+- Mean latency: **17.61 ms**
 
 ## Ranking Metrics
-- **P@1**: 0.0000
-- **P@5**: 0.0000
-- **MRR**: 0.0000
-- **Recall@k**: 0.0000
+- **P@1**: 0.9000
+- **P@5**: 0.2000
+- **MRR**: 0.9375
+- **Recall@k**: 1.0000
 
 ## Lane Distribution
 | Lane | Queries | Pass | Pass % |
 |------|---------|------|--------|
-| L1_FACTOID | 20 | 0 | 0.0% |
+| L1_FACTOID | 20 | 20 | 100.0% |
 
 ## Query Types
 - album: 1
@@ -41,5 +41,5 @@
 - 200: 20
 
 ## Artifacts
-- Results: `eval/day3_results_dense_corrected.jsonl`
+- Results: `eval/day3_results.jsonl`
 - Samples: `eval/day3_samples/`

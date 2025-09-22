@@ -5,49 +5,39 @@
   "gold": [
     "enwiki-00000069-0003-0000"
   ],
-  "hit": false,
-  "latency_ms": 79.9,
-  "top_k": 8,
+  "hit": true,
+  "latency_ms": 15.43,
+  "top_k": 5,
   "results": [
     {
       "id": "89e109f3-3e75-5eca-bfd4-9d63e5386991",
       "score": 7.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000069-0003-0000"
     },
     {
       "id": "ad170c0b-3741-5903-9ff5-3d9110fbf533",
       "score": 5.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000069-0001-0000"
     },
     {
       "id": "df4356d2-d094-5854-82ea-5ad9d778586e",
       "score": 3.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000002-0002-0000"
     },
     {
       "id": "c8ed38fb-a2cf-542b-866a-5f6de94f9316",
       "score": 3.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000013-0003-0000"
     },
     {
       "id": "ed7ae068-f6b1-5208-8715-af482dfb0a46",
       "score": 3.0,
-      "why": null
-    },
-    {
-      "id": "14e2c271-abda-594f-bc6a-9d149988f9b4",
-      "score": 3.0,
-      "why": null
-    },
-    {
-      "id": "f80459ba-1666-5720-879a-1d001f5640e9",
-      "score": 3.0,
-      "why": null
-    },
-    {
-      "id": "d0f6bd86-549a-5bb0-963b-737ee326023c",
-      "score": 3.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000013-0004-0000"
     }
   ],
   "raw": {
@@ -83,26 +73,21 @@
         "doc_id": "enwiki-00000013-0004-0000",
         "score": 3.0,
         "why": null
-      },
-      {
-        "id": "14e2c271-abda-594f-bc6a-9d149988f9b4",
-        "doc_id": "enwiki-00000014-0003-0000",
-        "score": 3.0,
-        "why": null
-      },
-      {
-        "id": "f80459ba-1666-5720-879a-1d001f5640e9",
-        "doc_id": "enwiki-00000015-0002-0002",
-        "score": 3.0,
-        "why": null
-      },
-      {
-        "id": "d0f6bd86-549a-5bb0-963b-737ee326023c",
-        "doc_id": "enwiki-00000063-0005-0000",
-        "score": 3.0,
-        "why": null
       }
     ],
-    "trace_id": "dfc5895a"
+    "trace_id": "43674160"
+  },
+  "proposition": "Which Italian comedy film packs cameos from Arbore, De Crescenzo, and other celebrities?",
+  "tmd": {
+    "task": "RETRIEVE",
+    "method": "HYBRID",
+    "domain": "FACTOIDWIKI"
+  },
+  "cpe": {
+    "concept": null,
+    "probe": "Which Italian comedy film packs cameos from Arbore, De Crescenzo, and other celebrities?",
+    "expected": [
+      "enwiki-00000069-0003-0000"
+    ]
   }
 }

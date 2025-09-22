@@ -17,6 +17,27 @@ from collections import Counter, defaultdict
 import numpy as np
 import re
 
+# LLM integration setup
+USE_LLM = os.getenv("LNSP_USE_LLM", "false").lower() == "true"
+try:
+    from .llm_bridge import annotate_with_llama
+except Exception:
+    annotate_with_llama = None
+
+def _load_npz_catalog(npz_path: str):
+    import numpy as np
+    d = np.load(npz_path, allow_pickle=True)
+    ids = d["doc_id"].tolist()
+    txt = d["concept_text"].tolist()
+    return {i:t for i,t in zip(ids, txt)}
+
+CATALOG = None
+if os.getenv("LNSP_OFFLINE_NPZ"):
+    try:
+        CATALOG = _load_npz_catalog(os.getenv("LNSP_OFFLINE_NPZ"))
+    except Exception:
+        CATALOG = None
+
 # Defaults (can be overridden by CLI)
 DEFAULT_RESULTS = Path("eval/day3_results.jsonl")
 REPORT_FILE = Path("eval/day3_report.md")
@@ -28,6 +49,49 @@ def _tokenize(text: str) -> Tuple[str, ...]:
     if not text:
         return tuple()
     return tuple(re.findall(r"\w+", text.lower()))
+
+
+def _pick_method_from_response(resp: Dict[str, Any]) -> str:
+    method = resp.get("mode")
+    if isinstance(method, str) and method:
+        return method
+    arr = resp.get("items") or resp.get("results") or []
+    if isinstance(arr, list) and arr:
+        first = arr[0]
+        if isinstance(first, dict):
+            retriever = first.get("retriever")
+            if isinstance(retriever, str) and retriever:
+                return retriever.upper()
+    return "UNKNOWN"
+
+
+def _proposition_from_item(item: Dict[str, Any]) -> str:
+    return (
+        item.get("proposition")
+        or item.get("query")
+        or item.get("probe")
+        or ""
+    )
+
+
+def _tmd_from_item_and_resp(
+    item: Dict[str, Any],
+    resp: Dict[str, Any],
+    default_domain: str = "FACTOIDWIKI",
+) -> Dict[str, Any]:
+    tmd = item.get("tmd") or {}
+    task = tmd.get("task") or "RETRIEVE"
+    method = tmd.get("method") or _pick_method_from_response(resp)
+    domain = tmd.get("domain") or item.get("domain") or default_domain
+    return {"task": task, "method": method, "domain": domain}
+
+
+def _cpe_from_item(item: Dict[str, Any]) -> Dict[str, Any]:
+    cpe = item.get("cpe") or {}
+    concept = cpe.get("concept") or item.get("concept")
+    probe = cpe.get("probe") or item.get("query") or item.get("probe") or ""
+    expected = cpe.get("expected") or item.get("gold") or []
+    return {"concept": concept, "probe": probe, "expected": expected}
 
 
 class LocalSearcher:
@@ -139,10 +203,11 @@ def _safe_get_hits(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
         if _id is None:
             # nothing identifiable
             continue
-        # preserve possible score/why for samples
+        # preserve possible score/why/doc_id for samples
         out = {"id": _id}
         if "score" in x: out["score"] = x["score"]
         if "why" in x: out["why"] = x["why"]
+        if "doc_id" in x: out["doc_id"] = x["doc_id"]
         candidates.append(out)
     return candidates
 
@@ -295,6 +360,37 @@ def evaluate(
         all_mrr.append(ranking_metrics["mrr"])
         all_recall_at_k.append(ranking_metrics["recall_at_k"])
 
+        # --- existing deterministic fill ---
+        proposition = _proposition_from_item(item)
+        tmd = _tmd_from_item_and_resp(item, data)
+        cpe = _cpe_from_item(item)
+
+        # --- LLM override (opt-in) ---
+        if USE_LLM and annotate_with_llama:
+            # prepare a few snippets for the LLM (best-effort)
+            top_items = data.get("items") or data.get("results") or []
+            top_docs = []
+            for it in top_items[:3]:
+                did = (it.get("doc_id") or (it.get("metadata") or {}).get("doc_id"))
+                snippet = None
+                if CATALOG and did:
+                    snippet = CATALOG.get(did)
+                elif it.get("metadata") and it["metadata"].get("concept_text"):
+                    snippet = it["metadata"]["concept_text"]
+                top_docs.append({"doc_id": did, "text": snippet or ""})
+            try:
+                anno = annotate_with_llama(query=query,
+                                           top_docs=top_docs,
+                                           method_hint=tmd["method"],
+                                           concept_hint=(cpe.get("concept") or ""),
+                                           expected_ids=(cpe.get("expected") or []))
+                proposition = anno.get("proposition", proposition) or proposition
+                tmd = anno.get("tmd", tmd) or tmd
+                cpe = anno.get("cpe", cpe) or cpe
+            except Exception:
+                # fall back silently if LLM not reachable
+                pass
+
         row = {
             "id": qid,
             "lane_req": lane,
@@ -311,6 +407,9 @@ def evaluate(
             "p_at_5": round(ranking_metrics["p_at_5"], 4),
             "mrr": round(ranking_metrics["mrr"], 4),
             "recall_at_k": round(ranking_metrics["recall_at_k"], 4),
+            "proposition": proposition,
+            "tmd": tmd,
+            "cpe": cpe,
         }
         # keep compact status
         if isinstance(data, dict) and "error" in data:
@@ -339,6 +438,9 @@ def evaluate(
                         "top_k": top_k,
                         "results": hits,
                         "raw": data,
+                        "proposition": proposition,
+                        "tmd": tmd,
+                        "cpe": cpe,
                     },
                     sf, ensure_ascii=False, indent=2
                 )

@@ -5,49 +5,39 @@
   "gold": [
     "enwiki-00000089-0026-0000"
   ],
-  "hit": false,
-  "latency_ms": 12.91,
-  "top_k": 8,
+  "hit": true,
+  "latency_ms": 12.65,
+  "top_k": 5,
   "results": [
     {
       "id": "fcf50449-5500-581a-9f45-4ff61440a796",
       "score": 7.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000089-0026-0000"
     },
     {
       "id": "fe57cbb2-53d1-587f-9c2a-32f863011d87",
       "score": 6.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000089-0003-0000"
     },
     {
       "id": "a5b0fbe2-2f15-5dba-bddb-55fd3f525a61",
       "score": 5.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000089-0026-0001"
     },
     {
       "id": "8dc521df-1976-513c-80f1-52b7d1f88f43",
       "score": 5.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000089-0027-0000"
     },
     {
       "id": "faf883ce-805f-562c-ba76-fb9195039244",
       "score": 4.0,
-      "why": null
-    },
-    {
-      "id": "1e3afbdf-e46f-5322-81aa-1f2dc4fa3058",
-      "score": 3.0,
-      "why": null
-    },
-    {
-      "id": "d4f7276a-1f2d-5565-901f-0552e79d9e8b",
-      "score": 3.0,
-      "why": null
-    },
-    {
-      "id": "16dfd2ef-798b-508d-b594-0f270a67fdb5",
-      "score": 3.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000089-0028-0001"
     }
   ],
   "raw": {
@@ -83,26 +73,21 @@
         "doc_id": "enwiki-00000089-0028-0001",
         "score": 4.0,
         "why": null
-      },
-      {
-        "id": "1e3afbdf-e46f-5322-81aa-1f2dc4fa3058",
-        "doc_id": "enwiki-00000003-0001-0000",
-        "score": 3.0,
-        "why": null
-      },
-      {
-        "id": "d4f7276a-1f2d-5565-901f-0552e79d9e8b",
-        "doc_id": "enwiki-00000003-0004-0000",
-        "score": 3.0,
-        "why": null
-      },
-      {
-        "id": "16dfd2ef-798b-508d-b594-0f270a67fdb5",
-        "doc_id": "enwiki-00000006-0004-0000",
-        "score": 3.0,
-        "why": null
       }
     ],
-    "trace_id": "9f52137d"
+    "trace_id": "c3af1fd0"
+  },
+  "proposition": "Which David Bowie album's retrospective reviews praise his artistic growth alongside Robert Fripp's contributions?",
+  "tmd": {
+    "task": "RETRIEVE",
+    "method": "HYBRID",
+    "domain": "FACTOIDWIKI"
+  },
+  "cpe": {
+    "concept": null,
+    "probe": "Which David Bowie album's retrospective reviews praise his artistic growth alongside Robert Fripp's contributions?",
+    "expected": [
+      "enwiki-00000089-0026-0000"
+    ]
   }
 }

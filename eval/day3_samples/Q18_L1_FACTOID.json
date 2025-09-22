@@ -5,49 +5,39 @@
   "gold": [
     "enwiki-00000119-0001-0001"
   ],
-  "hit": false,
-  "latency_ms": 78.56,
-  "top_k": 8,
+  "hit": true,
+  "latency_ms": 12.64,
+  "top_k": 5,
   "results": [
     {
       "id": "722cfbda-349e-57b0-b578-f1a4f56fc57c",
       "score": 5.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000119-0001-0001"
     },
     {
       "id": "d6dddc69-8517-52a9-915a-0cecbad36186",
       "score": 4.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000002-0003-0000"
     },
     {
       "id": "14e2c271-abda-594f-bc6a-9d149988f9b4",
       "score": 4.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000014-0003-0000"
     },
     {
       "id": "2e8324a7-4f74-5320-8886-69c069b65242",
       "score": 4.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000020-0004-0001"
     },
     {
       "id": "7b055924-e859-54e2-8509-5a6575326206",
       "score": 4.0,
-      "why": null
-    },
-    {
-      "id": "9b3ebf61-f176-5aa8-a5d3-087eed36178f",
-      "score": 4.0,
-      "why": null
-    },
-    {
-      "id": "8724810a-6647-5523-8605-9c5b51e6f552",
-      "score": 4.0,
-      "why": null
-    },
-    {
-      "id": "86f2c969-42a7-50d6-8320-e99bb51d3a09",
-      "score": 4.0,
-      "why": null
+      "why": null,
+      "doc_id": "enwiki-00000039-0000-0000"
     }
   ],
   "raw": {
@@ -83,26 +73,21 @@
         "doc_id": "enwiki-00000039-0000-0000",
         "score": 4.0,
         "why": null
-      },
-      {
-        "id": "9b3ebf61-f176-5aa8-a5d3-087eed36178f",
-        "doc_id": "enwiki-00000059-0002-0000",
-        "score": 4.0,
-        "why": null
-      },
-      {
-        "id": "8724810a-6647-5523-8605-9c5b51e6f552",
-        "doc_id": "enwiki-00000060-0001-0000",
-        "score": 4.0,
-        "why": null
-      },
-      {
-        "id": "86f2c969-42a7-50d6-8320-e99bb51d3a09",
-        "doc_id": "enwiki-00000062-0005-0000",
-        "score": 4.0,
-        "why": null
       }
     ],
-    "trace_id": "c7f7d015"
+    "trace_id": "cfe037f6"
+  },
+  "proposition": "Which Australian frog species was rediscovered by scientist Luke Pearce in 2009?",
+  "tmd": {
+    "task": "RETRIEVE",
+    "method": "HYBRID",
+    "domain": "FACTOIDWIKI"
+  },
+  "cpe": {
+    "concept": null,
+    "probe": "Which Australian frog species was rediscovered by scientist Luke Pearce in 2009?",
+    "expected": [
+      "enwiki-00000119-0001-0001"
+    ]
   }
 }
