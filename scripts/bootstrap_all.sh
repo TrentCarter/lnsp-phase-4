@@ -26,18 +26,29 @@ if [ "${NO_DOCKER:-0}" = "1" ]; then
     echo "   - Neo4j on $NEO4J_URI"
 
     # NO_DOCKER fast path: venv + deps
-    : "${PY:=python3}"
-    : "${VENV:=.venv}"
+    # Prefer 3.11 explicitly; hard-fail otherwise
+    PY=${PY:-python3.11}
+    if ! command -v "$PY" >/dev/null 2>&1; then
+      echo "[bootstrap] ERROR: python3.11 not found. On macOS: brew install python@3.11"
+      exit 1
+    fi
 
-    echo "🐍 Creating virtual environment..."
-    $PY -m venv "$VENV"
+    VENV=${VENV:-.venv}
+    "$PY" -V
+
+    # Fresh venv only if missing
+    if [[ ! -d "$VENV" ]]; then
+      "$PY" -m venv "$VENV"
+    fi
     source "$VENV/bin/activate"
-    echo "📦 Upgrading pip and installing requirements..."
+
+    python -c 'import sys; assert sys.version_info[:2]==(3,11), f"Require 3.11, got {sys.version}"'
+
     pip install -U pip wheel
     pip install -r requirements.txt
-    # LightRAG pin
     pip install "lightrag-hku==1.4.9rc1"
-    echo "✅ NO_DOCKER environment initialized."
+
+    echo "[bootstrap] NO_DOCKER path initialized with Python $(python -V)"
 else
     # Compose up both services (idempotent)
     echo "▶️  Starting docker services (postgres, neo4j)"

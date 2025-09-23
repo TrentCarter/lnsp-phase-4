@@ -1,5 +1,8 @@
 """Lightweight FastAPI service for lane-aware retrieval."""
 
+import sys
+assert sys.version_info[:2] == (3, 11), f"Require Python 3.11.x (got {sys.version})"
+
 from __future__ import annotations
 
 import os
