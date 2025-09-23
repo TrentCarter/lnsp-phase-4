@@ -107,43 +107,32 @@ class FaissDB:
             print(f"[FaissDB] Error saving: {exc}")
             return False
 
-    def load(self, npz_path: str) -> bool:
-        """Load vectors from NPZ file and build index."""
+    def load(self, index_path: str) -> bool:
+        """Load a pre-built FAISS index and associated metadata."""
         try:
-            if not os.path.exists(npz_path):
+            if not os.path.exists(index_path):
                 return False
-            npz = np.load(npz_path)
-            vectors = npz['vectors'].astype(np.float32)
+            self.index = faiss.read_index(index_path)
+            npz_path = self.output_path
+            if not os.path.exists(npz_path):
+                base_name = os.path.splitext(index_path)[0]
+                if os.path.exists(f"{base_name}.npz"):
+                    npz_path = f"{base_name}.npz"
+                elif not os.path.exists(npz_path):
+                    print(f"[FaissDB] Could not find metadata NPZ file at {npz_path} or {base_name}.npz")
+                    return False
+
+            npz = np.load(npz_path, allow_pickle=True)
             self.cpe_ids = npz['cpe_ids']
-            self.lane_indices = npz.get('lane_indices', np.zeros(len(vectors)))
-            self.concept_texts = npz.get('concept_texts', [''] * len(vectors))
+            self.lane_indices = npz.get('lane_indices', np.zeros(len(self.cpe_ids)))
+            self.concept_texts = npz.get('concept_texts', [''] * len(self.cpe_ids))
             if 'doc_ids' in npz.files:
                 self.doc_ids = npz['doc_ids']
             else:
-                self.doc_ids = np.array([''] * len(vectors))
+                self.doc_ids = np.array([''] * len(self.cpe_ids))
 
-            # Build index with loaded vectors
-            if len(vectors) > 0:
-                if faiss is not None:
-                    try:
-                        # Use flat index for very small datasets
-                        if len(vectors) < 32:
-                            self.index = faiss.IndexFlatIP(vectors.shape[1])
-                            # Flat index ignores nprobe; add normalized vectors directly
-                            normalized_vecs = l2_normalize(vectors)
-                            self.index.add(normalized_vecs)
-                        else:
-                            # Choose nlist based on corpus size; target 128 for ~10k
-                            nlist = 128 if len(vectors) >= 8000 else min(32, max(8, len(vectors)//2))
-                            self.index = build_index(vectors, nlist)
-                        if self.index:
-                            # If index was built inside build_index it already contains vectors
-                            print(f"[FaissDB] Loaded and built index with {len(vectors)} vectors (nlist={getattr(self.index, 'nlist', 0)}, nprobe={getattr(self.index, 'nprobe', 'NA')})")
-                            return True
-                    except Exception as e:
-                        print(f"[FaissDB] Error building index: {e}")
-                        return False
-            return False
+            print(f"[FaissDB] Loaded index from {index_path} and metadata from {npz_path}")
+            return True
         except Exception as exc:
             print(f"[FaissDB] Error loading {npz_path}: {exc}")
             return False

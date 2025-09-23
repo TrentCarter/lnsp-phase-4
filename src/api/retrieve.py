@@ -8,7 +8,9 @@ assert sys.version_info[:2] == (3, 11), f"Require Python 3.11.x (got {sys.versio
 import os
 import re
 import uuid
+import json
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
@@ -48,14 +50,21 @@ class RetrievalContext:
         self.npz_path = npz_path
         self.catalog: List[Dict[str, Any]] = []
 
-        if os.path.exists(npz_path):
-            self.loaded = self.faiss_db.load(npz_path)
-            if not self.loaded:
-                print(f"[RetrievalContext] Failed to load vectors from {npz_path}")
+        meta_path = Path("artifacts/faiss_meta.json")
+        if meta_path.exists():
+            with meta_path.open('r') as f:
+                meta = json.load(f)
+            index_path = meta.get("index_path")
+            if index_path and Path(index_path).exists():
+                self.loaded = self.faiss_db.load(index_path)
+                if self.loaded:
+                    self._build_catalog()
+                else:
+                    print(f"[RetrievalContext] Failed to load index from {index_path}")
             else:
-                self._build_catalog()
+                print(f"[RetrievalContext] Index path not found in {meta_path} or file does not exist")
         else:
-            print(f"[RetrievalContext] NPZ not found at {npz_path}; retrieval will return empty results")
+            print(f"[RetrievalContext] faiss_meta.json not found; retrieval will be empty")
 
         self.embedder = EmbeddingBackend()
 
@@ -133,7 +142,9 @@ class RetrievalContext:
         return SearchItem(id=cpe_id, doc_id=doc_id, score=h.get("score"), why=h.get("why"))
 
     def search(self, req: SearchRequest, trace_id: Optional[str] = None) -> SearchResponse:
+        print(f"Trace {trace_id}: Received search request: {req}")
         if not self.loaded:
+            print(f"Trace {trace_id}: Context not loaded, returning empty response.")
             return SearchResponse(lane=req.lane, mode="HYBRID", items=[], trace_id=trace_id)
 
         # Check cache first
@@ -164,7 +175,9 @@ class RetrievalContext:
             candidates = self._lexical_search(req.q, req.top_k)
             mode = "HYBRID"
 
+        print(f"Trace {trace_id}: FAISS search returned {len(candidates)} candidates.")
         items = [self._norm_hit(h) for h in candidates if h]
+        print(f"Trace {trace_id}: Normalized {len(items)} items.")
 
         # Cache the results
         _search_cache.put(req.lane, req.q, req.top_k, items)

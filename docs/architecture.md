@@ -166,6 +166,32 @@ CREATE INDEX concept_domain_index IF NOT EXISTS FOR (c:Concept) ON (c.domain_cod
 - `src/tmd_encoder.py` - TMD bit-packing + deterministic 16D embeddings
 - `src/vectorizer.py` - GTR-T5 embedding wrapper with fallbacks
 
+### Embedder Contract (P7)
+**Production Model Specification:**
+- **Model:** `sentence-transformers/gtr-t5-base`
+- **Revision:** Latest stable HuggingFace revision
+- **Pooling:** Mean pooling over token embeddings
+- **Normalization:** L2 normalization applied
+- **Dimensions:** 768D pre-fusion → 784D fused (768D concept + 16D TMD)
+
+**Artifact Metadata:** `artifacts/emb_meta.json`
+```json
+{
+  "model": "sentence-transformers/gtr-t5-base",
+  "revision": "<hf-rev>",
+  "pooling": "mean",
+  "normalized": true,
+  "base_dim": 768,
+  "fused_dim": 784,
+  "created": "<iso8601>"
+}
+```
+
+**Fail-fast Policy:**
+- If model files missing or offline: **abort vectorization** (no stub for acceptance builds)
+- Explicit failure preferred over silent degradation to stub embeddings
+- CI must verify `emb_meta.json` contains real model name (not "stub")
+
 ### Integrations
 - `src/integrations/lightrag/graph_builder_adapter.py` - Normalizes relations with LightRAG heuristics
 - `src/integrations/lightrag/hybrid_retriever.py` - Optional LightRAG-style reranker for Faiss shortlists

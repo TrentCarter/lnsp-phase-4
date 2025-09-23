@@ -327,3 +327,5 @@ Added diagnostic script usage to the troubleshooting guide with:
 [Consultant] eval_runner: 2025-09-23T07:35:19 — total=20 pass=20 echo=100.0% results=eval/day3_results_fallback_final.jsonl
 [Consultant] eval_runner: 2025-09-23T07:37:04 — total=20 pass=1 echo=5.0% results=eval/day3_results_consultant.jsonl
 [Consultant] eval_runner: 2025-09-23T11:47:32 — total=20 pass=5 echo=25.0% results=eval/day3_results_consultant_balanced.jsonl
+[Consultant] eval_runner: 2025-09-23T15:09:39 — total=20 pass=0 echo=0.0% results=eval/day5_results_dense.jsonl
+[Consultant] eval_runner: 2025-09-23T15:12:01 — total=20 pass=0 echo=0.0% results=eval/day5_results_lex.jsonl
