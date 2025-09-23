@@ -183,6 +183,21 @@ CREATE INDEX concept_domain_index IF NOT EXISTS FOR (c:Concept) ON (c.domain_cod
 - **Sharding rule:** When a `(domain, task, modifier)` lane exceeds 1,500 items, allocate a dedicated IVF shard per lane (directory: `outputs/faiss/<lane_index>/`).
 - **Persistence:** Snapshot planned via `src/faiss_persist.py` (Day 2) producing `.ivf` artifacts alongside `.npz` metadata.
 
+### 100k Scaling Dial-Plan (P6)
+**Start Configuration (IVF_FLAT):**
+- `nlist=512`, `nprobe=32`
+- Default for 100k corpus scaling
+
+**Performance SLO Gate:**
+- If latency > SLO, try IVF_PQ with `m=8`, `nbits=8`
+- Requires training ≥2× corpus size
+- Gate to proceed: L1 P50 ≤ 95 ms with `nprobe ≤ 24` on eval-20
+
+**Scaling Strategy:**
+- Monitor L1 dense-only performance as primary metric
+- Fallback to quantized indices if memory/latency constraints exceeded
+- Maintain quality thresholds while optimizing for throughput
+
 ### Infrastructure
 - `scripts/init_postgres.sql` + `scripts/init_pg.sh` - PostgreSQL setup
 - `scripts/init_neo4j.cql` + `scripts/init_neo4j.sh` - Neo4j setup
@@ -190,7 +205,13 @@ CREATE INDEX concept_domain_index IF NOT EXISTS FOR (c:Concept) ON (c.domain_cod
 - `docker-compose.yml` - Container orchestration
 - `Makefile` - Development workflow
 
-## Service Ports (Updated 2025-09-22)
+## Service Ports (Updated 2025-09-23)
+
+### Ports Map (Standardized P6)
+- **API**: Fixed at `8080` for contract tests and production
+- **Neo4j**: `7687` (Bolt), `7474` (HTTP/web console)
+- **Postgres**: `5432` (default)
+- **Development alternatives**: API `8001`, Postgres `55432` if conflicts
 
 ### Standard Port Assignments
 - **PostgreSQL**: `5432` (default)

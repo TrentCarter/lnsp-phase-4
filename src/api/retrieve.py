@@ -215,6 +215,35 @@ else:
             "lexical_L1": lexical_l1
         }
 
+    @app.get("/admin/faiss")
+    def admin_faiss() -> Dict[str, Any]:
+        """Return FAISS configuration and corpus stats without heavy initialization.
+
+        Fields: {nlist, nprobe, metric, dim, vectors}
+        Values are sourced from artifacts/faiss_meta.json and environment variables only
+        to ensure this endpoint responds quickly even when the retrieval context has
+        not been initialized.
+        """
+        import json
+
+        # Read metadata file
+        meta: Dict[str, Any] = {}
+        try:
+            with open("artifacts/faiss_meta.json", "r") as f:
+                meta = json.load(f)
+        except Exception:
+            pass
+
+        metric = "IP"  # We build indices with inner-product over L2-normalized vectors
+
+        return {
+            "nlist": int(meta.get("nlist", 0) or 0),
+            "nprobe": int(os.getenv("FAISS_NPROBE", "16") or 16),
+            "metric": metric,
+            "dim": int(meta.get("dimension", 0) or 0),
+            "vectors": int(meta.get("num_vectors", 0) or 0),
+        }
+
     @app.post("/search", response_model=SearchResponse)
     def search(req: SearchRequest, request: Request) -> SearchResponse:
         ctx = get_context()
