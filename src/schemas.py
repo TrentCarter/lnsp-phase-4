@@ -8,6 +8,7 @@ class SearchRequest(BaseModel):
     q: str = Field(..., min_length=1, max_length=512, description="Query string (1-512 characters)")
     lane: Lane = Field(..., description="Lane: L1_FACTOID, L2_GRAPH, or L3_SYNTH")
     top_k: int = Field(default=8, ge=1, le=100, description="Number of results to return (1-100)")
+    lane_index: Optional[int] = Field(default=None, ge=0, le=32767, description="Optional lane index filter (0-32767)")
 
 class SearchItem(BaseModel):
     id: str                 # canonical: cpe_id (stable UUIDv5)

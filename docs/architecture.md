@@ -478,6 +478,56 @@ The LNSP pipeline is now **production-ready** for scaling to the full 10k+ Facto
 - L1 (dense-only): P50 ≤ 85ms, P95 ≤ 200ms, Top-1 hit-rate ≥ 0.92
 - L2/L3 (hybrid): P50 ≤ 180ms, P95 ≤ 400ms
 
+## Query Embedding Contract (784D) - FINALIZED
+
+**Production Standard (As of 2025-09-23):**
+- **Dimensions:** 784D fused vectors (768D GTR-T5 + 16D TMD)
+- **Model:** `sentence-transformers/gtr-t5-base` (no substitutions)
+- **Fusion:** Concatenation with L2 normalization post-fusion
+- **Storage:** FAISS IVF as primary, pgvector optional mirror
+- **Invariants:**
+  - `metric=IP` (inner product for cosine via normalized vectors)
+  - `dim=784` (immutable)
+  - `ntotal >= 10000` (minimum viable index)
+  - IVF `nlist=128`, default `nprobe=16`
+  - All vectors L2-normalized before indexing
+
+## Lane Partitioning Strategy - FINALIZED
+
+**Single IVF with Lane Metadata (Current: 10k):**
+- Single FAISS IVF index contains all 10k vectors
+- Lane filtering via metadata post-retrieval
+- Efficient for balanced lane distributions
+
+**Per-Lane IVF Sharding (Future: >50k per lane):**
+- Trigger: When any lane exceeds 50k documents
+- Implementation: Separate IVF index per lane at `outputs/faiss/<lane_index>/`
+- Benefits: Better recall within lanes, faster queries
+- Migration: Nightly batch job splits monolithic index
+
+**Compaction Procedure:**
+1. Write-lock acquisition (5-minute timeout)
+2. Build new index with updated nlist if needed
+3. Atomic swap via symlink rotation
+4. Verify health checks before releasing lock
+
+## Echo Loop Governance - FINALIZED
+
+**Thresholds:**
+- **Pass:** Cosine similarity ≥ 0.82 between query and retrieved
+- **Retry:** If < 0.82, retry with `nprobe=24` (from default 16)
+- **Fallback:** After retry failure, mark for manual review
+
+**Sampling Policy:**
+- **Rate:** 10% of queries per lane (deterministic hash-based)
+- **Distribution:** Ensure all lanes get sampled daily
+- **Storage:** Echo scores in `cpe_entry.echo_score` field
+
+**Failure Triage:**
+- **Immediate:** Log to `logs/echo_failures.jsonl` with full context
+- **Daily:** Aggregate failures by lane, pattern analysis
+- **Weekly:** Retrain IVF clusters if failure rate > 5%
+
 ## LLM Integration Architecture (2025-09-22)
 
 ### Multi-Backend LLM Bridge

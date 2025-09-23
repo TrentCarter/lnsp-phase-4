@@ -41,20 +41,24 @@ def search(index, queries: np.ndarray, topk=5):
 
 
 class FaissDB:
-    def __init__(self, output_path: str = 'vectors.npz', retriever_adapter = None):
-        self.output_path = output_path
+    def __init__(self, index_path: str = 'artifacts/fw10k_ivf.index', meta_npz_path: str = None, nprobe: int = None):
+        self.index_path = index_path
+        # NPZ should carry doc_ids[] and other metadata needed by API
+        if meta_npz_path is None:
+            # Use fw10k_vectors.npz as default metadata file
+            meta_npz_path = 'artifacts/fw10k_vectors.npz'
+        self.meta_npz_path = meta_npz_path
         self.index = None
+        self.doc_ids = None
+        self.cpe_ids = None
+        self.lane_indices = None
+        self.concept_texts = None
+        self.nprobe = nprobe or _default_nprobe()
+
+        # Legacy attributes for backward compatibility
+        self.output_path = meta_npz_path
         self.vectors_stored = []
-        self.retriever_adapter = retriever_adapter
-        if faiss is not None:
-            try:
-                self.index = build_index(np.random.rand(0, 784))
-                print(f"[FaissDB] Initialized")
-            except Exception as exc:
-                print(f"[FaissDB] Error initializing Faiss: {exc}")
-                self.index = None
-        else:
-            print("[FaissDB] Faiss not available - using stubs")
+        self.retriever_adapter = None
 
     def add_vector(self, cpe_record: dict) -> bool:
         if not cpe_record.get('fused_vec'):
@@ -107,37 +111,70 @@ class FaissDB:
             print(f"[FaissDB] Error saving: {exc}")
             return False
 
-    def load(self, index_path: str) -> bool:
-        """Load a pre-built FAISS index and associated metadata."""
+    def load(self, index_path: str = None):
+        """Load a pre-built FAISS index and associated metadata - pure load path only."""
+        if index_path is None:
+            index_path = self.index_path
+
+        # 1) load prebuilt FAISS index only (no training/build here)
+        if not os.path.exists(index_path):
+            raise FileNotFoundError(f"Missing FAISS index: {index_path}")
+        index = faiss.read_index(str(index_path))
+
+        # 2) wrap with IDMap2 if not already (many tools export bare IVF)
+        # Note: Can only wrap if index is empty, otherwise use as-is
+        if not isinstance(index, (faiss.IndexIDMap, faiss.IndexIDMap2)):
+            if index.ntotal == 0:
+                idmap = faiss.IndexIDMap2(index)
+                index = idmap
+            # If index has vectors but isn't IDMap, that's fine - we'll use position-based IDs
+
+        # 3) load npz metadata (doc_ids[] required)
+        if not os.path.exists(self.meta_npz_path):
+            raise FileNotFoundError(f"Missing FAISS npz meta: {self.meta_npz_path}")
+        npz = np.load(self.meta_npz_path)
+        if "doc_ids" not in npz:
+            raise ValueError(f"{self.meta_npz_path} missing 'doc_ids' array")
+
+        doc_ids = npz["doc_ids"]
+        # If index has no vectors, that's a build bug
+        if index.ntotal == 0:
+            raise RuntimeError("FAISS index has 0 vectors; rebuild artifacts before serving")
+
+        # Load additional metadata
+        self.cpe_ids = npz.get('cpe_ids', np.arange(len(doc_ids)))
+        self.lane_indices = npz.get('lane_indices', np.zeros(len(doc_ids)))
+        self.concept_texts = npz.get('concept_texts', [''] * len(doc_ids))
+
+        # nprobe tuning
         try:
-            if not os.path.exists(index_path):
-                return False
-            self.index = faiss.read_index(index_path)
-            npz_path = self.output_path
-            if not os.path.exists(npz_path):
-                base_name = os.path.splitext(index_path)[0]
-                if os.path.exists(f"{base_name}.npz"):
-                    npz_path = f"{base_name}.npz"
-                elif not os.path.exists(npz_path):
-                    print(f"[FaissDB] Could not find metadata NPZ file at {npz_path} or {base_name}.npz")
-                    return False
+            if hasattr(index, "nprobe"):
+                index.nprobe = int(self.nprobe)
+        except Exception:
+            pass
 
-            npz = np.load(npz_path, allow_pickle=True)
-            self.cpe_ids = npz['cpe_ids']
-            self.lane_indices = npz.get('lane_indices', np.zeros(len(self.cpe_ids)))
-            self.concept_texts = npz.get('concept_texts', [''] * len(self.cpe_ids))
-            if 'doc_ids' in npz.files:
-                self.doc_ids = npz['doc_ids']
-            else:
-                self.doc_ids = np.array([''] * len(self.cpe_ids))
+        self.index = index
+        self.doc_ids = doc_ids
+        print(f"[FaissDB] Loaded index from {index_path} and metadata from {self.meta_npz_path}")
+        return self
 
-            print(f"[FaissDB] Loaded index from {index_path} and metadata from {npz_path}")
-            return True
-        except Exception as exc:
-            print(f"[FaissDB] Error loading {npz_path}: {exc}")
-            return False
+    @property
+    def dim(self) -> int:
+        return int(self.index.d) if self.index is not None else -1
 
-    def search(self, query_vec: np.ndarray, topk: int = 5, use_lightrag: bool = False):
+    def search(self, qvecs: np.ndarray, topk: int):
+        """Pure FAISS search interface for API layer."""
+        if self.index is None:
+            raise RuntimeError("FAISS not loaded")
+        if qvecs.dtype != np.float32:
+            qvecs = qvecs.astype(np.float32, copy=False)
+        # shape check: must match 784 exactly
+        if qvecs.shape[1] != self.dim:
+            raise ValueError(f"Query dim {qvecs.shape[1]} != index dim {self.dim}")
+        D, I = self.index.search(qvecs, topk)
+        return D, I
+
+    def search_legacy(self, query_vec: np.ndarray, topk: int = 5, use_lightrag: bool = False):
         """Search for similar vectors."""
         if self.index is None:
             return []

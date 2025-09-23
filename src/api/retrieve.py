@@ -163,7 +163,12 @@ class RetrievalContext:
         fused_query = np.concatenate([tmd_dense, concept_vec]).astype(np.float32)
 
         mode = settings.RETRIEVAL_MODE if settings.RETRIEVAL_MODE != "HYBRID" else "DENSE"
-        candidates = self.faiss_db.search(fused_query, topk=req.top_k, use_lightrag=True) or []
+        candidates = self.faiss_db.search_legacy(fused_query, topk=req.top_k, use_lightrag=True) or []
+
+        # Apply lane_index filter if specified
+        if req.lane_index is not None:
+            candidates = [c for c in candidates if c.get("lane_index") == req.lane_index]
+            print(f"Trace {trace_id}: Filtered to {len(candidates)} candidates with lane_index={req.lane_index}")
 
         # L1_FACTOID: dense-only by default, lexical fallback via flag
         enable_lex = os.getenv("LNSP_LEXICAL_FALLBACK", "0") == "1"
