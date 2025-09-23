@@ -22,6 +22,13 @@ The API will be available at http://localhost:8000 with endpoints:
 - `GET /healthz` - Health check
 - `GET /search?q=<query>&k=<num_results>` - Search with natural language query
 
+## Runtime Matrix
+
+| Python Version | Support Status | Notes |
+|----------------|----------------|-------|
+| 3.11.x | ✅ | Recommended and CI-tested |
+| 3.13.x | 🚫 | FAISS/BLAS compatibility issues |
+
 ## Environment Variables
 
 - `FAISS_NPZ_PATH`: Path to FAISS vectors file (default: artifacts/fw1k_vectors.npz)

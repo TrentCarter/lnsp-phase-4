@@ -380,11 +380,56 @@ requirements.txt
 
 The LNSP pipeline is now **production-ready** for scaling to the full 10k+ FactoidWiki dataset with modular design allowing easy LLM integration. 🚀
 
-### LightRAG Integration (Pinned: lightrag-hku==1.4.8.2)
-- RetrievalMode: HYBRID (dense FAISS IVF + KG hop)
-- KG construction: entity/edge extraction via PromptTemplateType.EDGE_EXTRACT
-- Lane-awareness: L1_FACTOID hits dense first; L2_GRAPH expands via KGEdgeType in [MENTIONS, LINKS_TO, IS_A]
-- Safety: require version >=1.3.9 due to CVE fix; pinned to 1.4.8.2
+### LightRAG Integration (Pinned: lightrag-hku==1.4.9rc1)
+- **Graph + Vector via Adapter**: LightRAG provides graph construction utilities; FAISS remains Source of Truth for vectors
+- **RetrievalMode**: HYBRID (dense FAISS IVF + KG hop expansion for L2_GRAPH/L3_SYNTH)
+- **KG Construction**: Entity/edge extraction via PromptTemplateType.EDGE_EXTRACT
+- **Lane-awareness**:
+  - L1_FACTOID: Dense-only by default (lexical fallback via LNSP_LEXICAL_FALLBACK=true)
+  - L2_GRAPH: Dense + graph expansion via KGEdgeType in [MENTIONS, LINKS_TO, IS_A]
+  - L3_SYNTH: Full hybrid path (dense + graph + reranking)
+- **Safety**: Require version >=1.3.9 due to CVE fix; pinned to 1.4.9rc1
+
+## LightRAG Ingest Policy
+
+**"IDs + Relations Only" Pattern:**
+- LightRAG handles graph construction and relation extraction
+- **Vector Storage**: FAISS remains the single source of truth for all embeddings
+- **No Vector Duplication**: LightRAG does NOT store or duplicate vectors in its own storage
+- **Relations Only**: LightRAG extracts structured relations (subject, predicate, object) with confidence scores
+- **ID Mapping**: LightRAG uses stable CPE IDs for node references, ensuring consistency with FAISS indices
+
+**Data Flow:**
+1. **Ingestion**: Documents → CPE extraction → TMD encoding → FAISS vector storage
+2. **Graph Construction**: CPE text → LightRAG relation extraction → Neo4j edge storage
+3. **Retrieval**: FAISS vector search → LightRAG graph expansion → result ranking
+
+**Validation Contract:**
+- Nightly validator compares KG edge count to document count
+- Flag skew if edges/documents ratio falls outside expected bounds (0.5-5.0)
+- Ensure no orphaned nodes or edges without corresponding FAISS entries
+
+**Key Benefits:**
+- Prevents vector storage duplication and drift
+- Maintains FAISS as authoritative source for similarity search
+- Enables rich graph-based reasoning while preserving storage efficiency
+- Supports hybrid retrieval without compromising vector index performance
+
+## Evaluation Policy & Flags
+
+**Lane-based Evaluation Strategy:**
+- **L1_FACTOID**: Dense-only retrieval by default; lexical fallback available via `LNSP_LEXICAL_FALLBACK=1`
+- **L2_GRAPH**: Hybrid retrieval (dense + graph expansion)
+- **L3_SYNTH**: Full hybrid path (dense + graph + reranking)
+
+**Environment Flags:**
+- `LNSP_LEXICAL_FALLBACK=0` (default): Dense-only L1, hybrid L2/L3
+- `LNSP_LEXICAL_FALLBACK=1`: Enable lexical fallback override for L1
+- `LNSP_TEST_MODE=1`: Use stub searcher for unit tests
+
+**Evaluation Gates (P4 Target):**
+- L1 (dense-only): P50 ≤ 85ms, P95 ≤ 200ms, Top-1 hit-rate ≥ 0.92
+- L2/L3 (hybrid): P50 ≤ 180ms, P95 ≤ 400ms
 
 ## LLM Integration Architecture (2025-09-22)
 

@@ -1,0 +1,55 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run light tests (stub mode)
+        env:
+          LNSP_TEST_MODE: '1'
+        run: pytest -m "not heavy" -q
+      - name: Generate Faiss metadata (if NPZ exists)
+        run: |
+          if [ -f artifacts/fw10k_vectors.npz ] || [ -f artifacts/fw1k_vectors.npz ] || [ -n "${FAISS_NPZ_PATH:-}" ]; then
+            python tools/write_faiss_meta.py
+          else
+            echo "No NPZ found; skipping metadata generation."
+          fi
+      - name: Check Faiss metadata truth gate
+        run: |
+          if [ -f artifacts/faiss_meta.json ]; then
+            python - <<'PY'
+import json, sys
+with open('artifacts/faiss_meta.json') as f:
+    meta = json.load(f)
+num = int(meta.get('num_vectors', 0))
+nlist = int(meta.get('nlist', 0))
+index_type = meta.get('index_type', 'N/A')
+
+# Check minimum vector count for 10k target
+if num < 9000:
+    raise SystemExit(f"Error: Vector count ({num}) below 10k target threshold (9000)")
+
+# Check index type is properly set
+if index_type == 'N/A' or 'IVF' not in index_type:
+    raise SystemExit(f"Error: Invalid index_type '{index_type}' (expected IndexIVFFlat)")
+
+# Check vector-to-nlist ratio
+if nlist > 0 and num < nlist:
+    raise SystemExit(f"Error: Vector count ({num}) is less than nlist ({nlist})")
+
+print(f"FAISS metadata truth gate PASSED: vectors={num}, index_type={index_type}, nlist={nlist}")
+PY
+          else
+            echo "artifacts/faiss_meta.json not present; skipping truth gate check."
+          fi

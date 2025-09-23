@@ -1,9 +1,9 @@
 """Lightweight FastAPI service for lane-aware retrieval."""
 
+from __future__ import annotations
+
 import sys
 assert sys.version_info[:2] == (3, 11), f"Require Python 3.11.x (got {sys.version})"
-
-from __future__ import annotations
 
 import os
 import re
@@ -30,7 +30,10 @@ from ..db_faiss import FaissDB
 from ..tmd_encoder import pack_tmd, lane_index_from_bits
 from ..vectorizer import EmbeddingBackend
 
-DEFAULT_NPZ = os.getenv("FAISS_NPZ_PATH", "artifacts/fw1k_vectors.npz")
+_ENV_NPZ = os.getenv("FAISS_NPZ_PATH")
+_NPZ_10K = "artifacts/fw10k_vectors.npz"
+_NPZ_1K = "artifacts/fw1k_vectors.npz"
+DEFAULT_NPZ = _ENV_NPZ or (_NPZ_10K if os.path.exists(_NPZ_10K) else _NPZ_1K)
 
 LANE_MAP = {0: "L1_FACTOID", 1: "L2_GRAPH", 2: "L3_SYNTH"}
 MODE_MAP = {"dense": "DENSE", "graph": "GRAPH", "hybrid": "HYBRID", "lexical": "HYBRID"}
@@ -151,8 +154,13 @@ class RetrievalContext:
         mode = settings.RETRIEVAL_MODE if settings.RETRIEVAL_MODE != "HYBRID" else "DENSE"
         candidates = self.faiss_db.search(fused_query, topk=req.top_k, use_lightrag=True) or []
 
-        # Use lexical fallback if enabled and scores are degenerate
-        if settings.LEXICAL_FALLBACK and all((c.get("score") or 0.0) <= settings.MIN_VALID_SCORE for c in candidates):
+        # L1_FACTOID: dense-only by default, lexical fallback via flag
+        enable_lex = os.getenv("LNSP_LEXICAL_FALLBACK", "0") == "1"
+        if req.lane == "L1_FACTOID" and not enable_lex:
+            # Skip lexical fallback for L1_FACTOID unless explicitly enabled
+            pass
+        elif settings.LEXICAL_FALLBACK and all((c.get("score") or 0.0) <= settings.MIN_VALID_SCORE for c in candidates):
+            # Use lexical fallback for other lanes or when explicitly enabled
             candidates = self._lexical_search(req.q, req.top_k)
             mode = "HYBRID"
 
@@ -178,10 +186,34 @@ else:
     app.add_middleware(TimingMiddleware)
 
     @app.get("/healthz")
-    def healthcheck() -> Dict[str, str]:
+    def healthcheck() -> Dict[str, Any]:
+        import sys
+        import json
+
         ctx = get_context()
         status = "ready" if ctx.loaded else "empty"
-        return {"status": status, "npz_path": ctx.npz_path}
+
+        # Load faiss metadata
+        meta = {}
+        try:
+            with open("artifacts/faiss_meta.json", "r") as f:
+                meta = json.load(f)
+        except Exception:
+            pass
+
+        # Check lexical fallback setting
+        lexical_l1 = os.getenv("LNSP_LEXICAL_FALLBACK", "0") == "1"
+
+        return {
+            "status": status,
+            "npz_path": ctx.npz_path,
+            "py": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+            "index": meta.get("index_type", "N/A"),
+            "vectors": meta.get("num_vectors", 0),
+            "nlist": meta.get("nlist", 0),
+            "nprobe": int(os.getenv("FAISS_NPROBE", "16")),
+            "lexical_L1": lexical_l1
+        }
 
     @app.post("/search", response_model=SearchResponse)
     def search(req: SearchRequest, request: Request) -> SearchResponse:

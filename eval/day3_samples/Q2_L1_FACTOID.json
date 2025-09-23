@@ -1,79 +1,79 @@
 {
-  "query": "Which EP did Daisy Berkowitz and THEE PAUSE finally release after health delays, under the Mr Conrad Samsung banner?",
+  "query": "Which album by The Dismemberment Plan was released on 2 October 1995?",
   "lane_req": "L1_FACTOID",
   "lane_resp": "L1_FACTOID",
   "gold": [
-    "enwiki-00000012-0008-0000"
+    "enwiki-00000001-0000-0000"
   ],
-  "hit": false,
+  "hit": true,
   "latency_ms": 0.01,
   "top_k": 5,
   "results": [
     {
-      "id": "enwiki-00000000-0000-0000",
-      "score": 1.0,
-      "doc_id": "enwiki-00000000-0000-0000"
-    },
-    {
       "id": "enwiki-00000001-0000-0000",
-      "score": 1.0,
+      "score": 5.0,
       "doc_id": "enwiki-00000001-0000-0000"
     },
     {
       "id": "enwiki-00000001-0001-0000",
-      "score": 1.0,
+      "score": 4.0,
       "doc_id": "enwiki-00000001-0001-0000"
     },
     {
+      "id": "enwiki-00000000-0000-0000",
+      "score": 3.0,
+      "doc_id": "enwiki-00000000-0000-0000"
+    },
+    {
       "id": "enwiki-00000002-0000-0000",
-      "score": 1.0,
+      "score": 2.0,
       "doc_id": "enwiki-00000002-0000-0000"
     }
   ],
   "raw": {
-    "query": "Which EP did Daisy Berkowitz and THEE PAUSE finally release after health delays, under the Mr Conrad Samsung banner?",
+    "query": "Which album by The Dismemberment Plan was released on 2 October 1995?",
     "lane_index": 0,
     "results": [
       {
-        "cpe_id": "25aeb7c2-aa61-50cd-b287-e6b4d10d55f3",
-        "doc_id": "enwiki-00000000-0000-0000",
-        "score": 1.0,
-        "retriever": "lexical",
-        "lane_index": 0,
-        "metadata": {
-          "concept_text": "! (Cláudia Pascoal album) ! is the debut studio album by Portuguese singer Cláudia Pascoal.",
-          "doc_id": "enwiki-00000000-0000-0000"
-        },
-        "rank": 1
-      },
-      {
         "cpe_id": "65138f72-1547-5fcf-9c50-8469a122e9b1",
         "doc_id": "enwiki-00000001-0000-0000",
-        "score": 1.0,
+        "score": 5.0,
         "retriever": "lexical",
         "lane_index": 0,
         "metadata": {
           "concept_text": "! (The Dismemberment Plan album) ! is the debut studio album by American indie rock band The Dismemberment Plan.",
           "doc_id": "enwiki-00000001-0000-0000"
         },
-        "rank": 2
+        "rank": 1
       },
       {
         "cpe_id": "9665f720-af8c-57a9-b170-800d30e9f49b",
         "doc_id": "enwiki-00000001-0001-0000",
-        "score": 1.0,
+        "score": 4.0,
         "retriever": "lexical",
         "lane_index": 0,
         "metadata": {
           "concept_text": "! (The Dismemberment Plan album), Personnel The following people were involved in the making of ! :.",
           "doc_id": "enwiki-00000001-0001-0000"
         },
+        "rank": 2
+      },
+      {
+        "cpe_id": "25aeb7c2-aa61-50cd-b287-e6b4d10d55f3",
+        "doc_id": "enwiki-00000000-0000-0000",
+        "score": 3.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (Cláudia Pascoal album) ! is the debut studio album by Portuguese singer Cláudia Pascoal.",
+          "doc_id": "enwiki-00000000-0000-0000"
+        },
         "rank": 3
       },
       {
         "cpe_id": "e878613d-0bb7-56c8-b8ee-6ad3662e149a",
         "doc_id": "enwiki-00000002-0000-0000",
-        "score": 1.0,
+        "score": 2.0,
         "retriever": "lexical",
         "lane_index": 0,
         "metadata": {
@@ -84,7 +84,7 @@
       }
     ]
   },
-  "proposition": "Which EP did Daisy Berkowitz and THEE PAUSE finally release after health delays, under the Mr Conrad Samsung banner?",
+  "proposition": "Which album by The Dismemberment Plan was released on 2 October 1995?",
   "tmd": {
     "task": "RETRIEVE",
     "method": "LEXICAL",
@@ -92,9 +92,9 @@
   },
   "cpe": {
     "concept": null,
-    "probe": "Which EP did Daisy Berkowitz and THEE PAUSE finally release after health delays, under the Mr Conrad Samsung banner?",
+    "probe": "Which album by The Dismemberment Plan was released on 2 October 1995?",
     "expected": [
-      "enwiki-00000012-0008-0000"
+      "enwiki-00000001-0000-0000"
     ]
   }
 }

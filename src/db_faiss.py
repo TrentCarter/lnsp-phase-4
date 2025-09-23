@@ -8,16 +8,27 @@ except ImportError:
 from .utils.norms import l2_normalize
 
 
+def _default_nprobe() -> int:
+    try:
+        return max(1, int(os.getenv("FAISS_NPROBE", "16")))
+    except Exception:
+        return 16
+
+
 def build_index(vectors: np.ndarray, nlist=64):
     if faiss is None:
         return None
     d = vectors.shape[1]
-    q = faiss.IndexFlatIP(d)
-    index = faiss.IndexIVFFlat(q, d, nlist, faiss.METRIC_INNER_PRODUCT)
-    vecs = l2_normalize(vectors)
-    index.train(vecs)
+    vecs = l2_normalize(vectors.astype(np.float32))
+    spec = f"IVF{max(8, int(nlist))},Flat"
+    index = faiss.index_factory(d, spec, faiss.METRIC_INNER_PRODUCT)
+    # Train on a subset for speed; fall back to all if tiny
+    N = vecs.shape[0]
+    k = max(1, int(N * 0.05))
+    ids = np.random.default_rng(0).choice(N, size=min(k, N), replace=False)
+    index.train(vecs[ids])
     index.add(vecs)
-    index.nprobe = 8
+    index.nprobe = _default_nprobe()
     return index
 
 
@@ -106,15 +117,19 @@ class FaissDB:
             if len(vectors) > 0:
                 if faiss is not None:
                     try:
-                        # Use flat index for small datasets
+                        # Use flat index for very small datasets
                         if len(vectors) < 32:
                             self.index = faiss.IndexFlatIP(vectors.shape[1])
-                        else:
-                            self.index = build_index(vectors, min(32, len(vectors)//2))
-                        if self.index:
+                            # Flat index ignores nprobe; add normalized vectors directly
                             normalized_vecs = l2_normalize(vectors)
                             self.index.add(normalized_vecs)
-                            print(f"[FaissDB] Loaded and built index with {len(vectors)} vectors")
+                        else:
+                            # Choose nlist based on corpus size; target 128 for ~10k
+                            nlist = 128 if len(vectors) >= 8000 else min(32, max(8, len(vectors)//2))
+                            self.index = build_index(vectors, nlist)
+                        if self.index:
+                            # If index was built inside build_index it already contains vectors
+                            print(f"[FaissDB] Loaded and built index with {len(vectors)} vectors (nlist={getattr(self.index, 'nlist', 0)}, nprobe={getattr(self.index, 'nprobe', 'NA')})")
                             return True
                     except Exception as e:
                         print(f"[FaissDB] Error building index: {e}")

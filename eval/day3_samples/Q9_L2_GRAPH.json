@@ -1,61 +1,100 @@
 {
-  "query": "Two-hop related to <EntityE> via LINKS_TO then IS_A.",
+  "query": "Where is the formation of !!! from members of Black Liquorice and Popesmashers documented?",
   "lane_req": "L2_GRAPH",
   "lane_resp": "L2_GRAPH",
   "gold": [
-    "doc_000510"
+    "enwiki-00000004-0001-0000"
   ],
   "hit": false,
-  "latency_ms": 80.0,
-  "top_k": 3,
+  "latency_ms": 0.01,
+  "top_k": 5,
   "results": [
     {
-      "id": "3fc9d298-0600-47f8-9255-59dec694036c",
-      "score": 0.0
+      "id": "enwiki-00000000-0000-0000",
+      "score": 2.0,
+      "doc_id": "enwiki-00000000-0000-0000"
     },
     {
-      "id": "310d2799-d228-40e7-b8a2-42eefaa7a8e5",
-      "score": 0.0
+      "id": "enwiki-00000001-0000-0000",
+      "score": 2.0,
+      "doc_id": "enwiki-00000001-0000-0000"
     },
     {
-      "id": "6797e530-ffd2-42ea-b5e1-ecdd6f80eda6",
-      "score": 0.0
+      "id": "enwiki-00000001-0001-0000",
+      "score": 2.0,
+      "doc_id": "enwiki-00000001-0001-0000"
+    },
+    {
+      "id": "enwiki-00000002-0000-0000",
+      "score": 2.0,
+      "doc_id": "enwiki-00000002-0000-0000"
     }
   ],
   "raw": {
-    "query": "Two-hop related to <EntityE> via LINKS_TO then IS_A.",
-    "lane_index": 4096,
+    "query": "Where is the formation of !!! from members of Black Liquorice and Popesmashers documented?",
+    "lane_index": 0,
     "results": [
       {
-        "cpe_id": "3fc9d298-0600-47f8-9255-59dec694036c",
-        "score": 0.0,
-        "rank": 1,
-        "lane_index": 18432,
-        "retriever": "faiss",
+        "cpe_id": "25aeb7c2-aa61-50cd-b287-e6b4d10d55f3",
+        "doc_id": "enwiki-00000000-0000-0000",
+        "score": 2.0,
+        "retriever": "lexical",
+        "lane_index": 0,
         "metadata": {
-          "concept_text": "! (The Dismemberment Plan album), Personnel The following people were involved in the making of ! :."
-        }
+          "concept_text": "! (Cláudia Pascoal album) ! is the debut studio album by Portuguese singer Cláudia Pascoal.",
+          "doc_id": "enwiki-00000000-0000-0000"
+        },
+        "rank": 1
       },
       {
-        "cpe_id": "310d2799-d228-40e7-b8a2-42eefaa7a8e5",
-        "score": 0.0,
-        "rank": 2,
-        "lane_index": 18432,
-        "retriever": "faiss",
+        "cpe_id": "65138f72-1547-5fcf-9c50-8469a122e9b1",
+        "doc_id": "enwiki-00000001-0000-0000",
+        "score": 2.0,
+        "retriever": "lexical",
+        "lane_index": 0,
         "metadata": {
-          "concept_text": "! (The Dismemberment Plan album) ! is the debut studio album by American indie rock band The Dismemberment Plan."
-        }
+          "concept_text": "! (The Dismemberment Plan album) ! is the debut studio album by American indie rock band The Dismemberment Plan.",
+          "doc_id": "enwiki-00000001-0000-0000"
+        },
+        "rank": 2
       },
       {
-        "cpe_id": "6797e530-ffd2-42ea-b5e1-ecdd6f80eda6",
-        "score": 0.0,
-        "rank": 3,
-        "lane_index": 18432,
-        "retriever": "faiss",
+        "cpe_id": "9665f720-af8c-57a9-b170-800d30e9f49b",
+        "doc_id": "enwiki-00000001-0001-0000",
+        "score": 2.0,
+        "retriever": "lexical",
+        "lane_index": 0,
         "metadata": {
-          "concept_text": "! (Cláudia Pascoal album) ! is the debut studio album by Portuguese singer Cláudia Pascoal."
-        }
+          "concept_text": "! (The Dismemberment Plan album), Personnel The following people were involved in the making of ! :.",
+          "doc_id": "enwiki-00000001-0001-0000"
+        },
+        "rank": 3
+      },
+      {
+        "cpe_id": "e878613d-0bb7-56c8-b8ee-6ad3662e149a",
+        "doc_id": "enwiki-00000002-0000-0000",
+        "score": 2.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (The Song Formerly Known As) \"! (The Song Formerly Known As)\" is a song by Australian rock band Regurgitator.",
+          "doc_id": "enwiki-00000002-0000-0000"
+        },
+        "rank": 4
       }
+    ]
+  },
+  "proposition": "Where is the formation of !!! from members of Black Liquorice and Popesmashers documented?",
+  "tmd": {
+    "task": "RETRIEVE",
+    "method": "LEXICAL",
+    "domain": "FACTOIDWIKI"
+  },
+  "cpe": {
+    "concept": null,
+    "probe": "Where is the formation of !!! from members of Black Liquorice and Popesmashers documented?",
+    "expected": [
+      "enwiki-00000004-0001-0000"
     ]
   }
 }

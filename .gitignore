@@ -3,6 +3,8 @@ outputs/
 logs/
 output/
 data/
+artifacts/
+eval/
 
 
 # Ignore compiled Python files
@@ -166,6 +168,7 @@ celerybeat.pid
 .env.*
 .envrc
 .venv
+.venv311
 env/
 venv/
 venv_core/
@@ -282,3 +285,5 @@ mlartifacts/
 
 # Evaluation artifacts
 eval/
+
+
