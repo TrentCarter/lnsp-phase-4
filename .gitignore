@@ -279,3 +279,6 @@ mlartifacts/
 # Large data files
 *.hdf5
 *.parquet
+
+# Evaluation artifacts
+eval/

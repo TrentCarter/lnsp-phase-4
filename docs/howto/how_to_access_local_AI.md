@@ -246,7 +246,25 @@ Based on testing with llama3.1:8b:
    ollama pull llama3.1:8b
    ```
 
-3. **LLM responses disabled**
+3. **Diagnostic Script for Ollama Connection Issues**
+
+   If you encounter connection issues with Ollama, use the diagnostic script:
+   ```bash
+   ./venv/bin/python3 scripts/test_extraction_pipeline.py
+   ```
+
+   This script will:
+   - Check environment variables (OLLAMA_URL, OLLAMA_HOST)
+   - Test base connection to Ollama service
+   - Validate API endpoints (/api/tags and /api/chat)
+   - Provide clear diagnostic output
+
+   **Important Notes:**
+   - The script uses `llama3.1:8b` model for testing (not `llama3:8b`)
+   - Ensure you have at least one model installed for chat endpoint testing
+   - The chat endpoint requires POST with proper JSON structure
+
+4. **LLM responses disabled**
    ```bash
    # Verify environment variables
    echo $LNSP_USE_LLM
@@ -255,7 +273,7 @@ Based on testing with llama3.1:8b:
    # Should see "true" and your model name
    ```
 
-4. **JSON parsing errors**
+5. **JSON parsing errors**
    - The bridge handles malformed JSON gracefully
    - Falls back to deterministic annotations on parse errors
    - Check logs for specific error messages

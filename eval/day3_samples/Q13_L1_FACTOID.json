@@ -5,82 +5,72 @@
   "gold": [
     "enwiki-00000089-0026-0000"
   ],
-  "hit": true,
-  "latency_ms": 12.65,
+  "hit": false,
+  "latency_ms": 0.01,
   "top_k": 5,
   "results": [
     {
-      "id": "fcf50449-5500-581a-9f45-4ff61440a796",
-      "score": 7.0,
-      "why": null,
-      "doc_id": "enwiki-00000089-0026-0000"
+      "id": "enwiki-00000000-0000-0000",
+      "score": 1.0,
+      "doc_id": "enwiki-00000000-0000-0000"
     },
     {
-      "id": "fe57cbb2-53d1-587f-9c2a-32f863011d87",
-      "score": 6.0,
-      "why": null,
-      "doc_id": "enwiki-00000089-0003-0000"
+      "id": "enwiki-00000001-0000-0000",
+      "score": 1.0,
+      "doc_id": "enwiki-00000001-0000-0000"
     },
     {
-      "id": "a5b0fbe2-2f15-5dba-bddb-55fd3f525a61",
-      "score": 5.0,
-      "why": null,
-      "doc_id": "enwiki-00000089-0026-0001"
-    },
-    {
-      "id": "8dc521df-1976-513c-80f1-52b7d1f88f43",
-      "score": 5.0,
-      "why": null,
-      "doc_id": "enwiki-00000089-0027-0000"
-    },
-    {
-      "id": "faf883ce-805f-562c-ba76-fb9195039244",
-      "score": 4.0,
-      "why": null,
-      "doc_id": "enwiki-00000089-0028-0001"
+      "id": "enwiki-00000001-0001-0000",
+      "score": 1.0,
+      "doc_id": "enwiki-00000001-0001-0000"
     }
   ],
   "raw": {
-    "lane": "L1_FACTOID",
-    "mode": "HYBRID",
-    "items": [
+    "query": "Which David Bowie album's retrospective reviews praise his artistic growth alongside Robert Fripp's contributions?",
+    "lane_index": 0,
+    "results": [
       {
-        "id": "fcf50449-5500-581a-9f45-4ff61440a796",
-        "doc_id": "enwiki-00000089-0026-0000",
-        "score": 7.0,
-        "why": null
+        "cpe_id": "25aeb7c2-aa61-50cd-b287-e6b4d10d55f3",
+        "doc_id": "enwiki-00000000-0000-0000",
+        "score": 1.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (Cláudia Pascoal album) ! is the debut studio album by Portuguese singer Cláudia Pascoal.",
+          "doc_id": "enwiki-00000000-0000-0000"
+        },
+        "rank": 1
       },
       {
-        "id": "fe57cbb2-53d1-587f-9c2a-32f863011d87",
-        "doc_id": "enwiki-00000089-0003-0000",
-        "score": 6.0,
-        "why": null
+        "cpe_id": "65138f72-1547-5fcf-9c50-8469a122e9b1",
+        "doc_id": "enwiki-00000001-0000-0000",
+        "score": 1.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (The Dismemberment Plan album) ! is the debut studio album by American indie rock band The Dismemberment Plan.",
+          "doc_id": "enwiki-00000001-0000-0000"
+        },
+        "rank": 2
       },
       {
-        "id": "a5b0fbe2-2f15-5dba-bddb-55fd3f525a61",
-        "doc_id": "enwiki-00000089-0026-0001",
-        "score": 5.0,
-        "why": null
-      },
-      {
-        "id": "8dc521df-1976-513c-80f1-52b7d1f88f43",
-        "doc_id": "enwiki-00000089-0027-0000",
-        "score": 5.0,
-        "why": null
-      },
-      {
-        "id": "faf883ce-805f-562c-ba76-fb9195039244",
-        "doc_id": "enwiki-00000089-0028-0001",
-        "score": 4.0,
-        "why": null
+        "cpe_id": "9665f720-af8c-57a9-b170-800d30e9f49b",
+        "doc_id": "enwiki-00000001-0001-0000",
+        "score": 1.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (The Dismemberment Plan album), Personnel The following people were involved in the making of ! :.",
+          "doc_id": "enwiki-00000001-0001-0000"
+        },
+        "rank": 3
       }
-    ],
-    "trace_id": "c3af1fd0"
+    ]
   },
   "proposition": "Which David Bowie album's retrospective reviews praise his artistic growth alongside Robert Fripp's contributions?",
   "tmd": {
     "task": "RETRIEVE",
-    "method": "HYBRID",
+    "method": "LEXICAL",
     "domain": "FACTOIDWIKI"
   },
   "cpe": {

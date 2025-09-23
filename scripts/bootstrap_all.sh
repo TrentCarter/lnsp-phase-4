@@ -24,6 +24,20 @@ if [ "${NO_DOCKER:-0}" = "1" ]; then
     echo "📝 Please ensure PostgreSQL and Neo4j are running manually:"
     echo "   - PostgreSQL on $PGHOST:$PGPORT"
     echo "   - Neo4j on $NEO4J_URI"
+
+    # NO_DOCKER fast path: venv + deps
+    : "${PY:=python3}"
+    : "${VENV:=.venv}"
+
+    echo "🐍 Creating virtual environment..."
+    $PY -m venv "$VENV"
+    source "$VENV/bin/activate"
+    echo "📦 Upgrading pip and installing requirements..."
+    pip install -U pip wheel
+    pip install -r requirements.txt
+    # LightRAG pin
+    pip install "lightrag-hku==1.4.9rc1"
+    echo "✅ NO_DOCKER environment initialized."
 else
     # Compose up both services (idempotent)
     echo "▶️  Starting docker services (postgres, neo4j)"

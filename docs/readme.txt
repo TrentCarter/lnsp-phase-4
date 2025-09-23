@@ -3,6 +3,9 @@
 
 This README is focused on the current Phase 4 repository. Legacy notes and command dumps from earlier projects have been archived to `docs/archive/readme_legacy_20250918.txt`.
 
+# 9/22/2025
+tests/test_prompt_extraction.py
+
 
 # 9/21/2025. 
 

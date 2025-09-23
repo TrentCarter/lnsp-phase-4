@@ -18,16 +18,13 @@ text
 
 You are an expert extractor of propositional knowledge from text. Given the input text, extract the following in a single JSON object:
 
-- "prop": The core proposition as a standalone, atomic statement (string, e.g., "Einstein proposed the theory of relativity.").
-- "domain": The primary domain category (enum from 16 options, e.g., "physics", "biology", "history", etc. – define your 16 enums in advance).
-- "task": The main verb or action (enum from 64 options, e.g., "propose", "discover", "analyze" – customize your list).
-- "modifier": Descriptive adjective for the task (enum from 32 options, e.g., "boldly", "cautiously", "rapidly" – tailor to your needs).
-- "mission": A concise mission text summarizing the purpose or context (string, e.g., "Explain the relationship between space and time.").
-- "expected": The anticipated outcome or answer related to the proposition (string, e.g., "E = mc²").
-
-
-*** NEED TO ADD: TRC 9/21/25Concept (C) (maybe covered by “prop”)
-Probe (Question)
+- `concept_text`: The core atomic concept, phrased as a concise, standalone statement (string).
+- `probe_question`: A question that the `concept_text` directly and completely answers (string).
+- `expected_answer`: The expected answer to the `probe_question`, often a short phrase or entity (string).
+- `domain`: The primary domain category from the official TMD schema (enum).
+- `task`: The primary cognitive task from the official TMD schema (enum).
+- `modifier`: The descriptive modifier from the official TMD schema (enum).
+- `mission_text`: The original extraction prompt or mission that guided this process (string).
 
 
 Output ONLY the JSON object. No explanations or additional text.

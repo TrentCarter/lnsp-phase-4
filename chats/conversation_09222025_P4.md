@@ -289,3 +289,40 @@ python -m src.eval_runner --queries eval/day3_eval.jsonl --api http://localhost:
 
 ### 🎯 Impact Statement
 This enhancement significantly expands the accessibility of LNSP's LLM annotation features by supporting multiple backend configurations while maintaining full backward compatibility with existing Ollama-based setups.
+
+---
+
+## 🔧 OLLAMA DIAGNOSTIC SCRIPT FIX (2025-09-22)
+
+**Issue:** Diagnostic script was failing with 404 on `/api/chat` endpoint
+
+### ✅ Root Cause & Fix
+
+1. **Model Name Issue**: Script was using `llama3:8b` but actual model is `llama3.1:8b`
+2. **Request Format**: Added proper headers and valid request body structure
+3. **Timeout**: Increased timeout for chat endpoint to 10 seconds
+
+### 📝 Changes Applied
+
+**Fixed in `scripts/test_extraction_pipeline.py`:**
+- Corrected model name from `llama3:8b` to `llama3.1:8b`
+- Added `Content-Type: application/json` header
+- Increased timeout for chat endpoint
+- Improved error handling for 400/500 responses
+
+### 🎯 Result
+- ✅ Diagnostic script now passes all checks
+- ✅ Validates Ollama service connectivity
+- ✅ Tests both `/api/tags` and `/api/chat` endpoints successfully
+- ✅ Documented in troubleshooting section of `docs/howto/how_to_access_local_AI.md`
+
+### 📚 Documentation Updated
+Added diagnostic script usage to the troubleshooting guide with:
+- Instructions for running the diagnostic script
+- Important notes about model naming (llama3.1:8b vs llama3:8b)
+- Explanation of what the script validates
+
+**Session ready for /clear** - All fixes documented and tested successfully.
+[Consultant] eval_runner: 2025-09-23T07:34:00 — total=20 pass=20 echo=100.0% results=eval/day3_results_dense_final.jsonl
+[Consultant] eval_runner: 2025-09-23T07:35:19 — total=20 pass=20 echo=100.0% results=eval/day3_results_fallback_final.jsonl
+[Consultant] eval_runner: 2025-09-23T07:37:04 — total=20 pass=1 echo=5.0% results=eval/day3_results_consultant.jsonl

@@ -5,82 +5,89 @@
   "gold": [
     "enwiki-00000092-0006-0000"
   ],
-  "hit": true,
-  "latency_ms": 13.16,
+  "hit": false,
+  "latency_ms": 0.01,
   "top_k": 5,
   "results": [
     {
-      "id": "c2c9f08c-241c-5268-a1e5-acd234580954",
-      "score": 6.0,
-      "why": null,
-      "doc_id": "enwiki-00000092-0006-0000"
+      "id": "enwiki-00000000-0000-0000",
+      "score": 0.0,
+      "doc_id": "enwiki-00000000-0000-0000"
     },
     {
-      "id": "bcc49d54-f1e8-5c40-8108-c3513ecd110f",
-      "score": 5.0,
-      "why": null,
-      "doc_id": "enwiki-00000092-0000-0000"
+      "id": "enwiki-00000001-0000-0000",
+      "score": 0.0,
+      "doc_id": "enwiki-00000001-0000-0000"
     },
     {
-      "id": "0ecf3873-8c10-5474-89ce-a5863975a831",
-      "score": 4.0,
-      "why": null,
-      "doc_id": "enwiki-00000065-0004-0000"
+      "id": "enwiki-00000001-0001-0000",
+      "score": 0.0,
+      "doc_id": "enwiki-00000001-0001-0000"
     },
     {
-      "id": "4a1db1c2-78ff-5d4c-8bc8-f1a4f2b46c38",
-      "score": 4.0,
-      "why": null,
-      "doc_id": "enwiki-00000076-0005-0001"
-    },
-    {
-      "id": "4c715f13-34e6-503b-8614-7408016f0f28",
-      "score": 4.0,
-      "why": null,
-      "doc_id": "enwiki-00000092-0001-0000"
+      "id": "enwiki-00000002-0000-0000",
+      "score": 0.0,
+      "doc_id": "enwiki-00000002-0000-0000"
     }
   ],
   "raw": {
-    "lane": "L1_FACTOID",
-    "mode": "HYBRID",
-    "items": [
+    "query": "Which Emily Dickinson poem uses seafaring imagery like 'Sea' and 'Gale' to portray hope?",
+    "lane_index": 0,
+    "results": [
       {
-        "id": "c2c9f08c-241c-5268-a1e5-acd234580954",
-        "doc_id": "enwiki-00000092-0006-0000",
-        "score": 6.0,
-        "why": null
+        "cpe_id": "25aeb7c2-aa61-50cd-b287-e6b4d10d55f3",
+        "doc_id": "enwiki-00000000-0000-0000",
+        "score": 0.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (Cláudia Pascoal album) ! is the debut studio album by Portuguese singer Cláudia Pascoal.",
+          "doc_id": "enwiki-00000000-0000-0000"
+        },
+        "rank": 1
       },
       {
-        "id": "bcc49d54-f1e8-5c40-8108-c3513ecd110f",
-        "doc_id": "enwiki-00000092-0000-0000",
-        "score": 5.0,
-        "why": null
+        "cpe_id": "65138f72-1547-5fcf-9c50-8469a122e9b1",
+        "doc_id": "enwiki-00000001-0000-0000",
+        "score": 0.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (The Dismemberment Plan album) ! is the debut studio album by American indie rock band The Dismemberment Plan.",
+          "doc_id": "enwiki-00000001-0000-0000"
+        },
+        "rank": 2
       },
       {
-        "id": "0ecf3873-8c10-5474-89ce-a5863975a831",
-        "doc_id": "enwiki-00000065-0004-0000",
-        "score": 4.0,
-        "why": null
+        "cpe_id": "9665f720-af8c-57a9-b170-800d30e9f49b",
+        "doc_id": "enwiki-00000001-0001-0000",
+        "score": 0.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (The Dismemberment Plan album), Personnel The following people were involved in the making of ! :.",
+          "doc_id": "enwiki-00000001-0001-0000"
+        },
+        "rank": 3
       },
       {
-        "id": "4a1db1c2-78ff-5d4c-8bc8-f1a4f2b46c38",
-        "doc_id": "enwiki-00000076-0005-0001",
-        "score": 4.0,
-        "why": null
-      },
-      {
-        "id": "4c715f13-34e6-503b-8614-7408016f0f28",
-        "doc_id": "enwiki-00000092-0001-0000",
-        "score": 4.0,
-        "why": null
+        "cpe_id": "e878613d-0bb7-56c8-b8ee-6ad3662e149a",
+        "doc_id": "enwiki-00000002-0000-0000",
+        "score": 0.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (The Song Formerly Known As) \"! (The Song Formerly Known As)\" is a song by Australian rock band Regurgitator.",
+          "doc_id": "enwiki-00000002-0000-0000"
+        },
+        "rank": 4
       }
-    ],
-    "trace_id": "5e1a0692"
+    ]
   },
   "proposition": "Which Emily Dickinson poem uses seafaring imagery like 'Sea' and 'Gale' to portray hope?",
   "tmd": {
     "task": "RETRIEVE",
-    "method": "HYBRID",
+    "method": "LEXICAL",
     "domain": "FACTOIDWIKI"
   },
   "cpe": {

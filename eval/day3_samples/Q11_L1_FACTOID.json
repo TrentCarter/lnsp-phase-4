@@ -5,82 +5,89 @@
   "gold": [
     "enwiki-00000081-0002-0000"
   ],
-  "hit": true,
-  "latency_ms": 15.57,
+  "hit": false,
+  "latency_ms": 0.01,
   "top_k": 5,
   "results": [
     {
-      "id": "364f152d-7fcb-507e-b4cb-aa91a56ac7df",
-      "score": 6.0,
-      "why": null,
-      "doc_id": "enwiki-00000081-0000-0000"
+      "id": "enwiki-00000000-0000-0000",
+      "score": 0.0,
+      "doc_id": "enwiki-00000000-0000-0000"
     },
     {
-      "id": "3163d399-1161-557b-93b3-37b12fe89d9d",
-      "score": 5.0,
-      "why": null,
-      "doc_id": "enwiki-00000081-0002-0000"
+      "id": "enwiki-00000001-0000-0000",
+      "score": 0.0,
+      "doc_id": "enwiki-00000001-0000-0000"
     },
     {
-      "id": "0f8d8d9d-b8f9-58fa-95d7-b844e73f26b7",
-      "score": 4.0,
-      "why": null,
-      "doc_id": "enwiki-00000081-0000-0001"
+      "id": "enwiki-00000001-0001-0000",
+      "score": 0.0,
+      "doc_id": "enwiki-00000001-0001-0000"
     },
     {
-      "id": "df4356d2-d094-5854-82ea-5ad9d778586e",
-      "score": 3.0,
-      "why": null,
-      "doc_id": "enwiki-00000002-0002-0000"
-    },
-    {
-      "id": "d0f6bd86-549a-5bb0-963b-737ee326023c",
-      "score": 3.0,
-      "why": null,
-      "doc_id": "enwiki-00000063-0005-0000"
+      "id": "enwiki-00000002-0000-0000",
+      "score": 0.0,
+      "doc_id": "enwiki-00000002-0000-0000"
     }
   ],
   "raw": {
-    "lane": "L1_FACTOID",
-    "mode": "HYBRID",
-    "items": [
+    "query": "Which controversial UK 'Go Home' vans campaign drew criticism from politicians like Nick Clegg and Yvette Cooper?",
+    "lane_index": 0,
+    "results": [
       {
-        "id": "364f152d-7fcb-507e-b4cb-aa91a56ac7df",
-        "doc_id": "enwiki-00000081-0000-0000",
-        "score": 6.0,
-        "why": null
+        "cpe_id": "25aeb7c2-aa61-50cd-b287-e6b4d10d55f3",
+        "doc_id": "enwiki-00000000-0000-0000",
+        "score": 0.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (Cláudia Pascoal album) ! is the debut studio album by Portuguese singer Cláudia Pascoal.",
+          "doc_id": "enwiki-00000000-0000-0000"
+        },
+        "rank": 1
       },
       {
-        "id": "3163d399-1161-557b-93b3-37b12fe89d9d",
-        "doc_id": "enwiki-00000081-0002-0000",
-        "score": 5.0,
-        "why": null
+        "cpe_id": "65138f72-1547-5fcf-9c50-8469a122e9b1",
+        "doc_id": "enwiki-00000001-0000-0000",
+        "score": 0.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (The Dismemberment Plan album) ! is the debut studio album by American indie rock band The Dismemberment Plan.",
+          "doc_id": "enwiki-00000001-0000-0000"
+        },
+        "rank": 2
       },
       {
-        "id": "0f8d8d9d-b8f9-58fa-95d7-b844e73f26b7",
-        "doc_id": "enwiki-00000081-0000-0001",
-        "score": 4.0,
-        "why": null
+        "cpe_id": "9665f720-af8c-57a9-b170-800d30e9f49b",
+        "doc_id": "enwiki-00000001-0001-0000",
+        "score": 0.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (The Dismemberment Plan album), Personnel The following people were involved in the making of ! :.",
+          "doc_id": "enwiki-00000001-0001-0000"
+        },
+        "rank": 3
       },
       {
-        "id": "df4356d2-d094-5854-82ea-5ad9d778586e",
-        "doc_id": "enwiki-00000002-0002-0000",
-        "score": 3.0,
-        "why": null
-      },
-      {
-        "id": "d0f6bd86-549a-5bb0-963b-737ee326023c",
-        "doc_id": "enwiki-00000063-0005-0000",
-        "score": 3.0,
-        "why": null
+        "cpe_id": "e878613d-0bb7-56c8-b8ee-6ad3662e149a",
+        "doc_id": "enwiki-00000002-0000-0000",
+        "score": 0.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (The Song Formerly Known As) \"! (The Song Formerly Known As)\" is a song by Australian rock band Regurgitator.",
+          "doc_id": "enwiki-00000002-0000-0000"
+        },
+        "rank": 4
       }
-    ],
-    "trace_id": "21c0d4a8"
+    ]
   },
   "proposition": "Which controversial UK 'Go Home' vans campaign drew criticism from politicians like Nick Clegg and Yvette Cooper?",
   "tmd": {
     "task": "RETRIEVE",
-    "method": "HYBRID",
+    "method": "LEXICAL",
     "domain": "FACTOIDWIKI"
   },
   "cpe": {

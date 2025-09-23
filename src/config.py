@@ -1,7 +1,4 @@
-try:
-    from pydantic_settings import BaseSettings
-except ImportError:
-    from pydantic import BaseSettings  # type: ignore
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     RETRIEVAL_MODE: str = "HYBRID"    # DENSE|GRAPH|HYBRID

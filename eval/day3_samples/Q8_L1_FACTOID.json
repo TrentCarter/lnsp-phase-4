@@ -5,82 +5,55 @@
   "gold": [
     "enwiki-00000063-0001-0000"
   ],
-  "hit": true,
-  "latency_ms": 14.81,
+  "hit": false,
+  "latency_ms": 0.01,
   "top_k": 5,
   "results": [
     {
-      "id": "27b0abcc-dd20-5765-811c-fe8942a486f0",
-      "score": 10.0,
-      "why": null,
-      "doc_id": "enwiki-00000063-0001-0000"
+      "id": "enwiki-00000001-0001-0000",
+      "score": 1.0,
+      "doc_id": "enwiki-00000001-0001-0000"
     },
     {
-      "id": "fc26ab9a-b879-520a-ab4f-f91531d8147c",
-      "score": 7.0,
-      "why": null,
-      "doc_id": "enwiki-00000076-0002-0000"
-    },
-    {
-      "id": "7c4a83ab-548f-5db1-88c9-b394e13aa983",
-      "score": 6.0,
-      "why": null,
-      "doc_id": "enwiki-00000027-0002-0000"
-    },
-    {
-      "id": "076a466a-185e-52ad-9812-ae8bc8e32517",
-      "score": 6.0,
-      "why": null,
-      "doc_id": "enwiki-00000076-0001-0000"
-    },
-    {
-      "id": "6861921c-5318-5ce3-9b22-53111d20a6ff",
-      "score": 6.0,
-      "why": null,
-      "doc_id": "enwiki-00000115-0003-0001"
+      "id": "enwiki-00000002-0000-0000",
+      "score": 1.0,
+      "doc_id": "enwiki-00000002-0000-0000"
     }
   ],
   "raw": {
-    "lane": "L1_FACTOID",
-    "mode": "HYBRID",
-    "items": [
+    "query": "In which Kinsey Millhone mystery does ex-con Alvin Limardo hire her to deliver a $25,000 check?",
+    "lane_index": 0,
+    "results": [
       {
-        "id": "27b0abcc-dd20-5765-811c-fe8942a486f0",
-        "doc_id": "enwiki-00000063-0001-0000",
-        "score": 10.0,
-        "why": null
+        "cpe_id": "9665f720-af8c-57a9-b170-800d30e9f49b",
+        "doc_id": "enwiki-00000001-0001-0000",
+        "score": 1.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (The Dismemberment Plan album), Personnel The following people were involved in the making of ! :.",
+          "doc_id": "enwiki-00000001-0001-0000"
+        },
+        "rank": 1
       },
       {
-        "id": "fc26ab9a-b879-520a-ab4f-f91531d8147c",
-        "doc_id": "enwiki-00000076-0002-0000",
-        "score": 7.0,
-        "why": null
-      },
-      {
-        "id": "7c4a83ab-548f-5db1-88c9-b394e13aa983",
-        "doc_id": "enwiki-00000027-0002-0000",
-        "score": 6.0,
-        "why": null
-      },
-      {
-        "id": "076a466a-185e-52ad-9812-ae8bc8e32517",
-        "doc_id": "enwiki-00000076-0001-0000",
-        "score": 6.0,
-        "why": null
-      },
-      {
-        "id": "6861921c-5318-5ce3-9b22-53111d20a6ff",
-        "doc_id": "enwiki-00000115-0003-0001",
-        "score": 6.0,
-        "why": null
+        "cpe_id": "e878613d-0bb7-56c8-b8ee-6ad3662e149a",
+        "doc_id": "enwiki-00000002-0000-0000",
+        "score": 1.0,
+        "retriever": "lexical",
+        "lane_index": 0,
+        "metadata": {
+          "concept_text": "! (The Song Formerly Known As) \"! (The Song Formerly Known As)\" is a song by Australian rock band Regurgitator.",
+          "doc_id": "enwiki-00000002-0000-0000"
+        },
+        "rank": 2
       }
-    ],
-    "trace_id": "351d17f8"
+    ]
   },
   "proposition": "In which Kinsey Millhone mystery does ex-con Alvin Limardo hire her to deliver a $25,000 check?",
   "tmd": {
     "task": "RETRIEVE",
-    "method": "HYBRID",
+    "method": "LEXICAL",
     "domain": "FACTOIDWIKI"
   },
   "cpe": {
