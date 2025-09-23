@@ -60,14 +60,18 @@ class FaissDB:
         if not cpe_record.get('fused_vec'):
             print(f"[FaissDB] No fused_vec in CPE record {cpe_record['cpe_id']}")
             return False
-        vector = np.array(cpe_record['fused_vec'], dtype=np.float32)
+        fused_vector = np.array(cpe_record['fused_vec'], dtype=np.float32)
+        concept_vector = np.array(cpe_record.get('concept_vec', []), dtype=np.float32)
+        question_vector = np.array(cpe_record.get('question_vec', []), dtype=np.float32)
         chunk_position = cpe_record.get('chunk_position') or {}
         doc_id = chunk_position.get('doc_id', '')
 
         self.vectors_stored.append({
             'cpe_id': cpe_record['cpe_id'],
             'doc_id': doc_id,
-            'vector': vector,
+            'fused_vector': fused_vector,
+            'concept_vector': concept_vector,
+            'question_vector': question_vector,
             'lane_index': cpe_record.get('lane_index', 0),
             'concept_text': cpe_record.get('concept_text', ''),
         })
@@ -79,14 +83,19 @@ class FaissDB:
             if not self.vectors_stored:
                 print("[FaissDB] No vectors to save")
                 return True
-            vectors = np.array([v['vector'] for v in self.vectors_stored])
+            fused_vectors = np.array([v['fused_vector'] for v in self.vectors_stored])
+            concept_vectors = np.array([v['concept_vector'] for v in self.vectors_stored])
+            question_vectors = np.array([v['question_vector'] for v in self.vectors_stored])
             cpe_ids = np.array([v['cpe_id'] for v in self.vectors_stored])
             lane_indices = np.array([v['lane_index'] for v in self.vectors_stored])
             concept_texts = np.array([v['concept_text'] for v in self.vectors_stored])
             doc_ids = np.array([v.get('doc_id', '') for v in self.vectors_stored])
             np.savez(
                 self.output_path,
-                vectors=vectors,
+                fused=fused_vectors,
+                concept=concept_vectors,
+                question=question_vectors,
+                vectors=fused_vectors,  # Keep 'vectors' for backward compatibility
                 cpe_ids=cpe_ids,
                 lane_indices=lane_indices,
                 concept_texts=concept_texts,

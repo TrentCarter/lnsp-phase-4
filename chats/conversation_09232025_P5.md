@@ -112,3 +112,15 @@ All Architect deliverables have been successfully implemented or verified as alr
 
 ---
 *Execution completed at 2025-09-23T13:15:00Z*
+[Consultant] eval_runner: 2025-09-23T13:40:31 — total=20 pass=6 echo=30.0% results=eval/day4_results_dense.jsonl
+[Consultant] eval_runner: 2025-09-23T13:40:44 — total=20 pass=9 echo=45.0% results=eval/day4_results_lex.jsonl
+
+## [Consultant] Status — 2025-09-23T17:43:48Z
+- Ran 10k eval in-process (FastAPI TestClient, `OMP_NUM_THREADS=1`) to avoid macOS OpenMP crash; dense-only metrics saved to `eval/day4_results_dense.jsonl:1` with echo 30 % / mean latency 21.39 ms.
+- Lexical flag pass recorded in `eval/day4_results_lex.jsonl:1` (echo 45 %, L2/L3 Hit@1 ≥ 0.28); L1 Hit@1 still ≤ 0.20, failing P4 acceptance gate.
+- Authored `eval/day4_report.md:1` capturing dense vs lexical table, faiss metadata, and nine sample /search traces across lanes.
+- Key blockers: dense path collapsing to `enwiki-00000002-0001-0000`; lexical run shows P95 spike (73.84 ms) from one L3 query.
+
+### [Consultant] Next
+- Re-run once question encoder weights + FAISS `nprobe` retune land; target L1 Hit@1 ≥ 0.92 while confirming latency stays <85/200 ms.
+- Validate `cpe_id → doc_id` mapping after programmer refresh to eliminate repeated doc IDs in dense shortlist.

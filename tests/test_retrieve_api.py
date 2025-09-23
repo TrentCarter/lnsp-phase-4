@@ -101,14 +101,14 @@ class TestRetrievalAPI:
         assert response.status_code in [200, 422]
 
     def test_empty_query(self):
-        """Test handling of empty query."""
+        """Test that empty query returns 422."""
         payload = {
             "q": "",
             "lane": "L1_FACTOID",
             "top_k": 5
         }
         response = client.post("/search", json=payload)
-        assert response.status_code == 200  # Should handle gracefully
+        assert response.status_code == 422  # Should return validation error
 
     def test_trace_id_generation(self):
         """Test that trace_id is generated or can be provided."""
