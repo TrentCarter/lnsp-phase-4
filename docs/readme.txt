@@ -3,6 +3,13 @@
 
 This README is focused on the current Phase 4 repository. Legacy notes and command dumps from earlier projects have been archived to `docs/archive/readme_legacy_20250918.txt`.
 
+# 9/24/2025
+PYTHONPATH=src \
+LNSP_LLM_ENDPOINT=http://127.0.0.1:11434 \
+LNSP_LLM_MODEL=llama3.1:8b-instruct \
+python3 tools/make_cpesh_quadruplets.py --n 10 --embed
+
+
 # 9/22/2025
 tests/test_prompt_extraction.py
 

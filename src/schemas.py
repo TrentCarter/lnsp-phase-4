@@ -4,6 +4,15 @@ from typing import List, Optional, Literal
 Lane = Literal["L1_FACTOID", "L2_GRAPH", "L3_SYNTH"]
 Mode = Literal["DENSE", "GRAPH", "HYBRID"]
 
+class CPESHDiagnostics(BaseModel):
+    concept: Optional[str] = None
+    probe: Optional[str] = None
+    expected: Optional[str] = None
+    soft_negative: Optional[str] = None
+    hard_negative: Optional[str] = None
+    soft_sim: Optional[float] = None
+    hard_sim: Optional[float] = None
+
 class SearchRequest(BaseModel):
     q: str = Field(..., min_length=1, max_length=512, description="Query string (1-512 characters)")
     lane: Optional[Lane] = Field(default=None, description="Lane: L1_FACTOID, L2_GRAPH, or L3_SYNTH")
@@ -31,3 +40,5 @@ class SearchResponse(BaseModel):
     mode: Mode
     items: List[SearchItem]
     trace_id: Optional[str] = None
+    diagnostics: Optional[CPESHDiagnostics] = None
+    insufficient_evidence: Optional[bool] = None

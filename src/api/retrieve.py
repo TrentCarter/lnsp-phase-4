@@ -20,7 +20,7 @@ try:  # FastAPI is optional at runtime
 except ImportError:  # pragma: no cover
     FastAPI = None  # type: ignore
 
-from ..schemas import SearchRequest, SearchResponse, SearchItem
+from ..schemas import CPESHDiagnostics, SearchRequest, SearchResponse, SearchItem
 from ..config import settings
 from .cache import _search_cache
 from ..integrations.lightrag import (
@@ -254,7 +254,9 @@ class RetrievalContext:
         t_code = extraction["task_code"]
         m_code = extraction["modifier_code"]
 
-        concept_vec = self.embedder.encode([extraction["concept"]])[0]
+        concept_vec = self.embedder.encode([extraction["concept"]])[0].astype(np.float32)
+        concept_norm = float(np.linalg.norm(concept_vec))
+        concept_unit = concept_vec if concept_norm == 0 else (concept_vec / concept_norm)
 
         if self.use_fused:
             # 784D mode: use TMD + concept vector
@@ -262,7 +264,7 @@ class RetrievalContext:
             fused_query = np.concatenate([tmd_dense, concept_vec]).astype(np.float32)
         else:
             # 768D mode: use concept vector only, ensure normalization
-            fused_query = concept_vec.astype(np.float32)
+            fused_query = concept_vec.copy()
             # L2 normalize for inner product search
             norm = np.linalg.norm(fused_query)
             if norm > 0:
@@ -290,10 +292,55 @@ class RetrievalContext:
         items = [self._norm_hit(h) for h in candidates if h]
         print(f"Trace {trace_id}: Normalized {len(items)} items.")
 
+        # --- CPESH diagnostics (optional) ---
+        diag = CPESHDiagnostics(
+            concept=extraction.get("concept"),
+            probe=extraction.get("probe"),
+            expected=extraction.get("expected"),
+            soft_negative=extraction.get("soft_negative"),
+            hard_negative=extraction.get("hard_negative"),
+        )
+
+        # Compute similarity scores if negatives exist and concept vector is valid
+        if concept_norm > 0:
+            try:
+                if diag.soft_negative:
+                    soft_vec = self.embedder.encode([diag.soft_negative])[0].astype(np.float32)
+                    soft_norm = float(np.linalg.norm(soft_vec))
+                    if soft_norm > 0:
+                        diag.soft_sim = float(np.dot(concept_unit, soft_vec / soft_norm))
+                if diag.hard_negative:
+                    hard_vec = self.embedder.encode([diag.hard_negative])[0].astype(np.float32)
+                    hard_norm = float(np.linalg.norm(hard_vec))
+                    if hard_norm > 0:
+                        diag.hard_sim = float(np.dot(concept_unit, hard_vec / hard_norm))
+            except Exception as exc:  # pragma: no cover - diagnostic only
+                print(f"Trace {trace_id}: CPESH sim computation skipped: {exc}")
+
+        insufficient = False
+        if not items:
+            insufficient = True
+        else:
+            top_score = float(items[0].score or 0.0)
+            hard_sim_val = float(diag.hard_sim) if diag.hard_sim is not None else 0.0
+            if top_score < 0.10 and hard_sim_val >= 0.30:
+                insufficient = True
+
+        diag_payload: Optional[CPESHDiagnostics] = None
+        if diag.model_dump(exclude_none=True):
+            diag_payload = diag
+
         # Cache the results
         _search_cache.put(req.lane, req.q, req.top_k, items)
 
-        return SearchResponse(lane=req.lane, mode=mode, items=items, trace_id=trace_id)
+        return SearchResponse(
+            lane=req.lane,
+            mode=mode,
+            items=items,
+            trace_id=trace_id,
+            diagnostics=diag_payload,
+            insufficient_evidence=insufficient,
+        )
 
 
 @lru_cache(maxsize=1)
