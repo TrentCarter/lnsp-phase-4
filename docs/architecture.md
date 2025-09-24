@@ -49,6 +49,9 @@ class CPECore:
     concept_text: str
     probe_question: str
     expected_answer: str
+    # CPESH extensions for contrastive learning
+    soft_negative: Optional[str] = None    # Semantically adjacent but incorrect
+    hard_negative: Optional[str] = None    # Unrelated or misleading
     domain_code: int      # 0..15
     task_code: int        # 0..31
     modifier_code: int    # 0..63
@@ -117,6 +120,8 @@ CREATE TABLE IF NOT EXISTS cpe_entry (
   concept_text     TEXT NOT NULL,
   probe_question   TEXT NOT NULL,
   expected_answer  TEXT NOT NULL,
+  soft_negative    TEXT,               -- CPESH: semantically adjacent but incorrect
+  hard_negative    TEXT,               -- CPESH: unrelated or misleading
   domain_code      SMALLINT NOT NULL,
   task_code        SMALLINT NOT NULL,
   modifier_code    SMALLINT NOT NULL,
@@ -297,12 +302,99 @@ If you encounter port conflicts on your development machine:
 2. **Neo4j conflict on 7687/7474**: Use `7688/7475` and update `NEO4J_URI` environment variable
 3. **API conflict on 8080**: Use `8001` or `8081` as alternatives
 
+## CPESH Framework - Contrastive Learning Extensions
+
+**CPESH** extends the core CPE structure to support triplet and quadruplet contrastive learning for more robust semantic GPS and query routing capabilities.
+
+### CPESH Components
+
+- **C**oncept: Core semantic concept extracted from content
+- **P**robe: Question or query that targets the concept
+- **E**xpected: Correct answer or response for the probe
+- **S**oft Negative: Semantically adjacent but incorrect response
+- **H**ard Negative: Unrelated or misleading response
+
+### Contrastive Learning Applications
+
+**Semantic GPS with Terrain-Aware Separation:**
+- Train triplet models: `(anchor, positive, negative)` for concept boundaries
+- Build quadruplet models: `(anchor, positive, soft_neg, hard_neg)` for fine-grained separation
+- Route queries with confidence thresholds (e.g., "avoid analogical module if H-distance < 0.3")
+
+**Distance Hierarchy:**
+```
+Expected Answer    <-- 0.1 -->   Soft Negative   <-- 0.7 -->   Hard Negative
+     ↑                              ↑                              ↑
+  Correct           Semantically Related         Completely Unrelated
+  Response          but Wrong                    or Misleading
+```
+
+### CPESH Examples
+
+#### Photosynthesis Example
+```json
+{
+  "concept": "Light-dependent reactions split water",
+  "probe": "What process in photosynthesis splits water molecules?",
+  "expected": "Light-dependent reactions",
+  "soft_negative": "Calvin cycle",
+  "hard_negative": "Mitochondrial respiration"
+}
+```
+
+#### Computer Science Example
+```json
+{
+  "concept": "Binary search algorithm complexity",
+  "probe": "What is the time complexity of binary search?",
+  "expected": "O(log n)",
+  "soft_negative": "O(n log n)",
+  "hard_negative": "Database normalization"
+}
+```
+
+#### Financial Example
+```json
+{
+  "concept": "Compound interest calculation",
+  "probe": "How does compound interest differ from simple interest?",
+  "expected": "Compound interest earns interest on both principal and accumulated interest",
+  "soft_negative": "Simple interest earns interest only on principal",
+  "hard_negative": "Stock market volatility patterns"
+}
+```
+
+### Training Applications
+
+**Triplet Loss Training:**
+```python
+# For each CPESH tuple, generate training triplets:
+triplet_1 = (concept_embedding, expected_embedding, soft_negative_embedding)
+triplet_2 = (concept_embedding, expected_embedding, hard_negative_embedding)
+loss = triplet_loss(anchor, positive, negative, margin=0.3)
+```
+
+**Confidence Thresholds:**
+- **High Confidence**: `cos_sim(query, expected) > 0.82`
+- **Medium Confidence**: `cos_sim(query, soft_neg) < 0.65`
+- **Low Confidence**: `cos_sim(query, hard_neg) < 0.3`
+
+**Query Routing Logic:**
+```python
+def route_query(query_embedding, cpesh_embeddings, threshold=0.3):
+    hard_distance = cosine_distance(query_embedding, cpesh_embeddings.hard_negative)
+    if hard_distance < threshold:
+        return "avoid_analogical_module"  # Too close to misleading content
+    return "proceed_with_retrieval"
+```
+
 ## Pipeline Flow
 
 1. **Read** FactoidWiki JSONL items
-2. **Extract** CPE using prompt template → TMD codes + embeddings
+2. **Extract** CPESH using enhanced prompt template → TMD codes + contrastive examples
 3. **Fuse** TMD (16D) + concept (768D) → 784D vectors
-4. **Store** in PostgreSQL (text/meta) + Neo4j (graphs) + Faiss (vectors)
+4. **Generate** negative embeddings for contrastive training
+5. **Store** in PostgreSQL (text/meta + negatives) + Neo4j (graphs) + Faiss (vectors)
 
 ## Enums (Initial)
 

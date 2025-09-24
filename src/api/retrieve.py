@@ -58,6 +58,12 @@ class RetrievalContext:
         self._validate_npz_schema(npz_path)
         self._validate_faiss_dimension()
 
+        # Initialize embedder before loading index (needed for probe)
+        self.embedder = EmbeddingBackend()
+
+        # Load FAISS index
+        self._load_faiss_index()
+
     def _validate_npz_schema(self, npz_path: str) -> None:
         """Validate NPZ file contains all required keys and correct dimensions."""
         if not os.path.exists(npz_path):
@@ -123,6 +129,8 @@ class RetrievalContext:
         except Exception as e:
             raise RuntimeError(f"Search probe failed: {e}")
 
+    def _load_faiss_index(self) -> None:
+        """Load FAISS index from metadata."""
         meta_path = Path("artifacts/faiss_meta.json")
         if meta_path.exists():
             with meta_path.open('r') as f:
@@ -141,8 +149,6 @@ class RetrievalContext:
                 print(f"[RetrievalContext] Index path not found in {meta_path} or file does not exist")
         else:
             print(f"[RetrievalContext] faiss_meta.json not found; retrieval will be empty")
-
-        self.embedder = EmbeddingBackend()
 
     @staticmethod
     def _tokenize(text: str) -> Sequence[str]:
