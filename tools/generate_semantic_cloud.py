@@ -15,7 +15,7 @@ import plotly.express as px
 def load_data():
     """Load vectors and chunks from artifacts."""
     ROOT = Path(__file__).resolve().parent.parent
-    VECTORS_PATH = ROOT / "artifacts/fw100_vectors.npz"  # Use test file for now
+    VECTORS_PATH = ROOT / "artifacts/fw10k_vectors_768.npz"  # Use 10k real data
     CHUNKS_PATH = ROOT / "artifacts/fw10k_chunks.jsonl"
 
     print(f"Loading vectors from: {VECTORS_PATH}")
@@ -27,10 +27,10 @@ def load_data():
         return None, None, None
 
     npz = np.load(VECTORS_PATH, allow_pickle=True)
-    if 'emb' in npz:
+    if 'vectors' in npz:
+        vectors = npz['vectors']
+    elif 'emb' in npz:
         vectors = npz['emb']
-    elif 'embeddings' in npz:
-        vectors = npz['embeddings']
     else:
         print(f"Available keys: {list(npz.keys())}")
         vectors = npz[list(npz.keys())[0]]  # Take first array

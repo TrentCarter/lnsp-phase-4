@@ -8,7 +8,7 @@ JXE and IELab are two different vec2text decoder implementations that convert 76
 
 ### Input Requirements
 - **Dimension**: [N, 768] numpy arrays or torch tensors
-- **Embedding Model**: GTR-T5-base (sentence-transformers/gtr-t5-base)
+- **Embedding Model**: GTR-T5-base (LOCAL: `data/teacher_models/gtr-t5-base`)
 - **Normalization**: Vectors should be L2-normalized (both models handle this internally)
 
 ### Model Differences
@@ -39,6 +39,11 @@ pip install vec2text transformers sentence-transformers torch numpy
 export VEC2TEXT_FORCE_PROJECT_VENV=1
 export PYTORCH_ENABLE_MPS_FALLBACK=1
 export TOKENIZERS_PARALLELISM=false
+
+# Force offline mode to use local GTR-T5 model
+export TRANSFORMERS_OFFLINE=1
+export HF_HUB_OFFLINE=1
+export LNSP_EMBED_MODEL_DIR=data/teacher_models/gtr-t5-base
 ```
 
 ## Usage Examples
@@ -149,7 +154,7 @@ Both models should produce:
 Both use the same underlying architecture:
 - **Inversion Model**: T5-based model that generates initial text hypothesis
 - **Corrector Model**: Iteratively refines the hypothesis to match the embedding
-- **Embedder**: GTR-T5-base for computing embeddings during refinement
+- **Embedder**: GTR-T5-base (LOCAL at `data/teacher_models/gtr-t5-base`) for computing embeddings during refinement
 
 ## Performance Considerations
 
@@ -163,3 +168,4 @@ Both use the same underlying architecture:
 - [Vec2Text Paper](https://arxiv.org/abs/2310.06816)
 - [GTR-T5 Model](https://huggingface.co/sentence-transformers/gtr-t5-base)
 - [Vec2Text GitHub](https://github.com/jxmorris12/vec2text)
+- **Local GTR-T5 Model Location**: `data/teacher_models/gtr-t5-base/`

@@ -603,3 +603,100 @@ python -m src.eval_runner --queries eval/day3_eval.jsonl --api http://localhost:
 - **Local-first**: Defaults to Ollama for development without external dependencies
 - **Production-ready**: Supports hosted APIs for production workloads
 - **Backward compatibility**: Existing Ollama setups continue working unchanged
+
+## NPZ Schema Contract (768D Mode) - CRITICAL
+
+**Required NPZ Keys for 768D Mode:**
+```python
+# artifacts/fw10k_vectors_768.npz required schema
+{
+    "vectors": np.float32[N, 768],      # L2-normalized GTR-T5 embeddings
+    "ids": np.int64[N],                 # Internal row IDs (0-based sequential)
+    "doc_ids": np.int64[N],             # Stable document identifiers
+    "concept_texts": object[N],         # Human-readable concept strings
+    "tmd_dense": np.float32[N, 16],     # TMD dense embeddings (16D)
+    "lane_indices": np.int16[N]         # Lane routing indices (0-2)
+}
+```
+
+**Validation Contract:**
+- **Dimension Check**: `vectors.shape[1] == 768` (hard requirement)
+- **Shape Consistency**: All arrays must have same length N
+- **Zero Vector Check**: Mean L2 norm > 0.1 (kill switch for flat embeddings)
+- **Missing Key Check**: All required keys present (CI enforcement)
+
+**CI Boot Checks:**
+```python
+# src/api/retrieve.py startup validation
+npz = np.load(npz_path, allow_pickle=True)
+required_keys = ["vectors", "ids", "doc_ids", "concept_texts", "tmd_dense", "lane_indices"]
+missing = [k for k in required_keys if k not in npz]
+if missing:
+    raise ValueError(f"NPZ missing required keys: {missing}")
+if npz["vectors"].shape[1] != 768:
+    raise ValueError(f"Expected 768D vectors, got {npz['vectors'].shape[1]}D")
+```
+
+## FAISS ID Policy - CRITICAL
+
+**ID Mapping Strategy:**
+- **Primary**: FAISS must use IndexIDMap2 with doc_ids from NPZ
+- **Fallback**: If loading bare IVF, attach IDs via add_with_ids()
+- **Contract**: Always return doc_id in search results, never positional indices
+
+**Implementation Requirements:**
+```python
+# src/db_faiss.py load() method
+if not isinstance(index, (faiss.IndexIDMap, faiss.IndexIDMap2)):
+    if index.ntotal == 0:
+        # Wrap empty index with IDMap2
+        idmap = faiss.IndexIDMap2(index)
+        index = idmap
+    else:
+        # For populated bare IVF, reconstruct with IDs
+        vectors = index.reconstruct_n(0, index.ntotal)
+        new_index = faiss.IndexIDMap2(faiss.index_factory(index.d, "IVF128,Flat"))
+        new_index.train(vectors)
+        new_index.add_with_ids(vectors, doc_ids)
+        index = new_index
+```
+
+**Search Contract:**
+- Always return stable doc_id in results
+- Maintain pos→doc_id mapping only as fallback
+- Unit test: `tests/test_faiss_idmap.py` ensures returned IDs match doc_ids
+
+## Local Llama Policy - CRITICAL
+
+**Environment Variables:**
+```bash
+# Canonical local LLM settings (no cloud fallback)
+export LNSP_LLM_PROVIDER=local_llama
+export LNSP_LLM_ENDPOINT=http://127.0.0.1:11434  # Ollama default
+export LNSP_LLM_MODEL=llama3.1:8b-instruct       # Local model SKU
+export LNSP_ALLOW_MOCK=0                          # No mock fallback
+```
+
+**Provider Contract:**
+- **Enforcement**: Local provider required, no cloud fallback
+- **Metrics**: Persist provider/model, latency, bytes in/out for each LLM call
+- **Failure Handling**: Treat empty text responses as failures
+- **Endpoint Verification**: Test connectivity before accepting requests
+
+**Implementation Requirements:**
+```python
+# src/llm/local_llama_client.py interface
+@dataclass
+class LlamaResponse:
+    text: str
+    latency_ms: int
+    bytes_in: int
+    bytes_out: int
+    provider: str = "local_llama"
+    model: str = ""
+
+def call_local_llama(prompt: str) -> LlamaResponse:
+    # HTTP client to local endpoint
+    # Return structured response with metrics
+    # Raise exception on empty text
+```

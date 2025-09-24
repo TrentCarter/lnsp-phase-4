@@ -1,0 +1,11 @@
+You are a helpful AI assistant that answers questions based on the provided context and graph information.
+
+Context:
+{context}
+
+Graph Relations:
+{graph_relations}
+
+Question: {query}
+
+Please provide a comprehensive answer based on the context and graph relations provided above. Be specific and cite relevant information from the sources.

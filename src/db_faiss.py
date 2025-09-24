@@ -6,6 +6,23 @@ except ImportError:
     faiss = None
 
 from .utils.norms import l2_normalize
+from .tmd_encoder import unpack_tmd
+
+
+def _format_tmd_code(tmd_dense: np.ndarray, idx: int) -> str:
+    """Format TMD code from dense vector index."""
+    if tmd_dense is None or idx >= len(tmd_dense):
+        return ""
+
+    # Extract the first 3 values from TMD dense vector and convert to integers
+    tmd_vec = tmd_dense[idx]
+    if len(tmd_vec) < 3:
+        return ""
+
+    domain = int(tmd_vec[0])
+    task = int(tmd_vec[1])
+    modifier = int(tmd_vec[2])
+    return f"{domain}.{task}.{modifier}"
 
 
 def _default_nprobe() -> int:
@@ -121,13 +138,16 @@ class FaissDB:
             raise FileNotFoundError(f"Missing FAISS index: {index_path}")
         index = faiss.read_index(str(index_path))
 
-        # 2) wrap with IDMap2 if not already (many tools export bare IVF)
-        # Note: Can only wrap if index is empty, otherwise use as-is
-        if not isinstance(index, (faiss.IndexIDMap, faiss.IndexIDMap2)):
-            if index.ntotal == 0:
-                idmap = faiss.IndexIDMap2(index)
-                index = idmap
-            # If index has vectors but isn't IDMap, that's fine - we'll use position-based IDs
+        # 2) check if index is already ID-mapped
+        is_id_mapped = isinstance(index, (faiss.IndexIDMap, faiss.IndexIDMap2))
+        print(f"[FaissDB] Index type: {type(index).__name__}, ID-mapped: {is_id_mapped}")
+
+        # If not ID-mapped and empty, we could wrap, but prefer pre-built ID-mapped indices
+        if not is_id_mapped:
+            print(f"[FaissDB] WARNING: Index is not ID-mapped. Using positional IDs as fallback.")
+            self._is_id_mapped = False
+        else:
+            self._is_id_mapped = True
 
         # 3) load npz metadata (doc_ids[] required)
         if not os.path.exists(self.meta_npz_path):
@@ -145,6 +165,7 @@ class FaissDB:
         self.cpe_ids = npz.get('cpe_ids', np.arange(len(doc_ids)))
         self.lane_indices = npz.get('lane_indices', np.zeros(len(doc_ids)))
         self.concept_texts = npz.get('concept_texts', [''] * len(doc_ids))
+        self.tmd_dense = npz.get('tmd_dense', None)
 
         # nprobe tuning
         try:
@@ -186,26 +207,40 @@ class FaissDB:
             # Return results in the format expected by the API
             results = []
             for i, (score, idx) in enumerate(zip(scores[0], indices[0])):
-                if idx >= 0 and idx < len(self.cpe_ids):  # Valid index
-                    doc_id = ''
-                    if hasattr(self, 'doc_ids') and len(self.doc_ids) > idx:
-                        doc_id = str(self.doc_ids[idx])
+                if idx < 0:
+                    continue  # Skip invalid indices
 
-                    result = {
-                        'cpe_id': str(self.cpe_ids[idx]),
-                        'score': float(score),
-                        'rank': i + 1,
-                        'lane_index': int(self.lane_indices[idx]) if hasattr(self, 'lane_indices') else 0,
-                        'retriever': 'faiss',
-                        'metadata': {
-                            'concept_text': str(self.concept_texts[idx]) if hasattr(self, 'concept_texts') else ''
-                        }
+                # For ID-mapped indices, idx is the ID we assigned (positional index)
+                # For non-ID-mapped, idx is positional
+                pos_idx = int(idx)  # Convert to int in case it's numpy type
+
+                if pos_idx >= len(self.cpe_ids):
+                    continue  # Out of bounds
+
+                doc_id = ''
+                if hasattr(self, 'doc_ids') and len(self.doc_ids) > pos_idx:
+                    doc_id = str(self.doc_ids[pos_idx])
+
+                tmd_code = ""
+                if hasattr(self, 'tmd_dense') and self.tmd_dense is not None:
+                    tmd_code = _format_tmd_code(self.tmd_dense, pos_idx)
+
+                result = {
+                    'cpe_id': str(self.cpe_ids[pos_idx]),
+                    'score': float(score),
+                    'rank': i + 1,
+                    'lane_index': int(self.lane_indices[pos_idx]) if hasattr(self, 'lane_indices') else 0,
+                    'retriever': 'faiss',
+                    'tmd_code': tmd_code,
+                    'metadata': {
+                        'concept_text': str(self.concept_texts[pos_idx]) if hasattr(self, 'concept_texts') else ''
                     }
-                    if doc_id:
-                        result['doc_id'] = doc_id
-                        result['metadata']['doc_id'] = doc_id
+                }
+                if doc_id:
+                    result['doc_id'] = doc_id
+                    result['metadata']['doc_id'] = doc_id
 
-                    results.append(result)
+                results.append(result)
             return results
         except Exception as exc:
             print(f"[FaissDB] Search error: {exc}")

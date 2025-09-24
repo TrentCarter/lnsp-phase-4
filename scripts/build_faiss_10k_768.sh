@@ -22,33 +22,44 @@ import numpy as np, faiss, json
 from pathlib import Path
 from datetime import datetime
 
-npz_path = "artifacts/fw10k_vectors.npz"
-index_path = "artifacts/fw10k_ivf.index"
+npz_path = "artifacts/fw10k_vectors_768.npz"
+index_path = "artifacts/fw10k_ivf_768.index"
 meta_path = "artifacts/faiss_meta.json"
 
-# Load vectors
+# Load vectors and IDs
 print(f"Loading vectors from {npz_path}...")
-npz = np.load(npz_path)
-emb = npz["emb"].astype("float32")   # (N,768) normalized
+npz = np.load(npz_path, allow_pickle=True)
+emb = npz["vectors"].astype("float32")   # (N,768) normalized
+doc_ids = npz["doc_ids"]  # Document IDs for IndexIDMap2
 N, D = emb.shape
 
-print(f"Vectors shape: {emb.shape}")
+print(f"Vectors shape: {emb.shape}, doc_ids: {len(doc_ids)}")
+
+# Convert doc_ids to int64 for FAISS ID mapping
+# For now, use positional indices as IDs since doc_ids are strings
+ids = np.arange(N, dtype=np.int64)
+
+print(f"Keys available: {list(npz.keys())}")
 assert D == 768 and N > 0, f"Expected 768D vectors, got {D}D with {N} vectors"
 
 # Build FAISS index
 nlist = 128
 print(f"Building IVF index with nlist={nlist}, metric=IP...")
 quant = faiss.IndexFlatIP(D)
-index = faiss.IndexIVFFlat(quant, D, nlist, faiss.METRIC_INNER_PRODUCT)
+ivf_index = faiss.IndexIVFFlat(quant, D, nlist, faiss.METRIC_INNER_PRODUCT)
 
 print("Training index...")
-index.train(emb)
+ivf_index.train(emb)
 
-print("Adding vectors...")
-index.add(emb)
+# Create IndexIDMap2 wrapper (must be empty initially)
+print("Creating IndexIDMap2 wrapper...")
+index = faiss.IndexIDMap2(ivf_index)
 
-# Set search parameters
-index.nprobe = 16
+print("Adding vectors with IDs...")
+index.add_with_ids(emb, ids)
+
+# Set search parameters on the underlying IVF index
+index.index.nprobe = 16
 
 print(f"Saving index to {index_path}...")
 faiss.write_index(index, index_path)
@@ -56,7 +67,7 @@ faiss.write_index(index, index_path)
 # Update metadata (maintain existing format for compatibility)
 meta = {
     "num_vectors": int(index.ntotal),
-    "index_type": "IndexIVFFlat",
+    "index_type": "IndexIDMap2",  # Now ID-mapped
     "nlist": nlist,
     "dimension": int(D),  # 768 for P10
     "npz_path": npz_path,

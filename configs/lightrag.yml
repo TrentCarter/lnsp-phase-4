@@ -1,0 +1,55 @@
+corpus:
+  chunks_path: artifacts/fw10k_chunks.jsonl         # REAL data only
+
+embedder:
+  name: gtr_t5_base
+  dim: 768
+  normalize: true
+  provider: local                                  # we call our encoder locally
+  adapter: src/adapters/lightrag/embedder_gtr.py   # thin wrapper around SentenceTransformer
+  adapter_class: GTRT5Embedder                     # optional if you use load_embedder()
+  local_dir: data/teacher_models/gtr-t5-base
+  batch_size: 64
+  device: cpu
+
+vector_store:
+  kind: external_faiss
+  dim: 768
+  metric: ip
+  index_path: artifacts/fw10k_ivf_768.index
+  meta_npz: artifacts/fw10k_vectors_768.npz
+  adapter: src/adapters/lightrag/vectorstore_faiss.py
+
+graph:
+  build:
+    min_conf: 0.40
+    max_degree: 128
+    dedupe: true
+  storage:
+    neo4j:
+      uri: ${NEO4J_URI}
+      user: ${NEO4J_USER}
+      pass: ${NEO4J_PASS}
+
+retrieval:
+  topk_vectors: 12
+  graph_depth: 2
+  graph_method: ppr
+
+prompt:
+  template_path: docs/prompt_templates/graphrag.txt # your existing template
+  max_context_tokens: 4096
+
+llm:
+  provider: ${LNSP_LLM_PROVIDER}      # e.g. openai, anthropic, ollama
+  model: ${LNSP_LLM_MODEL}
+  steps: 1                            # your rule
+  backend_mode: isolated              # keep wrappers separate for JXE/IELab elsewhere
+  enforce_real: true                  # adapter will verify usage + latency
+
+logging:
+  level: INFO
+  trace_path: eval/graphrag_runs.jsonl
+
+runtime:
+  fail_on_zero_vectors: true

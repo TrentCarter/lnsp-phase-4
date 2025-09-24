@@ -93,3 +93,15 @@ if "tmd_dense" in npz:
 if "fused" in npz:
     print("Fused784 (first 32):", np.array2string(npz["fused"][i][:32], precision=4, separator=", "))
 PY  enwiki-00000000-0000-0000
+
+### [Consultant] Status — 2025-09-24T01:02Z
+- Built fresh 768D FAISS index via `scripts/build_faiss_10k_768.sh`; `artifacts/faiss_meta.json` now reports `dimension=768` and 10k vectors.
+- API still unusable: `faiss_db.load()` aborts because `artifacts/fw10k_vectors.npz` only contains `emb` + `ids` (no `doc_ids`/`concept_texts`), so `/search` raises `ValueError` (`tests/test_search_smoke.py:29` run captured the stack).
+- Live latency probe cannot collect samples; `tools/latency_probe.py` records HTTP `599` for every lane since no FastAPI instance can boot without the missing metadata (`eval/day10_latency.jsonl` shows zero successes).
+- Vec2Text + enriched examples remain blocked—the NPZ lacks concept text, TMD, and fused vectors required by the Day 10 script (`keys ['emb','ids']`, no `concept_texts` / `tmd_dense`).
+- Smoke test expectations also need alignment with the new contract (`dim` assertion still 784 in `tests/test_search_smoke.py:54`).
+
+Next consultant steps once data is fixed
+1. Receive a fully populated `fw10k_vectors_768.npz` (doc_ids, concept_texts, tmd_dense, lane_indices) and re-run `build_faiss_10k_768.sh` to keep metadata in sync.
+2. Relaunch API with `LNSP_FUSED=0`, confirm `/admin/faiss.dim==768`, then re-run `tools/latency_probe.py` and the Day 10 eval suite.
+3. Execute the vec2text round-trip + enriched example scripts using the hydrated NPZ and capture outputs for `/eval/day10_report.md`.

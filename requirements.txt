@@ -3,9 +3,10 @@ faiss-cpu
 psycopg2-binary
 neo4j
 numpy
+PyYAML
 pytest
 pydantic>=2.4
 pydantic-settings>=2.2
 fastapi>=0.110
 uvicorn>=0.30
-lightrag-hku==1.4.9rc1  # Updated to latest stable release
+lightrag-hku==1.4.8.2  # Pin to patched release; <=1.3.8 vulnerable to path traversal

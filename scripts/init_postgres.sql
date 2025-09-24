@@ -73,3 +73,45 @@ CREATE INDEX IF NOT EXISTS cpe_created_idx ON cpe_entry (created_at DESC);
 -- Grant permissions (for development)
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO lnsp;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO lnsp;
+
+-- GraphRAG session tables ------------------------------------------------
+CREATE TABLE IF NOT EXISTS rag_sessions (
+  id UUID PRIMARY KEY,
+  ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+  query TEXT NOT NULL,
+  lane TEXT NOT NULL,
+  model TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  usage_prompt INT NOT NULL,
+  usage_completion INT NOT NULL,
+  latency_ms INT NOT NULL,
+  answer TEXT,
+  hit_k INT,
+  faiss_top_ids INT[],
+  graph_node_ct INT,
+  graph_edge_ct INT,
+  doc_ids TEXT[]
+);
+
+CREATE TABLE IF NOT EXISTS rag_context_chunks (
+  session_id UUID REFERENCES rag_sessions(id) ON DELETE CASCADE,
+  rank INT NOT NULL,
+  doc_id TEXT,
+  score REAL,
+  text TEXT,
+  PRIMARY KEY (session_id, rank)
+);
+
+CREATE TABLE IF NOT EXISTS rag_graph_edges_used (
+  session_id UUID REFERENCES rag_sessions(id) ON DELETE CASCADE,
+  src TEXT NOT NULL,
+  rel TEXT NOT NULL,
+  dst TEXT NOT NULL,
+  weight REAL,
+  doc_id TEXT
+);
+
+CREATE INDEX IF NOT EXISTS rag_sessions_ts_idx ON rag_sessions (ts DESC);
+CREATE INDEX IF NOT EXISTS rag_sessions_lane_idx ON rag_sessions (lane);
+CREATE INDEX IF NOT EXISTS rag_sessions_model_idx ON rag_sessions (model);
+CREATE INDEX IF NOT EXISTS rag_sessions_doc_ids_idx ON rag_sessions USING GIN (doc_ids);

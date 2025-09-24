@@ -33,9 +33,10 @@ from ..tmd_encoder import pack_tmd, lane_index_from_bits
 from ..vectorizer import EmbeddingBackend
 
 _ENV_NPZ = os.getenv("FAISS_NPZ_PATH")
+_NPZ_10K_768 = "artifacts/fw10k_vectors_768.npz"
 _NPZ_10K = "artifacts/fw10k_vectors.npz"
 _NPZ_1K = "artifacts/fw1k_vectors.npz"
-DEFAULT_NPZ = _ENV_NPZ or (_NPZ_10K if os.path.exists(_NPZ_10K) else _NPZ_1K)
+DEFAULT_NPZ = _ENV_NPZ or (_NPZ_10K_768 if os.path.exists(_NPZ_10K_768) else (_NPZ_10K if os.path.exists(_NPZ_10K) else _NPZ_1K))
 
 LANE_MAP = {0: "L1_FACTOID", 1: "L2_GRAPH", 2: "L3_SYNTH"}
 MODE_MAP = {"dense": "DENSE", "graph": "GRAPH", "hybrid": "HYBRID", "lexical": "HYBRID"}
@@ -45,7 +46,7 @@ class RetrievalContext:
     def __init__(self, npz_path: str = DEFAULT_NPZ) -> None:
         config = LightRAGConfig.from_env()
         # LNSP_FUSED=0 for pure 768D, LNSP_FUSED=1 for 784D fused
-        self.use_fused = os.getenv("LNSP_FUSED", "1") == "1"
+        self.use_fused = os.getenv("LNSP_FUSED", "0") == "1"
         self.dim = 784 if self.use_fused else 768
         self.adapter = LightRAGHybridRetriever.from_config(config=config, dim=self.dim)
         self.faiss_db = FaissDB(meta_npz_path=npz_path)
@@ -53,15 +54,87 @@ class RetrievalContext:
         self.npz_path = npz_path
         self.catalog: List[Dict[str, Any]] = []
 
+        # A2: Boot invariant checks
+        self._validate_npz_schema(npz_path)
+        self._validate_faiss_dimension()
+
+    def _validate_npz_schema(self, npz_path: str) -> None:
+        """Validate NPZ file contains all required keys and correct dimensions."""
+        if not os.path.exists(npz_path):
+            raise FileNotFoundError(f"NPZ file not found: {npz_path}")
+
+        npz = np.load(npz_path, allow_pickle=True)
+        required_keys = ["vectors", "ids", "doc_ids", "concept_texts", "tmd_dense", "lane_indices"]
+        missing = [k for k in required_keys if k not in npz]
+        if missing:
+            raise ValueError(f"NPZ missing required keys: {missing} in {npz_path}")
+
+        # Dimension check for 768D mode
+        if not self.use_fused and npz["vectors"].shape[1] != 768:
+            raise ValueError(f"Expected 768D vectors for LNSP_FUSED=0, got {npz['vectors'].shape[1]}D in {npz_path}")
+
+        # Shape consistency check
+        n_vectors = len(npz["vectors"])
+        for key in ["ids", "doc_ids", "concept_texts", "lane_indices"]:
+            if len(npz[key]) != n_vectors:
+                raise ValueError(f"Shape mismatch: {key} has {len(npz[key])} items but vectors has {n_vectors}")
+
+        print(f"[RetrievalContext] NPZ schema validation passed: {npz_path}")
+
+    def _validate_faiss_dimension(self) -> None:
+        """Validate FAISS metadata matches expected dimension."""
+        meta_path = Path("artifacts/faiss_meta.json")
+        if not meta_path.exists():
+            print(f"[RetrievalContext] Warning: faiss_meta.json not found, skipping dimension check")
+            return
+
+        try:
+            with meta_path.open('r') as f:
+                meta = json.load(f)
+
+            expected_dim = 768 if not self.use_fused else 784
+            index_dim = meta.get("dimension", 0)
+
+            if index_dim != expected_dim:
+                raise RuntimeError(
+                    f"FAISS dimension mismatch: expected {expected_dim}D for LNSP_FUSED={int(self.use_fused)}, "
+                    f"got {index_dim}D. Rebuild index with correct dimensions."
+                )
+
+            print(f"[RetrievalContext] FAISS dimension validation passed: {index_dim}D")
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"Invalid faiss_meta.json: {e}")
+
+    def _probe_search_smoke(self) -> None:
+        """Probe search functionality with known query to ensure system is functional."""
+        if not self.loaded:
+            return
+
+        try:
+            # Test with a simple query
+            from ..schemas import SearchRequest
+            test_req = SearchRequest(q="artificial intelligence", lane="L1_FACTOID", top_k=1)
+            result = self.search(test_req, trace_id="boot_probe")
+
+            if not result.items:
+                raise RuntimeError("Search probe returned no results - system may be unhealthy")
+
+            print(f"[RetrievalContext] Search probe passed: {len(result.items)} results")
+        except Exception as e:
+            raise RuntimeError(f"Search probe failed: {e}")
+
         meta_path = Path("artifacts/faiss_meta.json")
         if meta_path.exists():
             with meta_path.open('r') as f:
                 meta = json.load(f)
+
             index_path = meta.get("index_path")
             if index_path and Path(index_path).exists():
                 self.loaded = self.faiss_db.load(index_path)
                 if self.loaded:
                     self._build_catalog()
+                    # Run search smoke test after successful load
+                    self._probe_search_smoke()
                 else:
                     print(f"[RetrievalContext] Failed to load index from {index_path}")
             else:
@@ -282,7 +355,7 @@ else:
         metric = "IP"  # We build indices with inner-product over L2-normalized vectors
 
         # Override dimension based on LNSP_FUSED setting
-        use_fused = os.getenv("LNSP_FUSED", "1") == "1"
+        use_fused = os.getenv("LNSP_FUSED", "0") == "1"
         reported_dim = 784 if use_fused else 768
 
         return {
