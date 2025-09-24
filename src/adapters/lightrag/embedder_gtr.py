@@ -70,6 +70,11 @@ class GTRT5Embedder:
             raise ValueError("Non-normalized vectors detected; set normalize=true.")
         return vecs
 
+    # Add embedding_dim attribute for LightRAG compatibility
+    @property
+    def embedding_dim(self) -> int:
+        return self._dim
+
     def embed(self, text: str) -> np.ndarray:
         return self.embed_batch([text])[0]
 

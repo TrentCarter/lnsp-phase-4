@@ -112,12 +112,33 @@ def _build_graph_with_lightrag(
 
     # Initialize LightRAG
     working_dir = str(out_nodes.parent)
+
+    # Create a wrapper for the embedding function that has the embedding_dim attribute
+    def embedding_func_with_dim(texts):
+        return embedder.embed_batch(texts)
+
+    embedding_func_with_dim.embedding_dim = embedder.dim
+
+    # Create a dummy LLM function for graph construction
+    def dummy_llm_func(*args, **kwargs):
+        return "dummy response"
+
     rag = LightRAG(
         working_dir=working_dir,
-        llm_model_func=None,  # Not needed for graph construction
-        embedding_func=embedder.embed_batch,
-        vector_store=vector_store,
+        llm_model_func=dummy_llm_func,  # Dummy LLM for graph construction
+        embedding_func=embedding_func_with_dim,
+        # Use default storages - vector_store integration will be handled differently
     )
+
+    # Initialize storages (required for LightRAG)
+    import asyncio
+    from lightrag.kg.shared_storage import initialize_pipeline_status
+
+    async def init_storages():
+        await rag.initialize_storages()
+        await initialize_pipeline_status()
+
+    asyncio.run(init_storages())
 
     # Insert documents to build graph
     logger.info("Inserting documents into LightRAG...")
