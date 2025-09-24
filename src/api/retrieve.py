@@ -54,6 +54,16 @@ class RetrievalContext:
         self.npz_path = npz_path
         self.catalog: List[Dict[str, Any]] = []
 
+        # load id quality map (doc_id -> quality)
+        self.id_quality = {}
+        qpath = Path("artifacts/id_quality.jsonl")
+        if qpath.exists():
+            for line in qpath.open():
+                j = json.loads(line)
+                self.id_quality[str(j["doc_id"])] = float(j.get("quality", 0.5))
+        self.w_cos = float(os.getenv("LNSP_W_COS","0.85"))
+        self.w_q   = float(os.getenv("LNSP_W_QUALITY","0.15"))
+
         # A2: Boot invariant checks
         self._validate_npz_schema(npz_path)
         self._validate_faiss_dimension()
@@ -227,15 +237,21 @@ class RetrievalContext:
         concept_text = metadata.get("concept_text") or h.get("concept_text")
         tmd_code = h.get("tmd_code")
         lane_index = h.get("lane_index")
+        score = h.get("score")
+
+        q = self.id_quality.get(str(doc_id), 0.5)
+        final = None if score is None else (self.w_cos*float(score) + self.w_q*float(q))
 
         return SearchItem(
             id=cpe_id,
             doc_id=doc_id,
-            score=h.get("score"),
+            score=score,
             why=h.get("why"),
             concept_text=concept_text,
             tmd_code=tmd_code,
-            lane_index=lane_index
+            lane_index=lane_index,
+            quality=q,
+            final_score=final
         )
 
     def search(self, req: SearchRequest, trace_id: Optional[str] = None) -> SearchResponse:
@@ -290,6 +306,8 @@ class RetrievalContext:
 
         print(f"Trace {trace_id}: FAISS search returned {len(candidates)} candidates.")
         items = [self._norm_hit(h) for h in candidates if h]
+        # re-rank by final_score (falls back to score)
+        items.sort(key=lambda x: (x.final_score if x.final_score is not None else (x.score or 0.0)), reverse=True)
         print(f"Trace {trace_id}: Normalized {len(items)} items.")
 
         # --- CPESH diagnostics (optional) ---

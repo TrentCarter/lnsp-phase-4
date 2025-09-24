@@ -34,6 +34,8 @@ class SearchItem(BaseModel):
     concept_text: Optional[str] = None    # hydrated concept text
     tmd_code: Optional[str] = None        # hydrated TMD codes (D.T.M format)
     lane_index: Optional[int] = None      # computed lane index
+    quality: Optional[float] = None       # quality score from IQS system
+    final_score: Optional[float] = None   # blended score (cosine + quality)
 
 class SearchResponse(BaseModel):
     lane: Optional[Lane]
