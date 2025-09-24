@@ -4,6 +4,15 @@ from typing import List, Optional, Literal
 Lane = Literal["L1_FACTOID", "L2_GRAPH", "L3_SYNTH"]
 Mode = Literal["DENSE", "GRAPH", "HYBRID"]
 
+class CPESH(BaseModel):
+    concept: Optional[str] = None
+    probe: Optional[str] = None
+    expected: Optional[str] = None
+    soft_negative: Optional[str] = None
+    hard_negative: Optional[str] = None
+    soft_sim: Optional[float] = None  # cosine vs query (only if cpesh_mode=full)
+    hard_sim: Optional[float] = None  # cosine vs query (only if cpesh_mode=full)
+
 class CPESHDiagnostics(BaseModel):
     concept: Optional[str] = None
     probe: Optional[str] = None
@@ -18,6 +27,8 @@ class SearchRequest(BaseModel):
     lane: Optional[Lane] = Field(default=None, description="Lane: L1_FACTOID, L2_GRAPH, or L3_SYNTH")
     top_k: int = Field(default=8, ge=1, le=100, description="Number of results to return (1-100)")
     lane_index: Optional[int] = Field(default=None, ge=0, le=32767, description="Optional lane index filter (0-32767)")
+    return_cpesh: Optional[bool] = Field(default=False, description="Include per-item CPESH object")
+    cpesh_mode: Optional[Literal["lite","full"]] = Field(default="lite", description="CPESH detail level")
 
     @model_validator(mode="after")
     def require_one_lane(self):
@@ -36,6 +47,7 @@ class SearchItem(BaseModel):
     lane_index: Optional[int] = None      # computed lane index
     quality: Optional[float] = None       # quality score from IQS system
     final_score: Optional[float] = None   # blended score (cosine + quality)
+    cpesh: Optional[CPESH] = None
 
 class SearchResponse(BaseModel):
     lane: Optional[Lane]

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import time
 import uuid
 from dataclasses import dataclass
@@ -16,7 +17,17 @@ import yaml
 
 from .embedder_gtr import get_embedder
 from .vectorstore_faiss import get_vector_store
-from ...db.rag_session_store import RAGSessionStore
+
+try:
+    from ...db.rag_session_store import RAGSessionStore
+except Exception:  # pragma: no cover - runtime safety
+    import pathlib
+    import sys
+
+    fallback_root = pathlib.Path(__file__).resolve().parents[2] / "src"
+    if str(fallback_root) not in sys.path:
+        sys.path.insert(0, str(fallback_root))
+    from db.rag_session_store import RAGSessionStore  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +36,107 @@ logger = logging.getLogger(__name__)
 class QueryItem:
     lane: str
     text: str
+
+
+class JsonlStore:
+    """Lightweight JSONL writer used when PostgreSQL is unavailable."""
+
+    def __init__(self, path: Path | str = Path("eval/graphrag_runs.jsonl")) -> None:
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def _append(self, payload: Dict[str, Any]) -> None:
+        with self.path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(payload) + "\n")
+
+    def insert_session(
+        self,
+        *,
+        session_id: str,
+        query: str,
+        lane: str,
+        model: str,
+        provider: str,
+        usage_prompt: int,
+        usage_completion: int,
+        latency_ms: int,
+        answer: str,
+        hit_k: Any,
+        faiss_top_ids: Any,
+        graph_node_ct: Any,
+        graph_edge_ct: Any,
+        doc_ids: Any,
+    ) -> None:
+        self._append(
+            {
+                "type": "session",
+                "session_id": session_id,
+                "query": query,
+                "lane": lane,
+                "model": model,
+                "provider": provider,
+                "usage_prompt": usage_prompt,
+                "usage_completion": usage_completion,
+                "latency_ms": latency_ms,
+                "answer": answer,
+                "hit_k": hit_k,
+                "faiss_top_ids": list(faiss_top_ids) if faiss_top_ids is not None else None,
+                "graph_node_ct": graph_node_ct,
+                "graph_edge_ct": graph_edge_ct,
+                "doc_ids": list(doc_ids) if doc_ids is not None else None,
+            }
+        )
+
+    def insert_context_chunk(
+        self,
+        *,
+        session_id: str,
+        rank: int,
+        doc_id: Any,
+        score: Any,
+        text: Any,
+    ) -> None:
+        self._append(
+            {
+                "type": "context",
+                "session_id": session_id,
+                "rank": rank,
+                "doc_id": doc_id,
+                "score": score,
+                "text": text,
+            }
+        )
+
+    def insert_graph_edge(
+        self,
+        *,
+        session_id: str,
+        src: str,
+        rel: str,
+        dst: str,
+        weight: Any,
+        doc_id: Any,
+    ) -> None:
+        self._append(
+            {
+                "type": "graph_edge",
+                "session_id": session_id,
+                "src": src,
+                "rel": rel,
+                "dst": dst,
+                "weight": weight,
+                "doc_id": doc_id,
+            }
+        )
+
+    def close(self) -> None:
+        """No-op for compatibility with RAGSessionStore."""
+
+
+def _postgres_configured() -> bool:
+    """Return True if PostgreSQL connectivity appears configured via env."""
+    return any(os.getenv(var) for var in ("LNSP_PG_DSN", "PG_DSN", "PGHOST"))
+
 
 
 def _load_config(path: Path) -> Dict[str, Any]:
@@ -128,7 +240,10 @@ def _run_query(
         working_dir=working_dir,
         llm_model_func=llm_func,
         embedding_func=embedder.embed_batch,
-        vector_store=vector_store,
+        vector_storage="FAISSVectorDBStorage",
+        embedding_batch_num=32,
+        embedding_func_max_async=16,
+        cosine_better_than_threshold=0.2,
     )
 
     # Configure retrieval parameters
@@ -234,7 +349,16 @@ def main() -> int:
         logger.error("Runtime check failed: %s", exc)
         return 2
 
-    store = RAGSessionStore(enabled=args.persist_postgres)
+    persist_pg = args.persist_postgres and _postgres_configured()
+    if persist_pg:
+        store = RAGSessionStore(enabled=True)
+    else:
+        store = JsonlStore()
+        if args.persist_postgres and not persist_pg:
+            logger.warning(
+                "PostgreSQL DSN not detected; using JSONL fallback at %s",
+                store.path,
+            )
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now(tz=timezone.utc).isoformat()
@@ -290,23 +414,25 @@ def main() -> int:
                     )
 
                     for chunk in result.get("context", []):
-                        store.insert_context_chunk(
-                            session_id=session_id,
-                            rank=int(chunk.get("rank", 0)),
-                            doc_id=chunk.get("doc_id"),
-                            score=chunk.get("score"),
-                            text=chunk.get("text"),
-                        )
+                        if hasattr(store, "insert_context_chunk"):
+                            store.insert_context_chunk(
+                                session_id=session_id,
+                                rank=int(chunk.get("rank", 0)),
+                                doc_id=chunk.get("doc_id"),
+                                score=chunk.get("score"),
+                                text=chunk.get("text"),
+                            )
 
                     for edge in result.get("graph_edges", []):
-                        store.insert_graph_edge(
-                            session_id=session_id,
-                            src=edge.get("src", ""),
-                            rel=edge.get("rel", ""),
-                            dst=edge.get("dst", ""),
-                            weight=edge.get("weight"),
-                            doc_id=edge.get("doc_id"),
-                        )
+                        if hasattr(store, "insert_graph_edge"):
+                            store.insert_graph_edge(
+                                session_id=session_id,
+                                src=edge.get("src", ""),
+                                rel=edge.get("rel", ""),
+                                dst=edge.get("dst", ""),
+                                weight=edge.get("weight"),
+                                doc_id=edge.get("doc_id"),
+                            )
                 except Exception as exc:  # pragma: no cover
                     logger.error("Failed to persist session %s: %s", session_id, exc)
 

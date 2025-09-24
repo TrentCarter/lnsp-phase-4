@@ -67,7 +67,7 @@ fi
 # Run GraphRAG queries
 echo "🚀 Running GraphRAG queries..."
 
-python3 -m src.adapters.lightrag.graphrag_runner \
+PYTHONPATH=src:. python3 -m src.adapters.lightrag.graphrag_runner \
     --config "$CONFIG_FILE" \
     --lane L1_FACTOID \
     --query-file "$QUERIES_FILE" \

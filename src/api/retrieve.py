@@ -20,7 +20,7 @@ try:  # FastAPI is optional at runtime
 except ImportError:  # pragma: no cover
     FastAPI = None  # type: ignore
 
-from ..schemas import CPESHDiagnostics, SearchRequest, SearchResponse, SearchItem
+from ..schemas import CPESHDiagnostics, SearchRequest, SearchResponse, SearchItem, CPESH
 from ..config import settings
 from .cache import _search_cache
 from ..integrations.lightrag import (
@@ -63,6 +63,11 @@ class RetrievalContext:
                 self.id_quality[str(j["doc_id"])] = float(j.get("quality", 0.5))
         self.w_cos = float(os.getenv("LNSP_W_COS","0.85"))
         self.w_q   = float(os.getenv("LNSP_W_QUALITY","0.15"))
+
+        # CPESH extraction limits
+        self.cpesh_max_k = int(os.getenv("LNSP_CPESH_MAX_K", "5"))
+        # local llama client (lazy)
+        self._llm = None
 
         # A2: Boot invariant checks
         self._validate_npz_schema(npz_path)
@@ -160,6 +165,15 @@ class RetrievalContext:
         else:
             print(f"[RetrievalContext] faiss_meta.json not found; retrieval will be empty")
 
+    def _ensure_llm(self):
+        if self._llm is None:
+            # Local-only client, no cloud fallback
+            from ..llm.local_llama_client import LocalLlamaClient
+            endpoint = os.getenv("LNSP_LLM_ENDPOINT","http://localhost:11434")
+            model = os.getenv("LNSP_LLM_MODEL","llama3.1:8b")
+            self._llm = LocalLlamaClient(endpoint, model)
+        return self._llm
+
     @staticmethod
     def _tokenize(text: str) -> Sequence[str]:
         if not text:
@@ -235,9 +249,18 @@ class RetrievalContext:
         # Extract hydrated fields
         metadata = h.get("metadata") or {}
         concept_text = metadata.get("concept_text") or h.get("concept_text")
-        tmd_code = h.get("tmd_code")
-        lane_index = h.get("lane_index")
+        tmd_bits = h.get("tmd_bits", 0)
+        lane_index = h.get("lane_index", 0)
         score = h.get("score")
+
+        # Format TMD code as D.T.M string
+        if tmd_bits:
+            domain = (tmd_bits >> 12) & 0xF
+            task = (tmd_bits >> 7) & 0x1F
+            modifier = (tmd_bits >> 1) & 0x3F
+            tmd_code = f"{domain}.{task}.{modifier}"
+        else:
+            tmd_code = "0.0.0"
 
         q = self.id_quality.get(str(doc_id), 0.5)
         final = None if score is None else (self.w_cos*float(score) + self.w_q*float(q))
@@ -309,6 +332,55 @@ class RetrievalContext:
         # re-rank by final_score (falls back to score)
         items.sort(key=lambda x: (x.final_score if x.final_score is not None else (x.score or 0.0)), reverse=True)
         print(f"Trace {trace_id}: Normalized {len(items)} items.")
+
+        # --- Optional per-item CPESH extraction ---
+        if req.return_cpesh and items:
+            # cap extraction to avoid long calls
+            k = min(len(items), self.cpesh_max_k)
+            llm = self._ensure_llm()
+            # embed the user query once for sim calc (cosine) when cpesh_mode=full
+            qvec = None
+            if req.cpesh_mode == "full":
+                qvec_raw = self.embedder.encode([req.q])[0].astype(np.float32)
+                qvec_norm = float(np.linalg.norm(qvec_raw))
+                qvec = qvec_raw / qvec_norm if qvec_norm > 0 else qvec_raw
+            for i in range(k):
+                it = items[i]
+                text = (it.concept_text or "").strip()
+                if not text:
+                    continue
+                prompt = (
+                    "Return JSON only for CPESH_EXTRACT.\n"
+                    f'Factoid: "{text}"\n'
+                    '{"concept":"...","probe":"...","expected":"...",'
+                    '"soft_negative":"...","hard_negative":"...",'
+                    '"insufficient_evidence":false}'
+                )
+                try:
+                    j = llm.complete_json(prompt, timeout_s=12)  # parses JSON
+                    cp = CPESH(
+                        concept=j.get("concept"),
+                        probe=j.get("probe"),
+                        expected=j.get("expected"),
+                        soft_negative=j.get("soft_negative"),
+                        hard_negative=j.get("hard_negative"),
+                    )
+                    # sims vs the query embedding if requested
+                    if req.cpesh_mode == "full" and qvec is not None:
+                        if cp.soft_negative:
+                            sv_raw = self.embedder.encode([cp.soft_negative])[0].astype(np.float32)
+                            sv_norm = float(np.linalg.norm(sv_raw))
+                            sv = sv_raw / sv_norm if sv_norm > 0 else sv_raw
+                            cp.soft_sim = float(np.dot(qvec, sv))
+                        if cp.hard_negative:
+                            hv_raw = self.embedder.encode([cp.hard_negative])[0].astype(np.float32)
+                            hv_norm = float(np.linalg.norm(hv_raw))
+                            hv = hv_raw / hv_norm if hv_norm > 0 else hv_raw
+                            cp.hard_sim = float(np.dot(qvec, hv))
+                    it.cpesh = cp
+                except Exception as e:
+                    print(f"Trace {trace_id}: CPESH extract failed for {it.id}: {e}")
+                    continue
 
         # --- CPESH diagnostics (optional) ---
         diag = CPESHDiagnostics(
