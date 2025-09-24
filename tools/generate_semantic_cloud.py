@@ -15,7 +15,7 @@ import plotly.express as px
 def load_data():
     """Load vectors and chunks from artifacts."""
     ROOT = Path(__file__).resolve().parent.parent
-    VECTORS_PATH = ROOT / "artifacts/fw10k_vectors.npz"
+    VECTORS_PATH = ROOT / "artifacts/fw100_vectors.npz"  # Use test file for now
     CHUNKS_PATH = ROOT / "artifacts/fw10k_chunks.jsonl"
 
     print(f"Loading vectors from: {VECTORS_PATH}")
@@ -26,7 +26,7 @@ def load_data():
         print(f"ERROR: Vectors file not found at {VECTORS_PATH}")
         return None, None, None
 
-    npz = np.load(VECTORS_PATH)
+    npz = np.load(VECTORS_PATH, allow_pickle=True)
     if 'emb' in npz:
         vectors = npz['emb']
     elif 'embeddings' in npz:
@@ -85,10 +85,9 @@ def reduce_to_3d(vectors, n_samples=1000):
 
     # Check if vectors are not all zeros
     if np.allclose(vectors_sample, 0):
-        print("WARNING: All vectors are zeros. Generating random data for visualization.")
-        # Generate some synthetic data for visualization
-        vectors_sample = np.random.randn(len(vectors_sample), 3) * 10
-        coords_3d = vectors_sample
+        print("ERROR: All vectors are zeros - this indicates test/stub data.")
+        print("Please run scripts/encode_real_gtr.sh first to generate real embeddings.")
+        raise ValueError("Cannot generate semantic cloud from zero vectors - need real data")
     else:
         # Standardize
         scaler = StandardScaler()

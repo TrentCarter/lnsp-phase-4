@@ -132,7 +132,7 @@ class FaissDB:
         # 3) load npz metadata (doc_ids[] required)
         if not os.path.exists(self.meta_npz_path):
             raise FileNotFoundError(f"Missing FAISS npz meta: {self.meta_npz_path}")
-        npz = np.load(self.meta_npz_path)
+        npz = np.load(self.meta_npz_path, allow_pickle=True)
         if "doc_ids" not in npz:
             raise ValueError(f"{self.meta_npz_path} missing 'doc_ids' array")
 

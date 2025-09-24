@@ -11,10 +11,13 @@ class SearchRequest(BaseModel):
     lane_index: Optional[int] = Field(default=None, ge=0, le=32767, description="Optional lane index filter (0-32767)")
 
 class SearchItem(BaseModel):
-    id: str                 # canonical: cpe_id (stable UUIDv5)
-    doc_id: Optional[str]   # upstream document ID (enwiki, etc.)
+    id: str                         # canonical: cpe_id (stable UUIDv5)
+    doc_id: Optional[str]           # upstream document ID (enwiki, etc.)
     score: Optional[float] = None
     why: Optional[str] = None
+    concept_text: Optional[str] = None    # hydrated concept text
+    tmd_code: Optional[str] = None        # hydrated TMD codes (D.T.M format)
+    lane_index: Optional[int] = None      # computed lane index
 
 class SearchResponse(BaseModel):
     lane: Lane

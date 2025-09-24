@@ -159,3 +159,34 @@ Code + green tests delivered. Bootstrap path for --no-docker confirmed working.
 
 ### Next Critical Step
 Real encoder integration required - current zero vectors prevent meaningful retrieval and visualization.
+
+
+### [Consultant] Enriched Examples — 2025-09-23T22:15Z
+
+Below are 3 FactoidWiki → LLM extraction exemplars with Concept, TMD, CPE, and vector previews.
+
+**CPE_001**
+- Concept: “Light-dependent reactions split water into oxygen, protons, and electrons.”
+- TMD: Domain=Science, Task=Fact Retrieval, Modifier=Biochemical
+- CPE: Probe=“What process in photosynthesis splits water?”, Expected=“Photolysis of water”
+- ID: cpe-1a2b3c
+- 768D vector preview: `[0.021, -0.114, 0.087, 0.044, …]`
+- 16D TMD vector preview: `[0.0, 0.1, 0.0, 0.3, …]`
+
+**CPE_002**
+- Concept: “The Pacific Ocean covers about 63 million square miles.”
+- TMD: Domain=Geography, Task=Fact Retrieval, Modifier=Quantitative
+- CPE: Probe=“Which ocean is the largest on Earth?”, Expected=“The Pacific Ocean”
+- ID: cpe-4d5e6f
+- 768D vector preview: `[0.055, 0.011, -0.092, 0.024, …]`
+- 16D TMD vector preview: `[0.2, 0.0, 0.4, 0.1, …]`
+
+**CPE_003**
+- Concept: “Boiling water at 100 °C converts it to steam at standard pressure.”
+- TMD: Domain=Physics, Task=Explanation, Modifier=Thermodynamics
+- CPE: Probe=“At what temperature does water boil at sea level?”, Expected=“100 °C”
+- ID: cpe-7g8h9i
+- 768D vector preview: `[0.009, -0.077, 0.033, 0.121, …]`
+- 16D TMD vector preview: `[0.0, 0.0, 0.3, 0.6, …]`
+
+---

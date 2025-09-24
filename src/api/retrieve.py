@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-assert sys.version_info[:2] == (3, 11), f"Require Python 3.11.x (got {sys.version})"
+assert sys.version_info[:2] == (3, 11) or sys.version_info[:2] == (3, 13), f"Require Python 3.11.x or 3.13.x (got {sys.version})"
 
 import os
 import re
@@ -44,8 +44,11 @@ MODE_MAP = {"dense": "DENSE", "graph": "GRAPH", "hybrid": "HYBRID", "lexical": "
 class RetrievalContext:
     def __init__(self, npz_path: str = DEFAULT_NPZ) -> None:
         config = LightRAGConfig.from_env()
-        self.adapter = LightRAGHybridRetriever.from_config(config=config, dim=784)
-        self.faiss_db = FaissDB(output_path=npz_path, retriever_adapter=self.adapter)
+        # LNSP_FUSED=0 for pure 768D, LNSP_FUSED=1 for 784D fused
+        self.use_fused = os.getenv("LNSP_FUSED", "1") == "1"
+        self.dim = 784 if self.use_fused else 768
+        self.adapter = LightRAGHybridRetriever.from_config(config=config, dim=self.dim)
+        self.faiss_db = FaissDB(meta_npz_path=npz_path)
         self.loaded = False
         self.npz_path = npz_path
         self.catalog: List[Dict[str, Any]] = []
@@ -139,7 +142,22 @@ class RetrievalContext:
         """Normalize hit to standard SearchItem format."""
         cpe_id = h.get("cpe_id") or h.get("id") or h.get("uuid") or h.get("rid") or ""
         doc_id = h.get("doc_id") or (h.get("metadata") or {}).get("doc_id")
-        return SearchItem(id=cpe_id, doc_id=doc_id, score=h.get("score"), why=h.get("why"))
+
+        # Extract hydrated fields
+        metadata = h.get("metadata") or {}
+        concept_text = metadata.get("concept_text") or h.get("concept_text")
+        tmd_code = h.get("tmd_code")
+        lane_index = h.get("lane_index")
+
+        return SearchItem(
+            id=cpe_id,
+            doc_id=doc_id,
+            score=h.get("score"),
+            why=h.get("why"),
+            concept_text=concept_text,
+            tmd_code=tmd_code,
+            lane_index=lane_index
+        )
 
     def search(self, req: SearchRequest, trace_id: Optional[str] = None) -> SearchResponse:
         print(f"Trace {trace_id}: Received search request: {req}")
@@ -156,11 +174,20 @@ class RetrievalContext:
         d_code = extraction["domain_code"]
         t_code = extraction["task_code"]
         m_code = extraction["modifier_code"]
-        lane_index = lane_index_from_bits(pack_tmd(d_code, t_code, m_code))
 
         concept_vec = self.embedder.encode([extraction["concept"]])[0]
-        tmd_dense = np.array(extraction["tmd_dense"], dtype=np.float32)
-        fused_query = np.concatenate([tmd_dense, concept_vec]).astype(np.float32)
+
+        if self.use_fused:
+            # 784D mode: use TMD + concept vector
+            tmd_dense = np.array(extraction["tmd_dense"], dtype=np.float32)
+            fused_query = np.concatenate([tmd_dense, concept_vec]).astype(np.float32)
+        else:
+            # 768D mode: use concept vector only, ensure normalization
+            fused_query = concept_vec.astype(np.float32)
+            # L2 normalize for inner product search
+            norm = np.linalg.norm(fused_query)
+            if norm > 0:
+                fused_query = fused_query / norm
 
         mode = settings.RETRIEVAL_MODE if settings.RETRIEVAL_MODE != "HYBRID" else "DENSE"
         candidates = self.faiss_db.search_legacy(fused_query, topk=req.top_k, use_lightrag=True) or []
@@ -254,11 +281,15 @@ else:
 
         metric = "IP"  # We build indices with inner-product over L2-normalized vectors
 
+        # Override dimension based on LNSP_FUSED setting
+        use_fused = os.getenv("LNSP_FUSED", "1") == "1"
+        reported_dim = 784 if use_fused else 768
+
         return {
             "nlist": int(meta.get("nlist", 0) or 0),
             "nprobe": int(os.getenv("FAISS_NPROBE", "16") or 16),
             "metric": metric,
-            "dim": int(meta.get("dimension", 0) or 0),
+            "dim": reported_dim,
             "vectors": int(meta.get("num_vectors", 0) or 0),
         }
 
