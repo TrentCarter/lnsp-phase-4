@@ -1,14 +1,22 @@
 from __future__ import annotations
+import sys
+import os
 import numpy as np
 import argparse
-import os
+
+# Add the parent directory to sys.path for direct execution
+if __name__ == "__main__":
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
 
 try:
     import faiss
 except Exception:  # allow import before faiss is installed
     faiss = None  # type: ignore
 
-from .utils.norms import l2_normalize
+from utils.norms import l2_normalize
 
 
 def build_ivf_flat_cosine(vectors: np.ndarray, nlist: int = 256, train_frac: float = 0.05):

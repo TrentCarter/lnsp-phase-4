@@ -799,8 +799,9 @@ def call_local_llama(prompt: str) -> LlamaResponse:
 - **TTL**: Indefinite (no automatic expiration)
 - **Max Size**: 50,000 entries initial, expandable as needed
 - **Storage**: Append-only JSONL at `artifacts/cpesh_cache.jsonl`
-- **Pruning**: Manual/selective based on usage patterns and quality
-- **Format**: `{"doc_id": str, "cpesh": {...}, "created_at": iso8601, "last_accessed": iso8601}`
+- **Pruning**: Manual/selective based on quality, usage patterns, and curation
+- **Format**: `{"doc_id": str, "cpesh": {...}, "created_at": iso8601, "last_accessed": iso8601, "access_count": int}`
+- **Timestamp Policy**: See `docs/timestamps.md` for detailed schema and implementation
 
 **Environment Variables:**
 ```bash
@@ -822,6 +823,13 @@ export LNSP_CPESH_CACHE=artifacts/cpesh_cache.jsonl  # Cache file location
 3. **Hit**: Return cached CPESH, update last_accessed timestamp
 4. **Persist**: Append to JSONL with created_at timestamp
 5. **Prune**: Manual/selective based on quality metrics or usage patterns
+
+**Manual Pruning Rules:**
+- **Quality-based**: Remove entries with quality_score < 0.5 and low access_count
+- **Usage-based**: Archive entries not accessed in 90+ days (configurable)
+- **Curation-based**: Selective removal based on domain expert review
+- **No automatic deletion**: All pruning requires explicit action
+- **Audit trail**: All pruning operations logged with timestamp and reason
 
 **No Cloud Fallback Guarantee:**
 - All CPESH extraction uses local LLM only

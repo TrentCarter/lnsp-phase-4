@@ -31,6 +31,7 @@ from ..prompt_extractor import extract_cpe_from_text
 from ..db_faiss import FaissDB
 from ..tmd_encoder import pack_tmd, lane_index_from_bits
 from ..vectorizer import EmbeddingBackend
+from ..utils.timestamps import get_iso_timestamp, migrate_legacy_cache_entry, update_cache_entry_access
 
 _ENV_NPZ = os.getenv("FAISS_NPZ_PATH")
 _NPZ_10K_768 = "artifacts/fw10k_vectors_768.npz"
@@ -70,6 +71,12 @@ class RetrievalContext:
             self.cpesh_timeout = float(os.getenv("LNSP_CPESH_TIMEOUT_S", "12"))
         except ValueError:
             self.cpesh_timeout = 12.0
+
+        # CPESH cache initialization
+        self.cpesh_cache_path = os.getenv("LNSP_CPESH_CACHE", "artifacts/cpesh_cache.jsonl")
+        self.cpesh_cache = {}  # In-memory cache for fast lookups
+        self._load_cpesh_cache()
+
         # local llama client (lazy)
         self._llm = None
 
@@ -243,10 +250,107 @@ class RetrievalContext:
         scored.sort(key=lambda x: (-x["score"], x.get("doc_id") or ""))
         for rank, item in enumerate(scored[:k], start=1):
             item["rank"] = rank
-        return scored[:k]
+    def _load_cpesh_cache(self) -> None:
+        """Load CPESH cache from disk into memory."""
+        cache_path = Path(self.cpesh_cache_path)
+        if not cache_path.exists():
+            print(f"[RetrievalContext] CPESH cache file not found: {cache_path}")
+            return
+
+        try:
+            with cache_path.open('r', encoding='utf-8') as f:
+                for line_num, line in enumerate(f, 1):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entry = json.loads(line)
+                        # Migrate legacy entries to include timestamps
+                        entry = migrate_legacy_cache_entry(entry)
+                        doc_id = entry.get('doc_id')
+                        if doc_id:
+                            self.cpesh_cache[doc_id] = entry
+                    except json.JSONDecodeError as e:
+                        print(f"[RetrievalContext] Invalid JSON in cache line {line_num}: {e}")
+                        continue
+
+            print(f"[RetrievalContext] Loaded {len(self.cpesh_cache)} CPESH cache entries")
+        except Exception as e:
+            print(f"[RetrievalContext] Failed to load CPESH cache: {e}")
+
+    def _save_cpesh_cache(self) -> None:
+        """Save CPESH cache from memory to disk."""
+        cache_path = Path(self.cpesh_cache_path)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            with cache_path.open('w', encoding='utf-8') as f:
+                for doc_id, entry in self.cpesh_cache.items():
+                    # Update last_accessed timestamp before saving
+                    entry = update_cache_entry_access(entry)
+                    f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+
+            print(f"[RetrievalContext] Saved {len(self.cpesh_cache)} CPESH cache entries")
+        except Exception as e:
+            print(f"[RetrievalContext] Failed to save CPESH cache: {e}")
+
+    def get_cpesh_from_cache(self, doc_id: str) -> Optional[CPESH]:
+        """Get CPESH from cache by doc_id."""
+        if doc_id not in self.cpesh_cache:
+            return None
+
+        # Update access timestamp and count
+        entry = update_cache_entry_access(self.cpesh_cache[doc_id])
+
+        # Extract CPESH data
+        cpesh_data = entry.get('cpesh', {})
+        if not isinstance(cpesh_data, dict):
+            return None
+
+        try:
+            return CPESH(
+                concept=cpesh_data.get('concept'),
+                probe=cpesh_data.get('probe'),
+                expected=cpesh_data.get('expected'),
+                soft_negative=cpesh_data.get('soft_negative'),
+                hard_negative=cpesh_data.get('hard_negative'),
+                soft_sim=cpesh_data.get('soft_sim'),
+                hard_sim=cpesh_data.get('hard_sim'),
+                created_at=cpesh_data.get('created_at'),
+                last_accessed=cpesh_data.get('last_accessed')
+            )
+        except Exception as e:
+            print(f"[RetrievalContext] Failed to parse cached CPESH for {doc_id}: {e}")
+            return None
+
+    def put_cpesh_to_cache(self, doc_id: str, cpesh: CPESH) -> None:
+        """Store CPESH in cache by doc_id."""
+        now = get_iso_timestamp()
+
+        entry = {
+            'doc_id': doc_id,
+            'cpesh': {
+                'concept': cpesh.concept,
+                'probe': cpesh.probe,
+                'expected': cpesh.expected,
+                'soft_negative': cpesh.soft_negative,
+                'hard_negative': cpesh.hard_negative,
+                'soft_sim': cpesh.soft_sim,
+                'hard_sim': cpesh.hard_sim,
+                'created_at': cpesh.created_at or now,
+                'last_accessed': now
+            },
+            'access_count': 1
+        }
+
+        self.cpesh_cache[doc_id] = entry
+
+    def close(self) -> None:
+        """Save CPESH cache to disk before shutdown."""
+        if self.cpesh_cache:
+            self._save_cpesh_cache()
 
     def _norm_hit(self, h: dict) -> SearchItem:
-        """Normalize hit to standard SearchItem format."""
         cpe_id = h.get("cpe_id") or h.get("id") or h.get("uuid") or h.get("rid") or ""
         doc_id = h.get("doc_id") or (h.get("metadata") or {}).get("doc_id")
 
@@ -354,6 +458,16 @@ class RetrievalContext:
                 text = (it.concept_text or "").strip()
                 if not text:
                     continue
+
+                # Check cache first (cache hit - update last_accessed)
+                cached_cpesh = self.get_cpesh_from_cache(it.doc_id or "")
+                if cached_cpesh:
+                    print(f"Trace {trace_id}: CPESH cache hit for {it.id}")
+                    it.cpesh = cached_cpesh
+                    continue
+
+                # Cache miss - extract and store
+                print(f"Trace {trace_id}: CPESH cache miss for {it.id}, extracting...")
                 prompt = (
                     "Return JSON only for CPESH_EXTRACT.\n"
                     f'Factoid: "{text}"\n'
@@ -383,6 +497,11 @@ class RetrievalContext:
                             hv = hv_raw / hv_norm if hv_norm > 0 else hv_raw
                             cp.hard_sim = float(np.dot(qvec, hv))
                     it.cpesh = cp
+
+                    # Store in cache
+                    if it.doc_id:
+                        self.put_cpesh_to_cache(it.doc_id, cp)
+                        print(f"Trace {trace_id}: CPESH cached for {it.id}")
                 except Exception as e:
                     print(f"Trace {trace_id}: CPESH extract failed for {it.id}: {e}")
                     continue

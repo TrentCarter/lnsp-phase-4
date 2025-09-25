@@ -12,6 +12,8 @@ class CPESH(BaseModel):
     hard_negative: Optional[str] = None
     soft_sim: Optional[float] = None  # cosine vs query (only if cpesh_mode=full)
     hard_sim: Optional[float] = None  # cosine vs query (only if cpesh_mode=full)
+    created_at: Optional[str] = None  # ISO8601 timestamp when this CPESH was first created
+    last_accessed: Optional[str] = None  # ISO8601 timestamp when this CPESH was last accessed
 
 class CPESHDiagnostics(BaseModel):
     concept: Optional[str] = None
@@ -21,6 +23,8 @@ class CPESHDiagnostics(BaseModel):
     hard_negative: Optional[str] = None
     soft_sim: Optional[float] = None
     hard_sim: Optional[float] = None
+    created_at: Optional[str] = None
+    last_accessed: Optional[str] = None
 
 class SearchRequest(BaseModel):
     q: str = Field(..., min_length=1, max_length=512, description="Query string (1-512 characters)")
