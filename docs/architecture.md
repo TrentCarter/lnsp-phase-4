@@ -792,3 +792,140 @@ def call_local_llama(prompt: str) -> LlamaResponse:
     # Return structured response with metrics
     # Raise exception on empty text
 ```
+
+## CPESH Cache Policy and SLOs - S5 FINALIZED
+
+**Cache Configuration:**
+- **TTL**: Indefinite (no automatic expiration)
+- **Max Size**: 50,000 entries initial, expandable as needed
+- **Storage**: Append-only JSONL at `artifacts/cpesh_cache.jsonl`
+- **Pruning**: Manual/selective based on usage patterns and quality
+- **Format**: `{"doc_id": str, "cpesh": {...}, "created_at": iso8601, "last_accessed": iso8601}`
+
+**Environment Variables:**
+```bash
+# CPESH Cache Configuration
+export LNSP_CPESH_MAX_K=2                        # Max items to enrich per request
+export LNSP_CPESH_TIMEOUT_S=4                    # LLM timeout per extraction
+export LNSP_CPESH_CACHE=artifacts/cpesh_cache.jsonl  # Cache file location
+```
+
+**Service Level Objectives (SLOs):**
+- **Cache Hit Rate**: ≥ 80% after warm-up period (first 1k queries)
+- **Extraction Latency**: P50 ≤ 2s, P95 ≤ 4s per item
+- **Cache Lookup**: ≤ 5ms in-memory lookup
+- **Compaction**: On-demand for file optimization (no data loss)
+
+**Cache Lifecycle:**
+1. **Lookup**: Check in-memory dict by doc_id
+2. **Miss**: Call LLM with timeout, cache result with timestamp
+3. **Hit**: Return cached CPESH, update last_accessed timestamp
+4. **Persist**: Append to JSONL with created_at timestamp
+5. **Prune**: Manual/selective based on quality metrics or usage patterns
+
+**No Cloud Fallback Guarantee:**
+- All CPESH extraction uses local LLM only
+- No external API calls permitted
+- Failure results in empty CPESH, not cloud fallback
+- Enforcement via `LocalLlamaClient` with no retry logic
+
+## TMD Taxonomy and Mapping - S5 FINALIZED
+
+**TMD Components:**
+- **D (Domain)**: 4 bits → 16 values (0-15)
+- **T (Task)**: 5 bits → 32 values (0-31)
+- **M (Modifier)**: 6 bits → 64 values (0-63)
+
+**Finalized Domain Taxonomy (16):**
+```python
+DOMAINS = {
+    0: "science",      1: "mathematics",   2: "technology",    3: "engineering",
+    4: "medicine",     5: "psychology",    6: "philosophy",    7: "history",
+    8: "literature",   9: "arts",         10: "economics",    11: "law",
+    12: "politics",   13: "education",    14: "environment",  15: "sociology"
+}
+```
+
+**Finalized Task Taxonomy (32):**
+```python
+TASKS = {
+    0: "fact_retrieval",        1: "definition_matching",    2: "analogical_reasoning",
+    3: "causal_inference",      4: "classification",         5: "entity_recognition",
+    6: "relationship_extraction", 7: "schema_adherence",      8: "summarization",
+    9: "paraphrasing",         10: "translation",           11: "sentiment_analysis",
+    12: "argument_evaluation",  13: "hypothesis_testing",    14: "code_generation",
+    15: "function_calling",     16: "mathematical_proof",    17: "diagram_interpretation",
+    18: "temporal_reasoning",   19: "spatial_reasoning",     20: "ethical_evaluation",
+    21: "policy_recommendation", 22: "roleplay_simulation",  23: "creative_writing",
+    24: "instruction_following", 25: "error_detection",      26: "output_repair",
+    27: "question_generation",  28: "conceptual_mapping",    29: "knowledge_distillation",
+    30: "tool_use",            31: "prompt_completion"
+}
+```
+
+**Finalized Modifier Taxonomy (64):**
+```python
+MODIFIERS = {
+    0: "general",       1: "historical",     2: "contemporary",   3: "future",
+    4: "descriptive",   5: "analytical",     6: "comparative",    7: "evaluative",
+    8: "temporal",      9: "spatial",       10: "causal",        11: "conditional",
+    12: "biochemical", 13: "molecular",     14: "cellular",      15: "physiological",
+    16: "geographical", 17: "geological",    18: "astronomical",  19: "ecological",
+    20: "legal",       21: "constitutional", 22: "regulatory",    23: "judicial",
+    24: "clinical",    25: "diagnostic",    26: "therapeutic",   27: "epidemiological",
+    28: "software",    29: "hardware",      30: "networking",    31: "security",
+    32: "experimental", 33: "observational", 34: "computational", 35: "simulation",
+    36: "statistical", 37: "probabilistic", 38: "deterministic", 39: "stochastic",
+    40: "theoretical", 41: "applied",       42: "fundamental",   43: "emergent",
+    44: "cultural",    45: "social",        46: "individual",    47: "collective",
+    48: "economic",    49: "financial",     50: "market",        51: "behavioral",
+    52: "political",   53: "diplomatic",    54: "military",      55: "strategic",
+    56: "educational", 57: "pedagogical",   58: "curricular",    59: "assessment",
+    60: "artistic",    61: "aesthetic",     62: "creative",      63: "interpretive"
+}
+```
+
+**TMD Round-Trip Examples:**
+```python
+# src/utils/tmd.py implementation
+def pack_tmd(domain: int, task: int, modifier: int) -> int:
+    """Pack D.T.M into 16-bit integer"""
+    assert 0 <= domain <= 15, f"Domain {domain} out of range"
+    assert 0 <= task <= 31, f"Task {task} out of range"
+    assert 0 <= modifier <= 63, f"Modifier {modifier} out of range"
+    return (domain << 12) | (task << 7) | (modifier << 1)
+
+def unpack_tmd(bits: int) -> tuple[int, int, int]:
+    """Unpack 16-bit integer to (domain, task, modifier)"""
+    domain = (bits >> 12) & 0xF
+    task = (bits >> 7) & 0x1F
+    modifier = (bits >> 1) & 0x3F
+    return domain, task, modifier
+
+def format_tmd(bits: int) -> str:
+    """Format TMD bits as D.T.M string"""
+    d, t, m = unpack_tmd(bits)
+    return f"{d}.{t}.{m}"
+
+# Example round-trips:
+# Science (0), Fact Retrieval (0), Historical (1)
+bits = pack_tmd(0, 0, 1)          # → 0x0002
+d, t, m = unpack_tmd(bits)       # → (0, 0, 1)
+formatted = format_tmd(bits)      # → "0.0.1"
+
+# Medicine (4), Diagnosis (25), Clinical (24)
+bits = pack_tmd(4, 25, 24)       # → 0x4C30
+d, t, m = unpack_tmd(bits)       # → (4, 25, 24)
+formatted = format_tmd(bits)      # → "4.25.24"
+
+# Technology (2), Code Generation (14), Software (28)
+bits = pack_tmd(2, 14, 28)       # → 0x2738
+d, t, m = unpack_tmd(bits)       # → (2, 14, 28)
+formatted = format_tmd(bits)      # → "2.14.28"
+```
+
+**Acceptance Criteria:**
+- ✅ 70% of L1_FACTOID items return non-"0.0.0" TMD codes
+- ✅ All TMD values round-trip correctly through pack/unpack
+- ✅ Format function produces consistent "D.T.M" strings
+- ✅ No TMD bits overflow 16-bit range

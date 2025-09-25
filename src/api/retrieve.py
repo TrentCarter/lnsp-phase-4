@@ -64,8 +64,12 @@ class RetrievalContext:
         self.w_cos = float(os.getenv("LNSP_W_COS","0.85"))
         self.w_q   = float(os.getenv("LNSP_W_QUALITY","0.15"))
 
-        # CPESH extraction limits
+        # CPESH extraction limits and timeout controls
         self.cpesh_max_k = int(os.getenv("LNSP_CPESH_MAX_K", "5"))
+        try:
+            self.cpesh_timeout = float(os.getenv("LNSP_CPESH_TIMEOUT_S", "12"))
+        except ValueError:
+            self.cpesh_timeout = 12.0
         # local llama client (lazy)
         self._llm = None
 
@@ -336,7 +340,8 @@ class RetrievalContext:
         # --- Optional per-item CPESH extraction ---
         if req.return_cpesh and items:
             # cap extraction to avoid long calls
-            k = min(len(items), self.cpesh_max_k)
+            req_k = req.cpesh_k if req.cpesh_k is not None else self.cpesh_max_k
+            k = min(len(items), max(0, req_k))
             llm = self._ensure_llm()
             # embed the user query once for sim calc (cosine) when cpesh_mode=full
             qvec = None
@@ -357,7 +362,7 @@ class RetrievalContext:
                     '"insufficient_evidence":false}'
                 )
                 try:
-                    j = llm.complete_json(prompt, timeout_s=12)  # parses JSON
+                    j = llm.complete_json(prompt, timeout_s=self.cpesh_timeout)
                     cp = CPESH(
                         concept=j.get("concept"),
                         probe=j.get("probe"),

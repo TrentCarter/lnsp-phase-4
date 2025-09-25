@@ -29,6 +29,8 @@ class SearchRequest(BaseModel):
     lane_index: Optional[int] = Field(default=None, ge=0, le=32767, description="Optional lane index filter (0-32767)")
     return_cpesh: Optional[bool] = Field(default=False, description="Include per-item CPESH object")
     cpesh_mode: Optional[Literal["lite","full"]] = Field(default="lite", description="CPESH detail level")
+    cpesh_k: Optional[int] = Field(default=None, ge=0, le=50, description="Max hits to CPESH-enrich (overrides env)")
+    compact: Optional[bool] = Field(default=False, description="Return compact hit objects (id,score,tmd,lane,cpesh)")
 
     @model_validator(mode="after")
     def require_one_lane(self):

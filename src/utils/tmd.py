@@ -61,4 +61,42 @@ def encode_tmd16(domain: int, task: int, modifier: int) -> np.ndarray:
 
         sys.path.insert(0, str(Path(__file__).parent))
         from norms import l2_normalize  # type: ignore
-    return l2_normalize(vec.reshape(1, -1)).astype(np.float32).reshape(-1)
+def format_tmd_code(bits_or_codes: int | dict | None) -> str:
+    """Format TMD code from various input formats.
+
+    Args:
+        bits_or_codes: Either packed TMD bits (int), or dict with 'tmd_bits'/'domain_code'/'task_code'/'modifier_code'
+
+    Returns:
+        Formatted D.T.M string like "2.0.27" or "0.0.0" if invalid
+    """
+    if isinstance(bits_or_codes, int):
+        try:
+            d, t, m = unpack_tmd(bits_or_codes)
+            return f"{d}.{t}.{m}"
+        except Exception:
+            return "0.0.0"
+    elif isinstance(bits_or_codes, dict):
+        # Try tmd_bits first
+        tmd_bits = bits_or_codes.get("tmd_bits")
+        if tmd_bits is not None:
+            try:
+                d, t, m = unpack_tmd(int(tmd_bits))
+                return f"{d}.{t}.{m}"
+            except Exception:
+                pass
+
+        # Fallback to individual codes
+        d = bits_or_codes.get("domain_code")
+        t = bits_or_codes.get("task_code")
+        m = bits_or_codes.get("modifier_code")
+        if d is not None and t is not None and m is not None:
+            try:
+                return f"{int(d)}.{int(t)}.{int(m)}"
+            except Exception:
+                return "0.0.0"
+
+        # Final fallback to existing tmd_code
+        return bits_or_codes.get("tmd_code") or "0.0.0"
+
+    return "0.0.0"

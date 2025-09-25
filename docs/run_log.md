@@ -1,23 +1,47 @@
 # LNSP Phase 4 - Run Log
 
-## Phase 13 - Offline GTR GraphRAG (2025-09-23)
+## Phase S5 - TMD Encoding & CPESH Caching (2025-09-24)
 
 **Status:** ✅ COMPLETE
-**Date:** 2025-09-23
+**Date:** 2025-09-24
 **Duration:** Single session
-**Mode:** Offline GTR-T5 768D with LightRAG
+**Mode:** TMD encoding fixes, CPESH caching, API enhancements
 
 ### Key Achievements
-- ✅ Implemented offline GTR-T5 embedder adapter (`src/adapters/lightrag/embedder_gtr.py`)
-- ✅ Enforced offline operation (`TRANSFORMERS_OFFLINE=1`, `HF_HUB_OFFLINE=1`)
-- ✅ LightRAG-compatible interface with `embed_batch()` and `embedding_dim` property
-- ✅ FAISS index validation: 768D, IP metric, 10K vectors loaded
-- ✅ API endpoint verified at localhost:8092 with proper JSON responses
-- ✅ Real data pipeline using `artifacts/fw10k_chunks.jsonl` (no mock data)
-- ✅ Pure 768D mode enforced (`LNSP_FUSED=0`)
+- ✅ **TMD Code Fixes**: Resolved "0.0.0" issue with proper domain.task.modifier encoding
+- ✅ **CPESH Caching**: Implemented persistent cache for CPESH extractions
+- ✅ **Schema Enhancements**: Added `cpesh_k`, `compact`, `quality`, `final_score` fields
+- ✅ **Ollama JSON Mode**: Updated to use `format:"json"` for reliable parsing
+- ✅ **Resilient Imports**: Added fallbacks for PostgreSQL dependencies
+- ✅ **GraphRAG Improvements**: JSONL fallback when PostgreSQL unavailable
 
 ### Technical Implementation
-- **Embedder:** GTR-T5 768D with L2 normalization
+- **TMD Encoding**: Complete mapping system with pack/unpack/format functions
+- **CPESH Cache**: JSONL-based cache with configurable TTL and size limits
+- **API Enhancements**: Compact response mode, per-request CPESH limits
+- **Error Handling**: Graceful fallbacks for all encoding and extraction failures
+
+### Test Results
+```bash
+✅ TMD formatting from bits: 8246 -> 2.0.27
+✅ TMD formatting from dict: domain_code/task_code/modifier_code -> 2.0.27
+✅ TMD pack/unpack: 2.0.27 -> 8246 -> 2.0.27
+✅ GraphRAG runner module import successful
+✅ Ollama JSON strictness: format="json" parameter added
+```
+
+### Configuration
+```bash
+export LNSP_CPESH_MAX_K=2          # Max CPESH extractions per request
+export LNSP_CPESH_TIMEOUT_S=4      # CPESH extraction timeout
+export LNSP_CPESH_CACHE=artifacts/cpesh_cache.jsonl  # Cache file path
+```
+
+### Performance Impact
+- **TMD codes**: Now properly formatted instead of "0.0.0"
+- **CPESH caching**: Reduces LLM calls for repeated queries
+- **Compact responses**: Optional minimal format for better performance
+- **JSON reliability**: More consistent CPESH extraction with format:"json"
 - **Config:** Updated `configs/lightrag.yml` with offline settings
 - **Environment:** Local model at `data/teacher_models/gtr-t5-base`
 - **Performance:** ~3ms average latency for search queries

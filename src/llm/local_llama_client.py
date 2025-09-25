@@ -10,6 +10,8 @@ import requests
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
 
+_CPESH_TIMEOUT_ENV = "LNSP_CPESH_TIMEOUT_S"
+
 
 @dataclass
 class LlamaResponse:
@@ -154,70 +156,74 @@ class LocalLlamaClient:
         """
         self.endpoint = endpoint or _get_local_endpoint()
         self.model = model or _get_model()
+        self._session = requests.Session()
 
-    def complete_json(self, prompt: str, timeout_s: int = 15) -> Dict[str, Any]:
-        """
-        Complete a prompt and return parsed JSON response.
-
-        Args:
-            prompt: The prompt requesting JSON output
-            timeout_s: Timeout in seconds (default: 15)
-
-        Returns:
-            Parsed JSON dictionary from the model's response
-
-        Raises:
-            RuntimeError: If response cannot be parsed as JSON
-        """
-        # Add JSON instruction if not present
-        if "json" not in prompt.lower():
-            system_prompt = "You must respond with valid JSON only. No additional text or markdown."
-        else:
-            system_prompt = None
-
-        # Make the completion request
+    def _resolve_timeout(self, timeout_s: Optional[float]) -> float:
+        if timeout_s and timeout_s > 0:
+            return float(timeout_s)
         try:
-            response = call_local_llama(prompt, system_prompt=system_prompt)
-            text = response.text
+            env_val = float(os.getenv(_CPESH_TIMEOUT_ENV, "12"))
+            return env_val if env_val > 0 else 12.0
+        except (TypeError, ValueError):
+            return 12.0
 
-            # Try to extract JSON from the response
-            # Handle cases where model wraps JSON in markdown code blocks
-            if "```json" in text:
-                start = text.find("```json") + 7
-                end = text.find("```", start)
-                if end > start:
-                    text = text[start:end].strip()
-            elif "```" in text:
-                start = text.find("```") + 3
-                end = text.find("```", start)
-                if end > start:
-                    text = text[start:end].strip()
+    def complete_json(self, prompt: str, timeout_s: Optional[float] = None) -> Dict[str, Any]:
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "options": {"num_predict": 256, "temperature": 0},
+            "stream": False,
+            "format": "json",
+        }
 
-            # Parse the JSON
-            result = json.loads(text)
-            return result
+        resolved_timeout = self._resolve_timeout(timeout_s)
 
-        except json.JSONDecodeError as e:
-            # If JSON parsing fails, try to extract a valid JSON object
-            # Look for the first { and last } in the text
-            try:
-                start = text.find("{")
-                end = text.rfind("}") + 1
-                if start >= 0 and end > start:
-                    json_str = text[start:end]
-                    result = json.loads(json_str)
-                    return result
-            except:
-                pass
+        try:
+            response = self._session.post(
+                f"{self.endpoint}/api/generate",
+                json=payload,
+                timeout=resolved_timeout,
+            )
+            response.raise_for_status()
+        except requests.Timeout as exc:
+            raise RuntimeError(
+                f"Local Llama request timed out after {resolved_timeout}s"
+            ) from exc
+        except requests.RequestException as exc:
+            raise RuntimeError(f"Local Llama request failed: {exc}") from exc
 
-            # If all else fails, return a minimal valid response
-            # with the error information
-            return {
-                "concept": "",
-                "probe": prompt[:100],
-                "expected": "",
-                "soft_negative": "",
-                "hard_negative": "",
-                "insufficient_evidence": True,
-                "error": f"JSON parse error: {str(e)}"
-            }
+        data = response.json()
+        text = data.get("response", "")
+
+        if "```json" in text:
+            start = text.find("```json") + 7
+            end = text.find("```", start)
+            if end > start:
+                text = text[start:end].strip()
+        elif "```" in text:
+            start = text.find("```") + 3
+            end = text.find("```", start)
+            if end > start:
+                text = text[start:end].strip()
+
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            start = text.find("{")
+            end = text.rfind("}") + 1
+            if start >= 0 and end > start:
+                snippet = text[start:end]
+                try:
+                    return json.loads(snippet)
+                except json.JSONDecodeError:
+                    pass
+
+        return {
+            "concept": "",
+            "probe": prompt[:100],
+            "expected": "",
+            "soft_negative": "",
+            "hard_negative": "",
+            "insufficient_evidence": True,
+            "error": "Local Llama returned non-JSON payload",
+        }
