@@ -79,6 +79,11 @@ class TestCPESHCache(unittest.TestCase):
 
             # Test cache hit scenario
             cached_cpesh = {
+                "doc_id": "doc_demo",
+                "quality": 0.91,
+                "cosine": 0.62,
+                "insufficient_evidence": False,
+            }
 
     def test_format_tmd_code_from_bits(self):
         """Test TMD formatting from packed bits."""

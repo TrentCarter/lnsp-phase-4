@@ -8,7 +8,7 @@ import pytest
 # For this test, we'll work with the raw JSON string the LLM would produce.
 
 # Assuming src is in the python path for pytest
-from src.types import CPECore
+from src.schemas import CPECore
 
 
 # --- Test Data ---

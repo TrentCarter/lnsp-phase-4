@@ -11,9 +11,20 @@ bad()  { echo "[fail] $*" >&2; FAIL=$((FAIL+1)); }
 
 step "Check index meta"
 if [[ -f artifacts/index_meta.json ]]; then
-  jq -e '.nlist and .max_safe_nlist and .requested_nlist and .count' artifacts/index_meta.json >/dev/null 2>&1 \
-    && ok "artifacts/index_meta.json has required keys" \
-    || bad "index_meta.json missing required keys"
+  # Check if we have nested structure with index files or flat structure
+  if jq -e 'keys | length > 0' artifacts/index_meta.json >/dev/null 2>&1; then
+    # Try nested structure first (current format)
+    FIRST_KEY=$(jq -r 'keys[0]' artifacts/index_meta.json)
+    if jq -e ".\"$FIRST_KEY\".nlist and .\"$FIRST_KEY\".max_safe_nlist and .\"$FIRST_KEY\".requested_nlist and .\"$FIRST_KEY\".count" artifacts/index_meta.json >/dev/null 2>&1; then
+      ok "artifacts/index_meta.json has required keys (nested format)"
+    elif jq -e '.nlist and .max_safe_nlist and .requested_nlist and .count' artifacts/index_meta.json >/dev/null 2>&1; then
+      ok "artifacts/index_meta.json has required keys (flat format)"
+    else
+      bad "index_meta.json missing required keys"
+    fi
+  else
+    bad "index_meta.json is empty"
+  fi
 else
   bad "artifacts/index_meta.json not found (run: make build-faiss)"
 fi

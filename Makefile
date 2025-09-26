@@ -25,8 +25,14 @@ build-faiss:
 	@echo "✅ Index built. Check artifacts/index_meta.json for details."
 
 api:
-	@PORT=$${PORT:-8092}; echo "[api] starting on $$PORT"
-	@PORT=$${PORT:-8092}; PYTHONPATH=src ./.venv/bin/uvicorn src.api.retrieve:app --host 127.0.0.1 --port $$PORT
+	@PORT=$${PORT:-8092}; echo "[api] starting on $$PORT (safe threads)"
+	@OMP_NUM_THREADS=$${OMP_NUM_THREADS:-1} \
+	VECLIB_MAXIMUM_THREADS=$${VECLIB_MAXIMUM_THREADS:-1} \
+	OPENBLAS_NUM_THREADS=$${OPENBLAS_NUM_THREADS:-1} \
+	MKL_NUM_THREADS=$${MKL_NUM_THREADS:-1} \
+	FAISS_NUM_THREADS=$${FAISS_NUM_THREADS:-1} \
+	KMP_DUPLICATE_LIB_OK=TRUE \
+	PYTHONPATH=src ./.venv/bin/uvicorn src.api.retrieve:app --host 127.0.0.1 --port $$PORT
 
 prune:
 	@echo "Applying pruning manifest..."

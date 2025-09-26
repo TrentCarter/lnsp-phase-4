@@ -9,6 +9,13 @@ import os
 import re
 import uuid
 import json
+
+# Set FAISS threading early to avoid segfaults
+try:
+    import faiss
+    faiss.omp_set_num_threads(int(os.getenv("FAISS_NUM_THREADS", "1")))
+except Exception:
+    pass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
