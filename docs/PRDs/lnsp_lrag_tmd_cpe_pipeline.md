@@ -3,6 +3,36 @@ LNSP using Semantic Chunking TMD CPE Pipeline
 9/20/2025
 Trent Carter
 
+## ⚠️ CRITICAL: CPESH DATA IS PERMANENT TRAINING DATA
+
+**CPESH (Concept-Probe-Expected with Soft/Hard negatives) entries are NOT cache - they are PERMANENT TRAINING DATA:**
+
+1. **Core Training Corpus for Mamba Vector-Only Model** (P15)
+   - Every CPESH entry becomes a training example
+   - Used to learn vector-to-vector transformations
+   - Essential for bootstrapping from token-based to vector-native
+
+2. **Vector-to-Text Decoder Training Pairs**
+   - CPESH provides reconstruction targets
+   - Enables debugging and interpretability of vector models
+   - Critical for vec2text capabilities
+
+3. **VecRAG Contrastive Navigation Data**
+   - Soft/hard negatives enable semantic GPS routing
+   - Improves retrieval precision through contrastive learning
+   - Forms the foundation of the semantic navigation system
+
+4. **Future Model Development Archive**
+   - Historical training data for model evolution
+   - Enables comparative studies and ablations
+   - Preserves knowledge representation history
+
+**SCALE REQUIREMENTS:**
+- Local Development: 10M CPESH entries
+- Production Target: 10B CPESH entries
+- Storage: Tiered (Active JSONL → Warm GZ → Cold Parquet)
+- **NEVER DELETE CPESH DATA** - It accumulates indefinitely
+
 Comprehensive Database Storage Schema for LNSP + Conceptual Interrogation Pipeline
 Database Type	Stored Data	Description/Source	Format	Size Per Item	Primary Key	Foreign Keys
 TEXT DATABASE (PostgreSQL/MongoDB)						
@@ -58,12 +88,22 @@ Per Concept Entry:
 * Vector DB: ~6.3 KB (all vectors + metadata)
 * Graph DB: ~1.5 KB (avg 3 relations per concept)
 * Total: ~10 KB per complete concept
+
+CPESH Tiered Storage Architecture (PERMANENT DATA):
+Tier	Format	Size Range	Purpose	Access Pattern	Rotation Policy
+Active	JSONL	<1M entries	Live inference + recent training	Read/Write	At 100MB or 1M lines → Warm
+Warm	JSONL.gz	1M-10M entries	Training batches	Read-mostly	Keep ALL (compress only)
+Cold	Parquet	All (10B+)	Full training runs + archive	Batch read	Append-only forever
+Index	SQLite/DuckDB	Metadata only	Fast ID→location lookup	Random	Update on rotation
+
 At Scale:
-Scale	Concepts	Text DB	Vector DB	Graph DB	Total Storage
-Small	100K	200 MB	630 MB	150 MB	~1 GB
-Medium	1M	2 GB	6.3 GB	1.5 GB	~10 GB
-Large	100M	200 GB	630 GB	150 GB	~1 TB
-Web-scale	1B	2 TB	6.3 TB	1.5 TB	~10 TB
+Scale	Concepts	Text DB	Vector DB	Graph DB	CPESH Storage	Total Storage
+Small	100K	200 MB	630 MB	150 MB	~1 GB	~2 GB
+Medium	1M	2 GB	6.3 GB	1.5 GB	~10 GB (1GB active + 9GB compressed)	~20 GB
+Large	100M	200 GB	630 GB	150 GB	~1 TB (Parquet)	~2 TB
+Web-scale	10B	20 TB	63 TB	15 TB	~100 TB (Parquet + compression)	~200 TB
+
+NOTE: CPESH storage grows indefinitely as it's training data, not cache!
 Key Corrections from Review:
 1. Added Missing Elements:
     * Source_Chunk (original text that generated CPE)

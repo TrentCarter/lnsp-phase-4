@@ -1,11 +1,33 @@
 from __future__ import annotations
 from typing import List, Optional
 import numpy as np
+import os
 
 try:
     from sentence_transformers import SentenceTransformer
 except Exception:  # graceful degradation if HF stack not installed yet
     SentenceTransformer = None  # type: ignore
+
+
+def load_embedder():
+    """
+    Enforces local-only model loading when offline.
+    Honor env:
+      - LNSP_EMBEDDER_PATH: local dir of the model (preferred)
+      - SENTENCE_TRANSFORMERS_HOME / HF_HOME: cache roots
+      - HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE: '1' to forbid downloads
+    """
+    local = os.getenv("LNSP_EMBEDDER_PATH")
+    if local and os.path.isdir(local):
+        return SentenceTransformer(local)
+    # If offline is requested, do not attempt network
+    if os.getenv("HF_HUB_OFFLINE") == "1" or os.getenv("TRANSFORMERS_OFFLINE") == "1":
+        raise RuntimeError(
+            "Embedder is offline but LNSP_EMBEDDER_PATH not set. "
+            "Place the model at ./models/gtr-t5-base and export LNSP_EMBEDDER_PATH=./models/gtr-t5-base"
+        )
+    # Online path (allowed only if your environment permits)
+    return SentenceTransformer("sentence-transformers/gtr-t5-base")
 
 
 class EmbeddingBackend:
@@ -19,7 +41,18 @@ class EmbeddingBackend:
         self.model = None
         if SentenceTransformer is not None:
             try:
-                self.model = SentenceTransformer(model_name, device=device)
+                # Use the offline-aware loader instead of direct instantiation
+                local_path = os.getenv("LNSP_EMBEDDER_PATH")
+                if local_path and os.path.isdir(local_path):
+                    self.model = SentenceTransformer(local_path, device=device)
+                elif os.getenv("HF_HUB_OFFLINE") == "1" or os.getenv("TRANSFORMERS_OFFLINE") == "1":
+                    raise RuntimeError(
+                        "Embedder is offline but LNSP_EMBEDDER_PATH not set. "
+                        "Place the model at ./models/gtr-t5-base and export LNSP_EMBEDDER_PATH=./models/gtr-t5-base"
+                    )
+                else:
+                    # Online path (allowed only if your environment permits)
+                    self.model = SentenceTransformer(model_name, device=device)
             except Exception as exc:  # pragma: no cover
                 print(f"[EmbeddingBackend] Falling back to stub embeddings: {exc}")
                 self.model = None

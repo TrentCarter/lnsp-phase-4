@@ -208,16 +208,88 @@ CREATE INDEX concept_domain_index IF NOT EXISTS FOR (c:Concept) ON (c.domain_cod
 - `src/db_neo4j.py` - Neo4j interface for concept graphs
 - `src/db_faiss.py` - Faiss IVF-Flat indexing for 784D fused vectors
 
-### Faiss Configuration Addendum
-- **Index type:** `IndexIVFFlat` with cosine similarity (`IndexFlatIP` quantizer)
-- **Training/Index params:** `nlist=256`, `train_frac=0.05`, `nprobe` default 8 (bump to 16 for recall-sensitive queries)
-- **Sharding rule:** When a `(domain, task, modifier)` lane exceeds 1,500 items, allocate a dedicated IVF shard per lane (directory: `outputs/faiss/<lane_index>/`).
-- **Persistence:** Snapshot planned via `src/faiss_persist.py` (Day 2) producing `.ivf` artifacts alongside `.npz` metadata.
+### Faiss Configuration - S3 10k Dial-Plan
 
-### 100k Scaling Dial-Plan (P6)
-**Start Configuration (IVF_FLAT):**
-- `nlist=512`, `nprobe=32`
-- Default for 100k corpus scaling
+#### Phase A - Baseline IVF_FLAT (10k vectors)
+- **Index type:** `IndexIVFFlat` with cosine similarity (`IndexFlatIP` quantizer)
+- **Cluster parameters:** Dynamic nlist based on vector count (see Dynamic nlist Policy below)
+- **Search parameters:** `nprobe ∈ {8, 16, 24}` - tunable based on latency/accuracy tradeoff
+- **Training requirement:** Minimum 40×nlist training samples (enforced automatically)
+  - **Auto-correction:** Reduce nlist if n_train < 40×nlist with warning
+- **Sharding rule:** When a `(domain, task, modifier)` lane exceeds 1,500 items, allocate dedicated IVF shard
+- **Persistence:** `.ivf` artifacts alongside `.npz` metadata in `outputs/faiss/`
+
+#### Dynamic nlist Policy (S5 Addition)
+
+**Automatic nlist calculation to ensure proper training:**
+```python
+def calculate_nlist(n_vectors: int, requested_nlist: int | None = None) -> int:
+    max_safe_nlist = max(1, n_vectors // 40)  # Enforce 40× training rule
+
+    if requested_nlist:
+        if requested_nlist > max_safe_nlist:
+            print(f"Warning: Reducing nlist from {requested_nlist} to {max_safe_nlist}")
+        return min(requested_nlist, max_safe_nlist)
+
+    # Auto-select based on scale
+    if n_vectors < 8000:
+        return max_safe_nlist
+    elif n_vectors < 20000:
+        return min(200, max_safe_nlist)  # S3: 10k vectors → nlist=200
+    elif n_vectors < 40000:
+        return min(512, max_safe_nlist)
+    else:
+        return min(int(sqrt(n_vectors)), max_safe_nlist)
+```
+
+**Scale-based defaults:**
+- **<8k vectors:** nlist = n_vectors/40 (e.g., 5k → 125)
+- **8k-20k vectors:** nlist = 200 (safe for 10k target)
+- **20k-40k vectors:** nlist = 512
+- **40k+ vectors:** nlist = sqrt(n_vectors) capped at safe limit
+
+This ensures indices are always properly trained, preventing segfaults and poor performance from under-training.
+
+#### Phase B - Scale to IVF_PQ (≥100k vectors)
+- **Index type:** `IndexIVFPQ` for compression at scale
+- **Compression:** `m=8, nbits=8` (8 sub-quantizers, 256 centroids each)
+- **Memory savings:** ~8x reduction vs IVF_FLAT
+- **Accuracy tradeoff:** Expect 5-10% Hit@1 degradation
+- **Switchover trigger:** When index size > 500MB or vectors > 100k
+
+#### SLO Acceptance Gates (S3 Target)
+
+**Retrieval Quality (100-query FactoidWiki curated set):**
+- Hit@1 ≥ 45%
+- Hit@3 ≥ 55%
+- Hit@10 ≥ 70%
+
+**Latency Requirements (warm cache):**
+- P50 ≤ 80ms at nprobe ≤ 16
+- P95 ≤ 450ms at nprobe ≤ 16
+- P99 ≤ 800ms (degraded mode acceptable)
+
+**Index Build Constraints:**
+- Build time < 5 minutes for 10k vectors
+- Memory usage < 2GB during build
+- Index file size < 50MB for IVF_FLAT at 10k
+
+#### Index Telemetry Output
+Each build produces `artifacts/index_meta.json`:
+```json
+{
+  "vectors": 10000,
+  "trained": true,
+  "nlist": 512,
+  "nprobe": 16,
+  "index_type": "IVF_FLAT",
+  "metric": "inner_product",
+  "code_size": 784,
+  "build_time_sec": 120,
+  "file_size_mb": 35,
+  "timestamp": "2025-09-25T10:00:00Z"
+}
+```
 
 **Performance SLO Gate:**
 - If latency > SLO, try IVF_PQ with `m=8`, `nbits=8`
@@ -793,22 +865,120 @@ def call_local_llama(prompt: str) -> LlamaResponse:
     # Raise exception on empty text
 ```
 
-## CPESH Cache Policy and SLOs - S5 FINALIZED
+## CPESH Data Store - PERMANENT TRAINING DATA (NOT CACHE!)
 
-**Cache Configuration:**
-- **TTL**: Indefinite (no automatic expiration)
-- **Max Size**: 50,000 entries initial, expandable as needed
-- **Storage**: Append-only JSONL at `artifacts/cpesh_cache.jsonl`
-- **Pruning**: Manual/selective based on quality, usage patterns, and curation
+### ⚠️ CRITICAL UNDERSTANDING: CPESH IS TRAINING DATA, NOT CACHE
+
+**CPESH entries are PERMANENT TRAINING DATA for:**
+1. **Mamba Vector-Only Model Training** - Core training pairs
+2. **Vector-to-Text Decoder Training** - Reconstruction targets
+3. **VecRAG Retrieval System** - Contrastive navigation data
+4. **Future Model Development** - Historical training corpus
+
+**NEVER DELETE CPESH DATA - IT IS NOT EPHEMERAL!**
+
+### Scale Requirements
+- **Local Testing**: 10M entries (10 million)
+- **Production Target**: 10B entries (10 billion)
+- **Growth Rate**: Continuous accumulation, no expiration
+
+### Tiered Storage Architecture
+
+| Tier | Format | Size | Purpose | Access Pattern |
+|------|--------|------|---------|----------------|
+| **Active** | JSONL | <1M entries | Live inference + recent training | Read/Write, Low latency |
+| **Warm** | JSONL.gz | 1M-10M entries | Training batches, analysis | Read-mostly, Compressed |
+| **Cold** | Parquet | All (10B+) | Full training runs, archival | Batch read, Columnar |
+| **Index** | SQLite/DuckDB | Metadata only | ID→location mapping | Random access |
+
+### Storage Implementation
+```bash
+artifacts/
+├── cpesh_active.jsonl           # Latest 1M entries for fast access
+├── cpesh_warm_20250925.jsonl.gz # Compressed historical segments
+├── cpesh_warm_20250924.jsonl.gz
+├── cpesh_cold.parquet           # All historical data (append-only)
+└── cpesh_index.db               # Fast lookup index
+```
+
+### Configuration
+- **Active Rotation**: At 100MB or 1M entries → compress to warm tier
+- **Warm Retention**: Keep all compressed segments (no deletion!)
+- **Cold Storage**: Parquet for efficient columnar access at scale
 - **Format**: `{"doc_id": str, "cpesh": {...}, "created_at": iso8601, "last_accessed": iso8601, "access_count": int}`
-- **Timestamp Policy**: See `docs/timestamps.md` for detailed schema and implementation
+- **Timestamp Policy**: See `docs/timestamps.md` for detailed schema
+
+## CPESH Two-Stage Gating Policy (S5 Addition)
+
+### Overview
+CPESH acts as a confidence-gated accelerator, not a mandatory component. High-quality CPESH enables efficient targeted search; low-quality or missing CPESH triggers broader fallback search.
+
+### Quality Gates
+**Default thresholds:**
+- **Quality score**: ≥ 0.82
+- **Cosine similarity**: ≥ 0.55
+- **Insufficient evidence**: Excluded (never use)
+
+**Lane-specific overrides:**
+- **L1_FACTOID**: quality ≥ 0.85 (stricter for factual content)
+- **L2_NARRATIVE**: quality ≥ 0.82 (default)
+- **L3_INSTRUCTION**: quality ≥ 0.78 (more permissive)
+
+### Two-Stage Search Strategy
+
+```python
+if cpesh_passes_gates(entry):
+    # Stage 1: High-quality CPESH enables targeted search
+    results = search(nprobe=8, boost_with_cpesh)
+    decision = {"used_cpesh": True, "nprobe": 8}
+else:
+    # Stage 2: Fallback to broader search without CPESH
+    results = search(nprobe=16)
+    decision = {"used_cpesh": False, "nprobe": 16}
+
+# Log decision for analysis
+log_gating_decision(decision)
+```
+
+### Decision Logging
+Every query decision is logged to `artifacts/gating_decisions.jsonl`:
+```json
+{
+  "query_id": "uuid",
+  "lane": "L1_FACTOID",
+  "used_cpesh": true,
+  "quality": 0.87,
+  "cos": 0.62,
+  "chosen_nprobe": 8,
+  "latency_ms": 45.3,
+  "ts": 1695657600
+}
+```
+
+### Environment Variables
+```bash
+export LNSP_CPESH_Q_MIN=0.82      # Minimum quality score
+export LNSP_CPESH_COS_MIN=0.55    # Minimum cosine similarity
+export LNSP_NPROBE_CPESH=8        # nprobe when using CPESH
+export LNSP_NPROBE_DEFAULT=16     # nprobe for fallback
+```
+
+### Benefits
+1. **No quality degradation**: Poor CPESH can't hurt results
+2. **Performance boost**: Good CPESH enables efficient search (nprobe=8)
+3. **Observability**: Every decision logged for tuning
+4. **Adaptive**: Per-lane thresholds for different content types
 
 **Environment Variables:**
 ```bash
-# CPESH Cache Configuration
-export LNSP_CPESH_MAX_K=2                        # Max items to enrich per request
-export LNSP_CPESH_TIMEOUT_S=4                    # LLM timeout per extraction
-export LNSP_CPESH_CACHE=artifacts/cpesh_cache.jsonl  # Cache file location
+# CPESH Data Store Configuration (NOT CACHE - PERMANENT TRAINING DATA!)
+export LNSP_CPESH_MAX_K=2                             # Max items to enrich per request
+export LNSP_CPESH_TIMEOUT_S=4                         # LLM timeout per extraction
+export LNSP_CPESH_ACTIVE=artifacts/cpesh_active.jsonl # Active tier location
+export LNSP_CPESH_COLD=artifacts/cpesh_cold.parquet   # Cold storage (all data)
+export LNSP_CPESH_INDEX=artifacts/cpesh_index.db      # Lookup index
+export LNSP_CPESH_ROTATE_MB=100                       # Rotate active at 100MB
+export LNSP_CPESH_ROTATE_LINES=1000000               # Rotate active at 1M lines
 ```
 
 **Service Level Objectives (SLOs):**

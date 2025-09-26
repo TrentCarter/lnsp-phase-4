@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""
+CPESH Cache Pruning Utility
+
+Usage:
+    python scripts/prune_cache.py --manifest eval/prune_manifest.json [--dry-run]
+
+Features:
+- Atomic operations with backup
+- Detailed reporting
+- Dry-run capability
+- Manifest-based pruning rules
+"""
+
+import json
+import argparse
+import shutil
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, List, Any, Set
+
+
+def load_manifest(manifest_path: str) -> Dict[str, Any]:
+    """Load pruning manifest."""
+    with open(manifest_path, 'r') as f:
+        return json.load(f)
+
+
+def load_cache(cache_path: str) -> Dict[str, Any]:
+    """Load current CPESH cache."""
+    cache = {}
+    if not Path(cache_path).exists():
+        return cache
+
+    with open(cache_path, 'r', encoding='utf-8') as f:
+        for line_num, line in enumerate(f, 1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+                doc_id = entry.get('doc_id')
+                if doc_id:
+                    cache[doc_id] = entry
+            except json.JSONDecodeError as e:
+                print(f"Warning: Invalid JSON in cache line {line_num}: {e}")
+                continue
+
+    return cache
+
+
+def apply_pruning_rules(cache: Dict[str, Any], manifest: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any]:
+    """Apply pruning rules from manifest."""
+    rules = manifest.get('rules', {})
+    pruned_cache = {}
+    removed_entries = []
+
+    # Get current timestamp
+    now = datetime.now().isoformat()
+
+    for doc_id, entry in cache.items():
+        should_remove = False
+        reason = None
+
+        # Check echo_score rule
+        if 'echo_score' in rules:
+            min_score = rules['echo_score'].get('min_score', 0.82)
+            cpesh_data = entry.get('cpesh', {})
+            # Note: echo_score would need to be stored in cache entry
+            # For now, we'll skip this rule if not present
+            if 'echo_score' in cpesh_data:
+                if cpesh_data['echo_score'] < min_score:
+                    should_remove = True
+                    reason = f"echo_score {cpesh_data['echo_score']} < {min_score}"
+
+        # Check access_count rule
+        if not should_remove and 'access_count' in rules:
+            max_age_days = rules['access_count'].get('max_age_days', 14)
+            zero_access = rules['access_count'].get('remove_zero_access', True)
+
+            access_count = entry.get('access_count', 0)
+            if zero_access and access_count == 0:
+                should_remove = True
+                reason = f"zero access count"
+            elif access_count == 0:
+                # Check if last accessed is older than max_age_days
+                last_accessed = cpesh_data.get('last_accessed')
+                if last_accessed:
+                    try:
+                        from datetime import datetime
+                        last_dt = datetime.fromisoformat(last_accessed.replace('Z', '+00:00'))
+                        age_days = (datetime.now() - last_dt.replace(tzinfo=None)).days
+                        if age_days > max_age_days:
+                            should_remove = True
+                            reason = f"zero access for {age_days} days > {max_age_days}"
+                    except:
+                        pass
+
+        # Check curator list
+        if not should_remove and 'curator_list' in rules:
+            curator_list = rules['curator_list'].get('remove_doc_ids', [])
+            if doc_id in curator_list:
+                should_remove = True
+                reason = f"curator removal list"
+
+        # Check lane-specific rules
+        if not should_remove and 'lane_rules' in rules:
+            lane = cpesh_data.get('lane', 'L1_FACTOID')
+            if lane in rules['lane_rules']:
+                lane_rule = rules['lane_rules'][lane]
+                min_score = lane_rule.get('min_score', 0.82)
+                if 'echo_score' in cpesh_data and cpesh_data['echo_score'] < min_score:
+                    should_remove = True
+                    reason = f"lane {lane} echo_score {cpesh_data['echo_score']} < {min_score}"
+
+        if should_remove:
+            removed_entries.append({
+                'doc_id': doc_id,
+                'reason': reason or 'unknown rule',
+                'entry': entry
+            })
+        else:
+            pruned_cache[doc_id] = entry
+
+    return {
+        'pruned_cache': pruned_cache,
+        'removed_entries': removed_entries,
+        'stats': {
+            'original_count': len(cache),
+            'pruned_count': len(pruned_cache),
+            'removed_count': len(removed_entries)
+        }
+    }
+
+
+def save_pruned_cache(pruned_cache: Dict[str, Any], output_path: str) -> None:
+    """Save pruned cache to output path."""
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, 'w', encoding='utf-8') as f:
+        for doc_id, entry in pruned_cache.items():
+            # Update last_accessed timestamp before saving
+            now = datetime.now().isoformat()
+            if 'cpesh' in entry:
+                entry['cpesh']['last_accessed'] = now
+            f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+
+
+def generate_report(prune_result: Dict[str, Any], manifest_path: str, report_path: str) -> None:
+    """Generate pruning report."""
+    stats = prune_result['stats']
+    removed_entries = prune_result['removed_entries']
+
+    report = f"""# CPESH Cache Pruning Report
+
+**Generated:** {datetime.now().isoformat()}
+**Manifest:** {manifest_path}
+
+## Summary
+
+- **Original entries:** {stats['original_count']}
+- **Pruned entries:** {stats['pruned_count']}
+- **Removed entries:** {stats['removed_count']}
+- **Reduction:** {((stats['original_count'] - stats['pruned_count']) / stats['original_count'] * 100):.1f}%"}%
+
+## Removed Entries by Reason
+
+"""
+
+    reason_counts = {}
+    for entry in removed_entries:
+        reason = entry['reason']
+        reason_counts[reason] = reason_counts.get(reason, 0) + 1
+
+    for reason, count in sorted(reason_counts.items()):
+        report += f"- **{reason}:** {count} entries\n"
+
+    report += "\n## Sample Removed Entries\n\n"
+
+    # Show first 10 removed entries
+    for i, entry in enumerate(removed_entries[:10]):
+        report += f"### Entry {i+1}: {entry['doc_id']}\n"
+        report += f"- **Reason:** {entry['reason']}\n"
+        report += f"- **Access count:** {entry['entry'].get('access_count', 0)}\n"
+        if 'cpesh' in entry['entry']:
+            cpesh = entry['entry']['cpesh']
+            if 'echo_score' in cpesh:
+                report += f"- **Echo score:** {cpesh['echo_score']}\n"
+        report += "\n"
+
+    if len(removed_entries) > 10:
+        report += f"*... and {len(removed_entries) - 10} more entries*\n"
+
+    with open(report_path, 'w') as f:
+        f.write(report)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Prune CPESH cache based on manifest rules")
+    parser.add_argument("--manifest", required=True, help="Path to pruning manifest JSON")
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be pruned without making changes")
+    parser.add_argument("--cache-path", default="artifacts/cpesh_cache.jsonl", help="Path to current cache file")
+    parser.add_argument("--output-path", default="artifacts/cpesh_cache_pruned.jsonl", help="Path for pruned cache output")
+    parser.add_argument("--backup-path", default=None, help="Path for cache backup (auto-generated if not specified)")
+    parser.add_argument("--report-path", default="eval/prune_report.md", help="Path for pruning report")
+
+    args = parser.parse_args()
+
+    print("🔍 Loading manifest and cache...")
+
+    # Load manifest and cache
+    manifest = load_manifest(args.manifest)
+    cache = load_cache(args.cache_path)
+
+    print(f"📊 Loaded {len(cache)} cache entries from {args.cache_path}")
+
+    if not cache:
+        print("⚠️  No cache entries found. Nothing to prune.")
+        return
+
+    # Apply pruning rules
+    print("🔧 Applying pruning rules...")
+    prune_result = apply_pruning_rules(cache, manifest, dry_run=args.dry_run)
+
+    stats = prune_result['stats']
+    print("✅ Pruning analysis complete:"    print(f"   Original: {stats['original_count']} entries")
+    print(f"   Pruned: {stats['pruned_count']} entries")
+    print(f"   Removed: {stats['removed_count']} entries")
+
+    if args.dry_run:
+        print("🧪 DRY RUN - No changes made")
+        # Generate report anyway
+        generate_report(prune_result, args.manifest, args.report_path)
+        print(f"📋 Report saved to {args.report_path}")
+        return
+
+    # Create backup
+    cache_path = Path(args.cache_path)
+    backup_path = args.backup_path or f"{args.cache_path}.backup.{int(datetime.now().timestamp())}"
+    print(f"💾 Creating backup: {backup_path}")
+    shutil.copy2(args.cache_path, backup_path)
+
+    # Save pruned cache
+    print(f"💾 Saving pruned cache to {args.output_path}")
+    save_pruned_cache(prune_result['pruned_cache'], args.output_path)
+
+    # Generate report
+    generate_report(prune_result, args.manifest, args.report_path)
+    print(f"📋 Report saved to {args.report_path}")
+
+    print("🎉 Pruning complete!")
+    print(f"   Backup: {backup_path}")
+    print(f"   Pruned: {args.output_path}")
+    print(f"   Report: {args.report_path}")
+
+
+if __name__ == "__main__":
+    main()

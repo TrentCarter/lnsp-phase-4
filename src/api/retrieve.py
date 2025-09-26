@@ -32,6 +32,7 @@ from ..db_faiss import FaissDB
 from ..tmd_encoder import pack_tmd, lane_index_from_bits
 from ..vectorizer import EmbeddingBackend
 from ..utils.timestamps import get_iso_timestamp, migrate_legacy_cache_entry, update_cache_entry_access
+from ..utils.gating import CPESHGateConfig, apply_lane_overrides, should_use_cpesh, log_gating_decision, get_gating_metrics
 
 _ENV_NPZ = os.getenv("FAISS_NPZ_PATH")
 _NPZ_10K_768 = "artifacts/fw10k_vectors_768.npz"
@@ -89,6 +90,15 @@ class RetrievalContext:
 
         # Load FAISS index
         self._load_faiss_index()
+
+        # Initialize CPESH gating configuration
+        self.gate_cfg = CPESHGateConfig(
+            q_min=float(os.getenv("LNSP_CPESH_Q_MIN", "0.82")),
+            cos_min=float(os.getenv("LNSP_CPESH_COS_MIN", "0.55")),
+            nprobe_cpesh=int(os.getenv("LNSP_NPROBE_CPESH", "8")),
+            nprobe_fallback=int(os.getenv("LNSP_NPROBE_DEFAULT", "16")),
+            lane_overrides={"L1_FACTOID": {"q_min": 0.85}}
+        )
 
     def _validate_npz_schema(self, npz_path: str) -> None:
         """Validate NPZ file contains all required keys and correct dimensions."""
@@ -417,8 +427,50 @@ class RetrievalContext:
             if norm > 0:
                 fused_query = fused_query / norm
 
+        # Apply CPESH gating logic
+        import time
+        gate = apply_lane_overrides(self.gate_cfg, req.lane)
+        cpesh_entry = None
+        if hasattr(self, "cpesh_cache") and req.doc_id:
+            cpesh_entry = self.cpesh_cache.get(req.doc_id)
+
+        t0 = time.time()
+        used_cpesh = False
+        chosen_nprobe = gate.nprobe_fallback
+        quality_score = None
+        cosine_score = None
+
+        if should_use_cpesh(cpesh_entry, gate):
+            used_cpesh = True
+            chosen_nprobe = gate.nprobe_cpesh
+            quality_score = cpesh_entry.get("quality")
+            cosine_score = cpesh_entry.get("cosine")
+            # Use CPESH-assisted search with expected vector boost if available
+            expected_vec = cpesh_entry.get("expected_vec")
+            if expected_vec is not None:
+                candidates = self.faiss_db.search_legacy(fused_query, topk=req.top_k, use_lightrag=True, boost_vectors=[expected_vec]) or []
+            else:
+                candidates = self.faiss_db.search_legacy(fused_query, topk=req.top_k, use_lightrag=True, nprobe=chosen_nprobe) or []
+        else:
+            candidates = self.faiss_db.search_legacy(fused_query, topk=req.top_k, use_lightrag=True, nprobe=chosen_nprobe) or []
+
+        latency_ms = (time.time() - t0) * 1000.0
+
+        # Log gating decision
+        try:
+            log_gating_decision(
+                query_id=trace_id or "unknown",
+                lane=req.lane,
+                used_cpesh=used_cpesh,
+                quality=quality_score,
+                cosine=cosine_score,
+                chosen_nprobe=chosen_nprobe,
+                latency_ms=latency_ms
+            )
+        except Exception as e:
+            print(f"Failed to log gating decision: {e}")
+
         mode = settings.RETRIEVAL_MODE if settings.RETRIEVAL_MODE != "HYBRID" else "DENSE"
-        candidates = self.faiss_db.search_legacy(fused_query, topk=req.top_k, use_lightrag=True) or []
 
         # Apply lane_index filter if specified
         if req.lane_index is not None:
@@ -600,38 +652,175 @@ else:
             "lexical_L1": lexical_l1
         }
 
-    @app.get("/admin/faiss")
-    def admin_faiss() -> Dict[str, Any]:
-        """Return FAISS configuration and corpus stats without heavy initialization.
-
-        Fields: {nlist, nprobe, metric, dim, vectors}
-        Values are sourced from artifacts/faiss_meta.json and environment variables only
-        to ensure this endpoint responds quickly even when the retrieval context has
-        not been initialized.
-        """
-        import json
-
-        # Read metadata file
-        meta: Dict[str, Any] = {}
+    @app.get("/health/faiss")
+    def health_faiss() -> Dict[str, Any]:
+        """Return FAISS index health and configuration."""
+        ctx = get_context()
+        
+        # Get FAISS metadata
+        meta = {}
         try:
             with open("artifacts/faiss_meta.json", "r") as f:
                 meta = json.load(f)
         except Exception:
             pass
-
-        metric = "IP"  # We build indices with inner-product over L2-normalized vectors
-
-        # Override dimension based on LNSP_FUSED setting
-        use_fused = os.getenv("LNSP_FUSED", "0") == "1"
-        reported_dim = 784 if use_fused else 768
-
+        
+        # Get index metadata from the new index_meta.json if available
+        index_meta = {}
+        try:
+            with open("artifacts/index_meta.json", "r") as f:
+                all_meta = json.load(f)
+                # Get the most recent index metadata
+                if all_meta:
+                    latest_path = max(all_meta.keys(), key=lambda x: all_meta[x].get("build_time", 0))
+                    index_meta = all_meta[latest_path]
+        except Exception:
+            pass
+        
         return {
-            "nlist": int(meta.get("nlist", 0) or 0),
-            "nprobe": int(os.getenv("FAISS_NPROBE", "16") or 16),
-            "metric": metric,
-            "dim": reported_dim,
-            "vectors": int(meta.get("num_vectors", 0) or 0),
+            "loaded": ctx.loaded,
+            "type": index_meta.get("index_type", meta.get("index_type", "N/A")),
+            "metric": index_meta.get("metric", "IP"),
+            "nlist": index_meta.get("nlist", meta.get("nlist", 0)),
+            "nprobe": index_meta.get("nprobe", int(os.getenv("FAISS_NPROBE", "16"))),
+            "ntotal": index_meta.get("vectors", meta.get("num_vectors", 0))
         }
+
+    @app.get("/cache/stats")
+    def cache_stats() -> Dict[str, Any]:
+        """Return CPESH cache statistics."""
+        ctx = get_context()
+        
+        if not ctx.cpesh_cache:
+            return {
+                "entries": 0,
+                "oldest_created_at": None,
+                "newest_last_accessed": None,
+                "p50_access_age": None,
+                "top_docs_by_access": []
+            }
+        
+        entries = list(ctx.cpesh_cache.values())
+        
+        # Extract timestamps
+        created_ats = []
+        last_accesseds = []
+        access_counts = []
+        
+        for entry in entries:
+            cpesh_data = entry.get('cpesh', {})
+            if cpesh_data:
+                created_at = cpesh_data.get('created_at')
+                last_accessed = cpesh_data.get('last_accessed')
+                access_count = entry.get('access_count', 0)
+                
+                if created_at:
+                    created_ats.append(created_at)
+                if last_accessed:
+                    last_accesseds.append(last_accessed)
+                access_counts.append(access_count)
+        
+        # Calculate statistics
+        oldest_created = min(created_ats) if created_ats else None
+        newest_accessed = max(last_accesseds) if last_accesseds else None
+        
+        # Calculate p50 access age (median age in hours)
+        p50_age = None
+        if last_accesseds:
+            from datetime import datetime
+            now = datetime.now()
+            ages = []
+            for ts in last_accesseds:
+                try:
+                    dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                    age_hours = (now - dt.replace(tzinfo=None)).total_seconds() / 3600
+                    ages.append(age_hours)
+                except:
+                    pass
+            
+            if ages:
+                ages.sort()
+                mid = len(ages) // 2
+                p50_age = ages[mid] if len(ages) % 2 != 0 else (ages[mid-1] + ages[mid]) / 2
+        
+        # Top docs by access count
+        doc_access = {}
+        for entry in entries:
+            doc_id = entry.get('doc_id')
+            access_count = entry.get('access_count', 0)
+            if doc_id:
+                doc_access[doc_id] = doc_access.get(doc_id, 0) + access_count
+        
+        top_docs = sorted(doc_access.items(), key=lambda x: x[1], reverse=True)[:10]
+        
+        return {
+            "entries": len(entries),
+            "oldest_created_at": oldest_created,
+            "newest_last_accessed": newest_accessed,
+            "p50_access_age": round(p50_age, 2) if p50_age else None,
+            "top_docs_by_access": top_docs
+        }
+
+    @app.get("/metrics/slo")
+    def metrics_slo() -> Dict[str, Any]:
+        """Return SLO metrics from the last evaluation run."""
+        import json
+        
+        # Try to load the most recent evaluation report
+        eval_path = "eval/day_s3_report.md"
+        slo_data = {
+            "last_run": None,
+            "hit_at_1": None,
+            "hit_at_3": None,
+            "p50_latency": None,
+            "p95_latency": None,
+            "nprobe_recommended": None
+        }
+        
+        try:
+            with open(eval_path, 'r') as f:
+                content = f.read()
+                
+            # Simple parsing for key metrics (could be enhanced)
+            import re
+            
+            # Extract last run timestamp
+            last_run_match = re.search(r'Last run: ([^\n]+)', content)
+            if last_run_match:
+                slo_data["last_run"] = last_run_match.group(1)
+            
+            # Extract hit rates
+            hit1_match = re.search(r'Hit@1[^0-9]*([0-9.]+)%?', content)
+            if hit1_match:
+                slo_data["hit_at_1"] = float(hit1_match.group(1))
+                
+            hit3_match = re.search(r'Hit@3[^0-9]*([0-9.]+)%?', content)
+            if hit3_match:
+                slo_data["hit_at_3"] = float(hit3_match.group(1))
+            
+            # Extract latency metrics
+            p50_match = re.search(r'P50[^0-9]*([0-9.]+)\s*ms', content)
+            if p50_match:
+                slo_data["p50_latency"] = float(p50_match.group(1))
+                
+            p95_match = re.search(r'P95[^0-9]*([0-9.]+)\s*ms', content)
+            if p95_match:
+                slo_data["p95_latency"] = float(p95_match.group(1))
+            
+            # Extract recommended nprobe
+            nprobe_match = re.search(r'nprobe[^0-9]*([0-9]+)', content, re.IGNORECASE)
+            if nprobe_match:
+                slo_data["nprobe_recommended"] = int(nprobe_match.group(1))
+                
+        except Exception as e:
+            print(f"Could not load SLO metrics: {e}")
+        
+        return slo_data
+
+    @app.get("/metrics/gating")
+    def gating_metrics() -> Dict[str, Any]:
+        """Return CPESH gating usage metrics."""
+        return get_gating_metrics()
 
     @app.post("/search", response_model=SearchResponse)
     def search(req: SearchRequest, request: Request) -> SearchResponse:

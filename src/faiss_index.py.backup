@@ -1,69 +1,69 @@
 from __future__ import annotations
-import sys
-import os
-import time
-import json
-import math
-import numpy as np
-import argparse
-from dataclasses import dataclass
+    import sys
+    import os
+    import time
+    import json
+    import math
+    import numpy as np
+    import argparse
+    from dataclasses import dataclass
 
-# Add the parent directory to sys.path for direct execution
-if __name__ == "__main__":
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    parent_dir = os.path.dirname(current_dir)
-    if parent_dir not in sys.path:
-        sys.path.insert(0, parent_dir)
+    # Add the parent directory to sys.path for direct execution
+    if __name__ == "__main__":
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        parent_dir = os.path.dirname(current_dir)
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
 
-try:
-    import faiss
-except Exception:  # allow import before faiss is installed
-    faiss = None  # type: ignore
+    try:
+        import faiss
+    except Exception:  # allow import before faiss is installed
+        faiss = None  # type: ignore
 
-from utils.norms import l2_normalize
-
-
-@dataclass
-class IndexMetadata:
-    """Metadata container for index information."""
-    vectors: int
-    trained: bool
-    nlist: int
-    nprobe: int
-    metric: str
-    index_type: str
-    code_size: int
-    build_time: float
-    requested_nlist: int | None = None
-    max_safe_nlist: int | None = None
+    from utils.norms import l2_normalize
 
 
-def calculate_nlist(n_vectors: int, requested_nlist: int | None = None) -> int:
-    """Calculate safe nlist based on vector count and training requirements.
+    @dataclass
+    class IndexMetadata:
+        """Metadata container for index information."""
+        vectors: int
+        trained: bool
+        nlist: int
+        nprobe: int
+        metric: str
+        index_type: str
+        code_size: int
+        build_time: float
+        requested_nlist: int | None = None
+        max_safe_nlist: int | None = None
 
-    Args:
-        n_vectors: Number of vectors in the dataset
-        requested_nlist: User-requested nlist (optional)
 
-    Returns:
-        Safe nlist value that satisfies 40× training rule
-    """
-    max_safe_nlist = max(1, n_vectors // 40)  # 40× training rule
+    def calculate_nlist(n_vectors: int, requested_nlist: int | None = None) -> int:
+        """Calculate safe nlist based on vector count and training requirements.
 
-    if requested_nlist:
-        if requested_nlist > max_safe_nlist:
-            print(f"[faiss_index] Warning: reducing nlist from {requested_nlist} -> {max_safe_nlist} to satisfy 40× rule")
-        return min(requested_nlist, max_safe_nlist)
+        Args:
+            n_vectors: Number of vectors in the dataset
+            requested_nlist: User-requested nlist (optional)
 
-    # auto-select by scale
-    if n_vectors < 8000:
-        return max_safe_nlist
-    elif n_vectors < 20000:
-        return min(200, max_safe_nlist)
-    elif n_vectors < 40000:
-        return min(512, max_safe_nlist)
-    else:
-        return min(int(math.sqrt(n_vectors)), max_safe_nlist)
+        Returns:
+            Safe nlist value that satisfies 40× training rule
+        """
+        max_safe_nlist = max(1, n_vectors // 40)  # 40× training rule
+
+        if requested_nlist:
+            if requested_nlist > max_safe_nlist:
+                print(f"[faiss_index] Warning: reducing nlist from {requested_nlist} -> {max_safe_nlist} to satisfy 40× rule")
+            return min(requested_nlist, max_safe_nlist)
+
+        # auto-select by scale
+        if n_vectors < 8000:
+            return max_safe_nlist
+        elif n_vectors < 20000:
+            return min(200, max_safe_nlist)
+        elif n_vectors < 40000:
+            return min(512, max_safe_nlist)
+        else:
+            return min(int(math.sqrt(n_vectors)), max_safe_nlist)
 
 
 def build_ivf_flat_cosine(vectors: np.ndarray, nlist: int = 256, train_frac: float = 0.05):
@@ -83,14 +83,14 @@ def build_ivf_flat_cosine(vectors: np.ndarray, nlist: int = 256, train_frac: flo
     # training sample
     k = max(1, int(N * train_frac))
     ids = np.random.default_rng(0).choice(N, size=min(k, N), replace=False)
-
+    
     # Training validation: ensure adequate training data
     if N < nlist * 40:
         print(f"[ERROR] Insufficient training vectors: {N} < 40×nlist ({nlist*40})")
         print(f"[HINT] Reduce nlist to ≤ {N//40} or increase training data")
         print(f"[HINT] Current nlist={nlist} requires ≥ {nlist*40} training vectors")
         return None, False
-
+        
     index.train(vecs[ids])
     index.add(vecs)
     # Default nprobe can be overridden via env
@@ -226,17 +226,13 @@ def main() -> int:
     print(f"[faiss_index] Building {args.type} index with {N} vectors of dim {D}")
     print(f"[faiss_index] Metric: {args.metric}, nlist: {args.nlist}, nprobe: {args.nprobe}")
 
-    # Use dynamic nlist calculation
-    nlist = calculate_nlist(len(vectors), args.nlist)
-    nprobe = args.nprobe
-
     start_time = time.time()
     if args.type == "ivf_pq":
         index, trained = build_ivf_pq_cosine(
-            vectors, nlist=nlist, m=args.pq_m, nbits=args.pq_nbits
+            vectors, nlist=args.nlist, m=args.pq_m, nbits=args.pq_nbits
         )
     else:
-        index, trained = build_ivf_flat_cosine(vectors, nlist=nlist)
+        index, trained = build_ivf_flat_cosine(vectors, nlist=args.nlist)
 
     if not trained or index is None:
         print("[faiss_index] Failed to build index")
@@ -256,16 +252,18 @@ def main() -> int:
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     faiss.write_index(index, out_path)
 
-    # Save metadata with dynamic nlist info
+    # Save metadata
     meta = {
-        "type": args.type,
-        "metric": args.metric,
-        "nlist": nlist,
-        "nprobe": nprobe,
-        "count": len(vectors),
-        "build_seconds": round(build_time, 2),
-        "requested_nlist": args.nlist,
-        "max_safe_nlist": max(1, len(vectors)//40),
+        "vectors": int(N),
+        "trained": bool(trained),
+        "nlist": int(args.nlist),
+        "nprobe": int(args.nprobe),
+        "metric": str(args.metric),
+        "index_type": str(args.type),
+        "code_size": index_size,
+        "build_time": round(build_time, 2),
+        "pq_m": getattr(args, 'pq_m', None),
+        "pq_nbits": getattr(args, 'pq_nbits', None)
     }
     _save_index_meta(out_path, meta)
 
