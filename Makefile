@@ -1,4 +1,4 @@
-.PHONY: install smoke test db-up db-down consultant-eval faiss-setup ingest-10k build-faiss api prune slo-snapshot gating-snapshot
+.PHONY: install smoke test db-up db-down consultant-eval faiss-setup ingest-10k build-faiss api prune slo-snapshot gating-snapshot smoketest
 
 install:
 	python3 -m venv .venv && . .venv/bin/activate && pip install --upgrade pip \
@@ -73,3 +73,6 @@ workflow-prune: prune build-faiss
 	@echo "🔄 Prune and re-index complete!"
 	@echo "   Take snapshot: make slo-snapshot"
 	@echo "   Run eval: make consultant-eval"
+
+smoketest:
+	@bash scripts/s7_smoketest.sh
