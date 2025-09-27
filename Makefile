@@ -95,3 +95,26 @@ workflow-prune: prune build-faiss
 
 smoketest:
 	@bash scripts/s7_smoketest.sh
+
+# === QC & Backfill Tools (Sprint S2) ===
+
+.PHONY: lnsprag-validate
+lnsprag-validate:
+	@python3 tools/lnsprag_validator.py \
+		--chunks-jsonl artifacts/cpesh_active.jsonl \
+		--cpesh-jsonl artifacts/cpesh_active.jsonl \
+		--tmd-default 9.1.27 \
+		--min-words 120 \
+		--p95-target 250
+
+.PHONY: cpesh-backfill
+cpesh-backfill:
+	@python3 tools/cpesh_backfill.py \
+		--chunks-jsonl artifacts/cpesh_active.jsonl \
+		--out-jsonl artifacts/cpesh_backfill_windows.jsonl \
+		--min-words 180 --max-words 320
+
+.PHONY: tmd-report
+tmd-report:
+	@python3 tools/tmd_histogram_report.py \
+		--chunks-jsonl artifacts/cpesh_active.jsonl --top-n 30
