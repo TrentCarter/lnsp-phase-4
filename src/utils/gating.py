@@ -24,7 +24,7 @@ class CPESHGateConfig:
     q_min: float = 0.82
     cos_min: float = 0.55
     nprobe_cpesh: int = 8
-    nprobe_fallback: int = 16
+    nprobe_fallback: int = 24
     lane_overrides: Optional[Dict[str, Dict[str, float]]] = None
 
     def __post_init__(self):
@@ -97,7 +97,7 @@ def create_gate_config_from_env() -> CPESHGateConfig:
         q_min=float(os.getenv("LNSP_CPESH_Q_MIN", "0.82")),
         cos_min=float(os.getenv("LNSP_CPESH_COS_MIN", "0.55")),
         nprobe_cpesh=int(os.getenv("LNSP_NPROBE_CPESH", "8")),
-        nprobe_fallback=int(os.getenv("LNSP_NPROBE_DEFAULT", "16")),
+        nprobe_fallback=int(os.getenv("LNSP_NPROBE_DEFAULT", "24")),
         lane_overrides={"L1_FACTOID": {"q_min": 0.85}}  # L1 stricter by default
     )
 

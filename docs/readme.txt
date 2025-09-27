@@ -3,6 +3,9 @@
 
 This README is focused on the current Phase 4 repository. Legacy notes and command dumps from earlier projects have been archived to `docs/archive/readme_legacy_20250918.txt`.
 
+# 9/26/2025
+make lnsp-status   #LNSP RAG — System Status
+
 # 9/24/2025
 PYTHONPATH=src \
 LNSP_LLM_ENDPOINT=http://127.0.0.1:11434 \

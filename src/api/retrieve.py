@@ -9,6 +9,7 @@ import os
 import re
 import uuid
 import json
+from collections import deque
 
 # Set FAISS threading early to avoid segfaults
 try:
@@ -27,6 +28,8 @@ try:  # FastAPI is optional at runtime
 except ImportError:  # pragma: no cover
     FastAPI = None  # type: ignore
 
+from pydantic import BaseModel, Field
+
 from ..schemas import CPESHDiagnostics, SearchRequest, SearchResponse, SearchItem, CPESH
 from ..config import settings
 from .cache import _search_cache
@@ -38,7 +41,12 @@ from ..prompt_extractor import extract_cpe_from_text
 from ..db_faiss import FaissDB
 from ..tmd_encoder import pack_tmd, lane_index_from_bits
 from ..vectorizer import EmbeddingBackend
-from ..utils.timestamps import get_iso_timestamp, migrate_legacy_cache_entry, update_cache_entry_access
+from ..utils.timestamps import (
+    get_iso_timestamp,
+    migrate_legacy_cache_entry,
+    migrate_cpesh_record,
+    update_cache_entry_access,
+)
 from ..utils.gating import CPESHGateConfig, apply_lane_overrides, should_use_cpesh, log_gating_decision, get_gating_metrics
 
 _ENV_NPZ = os.getenv("FAISS_NPZ_PATH")
@@ -49,6 +57,51 @@ DEFAULT_NPZ = _ENV_NPZ or (_NPZ_10K_768 if os.path.exists(_NPZ_10K_768) else (_N
 
 LANE_MAP = {0: "L1_FACTOID", 1: "L2_GRAPH", 2: "L3_SYNTH"}
 MODE_MAP = {"dense": "DENSE", "graph": "GRAPH", "hybrid": "HYBRID", "lexical": "HYBRID"}
+
+
+def _graph_feature_enabled() -> bool:
+    return os.getenv("LNSP_GRAPHRAG_ENABLED", "0") == "1"
+
+
+class GraphHopRequest(BaseModel):
+    node_id: str
+    max_hops: int = Field(default=2, ge=1, le=4)
+    top_k: int = Field(default=25, ge=1, le=200)
+
+
+def _rrf_merge(result_lists: Sequence[Sequence[Dict[str, Any]]], top_k: int, k: int = 60) -> List[Dict[str, Any]]:
+    """Reciprocal rank fusion across multiple retrieval result lists."""
+    if not result_lists:
+        return []
+
+    scores: Dict[str, float] = {}
+    exemplars: Dict[str, Dict[str, Any]] = {}
+
+    def key_for(item: Dict[str, Any]) -> Optional[str]:
+        return item.get("cpe_id") or item.get("id") or item.get("doc_id")
+
+    for lst in result_lists:
+        for rank, item in enumerate(lst):
+            identifier = key_for(item)
+            if not identifier:
+                continue
+            scores[identifier] = scores.get(identifier, 0.0) + 1.0 / (k + rank + 1)
+            exemplars.setdefault(identifier, item)
+
+    ordered = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+    fused: List[Dict[str, Any]] = []
+    for identifier, fusion_score in ordered[:top_k]:
+        exemplar = dict(exemplars[identifier])
+        exemplar.setdefault("raw_score", exemplar.get("score"))
+        exemplar["score"] = fusion_score
+        exemplar["rrf_score"] = fusion_score
+        fused.append(exemplar)
+
+    # Reassign ranks based on fused order
+    for idx, item in enumerate(fused, start=1):
+        item["rank"] = idx
+
+    return fused
 
 
 class RetrievalContext:
@@ -95,10 +148,7 @@ class RetrievalContext:
         # Initialize embedder before loading index (needed for probe)
         self.embedder = EmbeddingBackend()
 
-        # Load FAISS index
-        self._load_faiss_index()
-
-        # Initialize CPESH gating configuration
+        # Initialize CPESH gating configuration BEFORE loading index (needed for probe)
         self.gate_cfg = CPESHGateConfig(
             q_min=float(os.getenv("LNSP_CPESH_Q_MIN", "0.82")),
             cos_min=float(os.getenv("LNSP_CPESH_COS_MIN", "0.55")),
@@ -106,6 +156,9 @@ class RetrievalContext:
             nprobe_fallback=int(os.getenv("LNSP_NPROBE_DEFAULT", "16")),
             lane_overrides={"L1_FACTOID": {"q_min": 0.85}}
         )
+
+        # Load FAISS index
+        self._load_faiss_index()
 
     def _validate_npz_schema(self, npz_path: str) -> None:
         """Validate NPZ file contains all required keys and correct dimensions."""
@@ -173,25 +226,43 @@ class RetrievalContext:
             raise RuntimeError(f"Search probe failed: {e}")
 
     def _load_faiss_index(self) -> None:
-        """Load FAISS index from metadata."""
-        meta_path = Path("artifacts/faiss_meta.json")
-        if meta_path.exists():
-            with meta_path.open('r') as f:
-                meta = json.load(f)
-
-            index_path = meta.get("index_path")
-            if index_path and Path(index_path).exists():
-                self.loaded = self.faiss_db.load(index_path)
-                if self.loaded:
-                    self._build_catalog()
-                    # Run search smoke test after successful load
-                    self._probe_search_smoke()
-                else:
-                    print(f"[RetrievalContext] Failed to load index from {index_path}")
+        """Load FAISS index from metadata or environment variable."""
+        # Check for environment variable override first
+        env_index_path = os.getenv("LNSP_FAISS_INDEX")
+        if env_index_path:
+            if Path(env_index_path).exists():
+                index_path = env_index_path
+                print(f"[RetrievalContext] Using index from LNSP_FAISS_INDEX: {index_path}")
             else:
-                print(f"[RetrievalContext] Index path not found in {meta_path} or file does not exist")
+                print(f"[RetrievalContext] Warning: LNSP_FAISS_INDEX={env_index_path} does not exist, falling back to metadata")
+                env_index_path = None
+
+        # If no env var or it doesn't exist, use metadata
+        if not env_index_path:
+            meta_path = Path("artifacts/faiss_meta.json")
+            if meta_path.exists():
+                with meta_path.open('r') as f:
+                    meta = json.load(f)
+                index_path = meta.get("index_path")
+            else:
+                print(f"[RetrievalContext] faiss_meta.json not found; retrieval will be empty")
+                return
+
+        if index_path and Path(index_path).exists():
+            self.loaded = self.faiss_db.load(index_path)
+            if self.loaded:
+                self._build_catalog()
+                # Run search smoke test after successful load (if not disabled)
+                if os.getenv("LNSP_DISABLE_STARTUP_PROBE", "1") != "1":
+                    try:
+                        self._probe_search_smoke()
+                    except Exception as e:
+                        # log-but-don't-fail startup
+                        print(f"[startup] probe skipped: {e}")
+            else:
+                print(f"[RetrievalContext] Failed to load index from {index_path}")
         else:
-            print(f"[RetrievalContext] faiss_meta.json not found; retrieval will be empty")
+            print(f"[RetrievalContext] Index path not found or file does not exist")
 
     def _ensure_llm(self):
         if self._llm is None:
@@ -320,22 +391,14 @@ class RetrievalContext:
         entry = update_cache_entry_access(self.cpesh_cache[doc_id])
 
         # Extract CPESH data
-        cpesh_data = entry.get('cpesh', {})
-        if not isinstance(cpesh_data, dict):
+        cpesh_data_raw = entry.get('cpesh', {})
+        if not isinstance(cpesh_data_raw, dict):
             return None
 
         try:
-            return CPESH(
-                concept=cpesh_data.get('concept'),
-                probe=cpesh_data.get('probe'),
-                expected=cpesh_data.get('expected'),
-                soft_negative=cpesh_data.get('soft_negative'),
-                hard_negative=cpesh_data.get('hard_negative'),
-                soft_sim=cpesh_data.get('soft_sim'),
-                hard_sim=cpesh_data.get('hard_sim'),
-                created_at=cpesh_data.get('created_at'),
-                last_accessed=cpesh_data.get('last_accessed')
-            )
+            cpesh_data = migrate_cpesh_record({**cpesh_data_raw})
+            cpesh_data['access_count'] = entry.get('access_count', cpesh_data.get('access_count', 0))
+            return CPESH(**cpesh_data)
         except Exception as e:
             print(f"[RetrievalContext] Failed to parse cached CPESH for {doc_id}: {e}")
             return None
@@ -343,21 +406,25 @@ class RetrievalContext:
     def put_cpesh_to_cache(self, doc_id: str, cpesh: CPESH) -> None:
         """Store CPESH in cache by doc_id."""
         now = get_iso_timestamp()
+        payload = cpesh.model_dump(by_alias=True, exclude_none=True)
+        # Maintain legacy keys for compatibility
+        payload['concept'] = cpesh.concept
+        payload['probe'] = cpesh.probe
+        payload['expected'] = cpesh.expected
+        payload['soft_negative'] = cpesh.soft_negative
+        payload['hard_negative'] = cpesh.hard_negative
+        payload['soft_sim'] = cpesh.soft_sim
+        payload['hard_sim'] = cpesh.hard_sim
+        payload['created_at'] = cpesh.created_at or now
+        payload['last_accessed'] = now
+        payload['access_count'] = max(1, int(cpesh.access_count or 0))
 
         entry = {
             'doc_id': doc_id,
-            'cpesh': {
-                'concept': cpesh.concept,
-                'probe': cpesh.probe,
-                'expected': cpesh.expected,
-                'soft_negative': cpesh.soft_negative,
-                'hard_negative': cpesh.hard_negative,
-                'soft_sim': cpesh.soft_sim,
-                'hard_sim': cpesh.hard_sim,
-                'created_at': cpesh.created_at or now,
-                'last_accessed': now
-            },
-            'access_count': 1
+            'cpesh': payload,
+            'access_count': payload['access_count'],
+            'quality': payload.get('quality'),
+            'cosine': payload.get('soft_sim'),
         }
 
         self.cpesh_cache[doc_id] = entry
@@ -437,9 +504,15 @@ class RetrievalContext:
         # Apply CPESH gating logic
         import time
         gate = apply_lane_overrides(self.gate_cfg, req.lane)
-        cpesh_entry = None
+        cpesh_entry: Optional[Dict[str, Any]] = None
+        cpesh_payload: Optional[Dict[str, Any]] = None
         if hasattr(self, "cpesh_cache") and req.doc_id:
             cpesh_entry = self.cpesh_cache.get(req.doc_id)
+            if isinstance(cpesh_entry, dict):
+                inner = cpesh_entry.get('cpesh')
+                cpesh_payload = inner if isinstance(inner, dict) else cpesh_entry
+            elif isinstance(cpesh_entry, CPESH):
+                cpesh_payload = cpesh_entry.model_dump(by_alias=True)
 
         t0 = time.time()
         used_cpesh = False
@@ -447,19 +520,47 @@ class RetrievalContext:
         quality_score = None
         cosine_score = None
 
-        if should_use_cpesh(cpesh_entry, gate):
+        gate_source = cpesh_payload or cpesh_entry
+
+        if gate_source and should_use_cpesh(gate_source, gate):
             used_cpesh = True
             chosen_nprobe = gate.nprobe_cpesh
-            quality_score = cpesh_entry.get("quality")
-            cosine_score = cpesh_entry.get("cosine")
-            # Use CPESH-assisted search with expected vector boost if available
-            expected_vec = cpesh_entry.get("expected_vec")
-            if expected_vec is not None:
-                candidates = self.faiss_db.search_legacy(fused_query, topk=req.top_k, use_lightrag=True, boost_vectors=[expected_vec]) or []
+            quality_score = gate_source.get("quality") if isinstance(gate_source, dict) else None
+            cosine_score = gate_source.get("cosine") if isinstance(gate_source, dict) else None
+
+            base_candidates = self.faiss_db.search_legacy(
+                fused_query,
+                topk=req.top_k,
+                use_lightrag=True,
+                nprobe=chosen_nprobe,
+            ) or []
+
+            expected_text = None
+            if isinstance(cpesh_payload, dict):
+                expected_text = cpesh_payload.get("expected_answer") or cpesh_payload.get("expected")
+
+            if expected_text:
+                expected_vec_raw = self.embedder.encode([expected_text])[0].astype(np.float32)
+                expected_norm = float(np.linalg.norm(expected_vec_raw))
+                expected_vec = (
+                    expected_vec_raw if expected_norm == 0 else (expected_vec_raw / expected_norm)
+                )
+                expected_candidates = self.faiss_db.search_legacy(
+                    expected_vec,
+                    topk=req.top_k,
+                    use_lightrag=True,
+                    nprobe=gate.nprobe_cpesh,
+                ) or []
+                candidates = _rrf_merge([base_candidates, expected_candidates], req.top_k)
             else:
-                candidates = self.faiss_db.search_legacy(fused_query, topk=req.top_k, use_lightrag=True, nprobe=chosen_nprobe) or []
+                candidates = base_candidates
         else:
-            candidates = self.faiss_db.search_legacy(fused_query, topk=req.top_k, use_lightrag=True, nprobe=chosen_nprobe) or []
+            candidates = self.faiss_db.search_legacy(
+                fused_query,
+                topk=req.top_k,
+                use_lightrag=True,
+                nprobe=chosen_nprobe,
+            ) or []
 
         latency_ms = (time.time() - t0) * 1000.0
 
@@ -661,43 +762,100 @@ else:
 
     @app.get("/health/faiss")
     def health_faiss() -> Dict[str, Any]:
-        """Return FAISS index health and configuration."""
-        ctx = get_context()
-        
-        # Get FAISS metadata
-        meta = {}
-        try:
-            with open("artifacts/faiss_meta.json", "r") as f:
-                meta = json.load(f)
-        except Exception:
-            pass
-        
-        # Get index metadata from the new index_meta.json if available
-        index_meta = {}
-        try:
-            with open("artifacts/index_meta.json", "r") as f:
-                all_meta = json.load(f)
-                # Get the most recent index metadata
-                if all_meta:
-                    latest_path = max(all_meta.keys(), key=lambda x: all_meta[x].get("build_time", 0))
-                    index_meta = all_meta[latest_path]
-        except Exception:
-            pass
-        
-        return {
-            "loaded": ctx.loaded,
-            "type": index_meta.get("index_type", meta.get("index_type", "N/A")),
-            "metric": index_meta.get("metric", "IP"),
-            "nlist": index_meta.get("nlist", meta.get("nlist", 0)),
-            "nprobe": index_meta.get("nprobe", int(os.getenv("FAISS_NPROBE", "16"))),
-            "ntotal": index_meta.get("vectors", meta.get("num_vectors", 0))
+        """Robust FAISS health: never raises; reports what's known."""
+        info = {
+            "loaded": False, "trained": None, "ntotal": None,
+            "dim": None, "type": None, "metric": None, "nlist": None,
+            "error": None,
         }
+        try:
+            # Try to get context safely
+            ctx = None
+            try:
+                ctx = get_context()
+            except Exception as ctx_error:
+                info["error"] = f"Context initialization failed: {ctx_error}"
+
+            # Get index metadata from the new index_meta.json if available
+            index_meta = {}
+            try:
+                with open("artifacts/index_meta.json", "r") as f:
+                    all_meta = json.load(f)
+                    # Get the most recent index metadata
+                    if all_meta:
+                        latest_path = max(all_meta.keys(), key=lambda x: all_meta[x].get("build_seconds", 0))
+                        index_meta = all_meta[latest_path]
+            except Exception:
+                pass
+
+            # Get basic info from files even if context failed
+            if index_meta:
+                info["type"] = index_meta.get("type", None)
+                info["metric"] = index_meta.get("metric", None)
+                info["nlist"] = index_meta.get("nlist", None)
+                info["ntotal"] = index_meta.get("count", None)
+                info["loaded"] = info["ntotal"] is not None and info["ntotal"] > 0
+
+            # If context is available, get additional info
+            if ctx is not None:
+                idx = getattr(ctx, "index", None)
+                info["type"] = info["type"] or getattr(ctx, "index_type", None)
+                info["metric"] = info["metric"] or getattr(ctx, "metric", None)
+
+                # FAISS attrs vary by index type; guard everything
+                if idx is not None:
+                    info["trained"] = bool(getattr(idx, "is_trained", False))
+                    info["ntotal"] = info["ntotal"] or int(getattr(idx, "ntotal", 0))
+                    info["dim"] = (getattr(idx, "d", None) or getattr(idx, "dim", None))
+                    if hasattr(idx, "nlist"):
+                        info["nlist"] = info["nlist"] or getattr(idx, "nlist", None)
+                    info["loaded"] = info["loaded"] or (info["ntotal"] is not None and info["ntotal"] > 0)
+
+        except Exception as e:
+            info["error"] = str(e)
+
+        return info
+
+    @app.get("/cpesh/segments")
+    def cpesh_segments() -> Dict[str, Any]:
+        """List CPESH Parquet segments with basic metadata."""
+        manifest_path = Path("artifacts/cpesh_manifest.jsonl")
+        if not manifest_path.exists():
+            return {"segments": [], "count": 0}
+
+        segments: List[Dict[str, Any]] = []
+        with manifest_path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                segment_path = entry.get("path")
+                size_bytes = None
+                if segment_path and Path(segment_path).exists():
+                    try:
+                        size_bytes = os.path.getsize(segment_path)
+                    except OSError:
+                        size_bytes = None
+                segments.append(
+                    {
+                        "segment_id": entry.get("segment_id"),
+                        "path": segment_path,
+                        "rows": entry.get("rows"),
+                        "created_utc": entry.get("created_utc"),
+                        "bytes": size_bytes,
+                    }
+                )
+
+        return {"segments": segments, "count": len(segments)}
 
     @app.get("/cache/stats")
     def cache_stats() -> Dict[str, Any]:
         """Return CPESH cache statistics."""
         ctx = get_context()
-        
+
         if not ctx.cpesh_cache:
             return {
                 "entries": 0,
@@ -828,6 +986,102 @@ else:
     def gating_metrics() -> Dict[str, Any]:
         """Return CPESH gating usage metrics."""
         return get_gating_metrics()
+
+    @app.post("/graph/search")
+    def graph_search(req: SearchRequest) -> Dict[str, Any]:
+        """Execute a GraphRAG query when the feature flag is enabled."""
+        if not _graph_feature_enabled():
+            raise HTTPException(status_code=501, detail="GraphRAG disabled (set LNSP_GRAPHRAG_ENABLED=1)")
+
+        lane = req.lane or "L2_GRAPH"
+        try:
+            from ..adapters.lightrag import graphrag_runner as gr
+
+            config_path = Path(os.getenv("LNSP_GRAPHRAG_CONFIG", "configs/lightrag.yml"))
+            cfg = gr._load_config(config_path)
+            LightRAG = gr._load_lightrag()
+            query_item = gr.QueryItem(lane=lane, text=req.q)
+            result = gr._run_query(LightRAG, cfg, query_item)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=f"GraphRAG runtime error: {exc}") from exc
+        except Exception as exc:  # pragma: no cover - defensive guard
+            raise HTTPException(status_code=500, detail=f"GraphRAG error: {exc}") from exc
+
+        return {"lane": lane, "query": req.q, "result": result}
+
+    @app.post("/graph/hop")
+    def graph_hop(payload: GraphHopRequest) -> Dict[str, Any]:
+        """Return neighboring nodes from the local knowledge-graph edges."""
+        if not _graph_feature_enabled():
+            raise HTTPException(status_code=501, detail="GraphRAG disabled (set LNSP_GRAPHRAG_ENABLED=1)")
+
+        edges_path = Path(os.getenv("LNSP_GRAPH_EDGES", "artifacts/kg/edges.jsonl"))
+        if not edges_path.exists():
+            raise HTTPException(status_code=404, detail=f"Edges file not found at {edges_path}")
+
+        adjacency: Dict[str, List[Dict[str, Any]]] = {}
+        with edges_path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                try:
+                    edge = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                src = edge.get("subj") or edge.get("src")
+                dst = edge.get("obj") or edge.get("dst")
+                if not src or not dst:
+                    continue
+                payload_edge = {
+                    "source": src,
+                    "target": dst,
+                    "predicate": edge.get("pred") or edge.get("rel"),
+                    "confidence": edge.get("confidence"),
+                }
+                adjacency.setdefault(src, []).append(payload_edge)
+                # treat edges as undirected for exploration convenience
+                reverse = {
+                    "source": dst,
+                    "target": src,
+                    "predicate": edge.get("pred") or edge.get("rel"),
+                    "confidence": edge.get("confidence"),
+                }
+                adjacency.setdefault(dst, []).append(reverse)
+
+        start = payload.node_id
+        visited: Dict[str, int] = {start: 0}
+        queue = deque([(start, 0)])
+        results: List[Dict[str, Any]] = []
+
+        while queue and len(results) < payload.top_k:
+            node, depth = queue.popleft()
+            if depth >= payload.max_hops:
+                continue
+            for edge in adjacency.get(node, []):
+                neighbor = edge["target"]
+                next_depth = depth + 1
+                prev = visited.get(neighbor)
+                if prev is not None and prev <= next_depth:
+                    continue
+                visited[neighbor] = next_depth
+                results.append({
+                    "source": edge["source"],
+                    "target": neighbor,
+                    "predicate": edge.get("predicate"),
+                    "confidence": edge.get("confidence"),
+                    "hops": next_depth,
+                })
+                if len(results) >= payload.top_k:
+                    break
+                queue.append((neighbor, next_depth))
+
+        return {
+            "start": start,
+            "max_hops": payload.max_hops,
+            "results": results,
+        }
 
     @app.post("/search", response_model=SearchResponse)
     def search(req: SearchRequest, request: Request) -> SearchResponse:

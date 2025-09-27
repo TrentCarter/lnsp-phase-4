@@ -1,4 +1,4 @@
-.PHONY: install smoke test db-up db-down consultant-eval faiss-setup ingest-10k build-faiss api prune slo-snapshot gating-snapshot smoketest
+.PHONY: install smoke test db-up db-down consultant-eval faiss-setup ingest-10k build-faiss api prune slo-snapshot gating-snapshot smoketest cpesh-rotate cpesh-index
 
 install:
 	python3 -m venv .venv && . .venv/bin/activate && pip install --upgrade pip \
@@ -11,6 +11,19 @@ faiss-setup:
 	@./scripts/setup_faiss_env.sh $(ARGS) | tee artifacts/setup_faiss_env.log
 	@echo "strategy=$$(grep -m1 '^::strategy=' artifacts/setup_faiss_env.log | cut -d= -f2)" \t    "date=$$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> artifacts/runtime.txt
 	@echo "[faiss-setup] complete. Strategy recorded in artifacts/runtime.txt"
+
+.PHONY: lnsp-status
+lnsp-status:
+	@PYTHONPATH=src ./.venv/bin/python tools/lnsprag_status.py --api http://127.0.0.1:$${PORT:-8092}
+
+.PHONY: cpesh-rotate
+cpesh-rotate:
+	@./.venv/bin/python scripts/cpesh_rotate.py
+
+.PHONY: cpesh-index
+cpesh-index:
+	@./.venv/bin/python scripts/cpesh_index_refresh.py
+
 
 # === Sprint 3 Tasks ===
 

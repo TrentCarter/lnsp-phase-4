@@ -98,6 +98,7 @@ def test_put_cpesh_to_cache_records_timestamps(retrieval_context: "RetrievalCont
     accessed = entry["cpesh"].get("last_accessed")
 
     assert entry["access_count"] == 1
+    assert entry["cpesh"].get("concept_text") == "Helium"
     assert ts_utils.parse_iso_timestamp(created) is not None
     assert ts_utils.parse_iso_timestamp(accessed) is not None
 
@@ -111,6 +112,7 @@ def test_get_cpesh_updates_last_accessed(retrieval_context: "RetrievalContext") 
     time.sleep(0.01)
     fetched = retrieval_context.get_cpesh_from_cache("doc-2")
     assert fetched is not None
+    assert fetched.concept_text == "Helium"
 
     updated_entry = retrieval_context.cpesh_cache["doc-2"]
     updated_last = updated_entry["cpesh"]["last_accessed"]
@@ -170,5 +172,6 @@ def test_ingest_retrieve_audit_trail(retrieval_context: "RetrievalContext") -> N
         payload = record.get("cpesh", {})
         assert ts_utils.parse_iso_timestamp(payload.get("created_at")) is not None
         assert ts_utils.parse_iso_timestamp(payload.get("last_accessed")) is not None
+        assert payload.get("concept_text") is not None
         assert payload.get("created_at") == created_snapshots[doc_id]
         assert record.get("access_count", 0) >= 3

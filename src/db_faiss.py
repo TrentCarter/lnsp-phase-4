@@ -1,4 +1,6 @@
 import os
+from typing import Optional, Sequence
+
 import numpy as np
 try:
     import faiss
@@ -195,12 +197,25 @@ class FaissDB:
         D, I = self.index.search(qvecs, topk)
         return D, I
 
-    def search_legacy(self, query_vec: np.ndarray, topk: int = 5, use_lightrag: bool = False):
+    def search_legacy(
+        self,
+        query_vec: np.ndarray,
+        topk: int = 5,
+        use_lightrag: bool = False,
+        *,
+        nprobe: Optional[int] = None,
+        boost_vectors: Optional[Sequence[np.ndarray]] = None,
+    ):
         """Search for similar vectors."""
         if self.index is None:
             return []
 
         try:
+            original_nprobe = None
+            if nprobe is not None and hasattr(self.index, "nprobe"):
+                original_nprobe = int(getattr(self.index, "nprobe", _default_nprobe()))
+                self.index.nprobe = max(1, int(nprobe))
+
             query_normalized = l2_normalize(query_vec.reshape(1, -1))
             scores, indices = self.index.search(query_normalized, topk)
 
@@ -245,3 +260,9 @@ class FaissDB:
         except Exception as exc:
             print(f"[FaissDB] Search error: {exc}")
             return []
+        finally:
+            if nprobe is not None and hasattr(self.index, "nprobe") and original_nprobe is not None:
+                try:
+                    self.index.nprobe = int(original_nprobe)
+                except Exception:
+                    pass

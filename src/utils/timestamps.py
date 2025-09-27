@@ -160,13 +160,30 @@ def migrate_legacy_cache_entry(entry: dict) -> dict:
     if not isinstance(entry, dict):
         return entry
 
-    # Add timestamps if missing
-    if 'cpesh' not in entry:
-        return entry
-
-    cpesh = entry['cpesh']
+    cpesh = entry.get('cpesh')
     if not isinstance(cpesh, dict):
         return entry
+
+    # Core field aliases for backward compatibility
+    if 'concept_text' not in cpesh and 'concept' in cpesh:
+        cpesh['concept_text'] = cpesh.get('concept')
+    if 'probe_question' not in cpesh and 'probe' in cpesh:
+        cpesh['probe_question'] = cpesh.get('probe')
+    if 'expected_answer' not in cpesh and 'expected' in cpesh:
+        cpesh['expected_answer'] = cpesh.get('expected')
+
+    # Ensure optional metadata is present
+    cpesh.setdefault('mission_text', None)
+    cpesh.setdefault('dataset_source', None)
+    cpesh.setdefault('content_type', None)
+    cpesh.setdefault('chunk_position', None)
+    cpesh.setdefault('relations_text', cpesh.get('relations_text') or [])
+    cpesh.setdefault('tmd_bits', cpesh.get('tmd_bits'))
+    cpesh.setdefault('tmd_lane', cpesh.get('tmd_lane'))
+    cpesh.setdefault('lane_index', cpesh.get('lane_index'))
+    cpesh.setdefault('quality', cpesh.get('quality'))
+    cpesh.setdefault('echo_score', cpesh.get('echo_score'))
+    cpesh.setdefault('insufficient_evidence', cpesh.get('insufficient_evidence', False))
 
     # Set created_at if missing
     if 'created_at' not in cpesh:
@@ -177,8 +194,13 @@ def migrate_legacy_cache_entry(entry: dict) -> dict:
         cpesh['last_accessed'] = cpesh['created_at']
 
     # Add access_count if missing
-    if 'access_count' not in entry:
+    access_count = entry.get('access_count')
+    entry['access_count'] = int(access_count) if isinstance(access_count, int) else 1
+    if entry['access_count'] <= 0:
         entry['access_count'] = 1
+
+    entry['quality'] = cpesh.get('quality')
+    entry['cosine'] = cpesh.get('soft_sim')
 
     return entry
 
@@ -198,11 +220,49 @@ def update_cache_entry_access(entry: dict) -> dict:
 
     now = get_iso_timestamp()
 
-    # Update last_accessed timestamp
-    if 'cpesh' in entry and isinstance(entry['cpesh'], dict):
-        entry['cpesh']['last_accessed'] = now
+    cpesh = entry.get('cpesh')
+    if isinstance(cpesh, dict):
+        cpesh['last_accessed'] = now
 
-    # Increment access count
-    entry['access_count'] = entry.get('access_count', 0) + 1
+    count = entry.get('access_count', 0)
+    entry['access_count'] = int(count) + 1 if isinstance(count, (int, float)) else 1
+
+    if isinstance(cpesh, dict):
+        cpesh['access_count'] = entry['access_count']
 
     return entry
+
+
+def migrate_cpesh_record(record: dict) -> dict:
+    """Backfill CPESH record dictionaries with authoritative fields."""
+    if not isinstance(record, dict):
+        return record
+
+    now = get_iso_timestamp()
+    record.setdefault('cpe_id', record.get('id'))
+    record.setdefault('concept_text', record.get('concept'))
+    record.setdefault('probe_question', record.get('probe'))
+    record.setdefault('expected_answer', record.get('expected'))
+    record.setdefault('mission_text', record.get('mission_text'))
+    record.setdefault('source_chunk', record.get('source_chunk'))
+    record.setdefault('dataset_source', record.get('dataset_source'))
+    record.setdefault('content_type', record.get('content_type'))
+    record.setdefault('chunk_position', record.get('chunk_position'))
+    record.setdefault('relations_text', record.get('relations_text') or [])
+    record.setdefault('tmd_bits', record.get('tmd_bits'))
+    record.setdefault('tmd_lane', record.get('tmd_lane'))
+    record.setdefault('lane_index', record.get('lane_index'))
+    record.setdefault('quality', record.get('quality'))
+    record.setdefault('echo_score', record.get('echo_score'))
+    record.setdefault('insufficient_evidence', record.get('insufficient_evidence', False))
+
+    created = record.get('created_at') or now
+    record['created_at'] = created
+    record['last_accessed'] = record.get('last_accessed') or created
+
+    count = record.get('access_count', 0)
+    record['access_count'] = int(count) if isinstance(count, (int, float)) else 0
+    if record['access_count'] < 0:
+        record['access_count'] = 0
+
+    return record
