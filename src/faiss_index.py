@@ -81,7 +81,11 @@ def build_ivf_flat_cosine(vectors: np.ndarray, nlist: int = 256, train_frac: flo
     index = faiss.index_factory(D, spec, faiss.METRIC_INNER_PRODUCT)
 
     # training sample
-    k = max(1, int(N * train_frac))
+    max_safe = max(1, nlist * 40)
+    if N <= max(20000, max_safe):
+        k = N      # small corpora: train on all points
+    else:
+        k = min(N, 200000)
     ids = np.random.default_rng(0).choice(N, size=min(k, N), replace=False)
 
     # Training validation: ensure adequate training data

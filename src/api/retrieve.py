@@ -9,6 +9,7 @@ import os
 import re
 import uuid
 import json
+import time
 from collections import deque
 
 # Set FAISS threading early to avoid segfaults
@@ -50,10 +51,11 @@ from ..utils.timestamps import (
 from ..utils.gating import CPESHGateConfig, apply_lane_overrides, should_use_cpesh, log_gating_decision, get_gating_metrics
 
 _ENV_NPZ = os.getenv("FAISS_NPZ_PATH")
+_NPZ_V2 = "artifacts/cpesh_active_v2.npz"
 _NPZ_10K_768 = "artifacts/fw10k_vectors_768.npz"
 _NPZ_10K = "artifacts/fw10k_vectors.npz"
 _NPZ_1K = "artifacts/fw1k_vectors.npz"
-DEFAULT_NPZ = _ENV_NPZ or (_NPZ_10K_768 if os.path.exists(_NPZ_10K_768) else (_NPZ_10K if os.path.exists(_NPZ_10K) else _NPZ_1K))
+DEFAULT_NPZ = _ENV_NPZ or (_NPZ_V2 if os.path.exists(_NPZ_V2) else (_NPZ_10K_768 if os.path.exists(_NPZ_10K_768) else (_NPZ_10K if os.path.exists(_NPZ_10K) else _NPZ_1K)))
 
 LANE_MAP = {0: "L1_FACTOID", 1: "L2_GRAPH", 2: "L3_SYNTH"}
 MODE_MAP = {"dense": "DENSE", "graph": "GRAPH", "hybrid": "HYBRID", "lexical": "HYBRID"}
@@ -466,7 +468,9 @@ class RetrievalContext:
             tmd_code=tmd_code,
             lane_index=lane_index,
             quality=q,
-            final_score=final
+            final_score=final,
+            word_count=metadata.get("word_count"),
+            tmd_confidence=metadata.get("tmd_confidence")
         )
 
     def search(self, req: SearchRequest, trace_id: Optional[str] = None) -> SearchResponse:
@@ -631,6 +635,13 @@ class RetrievalContext:
                 prompt = (
                     "Return JSON only for CPESH_EXTRACT.\n"
                     f'Factoid: "{text}"\n'
+                    'Rules:\n'
+                    '- concept: main entity/topic from the factoid\n'
+                    '- probe: question about the concept (e.g., "What is X?")\n'
+                    '- expected: correct answer sentence from the factoid\n'
+                    '- soft_negative: DIFFERENT sentence from the factoid that is related but does NOT answer the probe\n'
+                    '- hard_negative: completely UNRELATED fact (e.g., about photosynthesis, quantum physics, or plate tectonics)\n'
+                    '- insufficient_evidence: true only if factoid lacks clear information\n'
                     '{"concept":"...","probe":"...","expected":"...",'
                     '"soft_negative":"...","hard_negative":"...",'
                     '"insufficient_evidence":false}'
@@ -707,6 +718,15 @@ class RetrievalContext:
         # Cache the results
         _search_cache.put(req.lane, req.q, req.top_k, items)
 
+        # Quality check
+        quality_warning = False
+        if items:
+            total_words = sum(item.word_count for item in items if item.word_count is not None)
+            avg_words = total_words / len(items) if len(items) > 0 else 0
+            if avg_words < 150:
+                quality_warning = True
+
+        data_version = "v2" if "_v2" in self.npz_path else "v1"
         return SearchResponse(
             lane=req.lane,
             mode=mode,
@@ -714,6 +734,8 @@ class RetrievalContext:
             trace_id=trace_id,
             diagnostics=diag_payload,
             insufficient_evidence=insufficient,
+            data_version=data_version,
+            quality_warning=quality_warning
         )
 
 
@@ -926,61 +948,38 @@ else:
             "top_docs_by_access": top_docs
         }
 
-    @app.get("/metrics/slo")
-    def metrics_slo() -> Dict[str, Any]:
-        """Return SLO metrics from the last evaluation run."""
-        import json
-        
-        # Try to load the most recent evaluation report
-        eval_path = "eval/day_s3_report.md"
-        slo_data = {
-            "last_run": None,
-            "hit_at_1": None,
-            "hit_at_3": None,
-            "p50_latency": None,
-            "p95_latency": None,
-            "nprobe_recommended": None
-        }
-        
-        try:
-            with open(eval_path, 'r') as f:
-                content = f.read()
-                
-            # Simple parsing for key metrics (could be enhanced)
-            import re
-            
-            # Extract last run timestamp
-            last_run_match = re.search(r'Last run: ([^\n]+)', content)
-            if last_run_match:
-                slo_data["last_run"] = last_run_match.group(1)
-            
-            # Extract hit rates
-            hit1_match = re.search(r'Hit@1[^0-9]*([0-9.]+)%?', content)
-            if hit1_match:
-                slo_data["hit_at_1"] = float(hit1_match.group(1))
-                
-            hit3_match = re.search(r'Hit@3[^0-9]*([0-9.]+)%?', content)
-            if hit3_match:
-                slo_data["hit_at_3"] = float(hit3_match.group(1))
-            
-            # Extract latency metrics
-            p50_match = re.search(r'P50[^0-9]*([0-9.]+)\s*ms', content)
-            if p50_match:
-                slo_data["p50_latency"] = float(p50_match.group(1))
-                
-            p95_match = re.search(r'P95[^0-9]*([0-9.]+)\s*ms', content)
-            if p95_match:
-                slo_data["p95_latency"] = float(p95_match.group(1))
-            
-            # Extract recommended nprobe
-            nprobe_match = re.search(r'nprobe[^0-9]*([0-9]+)', content, re.IGNORECASE)
-            if nprobe_match:
-                slo_data["nprobe_recommended"] = int(nprobe_match.group(1))
-                
-        except Exception as e:
-            print(f"Could not load SLO metrics: {e}")
-        
-        return slo_data
+# --- SLO snapshot store ---
+SLO_PATH = os.getenv("LNSP_SLO_PATH", "artifacts/metrics_slo.json")
+
+@app.post("/metrics/slo")
+def slo_ingest(snapshot: dict):
+    """
+    Accept a metrics snapshot from an external eval harness.
+    Example fields (add what you have): {
+      "timestamp_utc": "...",
+      "hit_at_1": 0.47, "hit_at_3": 0.57,
+      "p50_ms": 42.1, "p95_ms": 310.0,
+      "notes": "nprobe_default=24, cpesh gate 0.85/0.55"
+    }
+    """
+    try:
+        snapshot.setdefault("timestamp_utc", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+        os.makedirs(os.path.dirname(SLO_PATH), exist_ok=True)
+        with open(SLO_PATH, "w") as f:
+            json.dump(snapshot, f)
+        return {"ok": True, "path": SLO_PATH}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.get("/metrics/slo")
+def slo_get():
+    if not os.path.exists(SLO_PATH):
+        return {"ok": True, "present": False, "snapshot": None}
+    with open(SLO_PATH) as f:
+        snap = json.load(f)
+    snap["present"] = True
+    snap["ok"] = True
+    return snap
 
     @app.get("/metrics/gating")
     def gating_metrics() -> Dict[str, Any]:

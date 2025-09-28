@@ -80,6 +80,11 @@ def get_api_json(path):
     except Exception:
         return None
 
+def get_slo(api):
+    if not api: return None
+    try: return get_api_json("/metrics/slo")
+    except Exception: return None
+
 def gating_stats():
     # Prefer live endpoint, fallback to file
     g = get_api_json("/metrics/gating")
@@ -114,9 +119,14 @@ def cpesh_stats():
     # active
     active_path = ACTIVE if os.path.exists(ACTIVE) else (LEGACY if os.path.exists(LEGACY) else None)
     active_lines = 0; q_vals=[]; insuff=0; created_ats=[]
+    # training pairs = rows with concept/probe/expected strings present
+    pairs = 0
     if active_path:
         active_lines, sample = count_lines(active_path, limit=20000, parse=True)
         for e in sample:
+            obj = e.get("cpesh", e)
+            if isinstance(obj.get("concept_text"), str) and isinstance(obj.get("probe_question"), str) and isinstance(obj.get("expected_answer"), str):
+                pairs += 1
             q = e.get("cpesh",{}).get("quality") if "cpesh" in e else e.get("quality")
             if isinstance(q,(int,float)): q_vals.append(float(q))
             if (e.get("cpesh",{}).get("insufficient_evidence") if "cpesh" in e else e.get("insufficient_evidence")): insuff += 1
@@ -148,6 +158,7 @@ def cpesh_stats():
         "insufficient_in_sample": insuff,
         "created_at_min": min(created_ats) if created_ats else "—",
         "created_at_max": max(created_ats) if created_ats else "—",
+        "pairs_in_sample": pairs
     }
 
 def segment_stats():
@@ -290,6 +301,15 @@ def main():
             [["—", "—", "—", "—"]]
         ))
 
+    # SLO snapshot (if present)
+    slo = get_slo(API)
+    if slo and slo.get("present", True):
+        print(ascii_table(
+            ["queries","Hit@1","Hit@3","p50_ms","p95_ms","notes","as_of"],
+            [[slo.get("queries","—"), slo.get("hit_at_1","—"), slo.get("hit_at_3","—"),
+              slo.get("p50_ms","—"), slo.get("p95_ms","—"), (slo.get("notes") or "")[:36], slo.get("timestamp_utc","—")]]
+        ))
+
     # Gating usage & latency
     total, used, nprobe_hist, cp, fb = gating_stats()
     print(ascii_table(
@@ -304,13 +324,9 @@ def main():
         [["cpesh", *cp], ["fallback", *fb]]
     ))
 
-    # Training readiness (simple heuristics)
-    triples = "—"
-    concepts = "—"
-    # If you standardize fields (concept/probe/expected) in entries, you can count them here.
     print(ascii_table(
-        ["training_pairs","notes"],
-        [[triples, "Populate once fields are standardized (concept/probe/expected)."]]
+        ["training_pairs(sample)","note"],
+        [[ds["pairs_in_sample"], "Sampled from active; Parquet counting coming next."]]
     ))
 
     if API:

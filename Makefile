@@ -1,4 +1,4 @@
-.PHONY: install smoke test db-up db-down consultant-eval faiss-setup ingest-10k build-faiss api prune slo-snapshot gating-snapshot smoketest cpesh-rotate cpesh-index
+.PHONY: install smoke test db-up db-down consultant-eval faiss-setup ingest-10k build-faiss api prune slo-snapshot slo-grid gating-snapshot smoketest cpesh-rotate cpesh-index
 
 install:
 	python3 -m venv .venv && . .venv/bin/activate && pip install --upgrade pip \
@@ -56,20 +56,16 @@ prune:
 	@python scripts/prune_cache.py --manifest eval/prune_manifest.json
 	@echo "✅ Pruning complete. Check eval/prune_report.md for details."
 
+.PHONY: slo-grid
+slo-grid:
+	@API=$${API:-http://127.0.0.1:$${PORT:-8094}} QUERIES=$${QUERIES:-eval/100q.jsonl} \
+	SLO_NOTES="$${SLO_NOTES:-auto}" TOPK=$${TOPK:-5} \
+	PYTHONPATH=src ./.venv/bin/python tools/slo_grid.py
+
+.PHONY: slo-snapshot
 slo-snapshot:
-	@echo "Capturing SLO snapshot..."
-	@mkdir -p eval/snapshots
-	@SNAPSHOT_FILE="eval/snapshots/s3_$$(date +%Y%m%d_%H%M%S).json"
-	@echo "{\"timestamp\": \"$$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"," > $$SNAPSHOT_FILE
-	@echo "\"health_faiss\": " >> $$SNAPSHOT_FILE
-	@curl -s http://localhost:8092/health/faiss || echo "null" >> $$SNAPSHOT_FILE
-	@echo ",\"cache_stats\": " >> $$SNAPSHOT_FILE
-	@curl -s http://localhost:8092/cache/stats || echo "null" >> $$SNAPSHOT_FILE
-	@echo ",\"metrics_slo\": " >> $$SNAPSHOT_FILE
-	@curl -s http://localhost:8092/metrics/slo || echo "null" >> $$SNAPSHOT_FILE
-	@echo "}" >> $$SNAPSHOT_FILE
-	@echo "✅ SLO snapshot saved to $$SNAPSHOT_FILE"
-	@cat $$SNAPSHOT_FILE
+	@curl -s http://127.0.0.1:$${PORT:-8094}/metrics/slo | tee artifacts/metrics_slo.json >/dev/null
+	@echo "[slo] snapshot saved to artifacts/metrics_slo.json"
 
 # === Composite Commands ===
 
@@ -118,3 +114,12 @@ cpesh-backfill:
 tmd-report:
 	@python3 tools/tmd_histogram_report.py \
 		--chunks-jsonl artifacts/cpesh_active.jsonl --top-n 30
+
+# === Nightly Operations (S5) ===
+
+.PHONY: cpesh-rotate-nightly
+cpesh-rotate-nightly:
+	@echo "Running nightly CPESH rotation and index refresh..."
+	@./.venv/bin/python scripts/cpesh_rotate.py
+	@./.venv/bin/python scripts/cpesh_index_refresh.py
+	@echo "✅ Nightly rotation complete"

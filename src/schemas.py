@@ -124,6 +124,8 @@ class SearchItem(BaseModel):
     quality: Optional[float] = None       # quality score from IQS system
     final_score: Optional[float] = None   # blended score (cosine + quality)
     cpesh: Optional[CPESH] = None
+    word_count: Optional[int] = None      # number of words in the chunk
+    tmd_confidence: Optional[float] = None # confidence of the TMD extraction
 
 class SearchResponse(BaseModel):
     lane: Optional[Lane]
@@ -132,3 +134,4 @@ class SearchResponse(BaseModel):
     trace_id: Optional[str] = None
     diagnostics: Optional[CPESHDiagnostics] = None
     insufficient_evidence: Optional[bool] = None
+    quality_warning: Optional[bool] = None

@@ -3,6 +3,12 @@
 
 This README is focused on the current Phase 4 repository. Legacy notes and command dumps from earlier projects have been archived to `docs/archive/readme_legacy_20250918.txt`.
 
+# 9/27/2025
+
+./venv/bin/python3 tests/data_generator.py
+./venv/bin/python3 tests/data_snapshot.py
+
+
 # 9/26/2025
 make lnsp-status   #LNSP RAG — System Status
 

@@ -7,10 +7,23 @@ Pass 2: Generate CPESH for merged chunks
 
 import json
 import sys
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timezone
 import hashlib
+
+
+SENTENCE_SPLIT_RE = re.compile(r'(?<=[.?])\s+')
+
+HARD_NEGATIVE_POOL = [
+    "Photosynthesis converts light energy into chemical energy inside chloroplasts.",
+    "Plate tectonics explains how Earth's crustal plates shift across the mantle.",
+    "Binary search runs in logarithmic time on sorted collections.",
+    "The Krebs cycle generates ATP by oxidizing acetyl-CoA in mitochondria.",
+    "Quantum entanglement links particle states regardless of distance.",
+    "SNMP is a network protocol for monitoring and managing devices.",
+]
 
 class CPESHBackfill:
     def __init__(self,
@@ -95,43 +108,185 @@ class CPESHBackfill:
         """Generate CPESH for a merged chunk (placeholder for actual LLM call)."""
         content = merged_entry['content']
 
-        # Extract key concepts (simplified - would use LLM in production)
-        words = content.split()
+        lines = [ln.strip() for ln in content.splitlines() if ln.strip()]
+        sentences = self._extract_sentences(content)
 
-        # Heuristic concept extraction
-        concept = None
-        if len(words) > 20:
-            # Find the most significant noun phrase (simplified)
-            concept = ' '.join(words[:5])  # First 5 words as concept
+        concept = self._extract_concept(lines, sentences)
+        probe = self._build_probe(concept)
+        expected = self._select_expected(sentences, concept)
+        soft_negative = self._select_soft_negative(sentences, concept, expected, content)
+        hard_negative = self._select_hard_negative(concept)
 
-        # Generate probe question (simplified)
-        probe = f"What is {concept}?" if concept else "What is this about?"
-
-        # Expected answer (first sentence as simplified expected)
-        sentences = content.split('.')
-        expected = sentences[0] if sentences else content[:100]
-
-        # Generate negatives (simplified)
-        soft_negative = "Related concept"
-        hard_negative = "Different domain concept"
+        cpesh_payload = {
+            'concept': concept,
+            'probe': probe,
+            'expected': expected,
+            'soft_negative': soft_negative,
+            'hard_negative': hard_negative,
+            'created_at': datetime.now(timezone.utc).isoformat(),
+            'last_accessed': datetime.now(timezone.utc).isoformat(),
+            'generation_method': 'backfill_v1'
+        }
 
         return {
             'doc_id': merged_entry['merged_id'],
             'source_ids': merged_entry['source_ids'],
-            'cpesh': {
-                'concept': concept,
-                'probe': probe,
-                'expected': expected,
-                'soft_negative': soft_negative,
-                'hard_negative': hard_negative,
-                'created_at': datetime.now(timezone.utc).isoformat(),
-                'last_accessed': datetime.now(timezone.utc).isoformat(),
-                'generation_method': 'backfill_v1'
-            },
+            'cpesh': cpesh_payload,
             'access_count': 0,
             'word_count': merged_entry['word_count'],
             'chunk_count': merged_entry['chunk_count']
         }
+
+    def _extract_sentences(self, text: str) -> List[str]:
+        if not text:
+            return []
+        normalized = re.sub(r'\s+', ' ', text.replace('\n', ' ').strip())
+        raw = [s.strip() for s in SENTENCE_SPLIT_RE.split(normalized) if s.strip()]
+        cleaned: List[str] = []
+        for sentence in raw:
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+            cleaned.append(sentence)
+        if not cleaned:
+            cleaned = [seg.strip() for seg in text.split('\n') if seg.strip()]
+        return cleaned
+
+    def _extract_concept(self, lines: List[str], sentences: List[str]) -> str:
+        if lines:
+            candidate = lines[0]
+        elif sentences:
+            candidate = sentences[0]
+        else:
+            candidate = ""
+        return candidate[:200]
+
+    def _build_probe(self, concept: str) -> str:
+        if not concept:
+            return "What is the main concept described in this chunk?"
+
+        concept_stripped = concept.strip()
+        tokens = concept_stripped.split()
+        if tokens and all(tok[:1].isupper() for tok in tokens[:2]):
+            return f"Who is {concept_stripped}?"
+        if re.search(r'\b(year|when|date)\b', concept_stripped.lower()):
+            return f"When did {concept_stripped} occur?"
+        return f"What is {concept_stripped}?"
+
+    def _tokenize(self, text: str) -> set:
+        if not text:
+            return set()
+        return set(re.findall(r'\w+', text.lower()))
+
+    def _select_expected(self, sentences: List[str], concept: str) -> str:
+        if not sentences:
+            return concept[:200] if concept else ""
+        concept_tokens = self._tokenize(concept)
+        best_sentence = None
+        best_score = -1
+        for sentence in sentences:
+            tokens = self._tokenize(sentence)
+            if len(tokens) < 4:
+                continue
+            overlap = len(tokens & concept_tokens)
+            if overlap > best_score:
+                best_sentence = sentence
+                best_score = overlap
+        if best_sentence:
+            return best_sentence.strip()
+
+        # Fall back to first reasonably informative sentence
+        for sentence in sentences:
+            tokens = self._tokenize(sentence)
+            if len(tokens) >= 4:
+                return sentence.strip()
+
+        return sentences[0].strip()
+
+    def _extract_proper_nouns(self, text: str) -> List[str]:
+        if not text:
+            return []
+        nouns = []
+        for match in re.finditer(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text):
+            value = match.group().strip()
+            if value and value not in nouns:
+                nouns.append(value)
+        return nouns
+
+    def _select_soft_negative(
+        self,
+        sentences: List[str],
+        concept: str,
+        expected: str,
+        content: str,
+    ) -> str:
+        concept_tokens = self._tokenize(concept)
+        expected_tokens = self._tokenize(expected)
+        candidates: List[Tuple[int, str]] = []
+        for sentence in sentences:
+            if sentence == expected:
+                continue
+            tokens = self._tokenize(sentence)
+            if not tokens or len(tokens) < 4:
+                continue
+            overlap = len(tokens & concept_tokens)
+            if overlap == 0:
+                continue
+            if tokens == expected_tokens:
+                continue
+            candidates.append((overlap, sentence.strip()))
+
+        if candidates:
+            candidates.sort(key=lambda item: (-item[0], len(item[1])))
+            return candidates[0][1]
+
+        proper_nouns = self._extract_proper_nouns(content)
+        for noun in proper_nouns:
+            if noun and noun.lower() not in concept.lower():
+                return f"{noun} is discussed in the source but is not the correct answer to the probe about {concept}."
+
+        keywords = self._top_keywords(content)
+        if keywords:
+            keyword = keywords[0]
+            return f"The concept '{keyword}' appears in the source yet does not answer the probe about {concept}."
+
+        return f"A related entity in the source is not the answer to the probe about {concept}."
+
+    def _select_hard_negative(self, concept: str) -> str:
+        concept_tokens = self._tokenize(concept)
+        if not HARD_NEGATIVE_POOL:
+            return "This statement is unrelated to the probe."
+
+        scored = [
+            (len(self._tokenize(candidate) & concept_tokens), candidate)
+            for candidate in HARD_NEGATIVE_POOL
+        ]
+        scored.sort(key=lambda item: (item[0], len(item[1])))
+        best_score = scored[0][0]
+        best_candidates = [candidate for score, candidate in scored if score == best_score]
+        if not best_candidates:
+            return scored[0][1]
+        idx = hash(concept) % len(best_candidates) if concept else 0
+        return best_candidates[idx]
+
+    def _top_keywords(self, text: str, limit: int = 5) -> List[str]:
+        if not text:
+            return []
+        words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
+        stop_words = {
+            'the', 'and', 'for', 'with', 'that', 'from', 'this', 'have', 'will',
+            'their', 'about', 'there', 'which', 'into', 'would', 'while', 'where',
+            'because', 'after', 'before', 'between', 'under', 'over', 'than',
+            'been', 'being', 'through', 'during', 'without', 'against', 'among',
+        }
+        filtered = [w for w in words if w not in stop_words]
+        if not filtered:
+            return []
+        counts = {}
+        for word in filtered:
+            counts[word] = counts.get(word, 0) + 1
+        ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+        return [word for word, _ in ordered[:limit]]
 
     def backfill_cpesh(self):
         """Run the complete backfill process."""

@@ -2,6 +2,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Any
 import numpy as np
+import os
+
+# Shared utilities
+from .tmd_encoder import pack_tmd, lane_index_from_bits, tmd16_deterministic
+from .vectorizer import EmbeddingBackend
+from .llm.local_llama_client import LocalLlamaClient
 
 # TMD Schema mappings
 DOMAINS = {
@@ -43,33 +49,6 @@ MODIFIERS = {
     "feedback-driven": 60, "entailment-aware": 61, "alignment-focused": 62,
     "compression-optimized": 63
 }
-
-def pack_tmd(domain: int, task: int, modifier: int) -> int:
-    """Pack TMD codes into uint16 bit field.
-    Domain: 4 bits (0-15), Task: 5 bits (0-31), Modifier: 6 bits (0-63)
-    """
-    assert 0 <= domain <= 0xF, f"domain {domain} out of range [0, 15]"
-    assert 0 <= task <= 0x1F, f"task {task} out of range [0, 31]"
-    assert 0 <= modifier <= 0x3F, f"modifier {modifier} out of range [0, 63]"
-    return (domain << 12) | (task << 7) | (modifier << 1)
-
-def tmd16_deterministic(domain: int, task: int, modifier: int) -> np.ndarray:
-    """Return a stable 16D float vector derived from categorical codes."""
-    assert 0 <= domain <= 0xF and 0 <= task <= 0x1F and 0 <= modifier <= 0x3F
-
-    bits = np.concatenate([
-        [(domain >> shift) & 1 for shift in range(4)],
-        [(task >> shift) & 1 for shift in range(5)],
-        [(modifier >> shift) & 1 for shift in range(6)],
-    ])  # (15,)
-
-    # Simple projection matrix (could be more sophisticated)
-    proj = np.random.default_rng(seed=1337).standard_normal((16, 15)).astype(np.float32)
-    vec = proj @ bits
-
-    # L2 normalize
-    norm = np.linalg.norm(vec)
-    return vec / norm if norm > 0 else vec
 
 
 @dataclass
@@ -134,41 +113,135 @@ def extract_stub(contents: str, title_hint: str | None = None) -> Extracted:
     )
 
 def extract_cpe_from_text(text: str) -> Dict[str, Any]:
-    # Alias for backward compatibility
-    extracted = extract_stub(text)
+    """Extract CPE + TMD using local Llama (JSON-only), then embed and fuse vectors.
+
+    Falls back to heuristic extraction if local LLM or embeddings are unavailable.
+    """
+
+    def _fallback() -> Dict[str, Any]:
+        ex = extract_stub(text)
+        d = DOMAINS.get(ex.domain, 2)
+        t = TASKS.get(ex.task, 0)
+        m = MODIFIERS.get(ex.modifier, 27)
+        bits = pack_tmd(d, t, m)
+        lane = lane_index_from_bits(bits)
+        tmd16 = tmd16_deterministic(d, t, m)
+        return {
+            'concept': ex.concept_text,
+            'prop': ex.concept_text,
+            'mission': f'Extract atomic facts from: {text[:120]}',
+            'probe': ex.probe_question,
+            'expected': ex.expected_answer,
+            'domain': ex.domain,
+            'task': ex.task,
+            'modifier': ex.modifier,
+            'domain_code': d,
+            'task_code': t,
+            'modifier_code': m,
+            'tmd_bits': bits,
+            'tmd_lane': f'{ex.domain}-{ex.task}-{ex.modifier}',
+            'lane_index': lane,
+            'tmd_dense': tmd16.tolist(),
+            'concept_vec': [0.0] * 768,
+            'question_vec': [0.0] * 768,
+            'fused_vec': [0.0] * 784,
+            'fused_norm': 1.0,
+            'relations': ex.relations,
+            'echo_score': 0.95,
+            'validation_status': 'passed',
+        }
+
+    # Prepare prompt for local Llama based on design doc schema
+    prompt = (
+        "Output JSON only with keys: concept, probe, expected, domain, task, modifier.\n"
+        "Given the input text, extract: \n"
+        "- concept: a short atomic proposition capturing the core fact.\n"
+        "- probe: a question that is directly answered by the concept.\n"
+        "- expected: the concise answer to the probe, grounded in the text.\n"
+        "- domain: one of [science, mathematics, technology, engineering, medicine, psychology, philosophy, history,"
+        " literature, art, economics, law, politics, education, environment, sociology].\n"
+        "- task: one of [fact_retrieval, definition, comparison, cause_effect, taxonomy, timeline, attribute_extraction,"
+        " numeric_fact, entity_linking, contradiction_check, analogical_reasoning, causal_inference, classification,"
+        " entity_recognition, relationship_extraction, schema_adherence, summarization, paraphrasing, translation,"
+        " sentiment_analysis, argument_evaluation, hypothesis_testing, code_generation, function_calling,"
+        " mathematical_proof, diagram_interpretation, temporal_reasoning, spatial_reasoning, ethical_evaluation,"
+        " policy_recommendation, roleplay_simulation, creative_writing].\n"
+        "- modifier: one of [historical, descriptive, temporal, biochemical, geographical, legal, clinical, software,"
+        " hardware, experimental, statistical, theoretical, cultural, economic, political, educational, creative,"
+        " technical, qualitative, quantitative, procedural, declarative, comparative, analogical, causal, predictive,"
+        " reflective, strategic, tactical, symbolic, functional, structural, semantic, syntactic, pragmatic,"
+        " normative, statistical, probabilistic, deterministic, stochastic, modular, hierarchical, distributed,"
+        " localized, global, contextual, generalized, specialized, interdisciplinary, multimodal, ontological,"
+        " epistemic, role-based, schema-bound, feedback-driven, entailment-aware, alignment-focused,"
+        " compression-optimized].\n"
+        f"Input text: {text}"
+    )
+
+    concept = probe = expected = None
+    domain = task = modifier = None
+    try:
+        llm = LocalLlamaClient(
+            endpoint=os.getenv("LNSP_LLM_ENDPOINT", "http://localhost:11434"),
+            model=os.getenv("LNSP_LLM_MODEL", "llama3.1:8b"),
+        )
+        j = llm.complete_json(prompt, timeout_s=float(os.getenv("LNSP_CPESH_TIMEOUT_S", "12")))
+        concept = (j.get("concept") or j.get("prop") or "").strip()
+        probe = (j.get("probe") or "").strip()
+        expected = (j.get("expected") or "").strip()
+        domain = (j.get("domain") or "technology").strip().lower()
+        task = (j.get("task") or "fact_retrieval").strip().lower()
+        modifier = (j.get("modifier") or "descriptive").strip().lower()
+    except Exception as exc:  # pragma: no cover - runtime dependency
+        print(f"[extract_cpe_from_text] LLM fallback due to error: {exc}")
+        return _fallback()
+
+    # Validate and map enums
+    d = DOMAINS.get(domain, DOMAINS.get("technology", 2))
+    t = TASKS.get(task, TASKS.get("fact_retrieval", 0))
+    m = MODIFIERS.get(modifier, MODIFIERS.get("descriptive", 27))
+    bits = pack_tmd(d, t, m)
+    lane = lane_index_from_bits(bits)
+    tmd16 = tmd16_deterministic(d, t, m)
+
+    # Embed concept/probe and build fused vector
+    concept_vec = np.zeros((768,), dtype=np.float32)
+    question_vec = np.zeros((768,), dtype=np.float32)
+    try:
+        embedder = EmbeddingBackend()
+        c = concept if concept else text[:200]
+        q = probe if probe else f"What is: {c[:80]}?"
+        c_emb = embedder.encode([c])[0].astype(np.float32)
+        q_emb = embedder.encode([q])[0].astype(np.float32)
+        concept_vec = c_emb
+        question_vec = q_emb
+    except Exception as exc:  # pragma: no cover - runtime dependency
+        print(f"[extract_cpe_from_text] Embedding fallback due to error: {exc}")
+
+    fused_vec = np.concatenate([tmd16.astype(np.float32), concept_vec.astype(np.float32)])
+    norm = float(np.linalg.norm(fused_vec))
+    fused_unit = fused_vec / norm if norm > 0 else fused_vec
+
     return {
-        'concept': extracted.concept_text,
-        'prop': extracted.concept_text,
+        'concept': concept or text.strip()[:200],
+        'prop': concept or text.strip()[:200],
         'mission': f'Extract atomic facts from: {text[:120]}',
-        'probe': extracted.probe_question,
-        'expected': extracted.expected_answer,
-        'domain': extracted.domain,
-        'task': extracted.task,
-        'modifier': extracted.modifier,
-        'domain_code': DOMAINS.get(extracted.domain, 2),  # Default to tech if unknown
-        'task_code': TASKS.get(extracted.task, 0),
-        'modifier_code': MODIFIERS.get(extracted.modifier, 27),  # Default to descriptive
-        'tmd_bits': pack_tmd(
-            DOMAINS.get(extracted.domain, 2),
-            TASKS.get(extracted.task, 0),
-            MODIFIERS.get(extracted.modifier, 27)
-        ),
-        'tmd_lane': f'{extracted.domain}-{extracted.task}-{extracted.modifier}',
-        'lane_index': pack_tmd(
-            DOMAINS.get(extracted.domain, 2),
-            TASKS.get(extracted.task, 0),
-            MODIFIERS.get(extracted.modifier, 27)
-        ) >> 1,  # Right shift to get lane index
-        'tmd_dense': tmd16_deterministic(
-            DOMAINS.get(extracted.domain, 2),
-            TASKS.get(extracted.task, 0),
-            MODIFIERS.get(extracted.modifier, 27)
-        ).tolist(),
-        'concept_vec': [0.0] * 768,
-        'question_vec': [0.0] * 768,
-        'fused_vec': [0.0] * 784,
-        'fused_norm': 1.0,
-        'relations': extracted.relations,
+        'probe': probe or f"What is: {(concept or text.strip()[:80])}?",
+        'expected': expected or concept or "",
+        'domain': domain,
+        'task': task,
+        'modifier': modifier,
+        'domain_code': d,
+        'task_code': t,
+        'modifier_code': m,
+        'tmd_bits': bits,
+        'tmd_lane': f'{domain}-{task}-{modifier}',
+        'lane_index': lane,
+        'tmd_dense': tmd16.tolist(),
+        'concept_vec': concept_vec.tolist(),
+        'question_vec': question_vec.tolist(),
+        'fused_vec': fused_unit.astype(np.float32).tolist(),
+        'fused_norm': norm if norm > 0 else 1.0,
+        'relations': [],
         'echo_score': 0.95,
         'validation_status': 'passed',
     }
