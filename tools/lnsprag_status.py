@@ -1,10 +1,11 @@
 #!/usr/bin/env python
+import argparse
 import os, sys, json, time, glob, gzip, math
+from pathlib import Path
 from statistics import median
+from typing import Any, Dict
 
 API = None
-for i,a in enumerate(sys.argv):
-    if a == "--api" and i+1 < len(sys.argv): API = sys.argv[i+1]
 
 ART = "artifacts"
 INDEX_META = os.path.join(ART, "index_meta.json")
@@ -15,6 +16,19 @@ GATING_FILE = os.path.join(ART, "gating_decisions.jsonl")
 METRICS_GATING = os.path.join(ART, "metrics_gating.json")
 MANIFEST = os.path.join(ART, "cpesh_manifest.jsonl")
 FAISS_GLOB = os.path.join(ART, "*.index")
+
+# Matrix-aware paths (disk only; no sockets)
+ART_DIR = Path(ART)
+ACTIVE_JSONL = ART_DIR / "cpesh_active.jsonl"
+ACTIVE_JSONL_FIXED = ART_DIR / "cpesh_active_fixed.jsonl"
+ACTIVE_LEGACY = ART_DIR / "cpesh_cache.jsonl"
+SEGMENT_DIR = ART_DIR / "cpesh_segments"
+SQLITE_IDX = ART_DIR / "cpesh_index.db"
+NPZ_GLOB = str(ART_DIR / "*.npz")
+FAISS_META_CANDIDATES = [ART_DIR / "index_meta.json", ART_DIR / "faiss_meta.json"]
+FAISS_INDEX_GLOB = str(ART_DIR / "*.index")
+GATING_DECISIONS = Path(GATING_FILE)
+SLO_JSON = ART_DIR / "metrics_slo.json"
 
 def sizeof(n):
     for u in ["B","KB","MB","GB","TB"]:
@@ -45,6 +59,142 @@ def ascii_table(headers, rows):
         out.append("| " + " | ".join(str(r[i]).ljust(widths[i]) for i in range(cols)) + " |")
     out.append(line())
     return "\n".join(out)
+
+
+def _tick(flag: bool) -> str:
+    return "✓" if flag else "—"
+
+
+def _first_existing(paths):
+    for p in paths:
+        try:
+            if p.exists():
+                return p
+        except OSError:
+            continue
+    return paths[0]
+
+
+def _presence_from_disk() -> Dict[str, Any]:
+    active_candidates = [ACTIVE_JSONL, ACTIVE_JSONL_FIXED, ACTIVE_LEGACY]
+    active_exists = any(p.exists() for p in active_candidates)
+    active_path = _first_existing(active_candidates)
+
+    parquet_pattern = SEGMENT_DIR / "*.parquet"
+    parquet_exists = SEGMENT_DIR.exists() and any(SEGMENT_DIR.glob("*.parquet"))
+
+    sqlite_exists = SQLITE_IDX.exists()
+
+    npz_files = glob.glob(NPZ_GLOB)
+    npz_exists = bool(npz_files)
+    npz_path = npz_files[0] if npz_files else NPZ_GLOB
+
+    faiss_meta_path = _first_existing(FAISS_META_CANDIDATES)
+    faiss_meta_exists = faiss_meta_path.exists()
+    faiss_index_files = glob.glob(FAISS_INDEX_GLOB)
+    faiss_present = faiss_meta_exists or bool(faiss_index_files)
+    faiss_path = faiss_index_files[0] if faiss_index_files else str(faiss_meta_path)
+
+    gating_present = GATING_DECISIONS.exists()
+    slo_present = SLO_JSON.exists()
+
+    present_pg = bool(os.getenv("PG_DSN") or os.getenv("PGDATABASE") or os.getenv("PGHOST") or os.getenv("PGUSER"))
+    present_neo4j = bool(os.getenv("NEO4J_URI") or (os.getenv("NEO4J_USER") and os.getenv("NEO4J_PASSWORD")))
+
+    return {
+        "active_jsonl": active_exists,
+        "active_path": str(active_path),
+        "parquet": parquet_exists,
+        "parquet_pattern": str(parquet_pattern),
+        "pg": present_pg,
+        "neo4j": present_neo4j,
+        "npz": npz_exists,
+        "npz_path": str(npz_path),
+        "faiss": faiss_present,
+        "faiss_path": str(faiss_path),
+        "sqlite": sqlite_exists,
+        "gating": gating_present,
+        "slo": slo_present,
+    }
+
+
+def _fmt_table(headers, rows):
+    return ascii_table(headers, [[str(c) for c in row] for row in rows])
+
+
+def _print_matrix(p: Dict[str, Any]) -> None:
+    col_active = _tick(p["active_jsonl"])
+    col_parquet = _tick(p["parquet"])
+    col_pg_entry = _tick(p["pg"])
+    col_pg_vec = _tick(p["pg"])
+    col_npz = _tick(p["npz"])
+    col_faiss = _tick(p["faiss"])
+    col_neo_concept = _tick(p["neo4j"])
+    col_graph_edge = _tick(p["neo4j"])
+
+    headers1 = [
+        "Field",
+        "Active JSONL",
+        "Parquet Segments",
+        "Postgres cpe_entry",
+        "Postgres cpe_vectors",
+        "Neo4j Concept",
+        "Graph edges",
+    ]
+    rows1 = [
+        ["cpe_id",              col_active, col_parquet, col_pg_entry, col_pg_vec,  col_neo_concept, "—"],
+        ["doc_id",              col_active, col_parquet, col_pg_entry, "—",        col_neo_concept,  col_graph_edge],
+        ["concept_text",        col_active, col_parquet, col_pg_entry, "—",        col_neo_concept,  "—"],
+        ["probe_question",      col_active, col_parquet, col_pg_entry, "—",        "—",              "—"],
+        ["expected_answer",     col_active, col_parquet, col_pg_entry, "—",        "—",              "—"],
+        ["soft_negatives[3]",   col_active, col_parquet, col_pg_entry, "—",        "—",              "—"],
+        ["hard_negatives[3]",   col_active, col_parquet, col_pg_entry, "—",        "—",              "—"],
+        ["tmd_bits",            col_active, col_parquet, col_pg_entry, "—",        col_neo_concept,  col_graph_edge],
+        ["tmd_text (decoded)",  "∆",        "∆",          "∆",         "—",        "∆",             "∆"],
+        ["lane_index",          col_active, col_parquet, col_pg_entry, "—",        col_neo_concept,  col_graph_edge],
+        ["created_at",          col_active, col_parquet, col_pg_entry, "—",        col_neo_concept,  col_graph_edge],
+        ["last_accessed",       col_active, col_parquet, col_pg_entry, "—",        col_neo_concept,  col_graph_edge],
+        ["access_count",        col_active, col_parquet, col_pg_entry, "—",        col_neo_concept,  col_graph_edge],
+        ["quality / echo_score",col_active, col_parquet, col_pg_entry, "—",        col_neo_concept,  col_graph_edge],
+        ["insufficient_evidence",col_active, col_parquet, col_pg_entry, "—",       col_neo_concept,  col_graph_edge],
+        ["dataset_source",      col_active, col_parquet, col_pg_entry, "—",        col_neo_concept,  col_graph_edge],
+        ["content_type",        col_active, col_parquet, col_pg_entry, "—",        col_neo_concept,  "—"],
+        ["chunk_position{...}", col_active, col_parquet, col_pg_entry, "—",        col_neo_concept,  "—"],
+        ["relations_text",      col_active, col_parquet, "—",          "—",        "→ edges",        col_graph_edge],
+    ]
+
+    headers2 = [
+        "Vector / Index",
+        "Active JSONL",
+        "Parquet Segments",
+        "Postgres cpe_vectors",
+        "NPZ Vector Store",
+        "FAISS Index",
+    ]
+    rows2 = [
+        ["concept_vec 768D",  "—", "—", col_pg_vec, col_npz, "used"],
+        ["question_vec 768D", "—", "—", col_pg_vec, col_npz, "used"],
+        ["tmd_dense 16D",     "—", "—", col_pg_vec, col_npz, "fused"],
+        ["fused_vec 784D",    "—", "—", col_pg_vec, col_npz, col_faiss],
+        ["index meta",        "—", "—", "—",           "—",     col_faiss],
+    ]
+
+    headers3 = ["Artifact", "Path", "Present"]
+    rows3 = [
+        ["Active lake (JSONL)",       p["active_path"],        col_active],
+        ["Warm segments (Parquet)",    p["parquet_pattern"],    col_parquet],
+        ["SQLite locator",             str(SQLITE_IDX),         _tick(p["sqlite"])],
+        ["FAISS meta/index",           p["faiss_path"],         col_faiss],
+        ["Gating decisions (JSONL)",   str(GATING_DECISIONS),   _tick(p["gating"])],
+        ["SLO snapshot (JSON)",        str(SLO_JSON),           _tick(p["slo"])],
+        ["NPZ vector store",           p["npz_path"],          col_npz],
+    ]
+
+    print("\nLNSP RAG — Storage Matrix\n")
+    print(_fmt_table(headers1, rows1))
+    print(_fmt_table(headers2, rows2))
+    print(_fmt_table(headers3, rows3))
+    print("\nLegend: ✓ present / configured   — absent   ∆ decoded at read-time   → materialized into graph edges\n")
 
 def read_json(path):
     try:
@@ -229,6 +379,26 @@ def shard_stats():
     return shards
 
 def main():
+    global API
+
+    parser = argparse.ArgumentParser(description="LNSP RAG status")
+    parser.add_argument("--api", help="Base URL for live API status probes")
+    parser.add_argument("--matrix", action="store_true",
+                        help="Print storage-location matrix (disk + env) and exit")
+    args, unknown = parser.parse_known_args()
+
+    # Preserve compatibility with callers that pass extra args (ignored here)
+    if unknown:
+        sys.argv = [sys.argv[0]] + unknown
+    else:
+        sys.argv = [sys.argv[0]]
+
+    API = args.api or os.getenv("LNSP_STATUS_API")
+
+    if args.matrix:
+        _print_matrix(_presence_from_disk())
+        return
+
     print("\nLNSP RAG — System Status\n")
 
     # Index
