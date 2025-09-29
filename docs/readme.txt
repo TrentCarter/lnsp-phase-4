@@ -1,7 +1,36 @@
 # LNSP Phase 4 — Quickstart and Working Commands
+source .venv/bin/activate
 
 
 This README is focused on the current Phase 4 repository. Legacy notes and command dumps from earlier projects have been archived to `docs/archive/readme_legacy_20250918.txt`.
+
+# 9/28/2025
+pytest tests/cli/test_ingestion_smoke.py
+
+
+  - AUTO_RESUME=1: Automatically resumes from existing vectors without prompting
+  - FRESH_START=1: Automatically starts fresh, removing existing vectors without prompting
+  - Useful for automation and CI/CD pipelines
+
+  3. Better Error Handling
+
+  - Clear error messages when services aren't running
+  - Provides helpful commands to start services manually
+  - Won't start ingestion if critical services are missing
+
+  Usage Examples:
+
+  # Regular interactive mode
+  make ingest-all
+
+  # Auto-resume without prompts
+  AUTO_RESUME=1 make ingest-all
+
+  # Fresh start without prompts
+  FRESH_START=1 make ingest-all
+
+  # Custom batch size with fresh start
+  FRESH_START=1 BATCH_SIZE=500 make ingest-all
 
 # 9/27/2025
 

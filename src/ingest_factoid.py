@@ -54,14 +54,29 @@ SAMPLE_ITEMS = [
 ]
 
 
-def load_factoid_samples(jsonl_path: str, num_samples: Optional[int] = None) -> List[Dict[str, Any]]:
-    """Load samples from FactoidWiki JSONL file."""
+def load_factoid_samples(
+    file_path: str, 
+    file_type: str = 'jsonl', 
+    num_samples: Optional[int] = None
+) -> List[Dict[str, Any]]:
+    """Load samples from FactoidWiki file (JSONL or TSV)."""
     samples = []
-    with open(jsonl_path, 'r', encoding='utf-8') as f:
-        for i, line in enumerate(f):
-            if num_samples and i >= num_samples:
-                break
-            samples.append(json.loads(line.strip()))
+    if file_type == 'tsv':
+        import csv
+        with open(file_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f, delimiter='\t')
+            for i, row in enumerate(reader):
+                if num_samples and i >= num_samples:
+                    break
+                if len(row) >= 3:
+                    # TSV format: id, type, question, answer
+                    samples.append({'id': row[0], 'contents': row[2]})
+    else:  # Default to jsonl
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for i, line in enumerate(f):
+                if num_samples and i >= num_samples:
+                    break
+                samples.append(json.loads(line.strip()))
     return samples
 
 
@@ -104,6 +119,8 @@ def process_sample(
             "concept_text": extraction["concept"],
             "probe_question": extraction["probe"],
             "expected_answer": extraction["expected"],
+            "soft_negatives": extraction.get("soft_negatives", []),
+            "hard_negatives": extraction.get("hard_negatives", []),
             "domain_code": domain_code,
             "task_code": task_code,
             "modifier_code": modifier_code,
@@ -181,9 +198,11 @@ def ingest(
 
 def main():
     parser = argparse.ArgumentParser(description="Ingest FactoidWiki into LNSP pipeline")
-    parser.add_argument("--jsonl-path", type=str,
+    parser.add_argument("--file-path", type=str,
                        default=str(Path(__file__).parent.parent / "data" / "datasets" / "factoid-wiki-large" / "factoid_wiki.jsonl"),
-                       help="Path to factoid_wiki.jsonl")
+                       help="Path to data file (JSONL or TSV)")
+    parser.add_argument("--file-type", type=str, default='jsonl', choices=['jsonl', 'tsv'],
+                       help="Type of file to process (jsonl or tsv)")
     parser.add_argument("--num-samples", type=int, default=4,
                        help="Number of samples to process (None for all)")
     parser.add_argument("--write-pg", action="store_true",
@@ -212,18 +231,18 @@ def main():
     batch_id = args.batch_id or str(uuid.uuid4())
 
     # Load samples
-    jsonl_path = Path(args.jsonl_path)
-    if not jsonl_path.exists():
-        print(f"Error: JSONL file not found at {jsonl_path}")
+    file_path = Path(args.file_path)
+    if not file_path.exists():
+        print(f"Error: File not found at {file_path}")
         return 1
 
-    print(f"Loading samples from {jsonl_path}")
+    print(f"Loading samples from {file_path} (type: {args.file_type})")
     if args.num_samples:
         print(f"Processing first {args.num_samples} samples")
     else:
         print("Processing all samples")
 
-    samples = load_factoid_samples(str(jsonl_path), args.num_samples)
+    samples = load_factoid_samples(str(file_path), args.file_type, args.num_samples)
 
     if not samples:
         print("No samples loaded!")

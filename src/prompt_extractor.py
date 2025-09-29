@@ -56,6 +56,8 @@ class Extracted:
     concept_text: str
     probe_question: str
     expected_answer: str
+    soft_negatives: list[str]
+    hard_negatives: list[str]
     domain: str
     task: str
     modifier: str
@@ -72,6 +74,8 @@ TEMPLATE_HINT = {
         "mission": "<brief instruction suited to content_type>",
         "probe": "<single short question to verify prop>",
         "expected": "<concise answer to probe>",
+        "soft_negatives": ["<plausible wrong answer 1>", "<plausible wrong answer 2>", "<plausible wrong answer 3>"],
+        "hard_negatives": ["<unrelated answer 1>", "<unrelated answer 2>", "<unrelated answer 3>"],
         "relations": [{"subj": "<string>", "pred": "<string>", "obj": "<string>"}],
         "content_type": "<factual|math|instruction|narrative>"
     }
@@ -101,10 +105,36 @@ def extract_stub(contents: str, title_hint: str | None = None) -> Extracted:
 
     probe = f"What is {title.split('(')[0].strip()}?" if title else f"Summarize: {first}"
 
+    # Generate contextually appropriate soft negatives (plausible but wrong)
+    if domain == "art":
+        soft_negatives = [
+            "Previous album by the same artist",
+            "Album from a different year",
+            "Similar genre but different artist"
+        ]
+        hard_negatives = [
+            "Photosynthesis",
+            "Pythagorean theorem",
+            "JavaScript programming"
+        ]
+    else:
+        soft_negatives = [
+            "Related technology from same era",
+            "Similar concept but different field",
+            "Alternative implementation"
+        ]
+        hard_negatives = [
+            "The Beatles",
+            "Mount Everest",
+            "French Revolution"
+        ]
+
     return Extracted(
         concept_text=first,
         probe_question=probe,
         expected_answer=second,
+        soft_negatives=soft_negatives,
+        hard_negatives=hard_negatives,
         domain=domain,
         task="fact_retrieval",
         modifier="descriptive",
@@ -126,12 +156,26 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
         bits = pack_tmd(d, t, m)
         lane = lane_index_from_bits(bits)
         tmd16 = tmd16_deterministic(d, t, m)
+
+        # Preserve lane semantics even without LLM/embedding support by
+        # fusing TMD with zeroed 768D embeddings and normalising the result.
+        concept_stub = np.zeros(768, dtype=np.float32)
+        question_stub = np.zeros(768, dtype=np.float32)
+        fused = np.concatenate([
+            tmd16.astype(np.float32),
+            concept_stub,
+        ])
+        norm = float(np.linalg.norm(fused)) or 1.0
+        fused_unit = (fused / norm).astype(np.float32)
+
         return {
             'concept': ex.concept_text,
             'prop': ex.concept_text,
             'mission': f'Extract atomic facts from: {text[:120]}',
             'probe': ex.probe_question,
             'expected': ex.expected_answer,
+            'soft_negatives': ex.soft_negatives,
+            'hard_negatives': ex.hard_negatives,
             'domain': ex.domain,
             'task': ex.task,
             'modifier': ex.modifier,
@@ -142,10 +186,10 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
             'tmd_lane': f'{ex.domain}-{ex.task}-{ex.modifier}',
             'lane_index': lane,
             'tmd_dense': tmd16.tolist(),
-            'concept_vec': [0.0] * 768,
-            'question_vec': [0.0] * 768,
-            'fused_vec': [0.0] * 784,
-            'fused_norm': 1.0,
+            'concept_vec': concept_stub.tolist(),
+            'question_vec': question_stub.tolist(),
+            'fused_vec': fused_unit.tolist(),
+            'fused_norm': norm,
             'relations': ex.relations,
             'echo_score': 0.95,
             'validation_status': 'passed',
@@ -153,11 +197,13 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
 
     # Prepare prompt for local Llama based on design doc schema
     prompt = (
-        "Output JSON only with keys: concept, probe, expected, domain, task, modifier.\n"
+        "Output JSON only with keys: concept, probe, expected, soft_negatives, hard_negatives, domain, task, modifier.\n"
         "Given the input text, extract: \n"
         "- concept: a short atomic proposition capturing the core fact.\n"
         "- probe: a question that is directly answered by the concept.\n"
         "- expected: the concise answer to the probe, grounded in the text.\n"
+        "- soft_negatives: array of 3 plausible but incorrect answers that someone might confuse with the correct answer.\n"
+        "- hard_negatives: array of 3 clearly incorrect answers from completely different domains.\n"
         "- domain: one of [science, mathematics, technology, engineering, medicine, psychology, philosophy, history,"
         " literature, art, economics, law, politics, education, environment, sociology].\n"
         "- task: one of [fact_retrieval, definition, comparison, cause_effect, taxonomy, timeline, attribute_extraction,"
@@ -178,6 +224,8 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
     )
 
     concept = probe = expected = None
+    soft_negatives = []
+    hard_negatives = []
     domain = task = modifier = None
     try:
         llm = LocalLlamaClient(
@@ -188,6 +236,8 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
         concept = (j.get("concept") or j.get("prop") or "").strip()
         probe = (j.get("probe") or "").strip()
         expected = (j.get("expected") or "").strip()
+        soft_negatives = j.get("soft_negatives", [])
+        hard_negatives = j.get("hard_negatives", [])
         domain = (j.get("domain") or "technology").strip().lower()
         task = (j.get("task") or "fact_retrieval").strip().lower()
         modifier = (j.get("modifier") or "descriptive").strip().lower()
@@ -227,6 +277,8 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
         'mission': f'Extract atomic facts from: {text[:120]}',
         'probe': probe or f"What is: {(concept or text.strip()[:80])}?",
         'expected': expected or concept or "",
+        'soft_negatives': soft_negatives if soft_negatives else [],
+        'hard_negatives': hard_negatives if hard_negatives else [],
         'domain': domain,
         'task': task,
         'modifier': modifier,

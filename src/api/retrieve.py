@@ -752,6 +752,16 @@ else:
     app = FastAPI(title="LNSP Retrieval API", version="0.1.0")
     app.add_middleware(TimingMiddleware)
 
+    # Feature-gated GraphRAG router
+    if os.getenv("LNSP_GRAPHRAG_ENABLED", "0") == "1":
+        try:
+            from .graph import router as graph_router
+            app.include_router(graph_router)
+            print("[GraphRAG] Router loaded successfully")
+        except Exception as e:
+            # don't crash API if graph import fails
+            print(f"[GraphRAG] Router load skipped: {e}")
+
     @app.get("/healthz")
     def healthcheck() -> Dict[str, Any]:
         import sys

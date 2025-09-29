@@ -1,4 +1,4 @@
-.PHONY: install smoke test db-up db-down consultant-eval faiss-setup ingest-10k build-faiss api prune slo-snapshot slo-grid gating-snapshot smoketest cpesh-rotate cpesh-index
+.PHONY: install smoke test db-up db-down consultant-eval faiss-setup ingest-10k ingest-all build-faiss api prune slo-snapshot slo-grid gating-snapshot smoketest cpesh-rotate cpesh-index graph-smoke
 
 install:
 	python3 -m venv .venv && . .venv/bin/activate && pip install --upgrade pip \
@@ -11,7 +11,6 @@ faiss-setup:
 	@./scripts/setup_faiss_env.sh $(ARGS) | tee artifacts/setup_faiss_env.log
 	@echo "strategy=$$(grep -m1 '^::strategy=' artifacts/setup_faiss_env.log | cut -d= -f2)" \t    "date=$$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> artifacts/runtime.txt
 	@echo "[faiss-setup] complete. Strategy recorded in artifacts/runtime.txt"
-
 .PHONY: lnsp-status
 lnsp-status:
 	@PYTHONPATH=src ./.venv/bin/python tools/lnsprag_status.py --api http://127.0.0.1:$${PORT:-8092}
@@ -24,13 +23,24 @@ cpesh-rotate:
 cpesh-index:
 	@./.venv/bin/python scripts/cpesh_index_refresh.py
 
+.PHONY: test
+test:
+	./.venv/bin/pytest -m 'not slow'
 
+.PHONY: vec-upsert
+vec-upsert:
+	@PYTHONPATH=src ./.venv/bin/python -m tools.vec_upsert --text "$${TEXT}" --doc-id "$${DOCID}"
 # === Sprint 3 Tasks ===
 
 ingest-10k:
 	@echo "Ingesting 10k curated FactoidWiki items..."
 	@./scripts/ingest_10k.sh
 	@echo "✅ Ingest complete. Ready to build FAISS index."
+
+ingest-all:
+	@echo "🚀 Comprehensive VecRAG Ingestion - Processing ALL items..."
+	@./scripts/ingest_comprehensive.sh $(ARGS)
+	@echo "✅ Comprehensive ingest complete. Check artifacts for detailed report."
 
 build-faiss:
 	@echo "Building FAISS index with dial-plan flags..."
@@ -114,6 +124,15 @@ cpesh-backfill:
 tmd-report:
 	@python3 tools/tmd_histogram_report.py \
 		--chunks-jsonl artifacts/cpesh_active.jsonl --top-n 30
+
+# === GraphRAG Testing (S4) ===
+
+graph-smoke:
+	@echo "[graph] health:"; curl -s http://127.0.0.1:$${PORT:-8094}/graph/health | jq .
+	@echo "[graph] search (fts):"; curl -s -X POST http://127.0.0.1:$${PORT:-8094}/graph/search \
+	  -H 'Content-Type: application/json' -d '{"q":"photosynthesis","top_k":5}' | jq '.[0]'
+	@echo "[graph] hop (example):"; curl -s -X POST http://127.0.0.1:$${PORT:-8094}/graph/hop \
+	  -H 'Content-Type: application/json' -d '{"node_id":"cpe:demo","max_hops":2,"top_k":5}' | jq .
 
 # === Nightly Operations (S5) ===
 

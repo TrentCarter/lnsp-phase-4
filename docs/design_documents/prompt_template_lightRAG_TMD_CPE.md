@@ -21,6 +21,8 @@ You are an expert extractor of propositional knowledge from text. Given the inpu
 - `concept_text`: The core atomic concept, phrased as a concise, standalone statement (string).
 - `probe_question`: A question that the `concept_text` directly and completely answers (string).
 - `expected_answer`: The expected answer to the `probe_question`, often a short phrase or entity (string).
+- `soft_negatives`: An array of 2-3 plausible but incorrect answers that someone might confuse with the correct answer (array of strings).
+- `hard_negatives`: An array of 2-3 clearly incorrect or unrelated answers from different domains (array of strings).
 - `domain`: The primary domain category from the official TMD schema (enum).
 - `task`: The primary cognitive task from the official TMD schema (enum).
 - `modifier`: The descriptive modifier from the official TMD schema (enum).
@@ -36,12 +38,15 @@ Example Usage
 Replace {input_text} with your actual chunk, e.g.:
 * Input: "Albert Einstein developed the theory of general relativity in 1915, revolutionizing our understanding of gravity."
 * Expected Output JSON:text{
-*   "prop": "Albert Einstein developed the theory of general relativity in 1915.",
-*   "domain": "physics",
-*   "task": "develop",
-*   "modifier": "revolutionizing",
-*   "mission": "Revolutionize understanding of gravity.",
-*   "expected": "Gravity as curvature of spacetime."
+*   "concept_text": "Albert Einstein developed the theory of general relativity in 1915.",
+*   "probe_question": "Who developed the theory of general relativity?",
+*   "expected_answer": "Albert Einstein",
+*   "soft_negatives": ["Isaac Newton", "Niels Bohr", "Werner Heisenberg"],
+*   "hard_negatives": ["The Eiffel Tower", "Photosynthesis", "JavaScript"],
+*   "domain": "Science",
+*   "task": "Fact Retrieval",
+*   "modifier": "Historical",
+*   "mission_text": "Extract atomic facts about scientific discoveries from: Albert Einstein developed...",
 * }
 This template can be fed directly into the model during inference. For the 16-bit encoding: After extraction, bit-shift the enum indices (e.g., domain: 4 bits for 16 options, task: 6 bits for 64, modifier: 5 bits for 32 – totaling ~15 bits) into a uint16 value and concatenate it to your 768-dim embeddings (assuming standard like from Sentence Transformers) for Faiss storage.
 JSON Fine-Tuning Recommendations

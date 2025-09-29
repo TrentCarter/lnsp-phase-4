@@ -60,7 +60,7 @@ def search(index, queries: np.ndarray, topk=5):
 
 
 class FaissDB:
-    def __init__(self, index_path: str = 'artifacts/fw10k_ivf.index', meta_npz_path: str = None, nprobe: int = None):
+    def __init__(self, index_path: str = 'artifacts/fw10k_ivf.index', meta_npz_path: str = None, nprobe: int = None, output_path: str = None, retriever_adapter=None):
         self.index_path = index_path
         # NPZ should carry doc_ids[] and other metadata needed by API
         if meta_npz_path is None:
@@ -75,9 +75,9 @@ class FaissDB:
         self.nprobe = nprobe or _default_nprobe()
 
         # Legacy attributes for backward compatibility
-        self.output_path = meta_npz_path
+        self.output_path = output_path or meta_npz_path
         self.vectors_stored = []
-        self.retriever_adapter = None
+        self.retriever_adapter = retriever_adapter
 
     def add_vector(self, cpe_record: dict) -> bool:
         if not cpe_record.get('fused_vec'):
@@ -88,6 +88,11 @@ class FaissDB:
         question_vector = np.array(cpe_record.get('question_vec', []), dtype=np.float32)
         chunk_position = cpe_record.get('chunk_position') or {}
         doc_id = chunk_position.get('doc_id', '')
+        tmd_dense = cpe_record.get('tmd_dense')
+        if tmd_dense is None:
+            tmd_vector = np.zeros(16, dtype=np.float32)
+        else:
+            tmd_vector = np.array(tmd_dense, dtype=np.float32)
 
         self.vectors_stored.append({
             'cpe_id': cpe_record['cpe_id'],
@@ -97,7 +102,20 @@ class FaissDB:
             'question_vector': question_vector,
             'lane_index': cpe_record.get('lane_index', 0),
             'concept_text': cpe_record.get('concept_text', ''),
+            'tmd_dense': tmd_vector,
         })
+        if self.retriever_adapter is not None:
+            try:
+                self.retriever_adapter.register_document(
+                    fused_vector.tolist(),
+                    {
+                        'cpe_id': cpe_record['cpe_id'],
+                        'doc_id': doc_id,
+                        'lane_index': cpe_record.get('lane_index', 0),
+                    },
+                )
+            except Exception as exc:
+                print(f"[FaissDB] Retriever adapter error: {exc}")
         print(f"[FaissDB] Added vector for CPE {cpe_record['cpe_id']}")
         return True
 
@@ -113,16 +131,20 @@ class FaissDB:
             lane_indices = np.array([v['lane_index'] for v in self.vectors_stored])
             concept_texts = np.array([v['concept_text'] for v in self.vectors_stored])
             doc_ids = np.array([v.get('doc_id', '') for v in self.vectors_stored])
+            tmd_vectors = np.array([v['tmd_dense'] for v in self.vectors_stored])
             np.savez(
                 self.output_path,
                 fused=fused_vectors,
                 concept=concept_vectors,
                 question=question_vectors,
                 vectors=fused_vectors,  # Keep 'vectors' for backward compatibility
+                concept_vecs=concept_vectors,
+                question_vecs=question_vectors,
                 cpe_ids=cpe_ids,
                 lane_indices=lane_indices,
                 concept_texts=concept_texts,
                 doc_ids=doc_ids,
+                tmd_dense=tmd_vectors,
             )
             print(f"[FaissDB] Saved {len(self.vectors_stored)} vectors to {self.output_path}")
             return True

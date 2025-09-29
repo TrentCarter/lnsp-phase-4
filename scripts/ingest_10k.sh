@@ -25,7 +25,8 @@
     # Use curated sample if no argument provided
     INPUT_JSONL=${1:-artifacts/fw10k_chunks.jsonl}
     ART_DIR=${ART_DIR:-artifacts}
-    NPZ_PATH=${NPZ_PATH:-$ART_DIR/fw10k_vectors.npz}
+    # Use fw10k_vectors_768.npz as the default to avoid overwriting the wrong file
+    NPZ_PATH=${NPZ_PATH:-$ART_DIR/fw10k_vectors_768.npz}
     BATCH_SIZE=${BATCH_SIZE:-1000}
     RESUME_FROM=${RESUME_FROM:-0}
 
@@ -42,16 +43,11 @@
         fi
     fi
 
-    # Quick service checks (non-fatal warnings)
-    if [ "${NO_DOCKER:-0}" = "1" ]; then
-        echo "📝 NO_DOCKER mode - ensure PostgreSQL and Neo4j are running manually"
-    fi
-
-    if ! command -v psql >/dev/null 2>&1; then
-        echo "⚠️  psql not found; Postgres write will fail unless PG_DSN uses socket/driver auth via psycopg2."
-    fi
-    if ! command -v cypher-shell >/dev/null 2>&1; then
-        echo "⚠️  cypher-shell not found; ensure Neo4j is running and env vars are set."
+    # Check required services using shared script
+    source "$ROOT_DIR/scripts/check_services.sh"
+    if ! check_all_services; then
+        echo "❌ Required services not available. Exiting."
+        exit 1
     fi
 
     # Check if we can resume from existing vectors
@@ -73,12 +69,10 @@
 
     # Ingest with batch processing
     echo "▶️  Ingesting ~10k items from $INPUT_JSONL"
-    echo "   Batch size: $BATCH_SIZE, Resume from: $RESUME_FROM"
-    python3 -m src.ingest_factoid \
-        --jsonl-path "$INPUT_JSONL" \
+    echo "   Processing up to 10000 samples"
+    ./.venv/bin/python -m src.ingest_factoid \
+        --file-path "$INPUT_JSONL" \
         --num-samples 10000 \
-        --batch-size "$BATCH_SIZE" \
-        --resume-from "$RESUME_FROM" \
         --write-pg \
         --write-neo4j \
         --faiss-out "$NPZ_PATH"

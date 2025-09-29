@@ -1,0 +1,6 @@
+{"id": "test-1", "contents": "The Earth orbits around the Sun in approximately 365.25 days."}
+{"id": "test-2", "contents": "Python is a high-level programming language known for its simplicity."}
+{"id": "test-3", "contents": "Water freezes at 0 degrees Celsius or 32 degrees Fahrenheit."}
+{"id": "test-malformed", "contents": ""}
+{"id": "test-5", "contents": "The Great Wall of China is visible from space is actually a myth."}
+{"contents": "This item has no ID field but should still be processed."}

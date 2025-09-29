@@ -3,7 +3,14 @@ LNSP using Semantic Chunking TMD CPE Pipeline
 9/20/2025
 Trent Carter
 
+  1. ALWAYS use REAL data - Never use stub/placeholder data
+  2. ALWAYS use REAL LLM - Ollama + Llama 3.1:8b with setup instructions
+  3. ALWAYS use REAL embeddings - GTR-T5 768D vectors with installation guide
+  4. CPESH data - Always generate complete negatives using LLM
+
 ## ⚠️ CRITICAL: CPESH DATA IS PERMANENT TRAINING DATA
+
+**🛑 CURRENT STATUS: CPE ONLY - SOFT/HARD NEGATIVES MISSING**
 
 **CPESH (Concept-Probe-Expected with Soft/Hard negatives) entries are NOT cache - they are PERMANENT TRAINING DATA:**
 
@@ -43,6 +50,8 @@ Source_Chunk	Original semantic chunk from P2	Raw text that generated this CPE	Te
 Concept_Text	Core atomic concept from P5	"Light-dependent reactions split water"	String	~17 words (~100 bytes)		
 Probe_Question	Validation question from P5	"What process splits water?"	String	~200 bytes		
 Expected_Answer	Expected response from P5	"Photolysis of water"	String	~100 bytes		
+Soft_Negatives	Plausible but incorrect answers	["Photosynthesis", "Cellular respiration"]	JSON Array	~200 bytes		
+Hard_Negatives	Clearly incorrect or irrelevant answers	["The sky is blue", "E=mc^2"]	JSON Array	~200 bytes		
 Metadata						
 Domain	Categorical domain from P5	"Science" (1 of 16)	Enum	4 bits		
 Task	Categorical task from P5	"Fact Retrieval" (1 of 32)	Enum	5 bits		
@@ -663,6 +672,8 @@ CREATE TABLE cpe_entry (
   concept_text     TEXT NOT NULL,                 -- P5
   probe_question   TEXT NOT NULL,                 -- P5
   expected_answer  TEXT NOT NULL,                 -- P5
+  soft_negatives   JSONB,                         -- P5 - MISSING IN CURRENT IMPL
+  hard_negatives   JSONB,                         -- P5 - MISSING IN CURRENT IMPL
 
   -- Categorical labels
   domain_code      SMALLINT NOT NULL,             -- 0..15

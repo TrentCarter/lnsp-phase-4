@@ -3,18 +3,92 @@
 This file provides guidance to Claude Code when working with this repository.
 
 ## 🚨 CRITICAL RULES
-1. **No placeholder/sample data in production.** Avoid template lists and hardcoded examples.
-2. **Never run training without explicit permission.**
-3. **Default to 768D GTR-T5** (no STELLA 1024D unless requested).
-4. **Vec2Text usage**: follow `docs/how_to_use_jxe_and_ielab.md` for correct JXE/IELab usage.
-5. **Devices**: JXE can use MPS or CPU; IELab is CPU-only. GTR-T5 can use MPS or CPU.
-6. **Steps**: Use `--steps 1` for vec2text by default; increase only when asked.
+1. **ALWAYS use REAL data** - Never use stub/placeholder data. Always use actual datasets from `data/` directory.
+2. **ALWAYS use REAL LLM** - Never fall back to stub extraction. Use Ollama with Llama 3.1:
+   - Install: `curl -fsSL https://ollama.ai/install.sh | sh`
+   - Pull model: `ollama pull llama3.1:8b`
+   - Start: `ollama serve` (keep running)
+   - Verify: `curl http://localhost:11434/api/tags`
+   - See `docs/howto/how_to_access_local_AI.md` for full setup
+3. **ALWAYS use REAL embeddings** - Use GTR-T5 for 768D vectors:
+   - Model: `sentence-transformers/gtr-t5-base`
+   - Install: `pip install sentence-transformers`
+   - Usage: Via `EmbeddingBackend()` class in `src/vectorizer.py`
+   - Generates true 768-dimensional dense vectors
+   - See `models/` directory for cached model files
+4. **Never run training without explicit permission.**
+5. **Vec2Text usage**: follow `docs/how_to_use_jxe_and_ielab.md` for correct JXE/IELab usage.
+6. **Devices**: JXE can use MPS or CPU; IELab is CPU-only. GTR-T5 can use MPS or CPU.
+7. **Steps**: Use `--steps 1` for vec2text by default; increase only when asked.
+8. **CPESH data**: Always generate complete CPESH (Concept-Probe-Expected-SoftNegatives-HardNegatives) using LLM, never empty arrays.
 
 <!-- Audio notifications section removed to keep repo guidance focused and neutral. -->
 
-## 📍 CURRENT STATUS (2025-09-19)
+## 📍 CURRENT STATUS (2025-09-28)
+- **CPESH Integration**: Full CPESH (Concept-Probe-Expected-SoftNegatives-HardNegatives) implemented with real LLM generation
 - **Vec2Text**: Use `app/vect_text_vect/vec_text_vect_isolated.py` with `--vec2text-backend isolated`.
 - **n8n MCP**: Configured and tested. Use `claude mcp list` to verify connection.
+- **Local LLM**: Ollama + Llama 3.1:8b running for real CPESH generation
+
+## 🤖 REAL COMPONENT SETUP
+
+### Local LLM Setup (Ollama + Llama 3.1)
+```bash
+# Quick setup
+curl -fsSL https://ollama.ai/install.sh | sh
+ollama pull llama3.1:8b
+ollama serve &
+
+# Test LLM is working
+curl -X POST http://localhost:11434/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"model": "llama3.1:8b", "messages": [{"role": "user", "content": "Hello"}], "stream": false}'
+
+# Environment variables for LNSP integration
+export LNSP_LLM_ENDPOINT="http://localhost:11434"
+export LNSP_LLM_MODEL="llama3.1:8b"
+```
+
+### Real Embeddings Setup (GTR-T5 768D)
+```bash
+# Install sentence-transformers
+pip install sentence-transformers
+
+# Verify GTR-T5 model download
+python -c "
+from sentence_transformers import SentenceTransformer
+model = SentenceTransformer('sentence-transformers/gtr-t5-base')
+print('GTR-T5 loaded successfully:', model.get_sentence_embedding_dimension(), 'dimensions')
+"
+
+# Test embedding generation
+python -c "
+from src.vectorizer import EmbeddingBackend
+eb = EmbeddingBackend()
+vec = eb.encode(['Hello world'])
+print('Generated vector shape:', vec[0].shape)
+"
+```
+
+### Real Data Ingestion (No Stubs)
+```bash
+# Use real FactoidWiki data
+ls data/factoidwiki_*.jsonl
+
+# Ingest with real LLM + real embeddings
+export LNSP_LLM_ENDPOINT="http://localhost:11434"
+export LNSP_LLM_MODEL="llama3.1:8b"
+
+./.venv/bin/python -m src.ingest_factoid \
+  --file-path data/factoidwiki_1k.jsonl \
+  --num-samples 20 \
+  --write-pg \
+  --write-neo4j \
+  --faiss-out artifacts/real_vectors.npz
+
+# Verify CPESH data was generated (not empty arrays)
+psql lnsp -c "SELECT count(*) FROM cpe_entry WHERE jsonb_array_length(soft_negatives) > 0;"
+```
 
 
 ## 📂 KEY COMMANDS
@@ -83,9 +157,54 @@ VEC2TEXT_FORCE_PROJECT_VENV=1 VEC2TEXT_DEVICE=cpu TOKENIZERS_PARALLELISM=false \
 - **Tests**: `tests/`
 - **Docs**: `docs/how_to_use_jxe_and_ielab.md`
 
+## 🔍 VERIFICATION COMMANDS
+
+### Check All Real Components Are Working
+```bash
+# 1. Verify Ollama LLM is running
+curl -s http://localhost:11434/api/tags | jq -r '.models[].name' | grep llama3.1
+
+# 2. Verify GTR-T5 embeddings
+python -c "from src.vectorizer import EmbeddingBackend; eb = EmbeddingBackend(); print('✓ GTR-T5 embeddings working')"
+
+# 3. Verify CPESH data has real negatives (not empty arrays)
+psql lnsp -c "SELECT count(*) as items_with_negatives FROM cpe_entry WHERE jsonb_array_length(soft_negatives) > 0 AND jsonb_array_length(hard_negatives) > 0;"
+
+# 4. Verify real vector dimensions
+psql lnsp -c "SELECT jsonb_array_length(concept_vec) as vector_dims FROM cpe_vectors LIMIT 1;"
+
+# 5. Test complete CPESH extraction
+python -c "
+from src.prompt_extractor import extract_cpe_from_text
+import os
+os.environ['LNSP_LLM_ENDPOINT'] = 'http://localhost:11434'
+os.environ['LNSP_LLM_MODEL'] = 'llama3.1:8b'
+result = extract_cpe_from_text('The Eiffel Tower was built in 1889.')
+print('✓ LLM extraction working')
+print('Soft negatives:', len(result.get('soft_negatives', [])))
+print('Hard negatives:', len(result.get('hard_negatives', [])))
+"
+```
+
+### Component Status Check
+```bash
+# Complete system check
+echo "=== LNSP Real Component Status ==="
+echo "1. Ollama LLM:" $(curl -s http://localhost:11434/api/tags >/dev/null 2>&1 && echo "✓ Running" || echo "✗ Not running")
+echo "2. PostgreSQL:" $(psql lnsp -c "SELECT 1" >/dev/null 2>&1 && echo "✓ Connected" || echo "✗ Not connected")
+echo "3. Neo4j:" $(cypher-shell -u neo4j -p password "RETURN 1" >/dev/null 2>&1 && echo "✓ Connected" || echo "✗ Not connected")
+echo "4. GTR-T5:" $(python -c "from src.vectorizer import EmbeddingBackend; EmbeddingBackend()" >/dev/null 2>&1 && echo "✓ Available" || echo "✗ Not available")
+```
+
 ## 💡 DEVELOPMENT GUIDELINES
+- **ALWAYS verify real components before starting work** - Run status check above
+- **NO STUB FUNCTIONS** - If LLM/embeddings fail, fix the service, don't fall back to stubs
 - Python 3.11+ with venv (`python3 -m venv venv && source venv/bin/activate`)
 - Install with `python -m pip install -r requirements.txt`
 - Lint with `ruff check app tests scripts`
 - Run smoke tests: `pytest tests/lnsp_vec2text_cli_main_test.py -k smoke`
 - Keep changes aligned with vec2text isolated backend unless otherwise specified
+- **Links to full documentation:**
+  - LLM setup: `docs/howto/how_to_access_local_AI.md`
+  - CPESH generation: `docs/design_documents/prompt_template_lightRAG_TMD_CPE.md`
+  - Known-good procedures: `docs/PRDs/PRD_KnownGood_vecRAG_Data_Ingestion.md`

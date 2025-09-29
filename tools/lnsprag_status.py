@@ -329,6 +329,24 @@ def main():
         [[ds["pairs_in_sample"], "Sampled from active; Parquet counting coming next."]]
     ))
 
+    # GraphRAG Health (when enabled)
+    if API and os.getenv("LNSP_GRAPHRAG_ENABLED", "0") == "1":
+        graph_health = get_api_json("/graph/health")
+        if graph_health:
+            print(ascii_table(
+                ["concepts", "edges", "status"],
+                [[
+                    f"{graph_health.get('concepts', 0):,}",
+                    f"{graph_health.get('edges', 0):,}",
+                    graph_health.get('status', 'unknown')
+                ]]
+            ))
+        else:
+            print(ascii_table(
+                ["concepts", "edges", "status"],
+                [["—", "—", "GraphRAG API unavailable"]]
+            ))
+
     if API:
         print(f"\nNote: live API read from {API}")
     print("Done.")

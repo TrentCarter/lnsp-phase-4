@@ -1,4 +1,5 @@
 import os
+from typing import List, Optional, Dict, Any
 
 try:
     from neo4j import GraphDatabase
@@ -67,6 +68,104 @@ class Neo4jDB:
         except Exception as exc:
             print(f"[Neo4jDB] Error inserting concept {cpe_record['cpe_id']}: {exc}")
             return False
+
+    def insert_relation_triple(self, src_cpe_id: str, dst_cpe_id: str, rel_type: str) -> bool:
+        if not self.enabled or not self.driver:
+            print(f"[Neo4jDB STUB] Relation {src_cpe_id} -> {dst_cpe_id} ({rel_type})")
+            return True
+        try:
+            with self.driver.session() as session:
+                upsert_relation(session, src_cpe_id, dst_cpe_id, rel_type)
+            return True
+        except Exception as exc:
+            print(f"[Neo4jDB] Error inserting relation {src_cpe_id} -> {dst_cpe_id}: {exc}")
+            return False
+
+    def search_fulltext(self, q: str, lane: Optional[int], top_k: int) -> List[Dict[str,Any]]:
+        """Search concepts using fulltext index."""
+        if not self.enabled or not self.driver:
+            print(f"[Neo4jDB STUB] Fulltext search: {q}")
+            return []
+        try:
+            cy = """
+            CALL db.index.fulltext.queryNodes('concept_text_fts', $q) YIELD node, score
+            WHERE $lane IS NULL OR node.laneIndex = $lane
+            RETURN node.cpe_id AS cpe_id, node.text AS concept_text, node.laneIndex AS lane_index,
+                   coalesce(node.tmdBits,0) AS tmd_bits, score
+            ORDER BY score DESC LIMIT $top_k
+            """
+            with self.driver.session() as s:
+                res = s.run(cy, q=q, lane=lane, top_k=top_k)
+                return [r.data() for r in res]
+        except Exception as exc:
+            print(f"[Neo4jDB] Error in fulltext search: {exc}")
+            return []
+
+    def search_by_seed_ids(self, seed_ids: List[str], lane: Optional[int], top_k: int) -> List[Dict[str,Any]]:
+        """Search concepts by specific CPE IDs."""
+        if not self.enabled or not self.driver:
+            print(f"[Neo4jDB STUB] Seed search: {seed_ids}")
+            return []
+        try:
+            cy = """
+            MATCH (c:Concept) WHERE c.cpe_id IN $ids
+            WITH c, 1.0 AS score
+            WHERE $lane IS NULL OR c.laneIndex = $lane
+            RETURN c.cpe_id AS cpe_id, c.text AS concept_text, c.laneIndex AS lane_index,
+                   coalesce(c.tmdBits,0) AS tmd_bits, score
+            ORDER BY score DESC LIMIT $top_k
+            """
+            with self.driver.session() as s:
+                res = s.run(cy, ids=seed_ids, lane=lane, top_k=top_k)
+                return [r.data() for r in res]
+        except Exception as exc:
+            print(f"[Neo4jDB] Error in seed search: {exc}")
+            return []
+
+    def expand_hops(self, seed: str, max_hops: int, top_k: int, lane: Optional[int]) -> List[Dict[str,Any]]:
+        """Expand from a seed concept via graph relationships."""
+        if not self.enabled or not self.driver:
+            print(f"[Neo4jDB STUB] Hop expansion: {seed}")
+            return []
+        try:
+            # Simplified version without APOC (using basic MATCH)
+            cy = """
+            MATCH (s:Concept {cpe_id:$seed})-[r:RELATES_TO*1..$max_hops]->(n:Concept)
+            WHERE $lane IS NULL OR n.laneIndex = $lane
+            WITH n, length(r) AS path_length,
+                 1.0 / length(r) AS score,
+                 [rel IN r | {pred: coalesce(rel.pred, 'relates_to'), weight: coalesce(rel.weight, 1.0)}] AS path_meta
+            RETURN n.cpe_id AS cpe_id, n.text AS concept_text, n.laneIndex AS lane_index,
+                   coalesce(n.tmdBits,0) AS tmd_bits, score, path_meta
+            ORDER BY score DESC LIMIT $top_k
+            """
+            with self.driver.session() as s:
+                res = s.run(cy, seed=seed, max_hops=max_hops, lane=lane, top_k=top_k)
+                return [r.data() for r in res]
+        except Exception as exc:
+            print(f"[Neo4jDB] Error in hop expansion: {exc}")
+            return []
+
+    def graph_health(self) -> Dict[str,Any]:
+        """Get graph health statistics."""
+        if not self.enabled or not self.driver:
+            return {"concepts": 0, "edges": 0, "status": "disabled"}
+        try:
+            cy = """
+            CALL {
+              MATCH (c:Concept) RETURN count(c) AS cnt_concepts
+            }
+            CALL {
+              MATCH ()-[r:RELATES_TO]->() RETURN count(r) AS cnt_edges
+            }
+            RETURN cnt_concepts, cnt_edges
+            """
+            with self.driver.session() as s:
+                r = s.run(cy).single()
+                return {"concepts": r["cnt_concepts"], "edges": r["cnt_edges"], "status": "healthy"}
+        except Exception as exc:
+            print(f"[Neo4jDB] Error getting health: {exc}")
+            return {"concepts": 0, "edges": 0, "status": f"error: {exc}"}
 
     def close(self) -> None:
         if self.driver:

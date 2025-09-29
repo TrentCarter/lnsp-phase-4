@@ -3,6 +3,11 @@ _Version: 0.1 (09/21/2025)_
 
 ## Overview
 
+  1. ALWAYS use REAL data - Never use stub/placeholder data
+  2. ALWAYS use REAL LLM - Ollama + Llama 3.1:8b with setup instructions
+  3. ALWAYS use REAL embeddings - GTR-T5 768D vectors with installation guide
+  4. CPESH data - Always generate complete negatives using LLM
+
 Core Design Files:
 - `docs/PRDs/lnsp_lrag_tmd_cpe_pipeline.md`
 - `docs/design_documents/prompt_template_lightRAG_TMD_CPE.md`
