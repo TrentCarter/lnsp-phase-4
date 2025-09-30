@@ -29,11 +29,13 @@ def upsert_concept(session, core: dict):
 
 def upsert_relation(session, src_id: str, dst_id: str, rel_type: str):
     q = """
-    MATCH (s:Concept {cpe_id:$src}), (d:Concept {cpe_id:$dst})
-    MERGE (s)-[r:REL {type:$rel_type}]->(d)
+    MATCH (s:Concept {cpe_id:$src})
+    MERGE (d:Entity {name:$dst})
+    MERGE (s)-[r:RELATES_TO {type:$rel_type}]->(d)
     RETURN type(r)
     """
-    return session.run(q, src=src_id, dst=dst_id, rel_type=rel_type).single().value()
+    result = session.run(q, src=src_id, dst=dst_id, rel_type=rel_type).single()
+    return result.value() if result else None
 
 
 class Neo4jDB:
@@ -128,19 +130,23 @@ class Neo4jDB:
             print(f"[Neo4jDB STUB] Hop expansion: {seed}")
             return []
         try:
-            # Simplified version without APOC (using basic MATCH)
-            cy = """
-            MATCH (s:Concept {cpe_id:$seed})-[r:RELATES_TO*1..$max_hops]->(n:Concept)
-            WHERE $lane IS NULL OR n.laneIndex = $lane
+            # Support both Concept-to-Concept and Concept-to-Entity relationships
+            cy = f"""
+            MATCH (s:Concept {{cpe_id:$seed}})-[r:RELATES_TO*1..{max_hops}]->(n)
+            WHERE (n:Concept AND ($lane IS NULL OR n.laneIndex = $lane)) OR n:Entity
             WITH n, length(r) AS path_length,
                  1.0 / length(r) AS score,
-                 [rel IN r | {pred: coalesce(rel.pred, 'relates_to'), weight: coalesce(rel.weight, 1.0)}] AS path_meta
-            RETURN n.cpe_id AS cpe_id, n.text AS concept_text, n.laneIndex AS lane_index,
-                   coalesce(n.tmdBits,0) AS tmd_bits, score, path_meta
+                 [rel IN r | {{pred: coalesce(rel.type, 'relates_to'), weight: coalesce(rel.weight, 1.0)}}] AS path_meta
+            RETURN
+                CASE WHEN n:Concept THEN n.cpe_id ELSE n.name END AS cpe_id,
+                CASE WHEN n:Concept THEN n.text ELSE n.name END AS concept_text,
+                CASE WHEN n:Concept THEN n.laneIndex ELSE null END AS lane_index,
+                CASE WHEN n:Concept THEN coalesce(n.tmdBits,0) ELSE 0 END AS tmd_bits,
+                score, path_meta
             ORDER BY score DESC LIMIT $top_k
             """
             with self.driver.session() as s:
-                res = s.run(cy, seed=seed, max_hops=max_hops, lane=lane, top_k=top_k)
+                res = s.run(cy, seed=seed, lane=lane, top_k=top_k)
                 return [r.data() for r in res]
         except Exception as exc:
             print(f"[Neo4jDB] Error in hop expansion: {exc}")
@@ -149,23 +155,31 @@ class Neo4jDB:
     def graph_health(self) -> Dict[str,Any]:
         """Get graph health statistics."""
         if not self.enabled or not self.driver:
-            return {"concepts": 0, "edges": 0, "status": "disabled"}
+            return {"concepts": 0, "entities": 0, "edges": 0, "status": "disabled"}
         try:
             cy = """
             CALL {
               MATCH (c:Concept) RETURN count(c) AS cnt_concepts
             }
             CALL {
+              MATCH (e:Entity) RETURN count(e) AS cnt_entities
+            }
+            CALL {
               MATCH ()-[r:RELATES_TO]->() RETURN count(r) AS cnt_edges
             }
-            RETURN cnt_concepts, cnt_edges
+            RETURN cnt_concepts, cnt_entities, cnt_edges
             """
             with self.driver.session() as s:
                 r = s.run(cy).single()
-                return {"concepts": r["cnt_concepts"], "edges": r["cnt_edges"], "status": "healthy"}
+                return {
+                    "concepts": r["cnt_concepts"],
+                    "entities": r["cnt_entities"],
+                    "edges": r["cnt_edges"],
+                    "status": "healthy"
+                }
         except Exception as exc:
             print(f"[Neo4jDB] Error getting health: {exc}")
-            return {"concepts": 0, "edges": 0, "status": f"error: {exc}"}
+            return {"concepts": 0, "entities": 0, "edges": 0, "status": f"error: {exc}"}
 
     def close(self) -> None:
         if self.driver:

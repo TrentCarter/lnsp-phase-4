@@ -129,6 +129,28 @@ def extract_stub(contents: str, title_hint: str | None = None) -> Extracted:
             "French Revolution"
         ]
 
+    # Extract basic relations from text using simple heuristics
+    relations = []
+    # Try to extract entities and relations from the text
+    if title:
+        # Basic pattern: title is usually the main subject
+        if "is" in first:
+            parts = first.split("is", 1)
+            if len(parts) == 2:
+                relations.append({"subj": title, "pred": "is", "obj": parts[1].strip().rstrip(".")})
+        elif "was" in first:
+            parts = first.split("was", 1)
+            if len(parts) == 2:
+                relations.append({"subj": title, "pred": "was", "obj": parts[1].strip().rstrip(".")})
+        elif "converts" in first or "creates" in first or "produces" in first:
+            # Handle action verbs
+            for verb in ["converts", "creates", "produces"]:
+                if verb in first:
+                    parts = first.split(verb, 1)
+                    if len(parts) == 2:
+                        relations.append({"subj": title, "pred": verb, "obj": parts[1].strip().rstrip(".")})
+                        break
+
     return Extracted(
         concept_text=first,
         probe_question=probe,
@@ -139,11 +161,11 @@ def extract_stub(contents: str, title_hint: str | None = None) -> Extracted:
         task="fact_retrieval",
         modifier="descriptive",
         content_type="factual",
-        relations=[],
+        relations=relations,
     )
 
 def extract_cpe_from_text(text: str) -> Dict[str, Any]:
-    """Extract CPE + TMD using local Llama (JSON-only), then embed and fuse vectors.
+    """Extract CPE + TMD + relations using local Llama (JSON-only), then embed and fuse vectors.
 
     Falls back to heuristic extraction if local LLM or embeddings are unavailable.
     """
@@ -197,13 +219,16 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
 
     # Prepare prompt for local Llama based on design doc schema
     prompt = (
-        "Output JSON only with keys: concept, probe, expected, soft_negatives, hard_negatives, domain, task, modifier.\n"
+        "Output JSON only with keys: concept, probe, expected, soft_negatives, hard_negatives, domain, task, modifier, relations.\n"
         "Given the input text, extract: \n"
         "- concept: a short atomic proposition capturing the core fact.\n"
         "- probe: a question that is directly answered by the concept.\n"
         "- expected: the concise answer to the probe, grounded in the text.\n"
         "- soft_negatives: array of 3 plausible but incorrect answers that someone might confuse with the correct answer.\n"
         "- hard_negatives: array of 3 clearly incorrect answers from completely different domains.\n"
+        "- relations: array of entity relationships, each with {subj: '<entity>', pred: '<relationship_type>', obj: '<entity>'}. "
+        "Extract 2-5 key relationships. Examples: {subj: 'Eiffel Tower', pred: 'completed_in', obj: '1889'}, "
+        "{subj: 'photosynthesis', pred: 'converts', obj: 'light energy'}, {subj: 'Ada Lovelace', pred: 'worked_on', obj: 'Analytical Engine'}.\n"
         "- domain: one of [science, mathematics, technology, engineering, medicine, psychology, philosophy, history,"
         " literature, art, economics, law, politics, education, environment, sociology].\n"
         "- task: one of [fact_retrieval, definition, comparison, cause_effect, taxonomy, timeline, attribute_extraction,"
@@ -226,6 +251,7 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
     concept = probe = expected = None
     soft_negatives = []
     hard_negatives = []
+    relations = []
     domain = task = modifier = None
     try:
         llm = LocalLlamaClient(
@@ -238,6 +264,14 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
         expected = (j.get("expected") or "").strip()
         soft_negatives = j.get("soft_negatives", [])
         hard_negatives = j.get("hard_negatives", [])
+        relations = j.get("relations", [])
+        # Validate relations structure
+        if relations and isinstance(relations, list):
+            valid_relations = []
+            for rel in relations:
+                if isinstance(rel, dict) and 'subj' in rel and 'pred' in rel and 'obj' in rel:
+                    valid_relations.append(rel)
+            relations = valid_relations
         domain = (j.get("domain") or "technology").strip().lower()
         task = (j.get("task") or "fact_retrieval").strip().lower()
         modifier = (j.get("modifier") or "descriptive").strip().lower()
@@ -293,7 +327,7 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
         'question_vec': question_vec.tolist(),
         'fused_vec': fused_unit.astype(np.float32).tolist(),
         'fused_norm': norm if norm > 0 else 1.0,
-        'relations': [],
+        'relations': relations if relations else [],
         'echo_score': 0.95,
         'validation_status': 'passed',
     }

@@ -286,4 +286,7 @@ mlartifacts/
 # Evaluation artifacts
 eval/
 
+# Report outputs
+reports/output/
+
 

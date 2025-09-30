@@ -50,9 +50,13 @@ def run_graph_extraction(
     if not triples:
         return 0
 
-    writer = getattr(neo_db, "insert_relation_triple", None)
-    if writer is None:
+    writer_func = getattr(neo_db, "insert_relation_triple", None)
+    if writer_func is None:
         return len(triples)
 
-    return ingest_triples(triples, lane_index=cpe_record["lane_index"], writer=writer)
+    # Create wrapper to convert Triple object to Neo4jDB method signature
+    def triple_writer(triple):
+        writer_func(triple.src_cpe_id, triple.dst_cpe_id, triple.type)
+
+    return ingest_triples(triples, lane_index=cpe_record["lane_index"], writer=triple_writer)
 

@@ -1,6 +1,6 @@
-PRD — Neo4j for LNSP (vecRAG + GraphRAG)
+PRD — Neo4j for LNSP (vecRAG + GraphRAG) - Two-Phase Architecture
 0. Purpose & Scope
-Goal: Specify how Neo4j is used to persist and serve the knowledge graph for LNSP: capturing CPESH-derived entities and relations with audit metadata, enabling GraphRAG traversal and hybrid retrieval alongside FAISS (VecRAG), and supporting RLvecRAG (feedback-driven updates).
+Goal: Specify how Neo4j is used to persist and serve the knowledge graph for LNSP using the new **Two-Phase Graph Architecture**: Phase 1 captures CPESH-derived entities and within-document relations, Phase 2 performs cross-document entity resolution and linking, enabling proper GraphRAG traversal and hybrid retrieval alongside FAISS (VecRAG), and supporting RLvecRAG (feedback-driven updates).
 In scope
 Graph data model (nodes/relationships/properties).
 Ingestion from CPESH outputs (Active JSONL + Parquet segments).
@@ -11,13 +11,15 @@ Storing/serving dense vectors inside Neo4j (handled by FAISS/NPZ).
 Long-term data lake storage (Parquet/SQLite index remain source-of-truth).
 1. Primary Use Cases
 GraphRAG retrieval
-Expand candidate documents by traversing from CPESH-anchored concepts and relation triples (semantic neighbors, typed edges).
+Expand candidate documents by traversing from CPESH-anchored concepts and relation triples, including both within-document and cross-document relationships for comprehensive semantic expansion.
 VecRAG → GraphRAG fusion
-Start from vector hits (top-k doc_ids), map to cpe_id / concepts, then graph-expand to re-rank or broaden recall.
+Start from vector hits (top-k doc_ids), map to cpe_id / concepts, then graph-expand across document boundaries to re-rank or broaden recall.
+Two-Phase Entity Resolution
+Phase 1: Extract entities from individual documents. Phase 2: Resolve entities across documents using semantic similarity and create cross-document relationships.
 RLvecRAG feedback
-Write positive/negative feedback as edge weights & counters; decay old evidence; promote new relations.
+Write positive/negative feedback as edge weights & counters; decay old evidence; promote new relations across both within-document and cross-document edges.
 Audit & Explainability
-Show why a result was retrieved (paths, predicates, sources, timestamps, quality scores).
+Show why a result was retrieved (paths, predicates, sources, timestamps, quality scores, entity clusters).
 2. Data Model
 2.1 Node Labels
 :Concept
@@ -38,13 +40,16 @@ Note: We do not create separate :Probe/:Answer nodes by default; those remain pr
 :RELATES_TO (typed edge with pred)
 Directed edge between :Concept → :Concept
 Properties:
-pred (string; e.g., "is_a", "part_of", "causes", freeform allowed),
+pred (string; e.g., "is_a", "part_of", "causes", "same_person", "same_location", freeform allowed),
 weight (float; default 1.0),
 quality (float?), echo_score (float?),
 insufficient_evidence (bool; default false),
 created_at (string ISO), last_accessed (string ISO), access_count (int),
 source_id (string?), doc_id (string?), lane_index (int),
-curator_score (float?), recency_decay (float?).
+curator_score (float?), recency_decay (float?),
+cross_document (bool; default false) - indicates cross-document entity link,
+entity_cluster_id (string?) - identifier for entity resolution cluster,
+similarity_score (float?) - semantic similarity score for entity matches.
 :MENTIONS (concept appears in source)
 (:Source)-[:MENTIONS {doc_id, created_at, ...}]->(:Concept)
 :IN_MISSION
@@ -71,8 +76,9 @@ FOR (c:Concept) ON EACH [c.concept_text];
 // Optional: predicate lookup
 CREATE CONSTRAINT pred_name IF NOT EXISTS
 FOR (p:Predicate) REQUIRE p.name IS UNIQUE;
-3. Ingestion & Upsert
-3.1 Inputs
+3. Ingestion & Upsert - Two-Phase Architecture
+3.1 Phase 1: Individual Document Processing
+Inputs:
 Active JSONL: artifacts/cpesh_active.jsonl
 Parquet Segments: enumerated by artifacts/cpesh_manifest.jsonl
 Each CPESH record (normalized) must include:
@@ -80,13 +86,30 @@ cpe_id, concept_text, probe_question, expected_answer
 tmd_bits, lane_index
 created_at, last_accessed, access_count
 doc_id, dataset_source, content_type
-Optional: relations_text (list of {subj, pred, obj})
-3.2 Upsert Semantics
+relations_text (list of {subj, pred, obj, confidence}) - within-document relationships
+
+3.2 Phase 2: Cross-Document Entity Resolution
+Inputs:
+All processed CPE records from Phase 1
+Entity resolution results from p10_entity_resolution.py
+Outputs:
+Entity clusters mapping equivalent entities across documents
+Cross-document relationships with similarity scores
+Updated graph with interconnected entity links
+3.3 Upsert Semantics - Two-Phase
+Phase 1 - Individual Documents:
 MERGE on :Concept{cpe_id}
 Update non-null fields (text/meta/audit), bump access_count, update last_accessed.
-For relations_text triples, normalize:
+For relations_text triples within document:
 Resolve subj & obj to :Concept nodes (by cpe_id if present; else by text hash deterministic ID).
-MERGE (s)-[r:RELATES_TO {pred}]->(o); set weights/quality; increment access_count.
+MERGE (s)-[r:RELATES_TO {pred}]->(o); set weights/quality, cross_document=false.
+
+Phase 2 - Cross-Document Linking:
+For entity clusters from entity resolution:
+Identify equivalent entities across documents using semantic similarity.
+Create cross-document relationships:
+MERGE (s)-[r:RELATES_TO {pred}]->(o) where s.cpe_id != o.cpe_id and different doc_ids.
+Set cross_document=true, entity_cluster_id, similarity_score.
 For provenance, optionally MERGE :Source{source_id} and connect with :MENTIONS.
 3.3 Cypher Upserts (reference)
 // Concept upsert
@@ -230,20 +253,44 @@ Disabled returns 501 when feature flag off.
 Enabled returns 200 with realistic results on the dev sample.
 Hybrid flow: Basic fusion demo—start from VecRAG hits, expand via graph, return fused list.
 Observability: Minimal counters emitted and visible in logs; /graph/* p95 under target on dev set.
-14. Developer Cheatsheet
+14. Developer Cheatsheet - Two-Phase Architecture
 ENV
 export NEO4J_URI=bolt://localhost:7687
 export NEO4J_USER=neo4j
-export NEO4J_PASSWORD=secret
+export NEO4J_PASSWORD=password
 export LNSP_GRAPHRAG_ENABLED=1
-Create constraints & indexes (once)
-// paste the statements from §2.3
+export LNSP_LLM_ENDPOINT="http://localhost:11434"
+export LNSP_LLM_MODEL="llama3.1:8b"
+
+Two-Phase Ingestion
+# Phase 1: Individual documents with within-doc relationships
+./.venv/bin/python -m src.ingest_factoid --file-path data.jsonl --write-neo4j
+
+# Phase 2: Cross-document entity resolution and linking
+./.venv/bin/python -m src.ingest_factoid_twophase --file-path data.jsonl --write-neo4j
+
 Programmatic insert (Python)
+# Within-document relationship
 db.insert_relation_triple(
   cpe_id="cpe:abc",
   triple={"subj":"cpe:abc","pred":"is_a","obj":"cpe:def"},
-  meta={"doc_id":"fw:42","lane_index":0,"quality":0.9}
+  meta={"doc_id":"fw:42","lane_index":0,"quality":0.9,"cross_document":false}
 )
+
+# Cross-document relationship
+db.insert_relation_triple(
+  cpe_id="cpe:abc",
+  triple={"subj":"cpe:abc","pred":"same_person","obj":"cpe:xyz"},
+  meta={"cross_document":true,"entity_cluster_id":"cluster_1","similarity_score":0.95}
+)
+
+Graph Verification
+# Check both within-document and cross-document relationships
+cypher-shell -u neo4j -p password "MATCH ()-[r]->() RETURN r.cross_document, type(r), count(*)"
+
+# Verify entity clusters
+cypher-shell -u neo4j -p password "MATCH ()-[r]->() WHERE r.cross_document = true RETURN r.entity_cluster_id, count(*)"
+
 API checks
 curl -s -X POST 'http://127.0.0.1:8094/graph/search?q=photosynthesis&top_k=5' | jq
 curl -s -X POST 'http://127.0.0.1:8094/graph/hop' -d 'node_id=cpe:abc&max_hops=2&top_k=10' | jq
@@ -253,28 +300,33 @@ curl -s -X POST 'http://127.0.0.1:8094/graph/hop' -d 'node_id=cpe:abc&max_hops=2
  Feedback loops: auto-boost edges from accepted answers; decay stale ones.
  Graph sampling for self-distillation tasks in LVM training.
 
-16. Implementation Summary & Use Cases
+16. Implementation Summary & Use Cases - Two-Phase Architecture
 Architecture Snapshot
-- Neo4j stores CPESH-derived concepts and relations while FAISS maintains dense vectors; ingestion jobs keep both in sync.
+- Neo4j stores CPESH-derived concepts and relations in two phases: within-document (Phase 1) and cross-document (Phase 2) while FAISS maintains dense vectors; ingestion jobs keep both in sync.
 - Core node labels (:Concept, :Source, :Mission, optional :Predicate) capture minimal but high-value metadata needed for traversal and auditing.
-- Relationships (:RELATES_TO, :MENTIONS, :IN_MISSION) encode provenance, weights, and access counters so GraphRAG can reason over evidence strength.
+- Relationships (:RELATES_TO, :MENTIONS, :IN_MISSION) encode provenance, weights, access counters, and cross-document linking metadata so GraphRAG can reason over evidence strength and entity clusters.
 
-Operational Flow
-- Batch ingest: CPESH Active JSONL + Parquet segments power deterministic MERGE cycles that upsert concepts, sources, and relation triples.
-- Realtime/feedback ingest: RLvecRAG writes updated edge weights and counters, enabling continuous learning without schema churn.
-- Constraints (unique cpe_id/source_id) and indexes (lane index, concept_text full-text) guard consistency and keep hop queries performant.
+Operational Flow - Two-Phase
+- Phase 1 Batch ingest: CPESH Active JSONL + Parquet segments power deterministic MERGE cycles that upsert concepts, sources, and within-document relation triples.
+- Phase 2 Entity resolution: Cross-document entity matching using semantic similarity, fuzzy matching, and exact matching to create entity clusters.
+- Phase 2 Cross-linking: Generate relationships between equivalent entities across documents with confidence scores and cluster metadata.
+- Realtime/feedback ingest: RLvecRAG writes updated edge weights and counters for both within-document and cross-document relationships.
+- Constraints (unique cpe_id/source_id) and indexes (lane index, concept_text full-text, cross_document flags) guard consistency and keep hop queries performant.
 
-Query & Retrieval Patterns
-- GraphRAG: start from a concept seed, expand across predicate-filtered relations, return audited paths with doc_ids for downstream ranking.
-- VecRAG fusion: take top-k FAISS hits, map to concepts, traverse in Neo4j, and re-order results via reciprocal rank fusion or custom scoring.
-- Audit & explainability: expose stored provenance (source_id, timestamps, quality metrics) to show why a concept or relation was surfaced.
+Query & Retrieval Patterns - Enhanced with Cross-Document Traversal
+- GraphRAG: start from a concept seed, expand across both within-document and cross-document predicate-filtered relations, enabling proper knowledge graph traversal across document boundaries.
+- VecRAG fusion: take top-k FAISS hits, map to concepts, traverse in Neo4j across entity clusters, and re-order results via reciprocal rank fusion or custom scoring.
+- Entity-aware retrieval: leverage entity clusters to find related concepts that span multiple documents but refer to the same entities.
+- Audit & explainability: expose stored provenance (source_id, timestamps, quality metrics, entity cluster IDs, similarity scores) to show why a concept or cross-document relation was surfaced.
 
 Testing & Reliability
 - Unit coverage focuses on idempotent MERGE behavior, constraint enforcement, and deterministic subject/object resolution.
 - Integration tests validate /graph/search and /graph/hop endpoints behind the LNSP_GRAPHRAG_ENABLED flag, ensuring service toggles behave.
 - Observability hinges on ingestion counters, API latency/error metrics, and periodic data validation jobs flagging unknown predicates or orphaned nodes.
 
-Primary Use Cases
-- Analyst workflows needing explainable graph hops over CPESH concepts with traceable provenance.
-- Retrieval augmentation that blends vector similarity with graph semantics to broaden recall while maintaining precision.
-- Feedback loops where accepted/ rejected answers directly adjust graph edge weights, enabling adaptive RLvecRAG refinement.
+Primary Use Cases - Enhanced with Two-Phase Architecture
+- Analyst workflows needing explainable graph hops over CPESH concepts with traceable provenance and cross-document entity linking.
+- Retrieval augmentation that blends vector similarity with graph semantics spanning document boundaries to significantly broaden recall while maintaining precision.
+- Entity-centric analysis where users can explore how the same entity (person, location, concept) appears across multiple documents with different contexts.
+- Feedback loops where accepted/rejected answers directly adjust both within-document and cross-document edge weights, enabling adaptive RLvecRAG refinement across the entire knowledge graph.
+- Cross-document knowledge discovery where insights emerge from connecting related concepts that were previously isolated in separate documents.

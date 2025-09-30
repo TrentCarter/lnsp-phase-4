@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-FactoidWiki → LNSP Ingestion Pipeline
+FactoidWiki → LNSP Two-Phase Ingestion Pipeline
 
-Reads FactoidWiki JSONL items, extracts CPE + TMD, embeds concepts,
-and writes to Postgres, Neo4j, and Faiss.
+Phase 1: Extract CPE + TMD + relations, embed concepts, write to databases
+Phase 2: Entity resolution and cross-document linking
 
 Usage:
-    python -m src.ingest_factoid --help
+    python -m src.ingest_factoid_twophase --help
 """
 
 from __future__ import annotations
@@ -32,31 +32,12 @@ from .integrations.lightrag import (
     LightRAGHybridRetriever,
 )
 from .pipeline.p9_graph_extraction import run_graph_extraction
-
-
-SAMPLE_ITEMS = [
-    {
-        "id": "sample-0",
-        "contents": "Photosynthesis converts light energy into chemical energy in plants."
-    },
-    {
-        "id": "sample-1",
-        "contents": "Ada Lovelace is regarded as the first computer programmer for her work on the Analytical Engine."
-    },
-    {
-        "id": "sample-2",
-        "contents": "The Eiffel Tower was completed in 1889 for the Paris World's Fair."
-    },
-    {
-        "id": "sample-3",
-        "contents": "Olympus Mons on Mars is the tallest volcano in the solar system."
-    },
-]
+from .pipeline.p10_entity_resolution import run_two_phase_graph_extraction
 
 
 def load_factoid_samples(
-    file_path: str, 
-    file_type: str = 'jsonl', 
+    file_path: str,
+    file_type: str = 'jsonl',
     num_samples: Optional[int] = None
 ) -> List[Dict[str, Any]]:
     """Load samples from FactoidWiki file (JSONL or TSV)."""
@@ -80,31 +61,26 @@ def load_factoid_samples(
     return samples
 
 
-def process_sample(
+def process_sample_phase1(
     sample: Dict[str, Any],
     pg_db: PostgresDB,
     neo_db: Neo4jDB,
     faiss_db: FaissDB,
     batch_id: str,
     graph_adapter: LightRAGGraphBuilderAdapter,
-) -> Optional[str]:
-    """Process a single FactoidWiki sample through the pipeline."""
+) -> Optional[Dict[str, Any]]:
+    """Phase 1: Process a single FactoidWiki sample through the pipeline."""
 
     try:
         # Extract CPE using prompt template
         extraction = extract_cpe_from_text(sample["contents"])
 
-        # Generate a deterministic CPE ID based on source content or ID
-        # This ensures duplicate detection even without explicit IDs
+        # Generate a deterministic CPE ID so eval sets can reference stable identifiers
         source_id = sample.get("id")
         if source_id:
-            # Use provided ID for deterministic mapping (e.g., FactoidWiki)
             cpe_id = str(uuid.uuid5(uuid.NAMESPACE_URL, source_id))
         else:
-            # Use content hash for deduplication when no ID provided
-            # This prevents duplicate ingestion of same content
-            content_hash = sample["contents"]
-            cpe_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, content_hash))
+            cpe_id = str(uuid.uuid4())
 
         # Build TMD encoding
         domain_code = extraction["domain_code"]
@@ -159,26 +135,27 @@ def process_sample(
         neo_db.insert_concept(cpe_record)
         faiss_db.add_vector(cpe_record)
 
-        # Run graph extraction for Neo4j relationships
+        # Run graph extraction for Neo4j relationships (within-document only in Phase 1)
         run_graph_extraction(cpe_record, graph_adapter, neo_db)
 
-        print(f" Processed {sample['id']} → CPE {cpe_id}")
-        return cpe_id
+        print(f" Phase 1: Processed {sample['id']} → CPE {cpe_id}")
+        return cpe_record
 
     except Exception as e:
-        print(f" Failed to process {sample['id']}: {e}")
+        print(f" Phase 1: Failed to process {sample['id']}: {e}")
         return None
 
 
-def ingest(
+def ingest_two_phase(
     samples: List[Dict[str, Any]],
     *,
     write_pg: bool = False,
     write_neo4j: bool = False,
-    faiss_out: str = "/tmp/factoid_vecs.npz",
+    faiss_out: str = "/tmp/factoid_twophase_vecs.npz",
     batch_id: Optional[str] = None,
+    entity_analysis_out: str = "artifacts/entity_analysis_twophase.json",
 ) -> Dict[str, Any]:
-    """Programmatic ingestion helper used by tests and CLI wrappers."""
+    """Two-phase programmatic ingestion helper used by tests and CLI wrappers."""
 
     lightrag_config = LightRAGConfig.from_env()
     graph_adapter = LightRAGGraphBuilderAdapter.from_config(lightrag_config)
@@ -189,55 +166,60 @@ def ingest(
     faiss_db = FaissDB(output_path=faiss_out, retriever_adapter=retriever_adapter)
 
     batch = batch_id or str(uuid.uuid4())
-    processed = []
 
+    # === PHASE 1: Extract and store individual documents ===
+    print("=== PHASE 1: Individual Document Processing ===")
+    cpe_records = []
     for sample in samples:
-        cpe_id = process_sample(sample, pg_db, neo_db, faiss_db, batch, graph_adapter)
-        if cpe_id:
-            processed.append(cpe_id)
+        cpe_record = process_sample_phase1(sample, pg_db, neo_db, faiss_db, batch, graph_adapter)
+        if cpe_record:
+            cpe_records.append(cpe_record)
 
     faiss_db.save()
+    print(f"Phase 1 completed: {len(cpe_records)} documents processed")
+
+    # === PHASE 2: Entity resolution and cross-document linking ===
+    print("=== PHASE 2: Cross-Document Entity Resolution ===")
+    phase2_results = run_two_phase_graph_extraction(
+        cpe_records,
+        graph_adapter,
+        neo_db,
+        output_dir=Path(entity_analysis_out).parent
+    )
 
     return {
-        "count": len(processed),
+        "phase1_count": len(cpe_records),
+        "phase2_results": phase2_results,
         "batch_id": batch,
         "faiss_path": faiss_out,
+        "entity_analysis_path": entity_analysis_out,
+        "total_entities": phase2_results.get("total_entities", 0),
+        "cross_doc_relationships": phase2_results.get("cross_doc_relationships", 0),
+        "entity_clusters": phase2_results.get("entity_clusters", 0),
     }
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Ingest FactoidWiki into LNSP pipeline")
+    parser = argparse.ArgumentParser(description="Two-phase ingest FactoidWiki into LNSP pipeline")
     parser.add_argument("--file-path", type=str,
-                       default=str(Path(__file__).parent.parent / "data" / "datasets" / "factoid-wiki-large" / "factoid_wiki.jsonl"),
+                       default=str(Path(__file__).parent.parent / "data" / "factoidwiki_1k_sample.jsonl"),
                        help="Path to data file (JSONL or TSV)")
     parser.add_argument("--file-type", type=str, default='jsonl', choices=['jsonl', 'tsv'],
                        help="Type of file to process (jsonl or tsv)")
-    parser.add_argument("--num-samples", type=int, default=4,
+    parser.add_argument("--num-samples", type=int, default=20,
                        help="Number of samples to process (None for all)")
     parser.add_argument("--write-pg", action="store_true",
                        help="Write to PostgreSQL")
     parser.add_argument("--write-neo4j", action="store_true",
                        help="Write to Neo4j")
-    parser.add_argument("--faiss-out", type=str, default="/tmp/factoid_vecs.npz",
+    parser.add_argument("--faiss-out", type=str, default="/tmp/factoid_twophase_vecs.npz",
                        help="Path to save Faiss vectors")
     parser.add_argument("--batch-id", type=str, default=None,
                        help="Batch ID (auto-generated if not provided)")
+    parser.add_argument("--entity-analysis-out", type=str, default="artifacts/entity_analysis_twophase.json",
+                       help="Path to save entity analysis results")
 
     args = parser.parse_args()
-
-    # Initialize LightRAG adapters
-    lightrag_config = LightRAGConfig.from_env()
-    graph_adapter = LightRAGGraphBuilderAdapter.from_config(lightrag_config)
-    retriever_adapter = LightRAGHybridRetriever.from_config(
-        config=lightrag_config, dim=784
-    )
-
-    # Initialize databases based on flags
-    pg_db = PostgresDB(enabled=args.write_pg)
-    neo_db = Neo4jDB(enabled=args.write_neo4j)
-    faiss_db = FaissDB(output_path=args.faiss_out, retriever_adapter=retriever_adapter)
-
-    batch_id = args.batch_id or str(uuid.uuid4())
 
     # Load samples
     file_path = Path(args.file_path)
@@ -257,25 +239,29 @@ def main():
         print("No samples loaded!")
         return 1
 
-    print(f"Starting ingestion with batch_id={batch_id}")
-    print("=" * 60)
+    batch_id = args.batch_id or str(uuid.uuid4())
+    print(f"Starting two-phase ingestion with batch_id={batch_id}")
+    print("=" * 80)
 
-    # Process samples
-    processed_ids = []
-    for sample in samples:
-        cpe_id = process_sample(sample, pg_db, neo_db, faiss_db, batch_id, graph_adapter)
-        if cpe_id:
-            processed_ids.append(cpe_id)
+    # Run two-phase ingestion
+    results = ingest_two_phase(
+        samples,
+        write_pg=args.write_pg,
+        write_neo4j=args.write_neo4j,
+        faiss_out=args.faiss_out,
+        batch_id=batch_id,
+        entity_analysis_out=args.entity_analysis_out,
+    )
 
-    # Finalize databases
-    faiss_db.save()
-
-    print("=" * 60)
-    print(f" Completed ingestion of {len(processed_ids)}/{len(samples)} samples")
-    print(f"  Batch ID: {batch_id}")
-    if processed_ids:
-        print(f"  Sample CPE IDs: {processed_ids[:3]}{'...' if len(processed_ids) > 3 else ''}")
-    print(f"  Faiss saved to: {args.faiss_out}")
+    print("=" * 80)
+    print(" TWO-PHASE INGESTION COMPLETED")
+    print(f"  Phase 1 Documents: {results['phase1_count']}/{len(samples)}")
+    print(f"  Total Entities: {results['total_entities']}")
+    print(f"  Entity Clusters: {results['entity_clusters']}")
+    print(f"  Cross-Doc Relationships: {results['cross_doc_relationships']}")
+    print(f"  Batch ID: {results['batch_id']}")
+    print(f"  Faiss vectors: {results['faiss_path']}")
+    print(f"  Entity analysis: {results['entity_analysis_path']}")
 
     return 0
 

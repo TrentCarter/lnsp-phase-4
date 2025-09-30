@@ -985,11 +985,15 @@ def slo_ingest(snapshot: dict):
 def slo_get():
     if not os.path.exists(SLO_PATH):
         return {"ok": True, "present": False, "snapshot": None}
-    with open(SLO_PATH) as f:
-        snap = json.load(f)
-    snap["present"] = True
-    snap["ok"] = True
-    return snap
+    try:
+        with open(SLO_PATH) as f:
+            snap = json.load(f)
+        snap["present"] = True
+        snap["ok"] = True
+        return snap
+    except (json.JSONDecodeError, ValueError) as e:
+        # File exists but contains invalid JSON, return error info
+        return {"ok": False, "present": True, "error": f"Invalid JSON in SLO file: {e}", "snapshot": None}
 
     @app.get("/metrics/gating")
     def gating_metrics() -> Dict[str, Any]:

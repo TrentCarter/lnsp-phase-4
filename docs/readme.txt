@@ -4,6 +4,13 @@ source .venv/bin/activate
 
 This README is focused on the current Phase 4 repository. Legacy notes and command dumps from earlier projects have been archived to `docs/archive/readme_legacy_20250918.txt`.
 
+# 9/29/2025
+
+./venv/bin/python3 tools/lnsprag_status.py --matrix
+
+./venv/bin/python3 reports/scripts/generate_ingestion_report.py
+
+
 # 9/28/2025
 pytest tests/cli/test_ingestion_smoke.py
 
