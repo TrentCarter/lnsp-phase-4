@@ -4,6 +4,17 @@ source .venv/bin/activate
 
 This README is focused on the current Phase 4 repository. Legacy notes and command dumps from earlier projects have been archived to `docs/archive/readme_legacy_20250918.txt`.
 
+# 9/30/2025
+
+  # Will process 5,007 remaining items (items 4,994-10,000)
+  ./.venv/bin/python -m src.ingest_factoid \
+    --file-path data/datasets/factoid-wiki-large/factoid_wiki.jsonl \
+    --num-samples 10000 \
+    --write-pg \
+    --write-neo4j \
+    --faiss-out artifacts/fw10k.npz
+
+    
 # 9/29/2025
 
 ./venv/bin/python3 tools/lnsprag_status.py --matrix
