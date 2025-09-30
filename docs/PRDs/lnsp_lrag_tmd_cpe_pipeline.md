@@ -136,26 +136,65 @@ This schema supports the full pipeline from corpus ingestion through inference, 
 
 
 
-tools needed:
+## Current Status (2025-09-30)
+
+### Pipeline Completion Status at 5K Scale
+
+| Process | Status | Scale | Quality | Implementation Notes |
+|---------|--------|-------|---------|---------------------|
+| **P1: Corpus Ingestion** | ✅ Complete | 4,993 docs | 100% | FactoidWiki dataset loaded |
+| **P2: Smart Chunking** | ✅ Complete | 4,993 chunks | Good | Semantic chunking via LangChain |
+| **P3: Content Classification** | ✅ Complete | 4,993 labeled | Good | Content type classification working |
+| **P4: Mission Generation** | ✅ Complete | 4,993 missions | Good | Template-based extraction prompts |
+| **P5: LLM Interrogation** | ✅ Complete | 4,993 CPE | 94.9% | Ollama+Llama3.1:8b; 257 missing negatives |
+| **P6: TMD Encoding** | ✅ Complete | 4,993 TMD | 100% | 16D metadata vectors generated |
+| **P7: Concept Embedding** | ✅ Complete | 4,993 vectors | 100% | GTR-T5 768D embeddings |
+| **P8: Vector Fusion** | ✅ Complete | 4,993 fused | 100% | 784D vectors in Faiss+PostgreSQL |
+| **P9: Graph Extraction** | ✅ Complete | 10,070 edges | Good | Neo4j within-document relationships |
+| **P10: Entity Resolution** | ✅ Complete | 7,446 entities | Good | Cross-document entity linking operational |
+| **P11: Vector DB Storage** | ✅ Complete | 4,993 indexed | Excellent | Faiss IVF + PostgreSQL pgvector |
+| **P12: Graph DB Storage** | ✅ Complete | 12,439 nodes | Good | Neo4j graph with 2.02 edges per concept |
+| **P13: Echo Validation** | ⚠️ Partial | ~500 sampled | Pending | Spot checks pass; needs full systematic run |
+| **P14: Batch Optimization** | 🔄 Integrated | - | - | Built into ingestion pipeline |
+| **P15: LNSP Training** | ❌ Not Started | 0 | - | **BLOCKED**: Needs GWOM data + P13 completion |
+| **P16: Multi-RAG Query** | ✅ API Ready | - | Good | Retrieval endpoint tested and operational |
+| **P17: MoE Inference** | ❌ Not Started | 0 | - | **BLOCKED**: Depends on P15 model |
+
+### Key Findings from 5K Testing
+- ✅ **System Health**: All 15/15 health checks passed
+- ✅ **Performance**: <1ms vector search, <1s graph queries
+- ✅ **CPESH Quality**: 94.9% (4,736/4,993) with complete soft+hard negatives
+- ⚠️ **Gap**: 257 entries (5.1%) missing negatives - needs re-interrogation or accept as noise
+- ✅ **Scale Validated**: 5x baseline (999→4,993) with no performance degradation
+
+### Next Steps for P13-P17
+1. **P13 Full Run** (Immediate): Execute systematic echo validation on all 4,993 entries
+2. **GWOM Implementation** (Week 2-3): Generate 250K ordered concept chains
+3. **P15 Training** (Week 4-5): Train Latent-Only Mamba LVM on GWOM sequences
+4. **P17 Integration** (Week 6): Deploy full inference pipeline with Vec2Text fallback
+
+---
+
+## Original Pipeline Tools Reference
+
 Process	Description	Input	Output	Sub-Processes Used	Library/Tool	Resources (1-10)	Time/Item	Parallelizable	Storage
 P1: Corpus Ingestion	Load raw datasets into memory	Raw files (GSM8K, C4, etc)	Document objects	-	LangChain (TextLoader, JSONLoader)	2	1ms	✓✓✓	RAM only
 P2: Smart Chunking	Split documents into semantic units	Document objects	Semantic or proposition chunks (500 words)	-	LangChain (RecursiveCharacterTextSplitter)	3	5ms	✓✓✓	+10% size
 P3: Content Classification	Identify chunk type (math/fact/etc)	Semantic or Proposition chunks	Labeled chunks	-	Transformers (zero-shot-classification)	4	20ms	✓✓✓	+metadata
 P4: Mission Generation	Create extraction prompts	Labeled chunks	Mission texts	[P3]	Python (custom templates)	2	2ms	✓✓✓	+50 bytes
-P5: LLM Interrogation	Extract concepts via Teacher LLM	Mission texts	CPE + TMD + Relations	[P4]	LangChain + GPT-4/LLaMA API	9	500ms	✓✓	-
+P5: LLM Interrogation	Extract concepts via Teacher LLM	Mission texts	CPESH (CPE + soft/hard negatives) + TMD + Relations	[P4]	Ollama + LLaMA 3.1:8b (local)	9	500ms	✓✓	PostgreSQL
 P6: TMD Encoding	Generate 16D metadata vector	TMD text (D,T,M)	TMD vector [16D]	-	NumPy (bit encoding)	1	0.1ms	✓✓✓	16 bytes
 P7: Concept Embedding	Encode concepts to vectors	Concept text	Concept vector [768D]	-	GTR-T5 (sentence-transformers)	6	50ms	✓✓	3KB
 P8: Vector Fusion	Combine TMD + concept vectors	TMD [16D] + Concept [768D]	Fused vector [784D]	[P6, P7]	NumPy (concatenate)	1	0.01ms	✓✓✓	3.1KB
 P9: Graph Extraction	Parse relationships to triples	Relation text	Graph triples (within-document)	[P5]	LightRAG / NetworkX	3	10ms	✓✓✓	~200 bytes
 P10: Entity Resolution	Cross-document entity linking	All CPE records	Entity clusters + cross-doc relationships	[P9]	Custom Entity Resolver	4	50ms	✓✓	~300 bytes
-P10: Text DB Storage	Store CPE + metadata	Full CPE entries	Text DB records	[P5]	PostgreSQL / MongoDB	2	5ms	✓	~500 bytes
-P11: Vector DB Storage	Index vectors for search	Fused vectors	Searchable index	[P8]	Faiss / Pinecone / Weaviate	4	10ms	✓	3.1KB
-P12: Graph DB Storage	Store relationship network	Graph triples	Graph database	[P9]	Neo4j / ArangoDB	3	15ms	✓	~1KB
-P13: Echo Validation	Test retrieval quality	Probe questions	Quality scores	[P8, P11]	Custom Python (cosine similarity)	5	100ms	✓✓	logs only
-P14: Batch Optimization	Group similar missions	Mission queue	Optimized batches	[P4]	Ray / Celery (queue management)	3	50ms/batch	✓	-
-P15: LNSP Training	Train vector-native model	Validated concepts	Trained VMMoE	[P8, P13]	LNSP (Mamba + MoE)	10	2s/batch	✓	Model size
-P16: Multi-RAG Query	Hierarchical retrieval	User query	Relevant concepts	[P11, P12]	LangChain (MultiRetriever) + Faiss	6	20ms	✓✓	-
-P17: MoE Inference	Generate response	Retrieved concepts	Final answer	[P15, P16]	LNSP / vec2text (for debugging)	7	100ms	✓	-
+P11: Vector DB Storage	Index vectors for search	Fused vectors	Searchable index	[P8]	Faiss IVF-Flat + PostgreSQL pgvector	4	10ms	✓	3.1KB
+P12: Graph DB Storage	Store relationship network	Graph triples	Graph database	[P9, P10]	Neo4j (within+cross-doc edges)	3	15ms	✓	~1KB
+P13: Echo Validation	Test retrieval quality	Probe questions → retrieved concepts	Quality scores (cosine ≥0.82)	[P8, P11]	Custom Python (cosine similarity)	5	100ms	✓✓	Validation logs + echo_score in DB
+P14: Batch Optimization	Group similar missions	Mission queue	Optimized batches	[P4]	Built into ingestion (Ray/Celery optional)	3	50ms/batch	✓	-
+P15: Latent-Only LVM Training	Train vector-native generative model	GWOM chains (ordered concept sequences)	Trained Mamba LVM (vector→vector)	[P8, P13, GWOM]	Mamba-2 SSM + PyTorch	10	2s/batch	✓	~15-100MB model
+P16: Multi-RAG Query	Hierarchical retrieval	User query → vectors → concepts	Relevant concepts + context	[P11, P12]	Faiss + Neo4j graph walk + TMD routing	6	20ms	✓✓	-
+P17: Latent LVM Inference	Generate response in vector space	User query → LVM prediction → text	Final answer (via vecRAG V→T + LLM smooth)	[P15, P16, Vec2Text]	Mamba inference + Vec2Text (JXE/IELab) + Llama3.1 smoothing	7	<2s end-to-end	✓	-
 
 
 Updated Library Stack Summary
