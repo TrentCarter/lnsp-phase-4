@@ -1,0 +1,6 @@
+# lane\tquery
+L1_FACTOID	What is oxidoreductase activity?
+L1_FACTOID	Define the concept of ontology alignment.
+L1_FACTOID	What is the role of ATP in cellular processes?
+L1_FACTOID	What is the software MUSCLE used for?
+L1_FACTOID	Describe the relationship between gene and protein.

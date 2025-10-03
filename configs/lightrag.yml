@@ -16,8 +16,8 @@ vector_store:
   kind: external_faiss
   dim: 768
   metric: ip
-  index_path: artifacts/fw10k_ivf_768.index
-  meta_npz: artifacts/fw10k_vectors_768.npz
+  index_path: artifacts/ontology_4k_tmd_llm.index
+  meta_npz: artifacts/ontology_4k_tmd_llm.npz
   adapter: src/adapters/lightrag/vectorstore_faiss.py
 
 graph:

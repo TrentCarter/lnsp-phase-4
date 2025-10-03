@@ -168,10 +168,21 @@ class RetrievalContext:
             raise FileNotFoundError(f"NPZ file not found: {npz_path}")
 
         npz = np.load(npz_path, allow_pickle=True)
-        required_keys = ["vectors", "ids", "doc_ids", "concept_texts", "tmd_dense", "lane_indices"]
+        required_keys = ["vectors", "doc_ids", "concept_texts", "tmd_dense"]
         missing = [k for k in required_keys if k not in npz]
-        if missing:
-            raise ValueError(f"NPZ missing required keys: {missing} in {npz_path}")
+
+        # Allow new ontology exports that store `cpe_ids` instead of `ids` and omit
+        # explicit lane assignments. We'll generate fallbacks later so the service
+        # still boots against the slimmer schema.
+        has_id_column = "ids" in npz or "cpe_ids" in npz
+        if missing or not has_id_column:
+            missing_keys = missing.copy()
+            if not has_id_column:
+                missing_keys.append("ids|cpe_ids")
+            raise ValueError(f"NPZ missing required keys: {missing_keys} in {npz_path}")
+
+        if "lane_indices" not in npz:
+            print(f"[RetrievalContext] NPZ missing lane_indices; defaulting to zeros at runtime")
 
         # Dimension check for 768D mode
         if not self.use_fused and npz["vectors"].shape[1] != 768:
@@ -179,9 +190,15 @@ class RetrievalContext:
 
         # Shape consistency check
         n_vectors = len(npz["vectors"])
-        for key in ["ids", "doc_ids", "concept_texts", "lane_indices"]:
+        for key in ["doc_ids", "concept_texts"]:
             if len(npz[key]) != n_vectors:
                 raise ValueError(f"Shape mismatch: {key} has {len(npz[key])} items but vectors has {n_vectors}")
+        if "ids" in npz and len(npz["ids"]) != n_vectors:
+            raise ValueError(f"Shape mismatch: ids has {len(npz['ids'])} items but vectors has {n_vectors}")
+        if "cpe_ids" in npz and len(npz["cpe_ids"]) != n_vectors:
+            raise ValueError(f"Shape mismatch: cpe_ids has {len(npz['cpe_ids'])} items but vectors has {n_vectors}")
+        if "lane_indices" in npz and len(npz["lane_indices"]) != n_vectors:
+            raise ValueError(f"Shape mismatch: lane_indices has {len(npz['lane_indices'])} items but vectors has {n_vectors}")
 
         print(f"[RetrievalContext] NPZ schema validation passed: {npz_path}")
 

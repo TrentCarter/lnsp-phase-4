@@ -162,11 +162,11 @@ def process_sample(
         # Run graph extraction for Neo4j relationships
         run_graph_extraction(cpe_record, graph_adapter, neo_db)
 
-        print(f" Processed {sample['id']} → CPE {cpe_id}")
+        # Minimal output - detailed progress handled by caller
         return cpe_id
 
     except Exception as e:
-        print(f" Failed to process {sample['id']}: {e}")
+        print(f"✗ Failed {sample.get('id', 'unknown')}: {e}")
         return None
 
 

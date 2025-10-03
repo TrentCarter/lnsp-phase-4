@@ -161,6 +161,7 @@ class FaissDB:
         if not os.path.exists(index_path):
             raise FileNotFoundError(f"Missing FAISS index: {index_path}")
         index = faiss.read_index(str(index_path))
+        self.index_path = index_path
 
         # 2) check if index is already ID-mapped
         is_id_mapped = isinstance(index, (faiss.IndexIDMap, faiss.IndexIDMap2))

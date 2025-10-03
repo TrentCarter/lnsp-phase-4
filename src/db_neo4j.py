@@ -46,22 +46,22 @@ class Neo4jDB:
             try:
                 self.driver = get_driver()
                 if self.driver:
-                    print("[Neo4jDB] Connected to Neo4j")
+                    print("[Neo4jDB] ✓ Connected to Neo4j (REAL writes enabled)")
                 else:
-                    print("[Neo4jDB] Driver unavailable — using stub mode")
+                    print("[Neo4jDB] ✗ Driver unavailable — using stub mode")
                     self.enabled = False
             except Exception as exc:
-                print(f"[Neo4jDB] Connection error: {exc}")
+                print(f"[Neo4jDB] ✗ Connection error: {exc} — using stub mode")
                 self.enabled = False
         elif self.enabled:
-            print("[Neo4jDB] neo4j driver missing — falling back to stub mode")
+            print("[Neo4jDB] ✗ neo4j driver missing — using stub mode")
             self.enabled = False
         else:
-            print("[Neo4jDB] Running in stub mode")
+            print("[Neo4jDB] STUB MODE (writes disabled)")
 
     def insert_concept(self, cpe_record: dict) -> bool:
         if not self.enabled or not self.driver:
-            print(f"[Neo4jDB STUB] Concept {cpe_record['cpe_id']}")
+            # Stub mode - no actual writes
             return True
         try:
             with self.driver.session() as session:
@@ -73,7 +73,7 @@ class Neo4jDB:
 
     def insert_relation_triple(self, src_cpe_id: str, dst_cpe_id: str, rel_type: str) -> bool:
         if not self.enabled or not self.driver:
-            print(f"[Neo4jDB STUB] Relation {src_cpe_id} -> {dst_cpe_id} ({rel_type})")
+            # Stub mode - no actual writes
             return True
         try:
             with self.driver.session() as session:

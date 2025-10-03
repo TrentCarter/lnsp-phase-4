@@ -126,8 +126,11 @@ def ingest_ontology_file(
     
     # Process samples using existing factoid pipeline
     stats = {"total": len(samples), "processed": 0, "failed": 0}
-    
-    logger.info("Processing chains (LLM extraction + embedding)...")
+
+    import time
+    start_time = time.time()
+
+    logger.info("Processing chains (LLM + 768D embeddings + TMD + Graph)...")
     for i, sample in enumerate(samples, 1):
         try:
             result = process_sample(
@@ -138,16 +141,21 @@ def ingest_ontology_file(
                 batch_id=batch_id,
                 graph_adapter=graph_adapter
             )
-            
+
             if result:
                 stats["processed"] += 1
                 if i % 10 == 0:
-                    logger.info(f"  Processed {i}/{stats['total']} chains...")
+                    elapsed = time.time() - start_time
+                    rate = i / elapsed  # chains per second
+                    remaining = stats['total'] - i
+                    eta_seconds = remaining / rate if rate > 0 else 0
+                    eta_minutes = eta_seconds / 60
+                    logger.info(f"  ✓ {i}/{stats['total']} chains | {rate:.2f} chains/sec | ETA: {eta_minutes:.1f}min")
             else:
                 stats["failed"] += 1
-                
+
         except Exception as e:
-            logger.error(f"Error processing chain {sample['id']}: {e}")
+            logger.error(f"✗ Error processing chain {sample['id']}: {e}")
             stats["failed"] += 1
     
     # Print summary
