@@ -69,6 +69,8 @@
 
     # Ingest with batch processing
     echo "▶️  Ingesting ~10k items from $INPUT_JSONL"
+    echo "   ⚠️  CRITICAL: Writing to PostgreSQL, Neo4j, AND FAISS atomically"
+    echo "   ⚠️  All three data stores MUST stay synchronized for GraphRAG!"
     echo "   Processing up to 10000 samples"
     ./.venv/bin/python -m src.ingest_factoid \
         --file-path "$INPUT_JSONL" \
@@ -77,7 +79,13 @@
         --write-neo4j \
         --faiss-out "$NPZ_PATH"
 
-    # Verify output
+    # Verify ingestion succeeded
+    if [ $? -ne 0 ]; then
+        echo "❌ Ingestion FAILED! Data stores may be out of sync!"
+        exit 1
+    fi
+
+    # Verify output exists
     FINAL_COUNT=$(python3 -c "import numpy as np; print(np.load('$NPZ_PATH')['vectors'].shape[0])" 2>/dev/null || echo 0)
     if [ "$FINAL_COUNT" -eq 0 ]; then
         echo "❌ No vectors generated"
@@ -85,6 +93,23 @@
     fi
 
     echo "✅ Ingest complete: $FINAL_COUNT vectors saved → $NPZ_PATH"
+    echo "   Verifying data synchronization..."
+
+    # Quick sync check: sample concept from each store
+    SAMPLE_CONCEPT=$(python3 -c "import numpy as np; npz=np.load('$NPZ_PATH', allow_pickle=True); print(npz['concept_texts'][0])" 2>/dev/null || echo "")
+    if [ -n "$SAMPLE_CONCEPT" ]; then
+        PG_CHECK=$(psql -h "${PGHOST:-localhost}" -U "${PGUSER:-lnsp}" -d "${PGDATABASE:-lnsp}" -tAc "SELECT concept_text FROM cpe_entry WHERE concept_text='$SAMPLE_CONCEPT' LIMIT 1;" 2>/dev/null || echo "")
+        NEO_CHECK=$(cypher-shell -u neo4j -p password "MATCH (c:Concept {text: \"$SAMPLE_CONCEPT\"}) RETURN c.text LIMIT 1" --format plain 2>/dev/null | tail -1 || echo "")
+
+        if [ -z "$PG_CHECK" ] || [ -z "$NEO_CHECK" ]; then
+            echo "⚠️  WARNING: Data synchronization check failed!"
+            echo "   Sample concept '$SAMPLE_CONCEPT' not found in all stores"
+            echo "   PostgreSQL: ${PG_CHECK:-NOT FOUND}"
+            echo "   Neo4j: ${NEO_CHECK:-NOT FOUND}"
+        else
+            echo "✅ Data sync verified: Sample concept found in PostgreSQL + Neo4j + FAISS"
+        fi
+    fi
 
     # Summaries (best-effort)
     if command -v psql >/dev/null 2>&1; then

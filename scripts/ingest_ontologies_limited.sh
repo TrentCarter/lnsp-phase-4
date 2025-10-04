@@ -36,9 +36,12 @@ echo ""
 
 # Run ingestion with 2K limit per dataset
 echo "Starting limited ingestion (max 2K per dataset)..."
+echo "🚨 CRITICAL: Writing to PostgreSQL + Neo4j + FAISS atomically!"
 ./.venv/bin/python -m src.ingest_ontology_simple \
     --ingest-all \
     --write-pg \
+    --write-neo4j \
+    --write-faiss \
     --limit 2000
 
 # End timestamp

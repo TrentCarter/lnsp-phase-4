@@ -2,9 +2,26 @@
 
 This file provides guidance to Claude Code when working with this repository.
 
-## 🚨 CRITICAL RULES
+## 🚨 CRITICAL: READ LONG-TERM MEMORY FIRST
+
+**Before doing ANYTHING, read [LNSP_LONG_TERM_MEMORY.md](LNSP_LONG_TERM_MEMORY.md)**
+
+That file contains the cardinal rules that must NEVER be violated:
+1. Data Synchronization is Sacred (PostgreSQL + Neo4j + FAISS must stay synchronized)
+2. NO FactoidWiki Data - Ontologies ONLY
+3. Complete Data Pipeline: CPESH + TMD + Graph (all together, atomically)
+4. LVM Architecture: Tokenless Vector-Native
+5. Six Degrees of Separation + Shortcuts (0.5-3% shortcut edges)
+
+---
+
+## 🚨 CRITICAL RULES FOR DAILY OPERATIONS
+
 1. **ALWAYS use REAL data** - Never use stub/placeholder data. Always use actual datasets from `data/` directory.
-2. **ALWAYS use REAL LLM** - Never fall back to stub extraction. Use Ollama with Llama 3.1:
+2. **NEVER use FactoidWiki** - Only ontologies (SWO, GO, ConceptNet, DBpedia). FactoidWiki is NOT ontological!
+3. **ALWAYS verify dataset_source labels** - Ontology data must use `ontology-{source}` format (not `factoid-wiki-large`)
+4. **ALWAYS call faiss_db.save()** - FAISS vectors must be persisted after ingestion (see Oct 4 fix)
+5. **ALWAYS use REAL LLM** - Never fall back to stub extraction. Use Ollama with Llama 3.1:
    - Install: `curl -fsSL https://ollama.ai/install.sh | sh`
    - Pull model: `ollama pull llama3.1:8b`
    - Start: `ollama serve` (keep running)
@@ -24,11 +41,16 @@ This file provides guidance to Claude Code when working with this repository.
 
 <!-- Audio notifications section removed to keep repo guidance focused and neutral. -->
 
-## 📍 CURRENT STATUS (2025-09-28)
+## 📍 CURRENT STATUS (2025-10-04)
 - **CPESH Integration**: Full CPESH (Concept-Probe-Expected-SoftNegatives-HardNegatives) implemented with real LLM generation
 - **Vec2Text**: Use `app/vect_text_vect/vec_text_vect_isolated.py` with `--vec2text-backend isolated`.
 - **n8n MCP**: Configured and tested. Use `claude mcp list` to verify connection.
 - **Local LLM**: Ollama + Llama 3.1:8b running for real CPESH generation
+- **Recent Fixes (Oct 4, 2025)**:
+  - ✅ Fixed `dataset_source` labeling bug (ontology data now labeled correctly)
+  - ✅ Fixed FAISS save() call (NPZ files now created automatically)
+  - ✅ Updated validation script (checks content, not just labels)
+  - See `docs/FIXES_Oct4_2025_FactoidWiki_Labeling.md` for details
 
 ## 🤖 REAL COMPONENT SETUP
 

@@ -32,6 +32,12 @@ try:
 except Exception:
     HAS_BM25 = False
 
+try:
+    from RAG.graphrag_backend import GraphRAGBackend, run_graphrag
+    HAS_GRAPHRAG = True
+except Exception:
+    HAS_GRAPHRAG = False
+
 @dataclass
 class Corpus:
     vectors: np.ndarray
@@ -43,9 +49,28 @@ class Corpus:
 
 
 def _detect_npz() -> Optional[str]:
-    for p in [os.getenv("FAISS_NPZ_PATH"), ROOT/"artifacts/fw10k_vectors.npz", ROOT/"artifacts/fw9k_vectors.npz"]:
-        if p and os.path.isfile(str(p)):
-            return str(p)
+    """Detect NPZ file with actual vectors (not just metadata)."""
+    candidates = [
+        os.getenv("FAISS_NPZ_PATH"),
+        ROOT/"artifacts/fw9k_vectors_tmd_fixed.npz",
+        ROOT/"artifacts/fw10k_vectors.npz",
+        ROOT/"artifacts/fw9k_vectors.npz",
+    ]
+
+    for p in candidates:
+        if not p or not os.path.isfile(str(p)):
+            continue
+
+        # Verify it has 2D vectors
+        try:
+            import numpy as np
+            npz = np.load(str(p), allow_pickle=True)
+            for k in ("vectors", "fused", "concept", "concept_vecs"):
+                if k in npz and np.asarray(npz[k]).ndim == 2:
+                    return str(p)
+        except Exception:
+            continue
+
     return None
 
 def _detect_index() -> Optional[str]:
@@ -271,6 +296,8 @@ def main() -> int:
     ap.add_argument("--n",type=int,default=500); ap.add_argument("--topk",type=int,default=10)
     ap.add_argument("--backends",default="vec,bm25")
     ap.add_argument("--out",default=None)
+    ap.add_argument("--graphrag-mode",choices=["local","global","hybrid"],default="hybrid",
+                    help="GraphRAG mode: local (1-hop), global (walks), hybrid (both)")
     args=ap.parse_args()
 
     npz_path=args.npz or _detect_npz()
@@ -339,6 +366,20 @@ def main() -> int:
     # load FAISS once
     db=FaissDB(index_path=str(index_path), meta_npz_path=npz_path); db.load(str(index_path))
 
+    # Initialize GraphRAG backend if needed
+    graphrag_backend = None
+    if any(b.startswith("graphrag") for b in backends):
+        if not HAS_GRAPHRAG:
+            print("[WARN] graphrag backend requires neo4j driver (pip install neo4j)")
+            backends = [b for b in backends if not b.startswith("graphrag")]
+        else:
+            try:
+                graphrag_backend = GraphRAGBackend()
+                print("[INFO] GraphRAG backend initialized with Neo4j connection")
+            except Exception as e:
+                print(f"[WARN] Failed to initialize GraphRAG: {e}")
+                backends = [b for b in backends if not b.startswith("graphrag")]
+
     def eval_backend(name: str):
         if name=="vec":
             I,S,L=run_vec(db, queries, args.topk)
@@ -350,6 +391,20 @@ def main() -> int:
             I,S,L=run_lightvec(str(index_path), npz_path, dim, emb, q_text, tmds, args.topk)
         elif name=="lightrag_full":
             I,S,L=run_lightrag_full(q_text, args.topk, corp.doc_ids)
+        elif name.startswith("graphrag"):
+            # First get vector results
+            vec_I, vec_S, vec_L = run_vec(db, queries, args.topk)
+            # Then augment with graph
+            mode = name.split("_")[1] if "_" in name else args.graphrag_mode
+            I, S, L = run_graphrag(
+                graphrag_backend,
+                vec_I,
+                vec_S,
+                q_text,
+                corp.concept_texts,
+                args.topk,
+                mode=mode
+            )
         else:
             raise ValueError(f"Unknown backend: {name}")
         # ranks
@@ -386,6 +441,10 @@ def main() -> int:
 
     for b in backends:
         summaries.append(eval_backend(b))
+
+    # Cleanup GraphRAG connection
+    if graphrag_backend:
+        graphrag_backend.close()
 
     results={"dataset":dataset,"n":len(q_text),"topk":args.topk,"dim":dim,"backends":summaries}
     md_lines=[

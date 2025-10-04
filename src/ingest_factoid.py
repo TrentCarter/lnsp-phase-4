@@ -87,8 +87,13 @@ def process_sample(
     faiss_db: FaissDB,
     batch_id: str,
     graph_adapter: LightRAGGraphBuilderAdapter,
+    dataset_source: str = "factoid-wiki-large",
 ) -> Optional[str]:
-    """Process a single FactoidWiki sample through the pipeline."""
+    """Process a single FactoidWiki sample through the pipeline.
+
+    Args:
+        dataset_source: Source identifier (e.g., 'ontology-swo', 'ontology-go', 'factoid-wiki-large')
+    """
 
     try:
         # Extract CPE using prompt template
@@ -130,7 +135,7 @@ def process_sample(
             "task_code": task_code,
             "modifier_code": modifier_code,
             "content_type": "factual",
-            "dataset_source": "factoid-wiki-large",
+            "dataset_source": dataset_source,  # Use parameter instead of hardcoded value
             "chunk_position": {
                 "doc_id": sample.get("id", cpe_id),
                 "start": 0,

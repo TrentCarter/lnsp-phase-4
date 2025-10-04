@@ -1,6 +1,40 @@
-# LNSP Phase 4
+# LNSP Phase 4: Tokenless Mamba LVM + vecRAG + GraphRAG
 
-A vector-based retrieval system with LightRAG integration.
+A vector-native latent variable model (LVM) with ontology-based retrieval and knowledge graph integration.
+
+---
+
+## 🚨 **READ FIRST: Critical Documentation**
+
+Before doing ANYTHING, read these files in order:
+
+1. **[LNSP_LONG_TERM_MEMORY.md](LNSP_LONG_TERM_MEMORY.md)** ← START HERE!
+   - Cardinal rules that must NEVER be violated
+   - NO FactoidWiki policy
+   - Data synchronization requirements
+   - 6-degrees shortcuts theory
+
+2. **[CRITICAL_GraphRAG_Data_Synchronization.md](docs/CRITICAL_GraphRAG_Data_Synchronization.md)**
+   - PostgreSQL + Neo4j + FAISS must stay synchronized
+   - Atomic ingestion procedures
+
+3. **[GraphRAG_Root_Cause_Analysis.md](docs/GraphRAG_Root_Cause_Analysis.md)**
+   - Oct 2-3 incident: What went wrong and why
+
+---
+
+## Quick Start
+
+### Prerequisites
+```bash
+# 1. Validate NO FactoidWiki data exists
+./scripts/validate_no_factoidwiki.sh
+
+# 2. Verify data synchronization
+./scripts/verify_data_sync.sh
+
+# If either fails, re-ingest ontologies (see below)
+```
 
 ## Setup
 

@@ -1,6 +1,6 @@
 # LNSP Phase 4 — Quickstart and Working Commands
 source .venv/bin/activate
-
+claude --dangerously-skip-permissions
 
 This README is focused on the current Phase 4 repository. Legacy notes and command dumps from earlier projects have been archived to `docs/archive/readme_legacy_20250918.txt`.
 

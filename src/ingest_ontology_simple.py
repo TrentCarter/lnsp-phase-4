@@ -130,6 +130,11 @@ def ingest_ontology_file(
     import time
     start_time = time.time()
 
+    # Determine dataset source from input path
+    # Extract source name (swo, go, dbpedia, conceptnet) from filename
+    dataset_name = input_path.stem.replace('_chains', '')  # e.g., 'swo_chains' -> 'swo'
+    dataset_source = f"ontology-{dataset_name}"  # e.g., 'ontology-swo'
+
     logger.info("Processing chains (LLM + 768D embeddings + TMD + Graph)...")
     for i, sample in enumerate(samples, 1):
         try:
@@ -139,7 +144,8 @@ def ingest_ontology_file(
                 neo_db=neo_db,
                 faiss_db=faiss_db,
                 batch_id=batch_id,
-                graph_adapter=graph_adapter
+                graph_adapter=graph_adapter,
+                dataset_source=dataset_source  # Pass ontology source identifier
             )
 
             if result:
@@ -157,7 +163,16 @@ def ingest_ontology_file(
         except Exception as e:
             logger.error(f"✗ Error processing chain {sample['id']}: {e}")
             stats["failed"] += 1
-    
+
+    # Save FAISS vectors if enabled
+    if write_faiss and not isinstance(faiss_db, type):  # Check it's not a stub class
+        logger.info("Saving FAISS vectors...")
+        if hasattr(faiss_db, 'save'):
+            faiss_db.save()
+            logger.info(f"✓ FAISS vectors saved to {faiss_db.output_path}")
+        else:
+            logger.warning("⚠️  FAISS DB doesn't have save() method - using stub?")
+
     # Print summary
     logger.info("=" * 60)
     logger.info("INGESTION COMPLETE")
@@ -166,8 +181,9 @@ def ingest_ontology_file(
     logger.info(f"Processed:        {stats['processed']:,}")
     logger.info(f"Failed:           {stats['failed']:,}")
     logger.info(f"Success rate:     {stats['processed']/stats['total']*100:.1f}%")
+    logger.info(f"Dataset source:   {dataset_source}")
     logger.info("=" * 60)
-    
+
     return stats
 
 
