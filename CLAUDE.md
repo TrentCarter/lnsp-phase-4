@@ -92,24 +92,22 @@ print('Generated vector shape:', vec[0].shape)
 "
 ```
 
-### Real Data Ingestion (No Stubs)
+### Ontology Data Ingestion (No FactoidWiki)
 ```bash
-# Use real FactoidWiki data
-ls data/factoidwiki_*.jsonl
+# CRITICAL: Do NOT use FactoidWiki. Use ontology sources only (SWO/GO/DBpedia/etc.)
 
-# Ingest with real LLM + real embeddings
+# 1) Ensure local LLM is configured
 export LNSP_LLM_ENDPOINT="http://localhost:11434"
 export LNSP_LLM_MODEL="llama3.1:8b"
 
-./.venv/bin/python -m src.ingest_factoid \
-  --file-path data/factoidwiki_1k.jsonl \
-  --num-samples 20 \
-  --write-pg \
-  --write-neo4j \
-  --faiss-out artifacts/real_vectors.npz
+# 2) Ingest ontologies atomically (PostgreSQL + Neo4j + FAISS)
+./scripts/ingest_ontologies.sh
 
-# Verify CPESH data was generated (not empty arrays)
-psql lnsp -c "SELECT count(*) FROM cpe_entry WHERE jsonb_array_length(soft_negatives) > 0;"
+# 3) Verify synchronization
+./scripts/verify_data_sync.sh
+
+# 4) (Optional) Add 6-degree shortcuts to Neo4j
+./scripts/generate_6deg_shortcuts.sh
 ```
 
 
