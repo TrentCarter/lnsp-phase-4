@@ -38,6 +38,18 @@ try:
 except Exception:
     HAS_GRAPHRAG = False
 
+try:
+    from RAG.vecrag_graph_rerank import VecRAGGraphReranker, run_vecrag_graph_rerank
+    HAS_VECRAG_RERANK = True
+except Exception:
+    HAS_VECRAG_RERANK = False
+
+try:
+    from RAG.vecrag_tmd_rerank import run_vecrag_tmd_rerank, run_vecrag_tmd_only
+    HAS_TMD_RERANK = True
+except Exception:
+    HAS_TMD_RERANK = False
+
 @dataclass
 class Corpus:
     vectors: np.ndarray
@@ -380,6 +392,20 @@ def main() -> int:
                 print(f"[WARN] Failed to initialize GraphRAG: {e}")
                 backends = [b for b in backends if not b.startswith("graphrag")]
 
+    # Initialize vecRAG re-ranker if needed
+    vecrag_reranker = None
+    if "vec_graph_rerank" in backends:
+        if not HAS_VECRAG_RERANK:
+            print("[WARN] vec_graph_rerank requires neo4j driver")
+            backends = [b for b in backends if b != "vec_graph_rerank"]
+        else:
+            try:
+                vecrag_reranker = VecRAGGraphReranker()
+                print("[INFO] vecRAG graph re-ranker initialized")
+            except Exception as e:
+                print(f"[WARN] VecRAG reranker init failed: {e}")
+                backends = [b for b in backends if b != "vec_graph_rerank"]
+
     def eval_backend(name: str):
         if name=="vec":
             I,S,L=run_vec(db, queries, args.topk)
@@ -391,6 +417,46 @@ def main() -> int:
             I,S,L=run_lightvec(str(index_path), npz_path, dim, emb, q_text, tmds, args.topk)
         elif name=="lightrag_full":
             I,S,L=run_lightrag_full(q_text, args.topk, corp.doc_ids)
+        elif name == "vec_graph_rerank":
+            # vecRAG with graph re-ranking
+            if not vecrag_reranker:
+                raise RuntimeError("vecRAG reranker not initialized")
+            I, S, L = run_vecrag_graph_rerank(
+                db,
+                queries,
+                corp.concept_texts,
+                args.topk,
+                vecrag_reranker,
+                boost_factor=0.2  # Tune this: 0.1-0.3 recommended
+            )
+        elif name == "vec_tmd_rerank":
+            # vecRAG with TMD re-ranking
+            if not HAS_TMD_RERANK:
+                raise RuntimeError("TMD reranking not available")
+            if corp.dim != 784:
+                raise RuntimeError(f"TMD reranking requires 784D vectors (got {corp.dim}D)")
+            # Read alpha from environment (default 0.7)
+            tmd_alpha = float(os.getenv("TMD_ALPHA", "0.3"))
+            I, S, L = run_vecrag_tmd_rerank(
+                db,
+                queries,
+                q_text,  # Pass query texts for TMD generation
+                corp.vectors,  # Pass full corpus vectors for TMD extraction
+                args.topk,
+                alpha=(1.0 - tmd_alpha)  # Convert TMD weight to vector weight
+            )
+        elif name == "tmd_only":
+            # Retrieve using ONLY TMD (diagnostic mode)
+            if not HAS_TMD_RERANK:
+                raise RuntimeError("TMD reranking not available")
+            if corp.dim != 784:
+                raise RuntimeError(f"TMD-only mode requires 784D vectors (got {corp.dim}D)")
+            I, S, L = run_vecrag_tmd_only(
+                db,
+                queries,
+                corp.vectors,
+                args.topk
+            )
         elif name.startswith("graphrag"):
             # First get vector results
             vec_I, vec_S, vec_L = run_vec(db, queries, args.topk)
@@ -445,6 +511,8 @@ def main() -> int:
     # Cleanup GraphRAG connection
     if graphrag_backend:
         graphrag_backend.close()
+    if vecrag_reranker:
+        vecrag_reranker.close()
 
     results={"dataset":dataset,"n":len(q_text),"topk":args.topk,"dim":dim,"backends":summaries}
     md_lines=[
