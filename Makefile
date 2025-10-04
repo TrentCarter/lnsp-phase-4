@@ -1,4 +1,4 @@
-.PHONY: install smoke test db-up db-down consultant-eval faiss-setup ingest-10k ingest-all build-faiss api prune slo-snapshot slo-grid gating-snapshot smoketest cpesh-rotate cpesh-index graph-smoke
+.PHONY: install smoke test db-up db-down consultant-eval faiss-setup ingest-10k ingest-all build-faiss api prune slo-snapshot slo-grid gating-snapshot smoketest cpesh-rotate cpesh-index graph-smoke rag-status rag-watch graphrag-track
 
 install:
 	python3 -m venv .venv && . .venv/bin/activate && pip install --upgrade pip \
@@ -142,3 +142,17 @@ cpesh-rotate-nightly:
 	@./.venv/bin/python scripts/cpesh_rotate.py
 	@./.venv/bin/python scripts/cpesh_index_refresh.py
 	@echo "✅ Nightly rotation complete"
+
+# === RAG Performance Monitoring ===
+
+.PHONY: rag-status
+rag-status:
+	@PYTHONPATH=. ./.venv/bin/python tools/rag_dashboard.py
+
+.PHONY: rag-watch
+rag-watch:
+	@PYTHONPATH=. ./.venv/bin/python tools/rag_dashboard.py --watch
+
+.PHONY: graphrag-track
+graphrag-track:
+	@./.venv/bin/python tools/graphrag_tracker.py $(ARGS)
