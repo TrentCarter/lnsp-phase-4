@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
     # ===================================================================
-    # LNSP Phase-4: 10k Curated FactoidWiki Ingest
+    # LNSP Phase-4: 10k Curated FactoidWiki Ingest (DEPRECATED)
     # ===================================================================
     # Features: idempotent, resumable, batch processing
+    #
+    # DEPRECATION NOTICE:
+    #   FactoidWiki ingestion is forbidden by policy (ontologies only).
+    #   Use ./scripts/ingest_ontologies.sh instead.
+    #   To override for legacy debugging ONLY, set ALLOW_FACTOIDWIKI=1.
     #
     # Usage: ./scripts/ingest_10k.sh [path/to/factoid_wiki.jsonl]
     #
@@ -10,9 +15,17 @@
     #   BATCH_SIZE    - Batch size for processing (default: 1000)
     #   RESUME_FROM   - Resume from entry N (default: 0)
     #   NO_DOCKER     - Skip docker checks (default: 0)
+    #   ALLOW_FACTOIDWIKI - Allow running despite policy (default: 0)
     # ===================================================================
 
     set -euo pipefail
+
+    if [ "${ALLOW_FACTOIDWIKI:-0}" != "1" ]; then
+        echo "❌ This script is deprecated and disabled by policy (NO FactoidWiki)."
+        echo "   Use: ./scripts/ingest_ontologies.sh"
+        echo "   If you absolutely must run this for legacy debugging, set ALLOW_FACTOIDWIKI=1"
+        exit 1
+    fi
 
     ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
     cd "$ROOT_DIR"

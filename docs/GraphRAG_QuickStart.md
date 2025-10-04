@@ -29,7 +29,7 @@ GraphRAG:          Query → FAISS → Expand via graph → RRF fusion → Top-K
 ./scripts/verify_data_sync.sh
 
 # If out of sync, RE-INGEST:
-./scripts/ingest_10k.sh          # Writes to PostgreSQL + Neo4j + FAISS atomically
+./scripts/ingest_ontologies.sh    # Writes to PostgreSQL + Neo4j + FAISS atomically
 make build-faiss                  # Builds FAISS index from NPZ
 
 # 2. Verify counts match
@@ -56,9 +56,7 @@ cat RAG/results/summary_*.md | tail -20
 |---------|-------------|--------------|
 | **vec** | Baseline vecRAG (no graph) | 54.4% |
 | **bm25** | Traditional keyword search | 49.4% |
-| **graphrag_local** | vecRAG + 1-hop neighbors | **~60%** |
-| **graphrag_global** | vecRAG + graph walks | **~58%** |
-| **graphrag_hybrid** | vecRAG + both modes | **~65-70%** |
+| **GraphRAG (hybrid)** | LightRAG runner over file-based KG | **~60-70%** |
 
 ---
 
@@ -131,7 +129,7 @@ brew services start neo4j
 
 **Graph has no data?**
 ```bash
-./scripts/ingest_all_ontologies.sh
+./scripts/ingest_ontologies.sh
 ```
 
 **Import errors?**
@@ -155,7 +153,7 @@ After running benchmark:
 ## Full Documentation
 
 - **Implementation details**: `docs/GraphRAG_Implementation.md`
-- **Benchmark code**: `RAG/bench.py` + `RAG/graphrag_backend.py`
+- **Benchmark code**: `RAG/bench.py` + `src/adapters/lightrag/graphrag_runner.py`
 - **GWOM design** (for LVM training): `docs/PRDs/PRD_GWOM_design_Options.md`
 
 ---

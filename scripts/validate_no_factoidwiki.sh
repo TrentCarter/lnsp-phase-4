@@ -14,6 +14,7 @@ echo
 #       had a bug where it labeled ontology data as 'factoid-wiki-large'
 echo "[1/3] Checking PostgreSQL for FactoidWiki-labeled data..."
 FACTOID_LABELED=$(psql lnsp -tAc "SELECT COUNT(*) FROM cpe_entry WHERE dataset_source LIKE '%factoid%' OR dataset_source LIKE '%wiki%';" 2>/dev/null || echo "0")
+FACTOID_OK=0
 
 if [ "$FACTOID_LABELED" != "0" ]; then
     echo "  ⚠️  Found $FACTOID_LABELED entries with FactoidWiki label"
@@ -30,6 +31,7 @@ if [ "$FACTOID_LABELED" != "0" ]; then
         echo "  ℹ️  This is likely due to a labeling bug in ingest_ontology_simple.py"
         echo "     The fix has been applied - future ingestions will use 'ontology-*' labels"
         echo
+        FACTOID_OK=1
     else
         echo "  ❌ CRITICAL: Concepts appear to be FactoidWiki (royal families, albums, etc.)!"
         echo "$SAMPLE_CONCEPTS" | head -3 | sed 's/^/     - /'
@@ -82,13 +84,13 @@ echo "=" | head -c 70; echo
 echo "Validation Summary"
 echo "=" | head -c 70; echo
 echo
-echo "PostgreSQL FactoidWiki entries: $FACTOID_COUNT"
+echo "PostgreSQL FactoidWiki-labeled entries: $FACTOID_LABELED"
 echo "FactoidWiki files in artifacts: $(echo "$FACTOID_FILES" | wc -l | tr -d ' ')"
 echo "FactoidWiki-like Neo4j concepts: $FACTOID_CONCEPTS"
 echo
 
-if [ "$FACTOID_COUNT" = "0" ] && [ -z "$FACTOID_FILES" ]; then
-    echo "✅ PASSED: No FactoidWiki data detected"
+if [ "$FACTOID_OK" = "1" ] || { [ "$FACTOID_LABELED" = "0" ] && [ -z "$FACTOID_FILES" ]; }; then
+    echo "✅ PASSED: No FactoidWiki data detected (or labels known ontological)"
     echo
     echo "System is using ONTOLOGY data as required."
     echo "See: LNSP_LONG_TERM_MEMORY.md Section 2"

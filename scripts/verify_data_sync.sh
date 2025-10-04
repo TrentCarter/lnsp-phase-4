@@ -14,20 +14,35 @@ echo "[1/4] Checking data store counts..."
 PG_COUNT=$(psql lnsp -tAc "SELECT COUNT(*) FROM cpe_entry;" 2>/dev/null || echo "0")
 NEO_COUNT=$(cypher-shell -u neo4j -p password "MATCH (c:Concept) RETURN count(c)" --format plain 2>/dev/null | tail -1 || echo "0")
 
-# Find NPZ file
+# Resolve NPZ and Index from configs/lightrag.yml if present
 NPZ_FILE=""
-for candidate in artifacts/fw9k_vectors_tmd_fixed.npz artifacts/fw10k_vectors.npz; do
-    if [ -f "$candidate" ]; then
-        NPZ_FILE="$candidate"
-        break
-    fi
-done
+INDEX_PATH=""
 
+if [ -f "configs/lightrag.yml" ]; then
+    NPZ_FROM_CFG=$(python3 -c "import yaml,sys; d=yaml.safe_load(open('configs/lightrag.yml')); print((d or {}).get('vector_store',{}).get('meta_npz',''))" 2>/dev/null || echo "")
+    IDX_FROM_CFG=$(python3 -c "import yaml,sys; d=yaml.safe_load(open('configs/lightrag.yml')); print((d or {}).get('vector_store',{}).get('index_path',''))" 2>/dev/null || echo "")
+    if [ -n "$NPZ_FROM_CFG" ] && [ -f "$NPZ_FROM_CFG" ]; then NPZ_FILE="$NPZ_FROM_CFG"; fi
+    if [ -n "$IDX_FROM_CFG" ] && [ -f "$IDX_FROM_CFG" ]; then INDEX_PATH="$IDX_FROM_CFG"; fi
+fi
+
+# Fallback NPZ candidates
+if [ -z "$NPZ_FILE" ]; then
+    for candidate in artifacts/ontology_4k_full.npz artifacts/ontology_4k_tmd_llm.npz artifacts/fw10k_vectors.npz artifacts/fw9k_vectors_tmd_fixed.npz; do
+        if [ -f "$candidate" ]; then NPZ_FILE="$candidate"; break; fi
+    done
+fi
+
+# Fallback Index candidates via index_meta.json
+if [ -z "$INDEX_PATH" ] && [ -f "artifacts/index_meta.json" ]; then
+    INDEX_PATH=$(python3 -c "import json; m=json.load(open('artifacts/index_meta.json')); print(sorted(m.keys())[-1] if m else '')" 2>/dev/null || echo "")
+fi
+
+# Final NPZ count
 if [ -z "$NPZ_FILE" ]; then
     echo "❌ No NPZ file found!"
     NPZ_COUNT=0
 else
-    NPZ_COUNT=$(python3 -c "import numpy as np; print(len(np.load('$NPZ_FILE')['vectors']))" 2>/dev/null || echo "0")
+    NPZ_COUNT=$(python3 -c "import numpy as np; npz=np.load('$NPZ_FILE'); print(len(npz['vectors']) if 'vectors' in npz else (len(npz['fused']) if 'fused' in npz else 0))" 2>/dev/null || echo "0")
 fi
 
 echo "  PostgreSQL: $PG_COUNT concepts"
@@ -38,7 +53,7 @@ echo
 # Check if counts match
 if [ "$PG_COUNT" = "0" ] || [ "$NEO_COUNT" = "0" ] || [ "$NPZ_COUNT" = "0" ]; then
     echo "❌ CRITICAL: One or more data stores are empty!"
-    echo "   Run: ./scripts/ingest_10k.sh"
+    echo "   Run: ./scripts/ingest_ontologies.sh && make build-faiss"
     exit 1
 fi
 
@@ -52,7 +67,7 @@ if [ "$PG_COUNT" != "$NEO_COUNT" ] || [ "$PG_COUNT" != "$NPZ_COUNT" ]; then
     echo
     echo "   To fix: RE-INGEST everything"
     echo "   1. Clear all data: make clean-data"
-    echo "   2. Re-ingest: ./scripts/ingest_10k.sh"
+    echo "   2. Re-ingest: ./scripts/ingest_ontologies.sh"
     echo "   3. Build FAISS: make build-faiss"
     exit 1
 fi
@@ -98,7 +113,7 @@ if [ "$MISMATCH" = "1" ]; then
     echo "   - Or someone ran tools/regenerate_*_vectors.py (DON'T DO THIS!)"
     echo
     echo "   To fix: RE-INGEST everything"
-    echo "   ./scripts/ingest_10k.sh"
+    echo "   ./scripts/ingest_ontologies.sh && make build-faiss"
     exit 1
 fi
 
@@ -112,42 +127,40 @@ echo "  Relationships: $REL_COUNT edges"
 
 if [ "$REL_COUNT" -lt "100" ]; then
     echo "  ⚠️  WARNING: Low relationship count"
-    echo "     GraphRAG will have limited graph connectivity"
 else
     echo "  ✅ Good graph connectivity"
 fi
 echo
 
-# Check FAISS index exists
+# Check FAISS index exists (prefer resolved INDEX_PATH)
 echo "[4/4] Checking FAISS index..."
-if [ -f "artifacts/faiss_meta.json" ]; then
-    INDEX_PATH=$(python3 -c "import json; print(json.load(open('artifacts/faiss_meta.json')).get('index_path', ''))" 2>/dev/null)
-    if [ -n "$INDEX_PATH" ] && [ -f "$INDEX_PATH" ]; then
-        echo "  Index: $INDEX_PATH"
-        INDEX_DIM=$(python3 -c "import faiss; print(faiss.read_index('$INDEX_PATH').d)" 2>/dev/null)
-        NPZ_DIM=$(python3 -c "import numpy as np; print(np.load('$NPZ_FILE')['vectors'].shape[1])" 2>/dev/null)
+if [ -n "$INDEX_PATH" ] && [ -f "$INDEX_PATH" ]; then
+    echo "  Index: $INDEX_PATH"
+    INDEX_DIM=$(python3 -c "import faiss; print(faiss.read_index('$INDEX_PATH').d)" 2>/dev/null)
+    NPZ_DIM=$(python3 -c "import numpy as np; npz=np.load('$NPZ_FILE'); print(npz['vectors'].shape[1] if 'vectors' in npz else (npz['fused'].shape[1] if 'fused' in npz else -1))" 2>/dev/null)
 
-        echo "  Index dim: $INDEX_DIM, NPZ dim: $NPZ_DIM"
+    echo "  Index dim: $INDEX_DIM, NPZ dim: $NPZ_DIM"
 
-        if [ "$INDEX_DIM" != "$NPZ_DIM" ]; then
-            echo "  ❌ CRITICAL: Dimension mismatch!"
-            echo "     Index and NPZ have different dimensions"
-            echo "     Rebuild index: make build-faiss"
-            exit 1
-        fi
+    if [ "$INDEX_DIM" != "$NPZ_DIM" ]; then
+        echo "  ❌ CRITICAL: Dimension mismatch!"
+        echo "     Index and NPZ have different dimensions"
+        echo "     Rebuild index: make build-faiss"
+        exit 1
+    fi
 
-        echo "  ✅ FAISS index matches NPZ vectors"
+    echo "  ✅ FAISS index matches NPZ vectors"
+else
+    # Legacy path: try to read meta file for index
+    if [ -f "artifacts/index_meta.json" ]; then
+        echo "  ❌ Index path from config missing or invalid"
+        echo "     Check artifacts/index_meta.json and configs/lightrag.yml"
+        exit 1
     else
-        echo "  ❌ Index file not found: $INDEX_PATH"
+        echo "  ❌ No index path resolved"
         echo "     Build index: make build-faiss"
         exit 1
     fi
-else
-    echo "  ❌ No faiss_meta.json found"
-    echo "     Build index: make build-faiss"
-    exit 1
 fi
-
 echo
 echo "=" | head -c 70; echo
 echo "✅ ALL CHECKS PASSED - Data stores are synchronized!"

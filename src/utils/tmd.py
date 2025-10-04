@@ -61,6 +61,10 @@ def encode_tmd16(domain: int, task: int, modifier: int) -> np.ndarray:
 
         sys.path.insert(0, str(Path(__file__).parent))
         from norms import l2_normalize  # type: ignore
+
+    return l2_normalize(vec)
+
+
 def format_tmd_code(bits_or_codes: int | dict | None) -> str:
     """Format TMD code from various input formats.
 
