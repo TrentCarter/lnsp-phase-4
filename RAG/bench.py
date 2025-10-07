@@ -50,6 +50,12 @@ try:
 except Exception:
     HAS_TMD_RERANK = False
 
+try:
+    from RAG.graphrag_lightrag_style import LightRAGStyleRetriever
+    HAS_LIGHTRAG_STYLE = True
+except Exception:
+    HAS_LIGHTRAG_STYLE = False
+
 @dataclass
 class Corpus:
     vectors: np.ndarray
@@ -142,16 +148,15 @@ def load_corpus(npz_path: str) -> Corpus:
 
 def build_query(text: str, emb: EmbeddingBackend, tmd: Optional[np.ndarray], dim: int) -> np.ndarray:
     v = emb.encode([text])[0].astype(np.float32)
-    if dim==768:
+    if dim == 768:
         return v
-    if dim==784:
-        t = np.zeros((16,),dtype=np.float32) if tmd is None else tmd.astype(np.float32)
-        q = np.concatenate([t,v]).astype(np.float32)
-        n = float(np.linalg.norm(q));  q = q/n if n>0 else q
+    if dim == 784:
+        t = np.zeros((16,), dtype=np.float32) if tmd is None else tmd.astype(np.float32)
+        q = np.concatenate([t, v]).astype(np.float32)
+        n = float(np.linalg.norm(q))
+        q = q / n if n > 0 else q
         return q
     raise ValueError(f"Unsupported dim {dim}")
-
-# backends
 
 def run_vec(db: FaissDB, queries: List[np.ndarray], topk: int):
     idxs: List[List[int]]=[]; scores: List[List[float]]=[]; lat: List[float]=[]
@@ -365,15 +370,20 @@ def main() -> int:
     backends=[b.strip() for b in args.backends.split(',') if b.strip()]
     summaries: List[Dict[str,Any]]=[]
 
-    # Check for lightrag_full and warn early
+    # Gate lightrag_full behind env flag and KG presence
     if "lightrag_full" in backends:
-        kg_dir = ROOT / "artifacts/kg"
-        if not kg_dir.exists() or not list(kg_dir.glob("*.json")):
-            print(f"[WARN] lightrag_full backend requires knowledge graph in artifacts/kg/")
-            print(f"[WARN] Skipping lightrag_full. Use 'lightvec' for vector-only LightRAG comparison.")
+        allow_lrag_full = os.getenv("ALLOW_LRAG_FULL", "0") in ("1", "true", "True")
+        if not allow_lrag_full:
+            print("[WARN] lightrag_full is disabled by default. Set ALLOW_LRAG_FULL=1 to enable (experimental, incomplete mapping).")
             backends = [b for b in backends if b != "lightrag_full"]
         else:
-            print(f"[WARN] lightrag_full is EXPERIMENTAL - result mapping incomplete, metrics will be zero")
+            kg_dir = ROOT / "artifacts/kg"
+            if not kg_dir.exists() or not list(kg_dir.glob("*.json")):
+                print(f"[WARN] lightrag_full backend requires knowledge graph in artifacts/kg/")
+                print(f"[WARN] Skipping lightrag_full. Use 'lightvec' for vector-only LightRAG comparison.")
+                backends = [b for b in backends if b != "lightrag_full"]
+            else:
+                print(f"[WARN] lightrag_full is EXPERIMENTAL - result mapping incomplete, metrics will be zero")
 
     # load FAISS once
     db=FaissDB(index_path=str(index_path), meta_npz_path=npz_path); db.load(str(index_path))
@@ -405,6 +415,20 @@ def main() -> int:
             except Exception as e:
                 print(f"[WARN] VecRAG reranker init failed: {e}")
                 backends = [b for b in backends if b != "vec_graph_rerank"]
+
+    # Initialize LightRAG-style retriever if needed
+    lightrag_retriever = None
+    if "lightrag" in backends:
+        if not HAS_LIGHTRAG_STYLE:
+            print("[WARN] lightrag backend requires neo4j driver")
+            backends = [b for b in backends if b != "lightrag"]
+        else:
+            try:
+                lightrag_retriever = LightRAGStyleRetriever()
+                print("[INFO] LightRAG-style retriever initialized (query→concept matching)")
+            except Exception as e:
+                print(f"[WARN] LightRAG init failed: {e}")
+                backends = [b for b in backends if b != "lightrag"]
 
     def eval_backend(name: str):
         if name=="vec":
@@ -469,8 +493,30 @@ def main() -> int:
                 q_text,
                 corp.concept_texts,
                 args.topk,
-                mode=mode
+                mode=mode,
+                query_vecs=queries,  # Pass query vectors for similarity scoring
+                corpus_vecs=corp.vectors  # Pass corpus vectors for similarity scoring
             )
+        elif name == "lightrag":
+            # LightRAG-style: query→concepts, then traverse graph
+            if not lightrag_retriever:
+                raise RuntimeError("LightRAG retriever not initialized")
+
+            text_to_idx = {text: idx for idx, text in enumerate(corp.concept_texts)}
+            I, S, L = [], [], []
+
+            for qt, q in zip(q_text, queries):
+                indices, scores, latency = lightrag_retriever.search(
+                    query_text=qt,
+                    query_vector=q,
+                    concept_texts=corp.concept_texts,
+                    text_to_idx=text_to_idx,
+                    topk=args.topk,
+                    corpus_vecs=corp.vectors if corp.vectors is not None else None
+                )
+                I.append(indices)
+                S.append(scores)
+                L.append(latency)
         else:
             raise ValueError(f"Unknown backend: {name}")
         # ranks
@@ -480,8 +526,12 @@ def main() -> int:
             "metrics": {
                 "p_at_1": _m_at_k(ranks,1),
                 "p_at_5": _m_at_k(ranks,5),
+                "p_at_10": _m_at_k(ranks,10),
                 "mrr_at_10": _mrr_at_k(ranks,10),
                 "ndcg_at_10": _ndcg_at_k(ranks,10),
+                # Aliases for tools expecting generic keys
+                "mrr": _mrr_at_k(ranks,10),
+                "ndcg": _ndcg_at_k(ranks,10),
             },
             "latency_ms": {
                 "mean": float(np.mean(L) if L else 0.0),
@@ -503,6 +553,19 @@ def main() -> int:
                     "hits": hits,
                     "gold_rank": rank
                 })+"\n")
+            # Append one-line JSON summary for this backend (for compare_alpha_results.py)
+            fh.write(json.dumps({
+                "summary": True,
+                "backend": name,
+                "metrics": {
+                    "p_at_1": summ["metrics"]["p_at_1"],
+                    "p_at_5": summ["metrics"]["p_at_5"],
+                    "p_at_10": summ["metrics"]["p_at_10"],
+                    "mrr":      summ["metrics"]["mrr"],
+                    "ndcg":     summ["metrics"]["ndcg"],
+                },
+                "latency_ms": summ["latency_ms"]
+            })+"\n")
         return summ
 
     for b in backends:

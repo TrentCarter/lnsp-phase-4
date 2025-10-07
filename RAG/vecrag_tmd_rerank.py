@@ -21,7 +21,7 @@ TMD Fields (16 dimensions):
   [12:16] - confidence_metrics (4 floats: extraction confidence, relation strength, etc.)
 """
 from typing import List, Tuple
-import time
+import os, json, time
 import numpy as np
 import sys
 from pathlib import Path
@@ -143,6 +143,73 @@ def generate_tmd_for_query(query_text: str, use_llm: bool = True) -> np.ndarray:
     return tmd_16d
 
 
+def _softmax(a: np.ndarray, temp: float = 1.0) -> np.ndarray:
+    x = np.asarray(a, dtype=np.float32)
+    if x.size == 0:
+        return x
+    t = max(1e-8, float(temp))
+    m = float(np.max(x))
+    e = np.exp((x - m) / t)
+    s = float(np.sum(e))
+    return e / max(1e-8, s)
+
+
+def _normalize_scores(arr: np.ndarray, mode: str, temp: float) -> Tuple[np.ndarray, bool, str]:
+    """Normalize scores for mixing across channels.
+
+    Returns (normalized, collapsed_flag, used_mode)
+    """
+    x = np.asarray(arr, dtype=np.float32)
+    mode = (mode or "softmax").lower()
+
+    if x.size == 0:
+        return x, False, mode
+
+    if mode == "softmax":
+        return _softmax(x, temp), False, "softmax"
+
+    if mode == "zscore":
+        mu = float(np.mean(x)); sd = float(np.std(x))
+        z = (x - mu) / (sd + 1e-8)
+        mn = float(np.min(z)); mx = float(np.max(z)); delta = mx - mn
+        if delta < 1e-6:
+            # fallback
+            return _softmax(x, temp), True, "softmax_fallback"
+        z01 = (z - mn) / (delta + 1e-8)
+        return z01.astype(np.float32), False, "zscore_minmax"
+
+    # minmax
+    mn = float(np.min(x)); mx = float(np.max(x)); delta = mx - mn
+    if delta < 1e-6:
+        # fallback
+        return _softmax(x, temp), True, "softmax_fallback"
+    return ((x - mn) / (delta + 1e-8)).astype(np.float32), False, "minmax"
+
+
+def _rankdata(v: np.ndarray) -> np.ndarray:
+    """Simple rank transform (average ties) using numpy only."""
+    x = np.asarray(v, dtype=np.float32)
+    order = np.argsort(x)
+    ranks = np.empty_like(order, dtype=np.float32)
+    ranks[order] = np.arange(1, len(x) + 1, dtype=np.float32)
+    # crude average ties adjustment
+    # (for diagnostics only; exact tie handling not critical)
+    return ranks
+
+
+def _spearman(a: np.ndarray, b: np.ndarray) -> float:
+    if a.size != b.size or a.size == 0:
+        return 0.0
+    ra = _rankdata(a)
+    rb = _rankdata(b)
+    ra = ra - float(np.mean(ra))
+    rb = rb - float(np.mean(rb))
+    na = float(np.linalg.norm(ra)); nb = float(np.linalg.norm(rb))
+    if na < 1e-8 or nb < 1e-8:
+        return 0.0
+    return float(np.dot(ra, rb) / (na * nb))
+
+
 def run_vecrag_tmd_rerank(
     db,  # FaissDB instance
     queries: List[np.ndarray],
@@ -170,8 +237,27 @@ def run_vecrag_tmd_rerank(
     all_scores: List[List[float]] = []
     latencies: List[float] = []
 
-    # Get more results than needed for re-ranking
-    search_k = min(topk * 2, corpus_vectors.shape[0])
+    # Config
+    norm_mode = os.getenv("TMD_NORM", "softmax").lower()  # softmax|zscore|minmax
+    norm_temp = float(os.getenv("TMD_TEMP", "1.0"))
+    search_mult = max(1, int(os.getenv("TMD_SEARCH_MULT", "5")))
+    search_max = max(1, int(os.getenv("TMD_SEARCH_MAX", "200")))
+    use_llm = os.getenv("TMD_USE_LLM", "1") not in ("0", "false", "False")
+    enable_diag = os.getenv("TMD_DIAG", "0") in ("1", "true", "True")
+
+    # Derived
+    total_docs = int(corpus_vectors.shape[0])
+    search_k = min(topk * search_mult, search_max, total_docs)
+
+    # Diagnostics
+    collapse_count = 0
+    changed_count = 0
+    llm_zero_count = 0
+    diag_path = None
+    if enable_diag:
+        ts = int(time.time())
+        diag_path = str(ROOT / f"RAG/results/tmd_diag_{ts}.jsonl")
+        Path(diag_path).parent.mkdir(parents=True, exist_ok=True)
 
     for q, q_text in zip(queries, query_texts):
         t0 = time.perf_counter()
@@ -187,7 +273,9 @@ def run_vecrag_tmd_rerank(
         vec_scores = [float(s) for s in D[0]]
 
         # Step 2: Generate TMD from query TEXT (not from vector!)
-        query_tmd = generate_tmd_for_query(q_text)
+        query_tmd = generate_tmd_for_query(q_text, use_llm=use_llm)
+        if float(np.linalg.norm(query_tmd)) < 1e-8:
+            llm_zero_count += 1
 
         # Step 3: Extract TMDs from retrieved results
         result_vectors = corpus_vectors[vec_indices]  # (search_k, 784)
@@ -196,13 +284,16 @@ def run_vecrag_tmd_rerank(
         # Step 4: Compute TMD similarities
         tmd_similarities = compute_tmd_similarity(query_tmd, result_tmds)
 
-        # Step 5: Combine scores
-        # Normalize vec_scores to [0, 1] range
-        vec_scores_norm = np.array(vec_scores)
-        if len(vec_scores_norm) > 0 and vec_scores_norm.max() > 0:
-            vec_scores_norm = (vec_scores_norm - vec_scores_norm.min()) / (vec_scores_norm.max() - vec_scores_norm.min() + 1e-8)
+        # Step 5: Normalize both channels and combine
+        vec_scores_arr = np.asarray(vec_scores, dtype=np.float32)
+        tmd_scores_arr = np.asarray(tmd_similarities, dtype=np.float32)
 
-        combined_scores = alpha * vec_scores_norm + (1.0 - alpha) * tmd_similarities
+        vec_norm, vec_collapsed, used_vec_mode = _normalize_scores(vec_scores_arr, norm_mode, norm_temp)
+        tmd_norm, tmd_collapsed, used_tmd_mode = _normalize_scores(tmd_scores_arr, norm_mode, norm_temp)
+        if vec_collapsed:
+            collapse_count += 1
+
+        combined_scores = alpha * vec_norm + (1.0 - alpha) * tmd_norm
 
         # Step 6: Re-rank by combined scores
         sorted_pairs = sorted(
@@ -211,6 +302,7 @@ def run_vecrag_tmd_rerank(
         )
 
         # Step 7: Return top-K
+        top_before = vec_indices[:topk]
         reranked_indices = [idx for idx, _ in sorted_pairs[:topk]]
         reranked_scores = [score for _, score in sorted_pairs[:topk]]
 
@@ -218,6 +310,43 @@ def run_vecrag_tmd_rerank(
         all_scores.append(reranked_scores)
 
         latencies.append((time.perf_counter() - t0) * 1000.0)
+
+        # Diagnostics per query
+        if enable_diag and diag_path:
+            changed_positions = int(sum(1 for i in range(min(topk, len(top_before), len(reranked_indices))) if top_before[i] != reranked_indices[i]))
+            if changed_positions > 0:
+                changed_count += 1
+            diag_obj = {
+                "alpha": float(alpha),
+                "norm_mode": norm_mode,
+                "used_vec_mode": used_vec_mode,
+                "used_tmd_mode": used_tmd_mode,
+                "search_k": int(search_k),
+                "topk": int(topk),
+                "vec_min": float(np.min(vec_scores_arr) if vec_scores_arr.size else 0.0),
+                "vec_max": float(np.max(vec_scores_arr) if vec_scores_arr.size else 0.0),
+                "vec_collapsed": bool(vec_collapsed),
+                "spearman_vec_tmd": _spearman(vec_norm, tmd_norm),
+                "changed_positions": changed_positions,
+                "top_before": top_before,
+                "top_after": reranked_indices,
+            }
+            with open(diag_path, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(diag_obj) + "\n")
+
+    # Final diagnostics footer
+    if enable_diag and diag_path:
+        footer = {
+            "alpha": float(alpha),
+            "summary": True,
+            "collapse_count": int(collapse_count),
+            "changed_queries": int(changed_count),
+            "llm_zero_tmd": int(llm_zero_count),
+            "total_queries": int(len(all_indices)),
+            "changed_ratio": float(changed_count / max(1, len(all_indices))),
+        }
+        with open(diag_path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(footer) + "\n")
 
     return all_indices, all_scores, latencies
 

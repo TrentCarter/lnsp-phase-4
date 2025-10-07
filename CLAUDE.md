@@ -27,6 +27,21 @@ That file contains the cardinal rules that must NEVER be violated:
    - Start: `ollama serve` (keep running)
    - Verify: `curl http://localhost:11434/api/tags`
    - See `docs/howto/how_to_access_local_AI.md` for full setup
+6. **🔴 CRITICAL: ALL DATA MUST HAVE UNIQUE IDS FOR CORRELATION** (Added Oct 7, 2025)
+   - **Every concept MUST have a unique ID** (UUID/CPE ID) that links:
+     - PostgreSQL `cpe_entry` table (concept text, CPESH negatives, metadata)
+     - Neo4j `Concept` nodes (graph relationships)
+     - FAISS NPZ file (768D/784D vectors at index position)
+     - Training data chains (ordered sequences for LVM)
+   - **NPZ files MUST include**:
+     - `concept_texts`: Array of concept strings (for lookup)
+     - `cpe_ids`: Array of UUIDs (for database correlation)
+     - `vectors`: 768D or 784D arrays (for training/inference)
+   - **Why this matters**:
+     - vecRAG search: Query → FAISS index → CPE ID → concept text
+     - LVM training: Chain concepts → match text → get vector index → training sequences
+     - Inference: LVM output vector → FAISS nearest neighbor → CPE ID → final text
+   - **Without IDs**: Cannot correlate data across stores → training/inference impossible!
 3. **ALWAYS use REAL embeddings** - Use GTR-T5 for 768D vectors:
    - Model: `sentence-transformers/gtr-t5-base`
    - Install: `pip install sentence-transformers`

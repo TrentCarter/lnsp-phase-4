@@ -2,6 +2,69 @@
 source .venv/bin/activate
 claude --dangerously-skip-permissions
 
+#===. MODELS. ====
+10/7/2025
+  - models/lvm_lstm_retrained.pt ← Use this for production
+  - models/lvm_mamba_new.pt ← Keep for future comparison with larger dataset
+
+# 6 Stage Process from 10/7/2025
+  6-Stage Process:
+
+  STAGE 1: Text → Concepts (LLM + TMD)
+  - Input: "neural networks in AI"
+  - LLM extracts concepts with TMD:
+    - "neural network" → TMD: (15, 14, 9)
+    - "artificial intelligence" → TMD: (15, 5, 9)
+
+  STAGE 2: vecRAG Lookup (FAISS Search)
+  - For each concept, search FAISS (8K concepts)
+  - IF FOUND (cosine > 0.85): Use existing vector
+  - IF NOT FOUND:
+    - Generate GTR-T5 (768D) + LLM TMD (16D) → 784D
+    - INSERT ATOMICALLY to PostgreSQL + Neo4j + FAISS
+    - Assign parent_id/child_id for ontological order
+
+  STAGE 3: Mamba Prediction
+  - Load trained model: models/lvm_wordnet.pt
+  - Forward pass: concept_vec (784D) → Mamba → next_vec (784D)
+
+  STAGE 4: Next Concept Lookup
+  - Search FAISS for next_vec
+  - IF FOUND: Retrieve concept_text
+  - IF NOT FOUND:
+    - Fallback to vec2text (JXE + IELab decoders)
+    - Generate text from vector (~2s latency)
+    - INSERT new concept (atomic 3-way)
+
+  STAGE 5: Multi-Concept Wait ⚠️ CRITICAL!
+  - IF multiple concepts: Wait for ALL predictions
+  - Collect: [(input₁, next₁), (input₂, next₂)]
+  - DO NOT send partial results!
+
+  STAGE 6: LLM Response Smoothing
+  - Send to Llama 3.1:
+    - Original query
+    - Input concepts
+    - Predicted next concepts
+  - Generate smooth natural language response
+
+  ---
+  Performance:
+
+  | Stage         | Operation            | Latency   |
+  |---------------|----------------------|-----------|
+  | 1             | Concept extraction   | 500ms     |
+  | 2             | vecRAG lookup        | 0.1ms     |
+  | 2b            | GTR-T5 + TMD (new)   | 50ms      |
+  | 3             | Mamba forward        | 10ms      |
+  | 4             | vecRAG lookup (next) | 0.1ms     |
+  | 4b            | vec2text (if miss)   | 2000ms ⚠️ |
+  | 6             | LLM smoothing        | 800ms     |
+  | TOTAL (best)  | All found            | ~1.3s     |
+  | TOTAL (worst) | New + vec2text       | ~3.5s     |
+
+  
+
 This README is focused on the current Phase 4 repository. Legacy notes and command dumps from earlier projects have been archived to `docs/archive/readme_legacy_20250918.txt`.
 
 # 9/30/2025

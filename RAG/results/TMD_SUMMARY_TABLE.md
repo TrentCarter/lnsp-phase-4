@@ -69,3 +69,35 @@
 - TMD re-ranking (α=0.3): +3.0pp P@1, +2.0pp P@5
 - GraphRAG broken: -86.7% P@1 (10x edge expansion)
 - Core/TMD = different query sets
+
+⏺ P@K = Precision at K - measures if the correct answer appears in the top K results.
+
+  P@1 (Precision at 1):
+  - Did we get the exact right answer as #1?
+  - P@1 = 55% means: 55% of queries return the correct document as the top result
+
+  P@5 (Precision at 5):
+  - Is the correct answer anywhere in the top 5 results?
+  - P@5 = 75.5% means: 75.5% of queries have the correct document in top-5
+
+  Example:
+  Query: "What is diabetes?"
+  Correct answer: Document #42 (about diabetes)
+
+  Scenario 1 - Good retrieval:
+  Results: [#42, #19, #7, #33, #8]
+           ↑ correct answer is #1
+  P@1 = 1.0 (100%) ✅
+  P@5 = 1.0 (100%) ✅
+
+  Scenario 2 - Decent retrieval:
+  Results: [#19, #7, #42, #33, #8]
+                ↑ correct answer is #3
+  P@1 = 0.0 (0%) ❌
+  P@5 = 1.0 (100%) ✅
+
+  Scenario 3 - Poor retrieval:
+  Results: [#19, #7, #33, #8, #91]
+           (correct #42 not in top-5)
+  P@1 = 0.0 (0%) ❌
+  P@5 = 0.0 (0%) ❌
