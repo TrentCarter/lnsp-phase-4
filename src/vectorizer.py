@@ -19,7 +19,8 @@ def load_embedder():
       - SENTENCE_TRANSFORMERS_HOME / HF_HOME: cache roots
       - HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE: '1' to forbid downloads
     """
-    local = os.getenv("LNSP_EMBEDDER_PATH")
+    # Accept both env names; docs refer to LNSP_EMBED_MODEL_DIR
+    local = os.getenv("LNSP_EMBEDDER_PATH") or os.getenv("LNSP_EMBED_MODEL_DIR")
     if local and os.path.isdir(local):
         return SentenceTransformer(local)
     # If offline is requested, do not attempt network
@@ -72,7 +73,8 @@ class EmbeddingBackend:
     def _load_model_safe(self):
         try:
             # Use the offline-aware loader instead of direct instantiation
-            local_path = os.getenv("LNSP_EMBEDDER_PATH")
+            # Accept both env names; docs refer to LNSP_EMBED_MODEL_DIR
+            local_path = os.getenv("LNSP_EMBEDDER_PATH") or os.getenv("LNSP_EMBED_MODEL_DIR")
             if local_path and os.path.isdir(local_path):
                 self.model = SentenceTransformer(local_path, device=self.device)
             elif os.getenv("HF_HUB_OFFLINE") == "1" or os.getenv("TRANSFORMERS_OFFLINE") == "1":

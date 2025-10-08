@@ -16,6 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from src.db_faiss import FaissDB
 from src.vectorizer import EmbeddingBackend
 from src.utils.norms import l2_normalize
 
@@ -85,7 +86,7 @@ def main():
 
     print(f"Loading FAISS index from {index_path}...")
     index = faiss.read_index(str(index_path))
-    print(f"✓ Loaded index with {index.ntotal} vectors")
+    print(f"✓ Loaded index with {index.ntotal} vectors (dim={getattr(index, 'd', 'unknown')})")
 
     print(f"Loading metadata from {npz_path}...")
     npz = np.load(npz_path, allow_pickle=True)
@@ -114,6 +115,8 @@ def main():
     # Track query timing (excluding startup)
     query_times = []
 
+    index_dim = int(getattr(index, 'd', 768))
+
     for query in queries:
         print("=" * 70)
         print(f"Query: {query}")
@@ -122,11 +125,22 @@ def main():
         # Time the query processing
         query_start = time.time()
 
-        # Encode query
-        query_vec = embedder.encode([query])[0]
+        # Encode query (768D from GTR-T5)
+        query_vec = embedder.encode([query])[0].astype(np.float32)
+
+        # Adapt to index dimension
+        if index_dim == 784:
+            # Prepend 16D TMD zeros to form fused 784D, then normalize
+            tmd_zeros = np.zeros((16,), dtype=np.float32)
+            fused = np.concatenate([tmd_zeros, query_vec]).astype(np.float32)
+            query_vec_adapted = l2_normalize(fused.reshape(1, -1)).astype(np.float32)[0]
+        elif index_dim == 768:
+            query_vec_adapted = l2_normalize(query_vec.reshape(1, -1)).astype(np.float32)[0]
+        else:
+            raise ValueError(f"Unsupported index dim {index_dim}; expected 768 or 784")
 
         # Search FAISS
-        scores, ids = search_faiss(index, query_vec, k=5)
+        scores, ids = search_faiss(index, query_vec_adapted, k=5)
 
         query_time = time.time() - query_start
 
