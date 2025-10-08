@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LNSP Semantic Chunker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main {
+            padding: 30px;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        select, input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .stats {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .chunk {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .chunk:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .chunk-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .chunk-title {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .chunk-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .chunk-text {
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .error {
+            background: #fee;
+            border: 2px solid #fcc;
+            border-radius: 8px;
+            padding: 20px;
+            color: #c33;
+            display: none;
+        }
+
+        .error.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 LNSP Semantic Chunker</h1>
+            <p>Paste your text below and chunk it into semantic segments</p>
+        </div>
+
+        <div class="main">
+            <div class="input-section">
+                <label for="inputText">Your Text:</label>
+                <textarea id="inputText" placeholder="Paste your text here...
+
+Example:
+Photosynthesis is the process by which plants convert light energy into chemical energy. This occurs in the chloroplasts of plant cells.
+
+Cellular respiration is the metabolic process that converts glucose into ATP energy. This process occurs in the mitochondria of cells."></textarea>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label for="mode">Chunking Mode:</label>
+                    <select id="mode" onchange="toggleLLMSelector()">
+                        <option value="semantic" selected>Semantic (Recommended)</option>
+                        <option value="simple">Simple (Fast)</option>
+                        <option value="hybrid">Hybrid (Balanced)</option>
+                        <option value="proposition">Proposition (High Quality)</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="minChunkSize">Min Chunk Size (chars):</label>
+                    <input type="number" id="minChunkSize" value="100" min="10" max="2000">
+                </div>
+
+                <div class="control-group">
+                    <label for="breakpointThreshold">Breakpoint Threshold (50-99): <span id="thresholdValue">85</span></label>
+                    <input type="range" id="breakpointThreshold" value="85" min="50" max="99" style="width: 100%;">
+                    <small style="color: #666; display: block; margin-top: 5px;">Lower = More chunks | Higher = Fewer chunks</small>
+                </div>
+
+                <div class="control-group" id="llmModelGroup" style="display: none;">
+                    <label for="llmModel">LLM Model (Proposition/Hybrid only):</label>
+                    <select id="llmModel">
+                        <option value="granite3-moe:1b">Granite 3 MoE 1B (⚡ Fastest - 266ms)</option>
+                        <option value="tinyllama:1.1b" selected>TinyLlama 1.1B (Fast - 277 tok/s)</option>
+                        <option value="phi3:mini">Phi 3 Mini (Precision)</option>
+                        <option value="llama3.1:8b">Llama 3.1 8B (Best Quality)</option>
+                    </select>
+                    <small style="color: #666; display: block; margin-top: 5px;">Models on ports 11434-11437</small>
+                </div>
+            </div>
+
+            <button id="chunkBtn" onclick="chunkText()">✨ Chunk Text</button>
+
+            <div id="loading" class="loading">
+                <p>⏳ Chunking your text...</p>
+            </div>
+
+            <div id="error" class="error"></div>
+
+            <div id="results" class="results">
+                <h2 style="margin: 30px 0 20px;">📊 Results</h2>
+
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value" id="totalChunks">0</div>
+                        <div class="stat-label">Total Chunks</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="avgWords">0</div>
+                        <div class="stat-label">Avg Words/Chunk</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="processingTime">0ms</div>
+                        <div class="stat-label">Processing Time</div>
+                    </div>
+                </div>
+
+                <div id="chunks"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update threshold display when slider moves
+        document.getElementById('breakpointThreshold').addEventListener('input', function(e) {
+            document.getElementById('thresholdValue').textContent = e.target.value;
+        });
+
+        // Toggle LLM model selector visibility
+        function toggleLLMSelector() {
+            const mode = document.getElementById('mode').value;
+            const llmGroup = document.getElementById('llmModelGroup');
+
+            // Show LLM selector only for proposition and hybrid modes
+            if (mode === 'proposition' || mode === 'hybrid') {
+                llmGroup.style.display = 'block';
+            } else {
+                llmGroup.style.display = 'none';
+            }
+        }
+
+        async function chunkText() {
+            const text = document.getElementById('inputText').value;
+            const mode = document.getElementById('mode').value;
+            const minChunkSize = document.getElementById('minChunkSize').value;
+            const breakpointThreshold = document.getElementById('breakpointThreshold').value;
+            const llmModel = document.getElementById('llmModel').value;
+
+            // Validation
+            if (!text.trim()) {
+                showError('Please enter some text to chunk');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('results').classList.remove('active');
+            document.getElementById('error').classList.remove('active');
+            document.getElementById('chunkBtn').disabled = true;
+
+            try {
+                // Build request body
+                const requestBody = {
+                    text: text,
+                    mode: mode,
+                    min_chunk_size: parseInt(minChunkSize),
+                    breakpoint_threshold: parseInt(breakpointThreshold)
+                };
+
+                // Add LLM model for proposition/hybrid modes
+                if (mode === 'proposition' || mode === 'hybrid') {
+                    requestBody.llm_model = llmModel;
+                }
+
+                // Call API
+                const response = await fetch('http://127.0.0.1:8001/chunk', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                // Display results
+                displayResults(data);
+
+            } catch (error) {
+                showError(`Error: ${error.message}. Make sure the API is running on port 8001.`);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('chunkBtn').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            // Update stats
+            document.getElementById('totalChunks').textContent = data.total_chunks;
+            document.getElementById('avgWords').textContent = Math.round(data.statistics.mean_words);
+            document.getElementById('processingTime').textContent = data.processing_time_ms.toFixed(2) + 'ms';
+
+            // Display chunks
+            const chunksContainer = document.getElementById('chunks');
+            chunksContainer.innerHTML = '';
+
+            if (data.chunks.length === 0) {
+                chunksContainer.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No chunks created. Try with longer text or lower min chunk size.</p>';
+            } else {
+                data.chunks.forEach((chunk, index) => {
+                    const chunkEl = document.createElement('div');
+                    chunkEl.className = 'chunk';
+                    chunkEl.innerHTML = `
+                        <div class="chunk-header">
+                            <div class="chunk-title">Chunk ${chunk.chunk_index + 1}</div>
+                            <div class="chunk-meta">
+                                <span>${chunk.word_count} words</span>
+                                <span>${chunk.char_count} chars</span>
+                                <span>${chunk.chunking_mode}</span>
+                            </div>
+                        </div>
+                        <div class="chunk-text">${escapeHtml(chunk.text)}</div>
+                    `;
+                    chunksContainer.appendChild(chunkEl);
+                });
+            }
+
+            // Show results
+            document.getElementById('results').classList.add('active');
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('error');
+            errorEl.textContent = message;
+            errorEl.classList.add('active');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Allow Enter to submit (with Shift for new line)
+        document.getElementById('inputText').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                chunkText();
+            }
+        });
+    </script>
+</body>
+</html>

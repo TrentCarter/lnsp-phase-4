@@ -1,0 +1,380 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "description": "Master LLM prompt configuration for TMD-LS (Task-Modifier-Domain Lane Specialist) architecture",
+  "last_updated": "2025-10-08",
+
+  "prompts": {
+    "tmd_router": {
+      "id": "tmd_router_v1",
+      "name": "TMD Router/Extractor",
+      "category": "routing",
+      "description": "Extracts Domain, Task, and Modifier codes from concept text to route to appropriate lane specialist",
+      "llm_model": "llama3.1:8b",
+      "port": 11434,
+      "temperature": 0.1,
+      "max_tokens": 20,
+      "input_variables": ["text"],
+      "output_format": "comma-separated integers: domain,task,modifier (e.g., '15,14,9')",
+      "template": "You are a metadata extraction expert. Analyze this concept and assign ONE code from each category.\n\nCONCEPT: \"{text}\"\n\n=== DOMAINS (choose ONE, 0-15) ===\n0=Science, 1=Mathematics, 2=Technology, 3=Engineering, 4=Medicine,\n5=Psychology, 6=Philosophy, 7=History, 8=Literature, 9=Art,\n10=Economics, 11=Law, 12=Politics, 13=Education, 14=Environment, 15=Software\n\n=== TASKS (choose ONE, 0-31) ===\n0=Fact Retrieval, 1=Definition Matching, 2=Analogical Reasoning, 3=Causal Inference,\n4=Classification, 5=Entity Recognition, 6=Relationship Extraction, 7=Schema Adherence,\n8=Summarization, 9=Paraphrasing, 10=Translation, 11=Sentiment Analysis,\n12=Argument Evaluation, 13=Hypothesis Testing, 14=Code Generation, 15=Function Calling,\n16=Mathematical Proof, 17=Diagram Interpretation, 18=Temporal Reasoning, 19=Spatial Reasoning,\n20=Ethical Evaluation, 21=Policy Recommendation, 22=Roleplay Simulation, 23=Creative Writing,\n24=Instruction Following, 25=Error Detection, 26=Output Repair, 27=Question Generation,\n28=Conceptual Mapping, 29=Knowledge Distillation, 30=Tool Use, 31=Prompt Completion\n\n=== MODIFIERS (choose ONE, 0-63) ===\n0=Biochemical, 1=Evolutionary, 2=Computational, 3=Logical, 4=Ethical,\n5=Historical, 6=Legal, 7=Philosophical, 8=Emotional, 9=Technical,\n10=Creative, 11=Abstract, 12=Concrete, 13=Visual, 14=Auditory,\n15=Spatial, 16=Temporal, 17=Quantitative, 18=Qualitative, 19=Procedural,\n20=Declarative, 21=Comparative, 22=Analogical, 23=Causal, 24=Hypothetical,\n25=Experimental, 26=Narrative, 27=Descriptive, 28=Prescriptive, 29=Diagnostic,\n30=Predictive, 31=Reflective, 32=Strategic, 33=Tactical, 34=Symbolic,\n35=Functional, 36=Structural, 37=Semantic, 38=Syntactic, 39=Pragmatic,\n40=Normative, 41=Statistical, 42=Probabilistic, 43=Deterministic, 44=Stochastic,\n45=Modular, 46=Hierarchical, 47=Distributed, 48=Localized, 49=Global,\n50=Contextual, 51=Generalized, 52=Specialized, 53=Interdisciplinary, 54=Multimodal,\n55=Ontological, 56=Epistemic, 57=Analog-sensitive, 58=Schema-bound, 59=Role-based,\n60=Feedback-driven, 61=Entailment-aware, 62=Alignment-focused, 63=Compression-optimized\n\nCRITICAL INSTRUCTIONS:\n1. Analyze the concept semantically\n2. Choose the BEST matching codes (not defaults!)\n3. Return ONLY THREE NUMBERS separated by commas\n4. DO NOT include explanations, domain names, or any other text\n5. Example valid output: \"15,14,9\"\n6. Example INVALID output: \"Software, 14, Technical\" or \"Domain: 15...\"\n\nOUTPUT ONLY THREE NUMBERS:",
+      "validation_regex": "^\\d+,\\s*\\d+,\\s*\\d+$",
+      "examples": [
+        {
+          "input": "oxidoreductase activity",
+          "output": "4,5,0",
+          "interpretation": "Medicine / Entity Recognition / Biochemical"
+        },
+        {
+          "input": "Python programming language",
+          "output": "15,14,9",
+          "interpretation": "Software / Code Generation / Technical"
+        },
+        {
+          "input": "World War II",
+          "output": "7,6,45",
+          "interpretation": "History / Relationship Extraction / Modular"
+        }
+      ]
+    },
+
+    "lane_specialist_science": {
+      "id": "lane_science_v1",
+      "name": "Science Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 0,
+      "domain_name": "Science",
+      "description": "Processes scientific concepts including physics, chemistry, biology, and general scientific reasoning",
+      "llm_model": "tinyllama:1.1b",
+      "port": 11435,
+      "temperature": 0.3,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON: {concept, probe, expected, soft_negatives[], hard_negatives[]}",
+      "template": "You are a science domain expert specialized in extracting precise scientific concepts.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure (Concept-Probe-Expected-SoftNegatives-HardNegatives) for this scientific concept:\n\n1. CONCEPT: The core scientific term or idea (1-5 words)\n2. PROBE: A verification question that tests understanding (10-20 words)\n3. EXPECTED: The correct brief answer to the probe (5-15 words)\n4. SOFT_NEGATIVES: 3-5 plausible but incorrect related concepts\n5. HARD_NEGATIVES: 3-5 superficially similar but semantically different concepts\n\nFocus on scientific accuracy, precise terminology, and domain-specific relationships.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_mathematics": {
+      "id": "lane_mathematics_v1",
+      "name": "Mathematics Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 1,
+      "domain_name": "Mathematics",
+      "description": "Processes mathematical concepts including algebra, calculus, geometry, statistics, and formal logic",
+      "llm_model": "phi3:mini",
+      "port": 11436,
+      "temperature": 0.2,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are a mathematics domain expert specialized in extracting precise mathematical concepts.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this mathematical concept:\n\n1. CONCEPT: The core mathematical term or theorem (1-5 words)\n2. PROBE: A verification question testing mathematical understanding (10-20 words)\n3. EXPECTED: The correct mathematical answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related but incorrect mathematical concepts\n5. HARD_NEGATIVES: 3-5 superficially similar terms from other mathematical domains\n\nEmphasize formal definitions, logical precision, and mathematical rigor.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_technology": {
+      "id": "lane_technology_v1",
+      "name": "Technology Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 2,
+      "domain_name": "Technology",
+      "description": "Processes technology concepts including hardware, systems, networks, and general technical infrastructure",
+      "llm_model": "granite3-moe:1b",
+      "port": 11437,
+      "temperature": 0.3,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are a technology domain expert specialized in hardware, systems, and technical infrastructure.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this technology concept:\n\n1. CONCEPT: The core technical term or system (1-5 words)\n2. PROBE: A verification question about technical function or purpose (10-20 words)\n3. EXPECTED: The correct technical answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related but distinct technical concepts\n5. HARD_NEGATIVES: 3-5 terms from adjacent tech domains that could be confused\n\nFocus on technical accuracy, system-level understanding, and practical distinctions.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_engineering": {
+      "id": "lane_engineering_v1",
+      "name": "Engineering Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 3,
+      "domain_name": "Engineering",
+      "description": "Processes engineering concepts including mechanical, electrical, civil, and systems engineering",
+      "llm_model": "tinyllama:1.1b",
+      "port": 11435,
+      "temperature": 0.3,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are an engineering domain expert specialized in design, analysis, and optimization.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this engineering concept:\n\n1. CONCEPT: The core engineering term, principle, or component (1-5 words)\n2. PROBE: A verification question about engineering application or design (10-20 words)\n3. EXPECTED: The correct engineering answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related engineering concepts from adjacent disciplines\n5. HARD_NEGATIVES: 3-5 terms that sound similar but have different engineering meanings\n\nEmphasize practical application, design constraints, and interdisciplinary relationships.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_medicine": {
+      "id": "lane_medicine_v1",
+      "name": "Medicine Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 4,
+      "domain_name": "Medicine",
+      "description": "Processes medical concepts including anatomy, pathology, pharmacology, and clinical procedures",
+      "llm_model": "phi3:mini",
+      "port": 11436,
+      "temperature": 0.2,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are a medical domain expert specialized in clinical and biomedical concepts.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this medical concept:\n\n1. CONCEPT: The core medical term or condition (1-5 words)\n2. PROBE: A verification question about clinical significance or mechanism (10-20 words)\n3. EXPECTED: The correct medical answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related medical conditions or terms with overlapping symptoms\n5. HARD_NEGATIVES: 3-5 anatomically or etymologically similar but clinically distinct terms\n\nPrioritize clinical accuracy, differential diagnosis reasoning, and patient safety.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_psychology": {
+      "id": "lane_psychology_v1",
+      "name": "Psychology Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 5,
+      "domain_name": "Psychology",
+      "description": "Processes psychological concepts including cognition, behavior, mental health, and therapeutic approaches",
+      "llm_model": "granite3-moe:1b",
+      "port": 11437,
+      "temperature": 0.4,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are a psychology domain expert specialized in cognitive and behavioral concepts.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this psychological concept:\n\n1. CONCEPT: The core psychological term or phenomenon (1-5 words)\n2. PROBE: A verification question about mental processes or behavior (10-20 words)\n3. EXPECTED: The correct psychological answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related psychological concepts with overlapping features\n5. HARD_NEGATIVES: 3-5 colloquial terms that sound psychological but have different technical meanings\n\nFocus on scientific psychology, avoiding pop psychology or folk terminology.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_philosophy": {
+      "id": "lane_philosophy_v1",
+      "name": "Philosophy Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 6,
+      "domain_name": "Philosophy",
+      "description": "Processes philosophical concepts including metaphysics, epistemology, ethics, and logic",
+      "llm_model": "llama3.1:8b",
+      "port": 11434,
+      "temperature": 0.4,
+      "max_tokens": 250,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are a philosophy domain expert specialized in conceptual analysis and argumentation.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this philosophical concept:\n\n1. CONCEPT: The core philosophical term or idea (1-5 words)\n2. PROBE: A verification question about meaning, implications, or distinctions (10-20 words)\n3. EXPECTED: The correct philosophical answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related philosophical positions or concepts\n5. HARD_NEGATIVES: 3-5 terms from adjacent philosophical traditions that could be confused\n\nEmphasize conceptual precision, historical context, and argumentative rigor.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_history": {
+      "id": "lane_history_v1",
+      "name": "History Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 7,
+      "domain_name": "History",
+      "description": "Processes historical concepts including events, periods, figures, and historical analysis",
+      "llm_model": "tinyllama:1.1b",
+      "port": 11435,
+      "temperature": 0.3,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are a history domain expert specialized in chronological and contextual understanding.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this historical concept:\n\n1. CONCEPT: The core historical term, event, or figure (1-5 words)\n2. PROBE: A verification question about historical context or significance (10-20 words)\n3. EXPECTED: The correct historical answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 events/figures from the same period or region\n5. HARD_NEGATIVES: 3-5 similarly-named but distinct historical references\n\nFocus on temporal accuracy, causal relationships, and historical context.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_literature": {
+      "id": "lane_literature_v1",
+      "name": "Literature Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 8,
+      "domain_name": "Literature",
+      "description": "Processes literary concepts including genres, techniques, works, and literary analysis",
+      "llm_model": "granite3-moe:1b",
+      "port": 11437,
+      "temperature": 0.5,
+      "max_tokens": 250,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are a literature domain expert specialized in textual analysis and literary tradition.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this literary concept:\n\n1. CONCEPT: The core literary term, work, or technique (1-5 words)\n2. PROBE: A verification question about literary function or meaning (10-20 words)\n3. EXPECTED: The correct literary answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related literary concepts or similar works\n5. HARD_NEGATIVES: 3-5 terms from adjacent genres or periods that could be confused\n\nEmphasize textual nuance, genre conventions, and interpretive frameworks.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_art": {
+      "id": "lane_art_v1",
+      "name": "Art Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 9,
+      "domain_name": "Art",
+      "description": "Processes art concepts including movements, techniques, artists, and visual analysis",
+      "llm_model": "phi3:mini",
+      "port": 11436,
+      "temperature": 0.5,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are an art domain expert specialized in visual culture and artistic expression.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this art concept:\n\n1. CONCEPT: The core artistic term, movement, or technique (1-5 words)\n2. PROBE: A verification question about artistic characteristics or context (10-20 words)\n3. EXPECTED: The correct art-historical answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related art movements or similar techniques\n5. HARD_NEGATIVES: 3-5 visually similar but conceptually distinct artistic references\n\nFocus on visual literacy, stylistic analysis, and cultural context.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_economics": {
+      "id": "lane_economics_v1",
+      "name": "Economics Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 10,
+      "domain_name": "Economics",
+      "description": "Processes economic concepts including theory, markets, policy, and financial systems",
+      "llm_model": "tinyllama:1.1b",
+      "port": 11435,
+      "temperature": 0.3,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are an economics domain expert specialized in market dynamics and economic theory.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this economic concept:\n\n1. CONCEPT: The core economic term or principle (1-5 words)\n2. PROBE: A verification question about economic function or impact (10-20 words)\n3. EXPECTED: The correct economic answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related economic concepts from adjacent domains\n5. HARD_NEGATIVES: 3-5 colloquial terms that sound economic but have different technical meanings\n\nEmphasize quantitative relationships, market mechanisms, and policy implications.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_law": {
+      "id": "lane_law_v1",
+      "name": "Law Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 11,
+      "domain_name": "Law",
+      "description": "Processes legal concepts including statutes, precedents, procedures, and legal reasoning",
+      "llm_model": "llama3.1:8b",
+      "port": 11434,
+      "temperature": 0.2,
+      "max_tokens": 250,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are a legal domain expert specialized in statutory interpretation and legal analysis.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this legal concept:\n\n1. CONCEPT: The core legal term, doctrine, or procedure (1-5 words)\n2. PROBE: A verification question about legal application or meaning (10-20 words)\n3. EXPECTED: The correct legal answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related legal concepts from adjacent areas of law\n5. HARD_NEGATIVES: 3-5 colloquial terms or concepts from other legal systems\n\nPrioritize legal precision, jurisdictional awareness, and procedural accuracy.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_politics": {
+      "id": "lane_politics_v1",
+      "name": "Politics Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 12,
+      "domain_name": "Politics",
+      "description": "Processes political concepts including systems, ideologies, institutions, and governance",
+      "llm_model": "phi3:mini",
+      "port": 11436,
+      "temperature": 0.3,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are a political science expert specialized in governance systems and political theory.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this political concept:\n\n1. CONCEPT: The core political term, system, or ideology (1-5 words)\n2. PROBE: A verification question about political structure or function (10-20 words)\n3. EXPECTED: The correct political science answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related political concepts or adjacent ideologies\n5. HARD_NEGATIVES: 3-5 popular/colloquial political terms with different academic meanings\n\nFocus on institutional analysis, comparative politics, and theoretical frameworks.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_education": {
+      "id": "lane_education_v1",
+      "name": "Education Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 13,
+      "domain_name": "Education",
+      "description": "Processes education concepts including pedagogy, curriculum, assessment, and learning theory",
+      "llm_model": "granite3-moe:1b",
+      "port": 11437,
+      "temperature": 0.4,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are an education domain expert specialized in learning theory and pedagogical practice.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this education concept:\n\n1. CONCEPT: The core educational term or method (1-5 words)\n2. PROBE: A verification question about learning impact or application (10-20 words)\n3. EXPECTED: The correct educational answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related pedagogical approaches or learning theories\n5. HARD_NEGATIVES: 3-5 colloquial education terms with different research-based meanings\n\nEmphasize evidence-based practice, developmental appropriateness, and learning outcomes.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_environment": {
+      "id": "lane_environment_v1",
+      "name": "Environment Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 14,
+      "domain_name": "Environment",
+      "description": "Processes environmental concepts including ecology, climate, conservation, and sustainability",
+      "llm_model": "tinyllama:1.1b",
+      "port": 11435,
+      "temperature": 0.3,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are an environmental science expert specialized in ecosystems and sustainability.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this environmental concept:\n\n1. CONCEPT: The core environmental term or process (1-5 words)\n2. PROBE: A verification question about ecological function or impact (10-20 words)\n3. EXPECTED: The correct environmental answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related environmental concepts or processes\n5. HARD_NEGATIVES: 3-5 colloquial environmental terms with different scientific meanings\n\nFocus on systems thinking, ecological relationships, and evidence-based environmental science.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "lane_specialist_software": {
+      "id": "lane_software_v1",
+      "name": "Software Lane Specialist",
+      "category": "lane_specialist",
+      "domain_code": 15,
+      "domain_name": "Software",
+      "description": "Processes software concepts including programming languages, frameworks, algorithms, and software design",
+      "llm_model": "phi3:mini",
+      "port": 11436,
+      "temperature": 0.3,
+      "max_tokens": 200,
+      "input_variables": ["concept", "context"],
+      "output_format": "CPESH JSON",
+      "template": "You are a software engineering expert specialized in programming concepts and software design.\n\nCONCEPT: {concept}\nCONTEXT: {context}\n\nExtract a CPESH structure for this software concept:\n\n1. CONCEPT: The core software term, pattern, or technology (1-5 words)\n2. PROBE: A verification question about implementation or purpose (10-20 words)\n3. EXPECTED: The correct software engineering answer (5-15 words)\n4. SOFT_NEGATIVES: 3-5 related programming concepts or similar technologies\n5. HARD_NEGATIVES: 3-5 similarly-named concepts from different programming paradigms\n\nEmphasize best practices, design patterns, and practical implementation details.\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "output_smoothing": {
+      "id": "output_smoothing_v1",
+      "name": "LVM Output Smoothing",
+      "category": "post_processing",
+      "description": "Smooths LVM vector-to-text output using context to produce human-readable text while preserving semantic accuracy",
+      "llm_model": "llama3.1:8b",
+      "port": 11434,
+      "temperature": 0.4,
+      "max_tokens": 300,
+      "input_variables": ["output_text", "input_text_chunk_current", "input_text_chunk_parent", "input_text_chunk_child"],
+      "output_format": "Plain text (smoothed, human-readable version)",
+      "template": "You are a semantic smoothing specialist. Your task is to refine LVM-generated text while preserving its semantic content.\n\nLVM OUTPUT (raw): {output_text}\n\nCONTEXT:\n- Current chunk: {input_text_chunk_current}\n- Parent chunk: {input_text_chunk_parent}\n- Child chunk: {input_text_chunk_child}\n\nYour task:\n1. Maintain the semantic meaning from LVM output\n2. Improve readability and flow using context\n3. Fix grammatical issues or awkward phrasing\n4. Preserve technical terms and domain-specific language\n5. Keep output concise (similar length to LVM output)\n6. DO NOT add new information not present in LVM output or context\n\nOutput only the smoothed text (no explanations):",
+      "validation": {
+        "echo_loop_threshold": 0.82,
+        "description": "Cosine similarity between smoothed output embedding and original LVM output embedding must be >= 0.82"
+      }
+    },
+
+    "ontology_ingestion": {
+      "id": "ontology_ingestion_v1",
+      "name": "Ontology Concept Extraction",
+      "category": "ingestion",
+      "description": "Extracts CPESH structures from ontology data (SWO, GO, ConceptNet, DBpedia) with focus on ontological relationships",
+      "llm_model": "llama3.1:8b",
+      "port": 11434,
+      "temperature": 0.2,
+      "max_tokens": 300,
+      "input_variables": ["concept_text", "ontology_source", "parent_concepts", "child_concepts", "synonyms"],
+      "output_format": "CPESH JSON",
+      "template": "You are an ontology extraction expert. Extract a precise CPESH structure from this ontological concept.\n\nSOURCE ONTOLOGY: {ontology_source}\nCONCEPT: {concept_text}\nPARENT CONCEPTS: {parent_concepts}\nCHILD CONCEPTS: {child_concepts}\nSYNONYMS: {synonyms}\n\nExtract CPESH structure:\n\n1. CONCEPT: The canonical form of this ontological concept (use exact term from ontology)\n2. PROBE: A question that tests understanding of this concept's role in the ontology (10-20 words)\n3. EXPECTED: The correct answer explaining the concept's ontological position (5-15 words)\n4. SOFT_NEGATIVES: 3-5 sibling concepts (same parent, different focus)\n5. HARD_NEGATIVES: 3-5 concepts from other ontology branches that sound similar\n\nCRITICAL REQUIREMENTS:\n- Use ontological relationships (is-a, part-of, enables, regulates)\n- Preserve technical terminology exactly as in source ontology\n- Soft negatives should be semantically close but ontologically distinct\n- Hard negatives should be from different ontology branches\n\nOutput as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...]}"
+    },
+
+    "rl_ingestion_cpesh": {
+      "id": "rl_ingestion_v1",
+      "name": "RL-Enhanced CPESH Ingestion",
+      "category": "ingestion",
+      "description": "Processes CPESH data with reinforcement learning feedback to improve concept quality over time",
+      "llm_model": "llama3.1:8b",
+      "port": 11434,
+      "temperature": 0.3,
+      "max_tokens": 350,
+      "input_variables": ["concept_text", "previous_cpesh", "feedback_score", "retrieval_metrics"],
+      "output_format": "Improved CPESH JSON",
+      "template": "You are a reinforcement learning-enhanced concept extractor. Improve this CPESH structure based on feedback.\n\nORIGINAL CONCEPT: {concept_text}\n\nPREVIOUS CPESH:\n{previous_cpesh}\n\nFEEDBACK METRICS:\n- Echo Loop Score: {feedback_score}\n- Retrieval Performance: {retrieval_metrics}\n\nYour task:\n1. If echo_loop_score >= 0.85: Make minimal refinements\n2. If echo_loop_score 0.70-0.84: Improve probe clarity and negative selection\n3. If echo_loop_score < 0.70: Redesign CPESH structure completely\n\nFocus on:\n- Probe questions that discriminate better between concept and negatives\n- Hard negatives that are truly challenging (high surface similarity, low semantic overlap)\n- Soft negatives that test fine-grained domain knowledge\n- Expected answers that are concise but complete\n\nIMPROVEMENT STRATEGIES:\n- If retrieval_metrics show false positives: Add harder negatives\n- If retrieval_metrics show false negatives: Refine probe or expected answer\n- If echo_loop_score is low: Check for semantic drift in negatives\n\nOutput improved CPESH as JSON:\n{\"concept\": \"...\", \"probe\": \"...\", \"expected\": \"...\", \"soft_negatives\": [...], \"hard_negatives\": [...], \"improvement_notes\": \"brief explanation of changes\"}"
+    }
+  },
+
+  "metadata": {
+    "model_assignments": {
+      "llama3.1:8b": {
+        "port": 11434,
+        "use_cases": ["complex_reasoning", "philosophy", "law", "ontology_ingestion", "rl_feedback", "output_smoothing"],
+        "characteristics": "Baseline model, highest quality, slowest (73 tok/s)"
+      },
+      "tinyllama:1.1b": {
+        "port": 11435,
+        "use_cases": ["science", "engineering", "history", "economics", "environment"],
+        "characteristics": "Fastest model (284 tok/s), excellent for fact-based domains"
+      },
+      "phi3:mini": {
+        "port": 11436,
+        "use_cases": ["mathematics", "medicine", "art", "politics", "software"],
+        "characteristics": "Balanced precision (119 tok/s), good for technical accuracy"
+      },
+      "granite3-moe:1b": {
+        "port": 11437,
+        "use_cases": ["technology", "psychology", "literature", "education"],
+        "characteristics": "Lowest latency (33ms first token), excellent for interactive use"
+      }
+    },
+    "routing_strategy": {
+      "step_1": "Extract TMD codes using tmd_router prompt",
+      "step_2": "Route to appropriate lane_specialist based on domain_code (0-15)",
+      "step_3": "Execute lane specialist prompt with concept and context",
+      "step_4": "Validate output with Echo Loop (cosine >= 0.82)",
+      "step_5": "If validation fails, re-queue or route to fallback (llama3.1:8b)"
+    },
+    "echo_loop_validation": {
+      "threshold": 0.82,
+      "description": "Cosine similarity between generated CPESH embedding and original concept embedding",
+      "failure_action": "re_queue_or_escalate",
+      "max_retries": 2
+    }
+  }
+}

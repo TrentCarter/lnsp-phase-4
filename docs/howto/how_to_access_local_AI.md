@@ -53,6 +53,137 @@ export OLLAMA_URL="http://localhost:11434/api/chat"
   --out eval/results_with_llm.jsonl
 ```
 
+## Multi-Model Setup for TMD-LS Lane Specialists
+
+For the **TMD-Lane Specialist** architecture (see `docs/PRDs/PRD_TMD-LS.md`), you can run multiple specialized models on different ports. This enables routing different task types to optimized lightweight models.
+
+### Running Multiple Ollama Instances
+
+**Step 1: Download Specialized Models**
+
+```bash
+# Download models for different lanes
+ollama pull llama3.1:8b          # General-purpose lane (port 11434)
+ollama pull tinyllama:1.1b       # Fast specialist lanes (port 11435)
+ollama pull phi3:mini            # Precision lanes (optional, port 11436)
+```
+
+**Step 2: Start Multiple Ollama Servers**
+
+```bash
+# Terminal 1: Primary Ollama instance (llama3.1:8b on default port 11434)
+ollama serve
+
+# Terminal 2: TinyLlama specialist instance (port 11435)
+OLLAMA_HOST=127.0.0.1:11435 ollama serve
+
+# Terminal 3 (optional): Phi3 precision instance (port 11436)
+OLLAMA_HOST=127.0.0.1:11436 ollama serve
+```
+
+**Step 3: Configure Lane-Specific Routing**
+
+```bash
+# Example: Route fast retrieval tasks to TinyLlama
+export LNSP_LLM_LANE_L1_ENDPOINT="http://localhost:11435"
+export LNSP_LLM_LANE_L1_MODEL="tinyllama:1.1b"
+
+# Route complex reasoning to Llama 3.1
+export LNSP_LLM_LANE_L2_ENDPOINT="http://localhost:11434"
+export LNSP_LLM_LANE_L2_MODEL="llama3.1:8b"
+
+# Route precision tasks to Phi3
+export LNSP_LLM_LANE_L3_ENDPOINT="http://localhost:11436"
+export LNSP_LLM_LANE_L3_MODEL="phi3:mini"
+```
+
+**Step 4: Test Each Instance**
+
+```bash
+# Test TinyLlama on port 11435
+curl -s http://localhost:11435/api/generate \
+  -d '{"model": "tinyllama:1.1b", "prompt": "Define AI briefly", "stream": false}' \
+  | jq -r '.response'
+
+# Test Llama 3.1 on default port 11434
+curl -s http://localhost:11434/api/generate \
+  -d '{"model": "llama3.1:8b", "prompt": "Explain quantum computing", "stream": false}' \
+  | jq -r '.response'
+```
+
+### Performance Characteristics & Instance Management
+
+⏺ Quick Performance Test Results ✅
+
+  Key Findings: using fastAPI 
+
+  | Metric      | TinyLlama | Granite3    | Phi3     | Llama 3.1     |
+  |-------------|-----------|-------------|----------|---------------|
+  | Tokens/sec  | 284 (🥇)  | 193 (🥈)    | 119 (🥉) | 73 (baseline) |
+  | First Token | 0.033s    | 0.033s      | 0.062s   | 0.143s        |
+  | Total Time  | 0.716s    | 0.266s (🏆) | 0.946s   | 1.614s        |
+
+  Standout Results:
+  - 🚀 Granite3 MoE: Fastest overall (266ms total) - perfect for quick queries
+  - ⚡ TinyLlama & Granite3: 33ms first token (INSTANT!)
+  - 🎯 TinyLlama: Highest tok/s + detailed responses (194 tokens)
+
+**Comprehensive Benchmark Results (Apple M4 Max - Metal Backend):**
+
+| Rank | Model           | Port  | Params | Speed (tok/s) | vs Llama | Use Case                    | Status      |
+|------|-----------------|-------|--------|---------------|----------|-----------------------------|-----------  |
+| 🥇 1 | tinyllama:1.1b  | 11435 | 1.1B   | **276.81**    | 3.80x    | Ultra-fast retrieval, batch | ✅ Running  |
+| 🥈 2 | granite3-moe:1b | 11437 | 1.0B   | **188.22**    | 2.58x    | Fast specialist, low latency| ✅ Running  |
+| 🥉 3 | phi3:mini       | 11436 | 3.8B   | **125.01**    | 1.72x    | Precision, code generation  | ✅ Running  |
+| 4    | llama3.1:8b     | 11434 | 8B     | **72.86**     | 1.00x    | Complex reasoning, accuracy | ✅ Running  |
+
+**Management Commands:**
+
+| Action | Model | Command |
+|--------|-------|---------|
+| **START** | Llama 3.1 (default) | `ollama serve` |
+| **START** | TinyLlama (11435) | `OLLAMA_HOST=127.0.0.1:11435 ollama serve > /tmp/ollama_tinyllama.log 2>&1 &` |
+| **START** | Phi3 (11436) | `OLLAMA_HOST=127.0.0.1:11436 ollama serve > /tmp/ollama_phi3.log 2>&1 &` |
+| **START** | Granite3 (11437) | `OLLAMA_HOST=127.0.0.1:11437 ollama serve > /tmp/ollama_granite.log 2>&1 &` |
+| **STOP** | All instances | `pkill -f "ollama serve"` |
+| **STOP** | Specific port | `lsof -ti:11435 \| xargs kill` (replace port number) |
+| **CHECK STATUS** | All ports | See script below |
+| **VIEW LOGS** | TinyLlama | `tail -f /tmp/ollama_tinyllama.log` |
+| **VIEW LOGS** | Phi3 | `tail -f /tmp/ollama_phi3.log` |
+| **VIEW LOGS** | Granite3 | `tail -f /tmp/ollama_granite.log` |
+
+**Quick Status Check Script:**
+```bash
+#!/bin/bash
+echo "=== Ollama Instance Status ==="
+echo "Port 11434 (Llama 3.1): $(curl -s http://localhost:11434/api/tags >/dev/null 2>&1 && echo '✅ Running' || echo '❌ Down')"
+echo "Port 11435 (TinyLlama): $(curl -s http://localhost:11435/api/tags >/dev/null 2>&1 && echo '✅ Running' || echo '❌ Down')"
+echo "Port 11436 (Phi3):      $(curl -s http://localhost:11436/api/tags >/dev/null 2>&1 && echo '✅ Running' || echo '❌ Down')"
+echo "Port 11437 (Granite3):  $(curl -s http://localhost:11437/api/tags >/dev/null 2>&1 && echo '✅ Running' || echo '❌ Down')"
+```
+
+**Key Findings:**
+- **TinyLlama**: Fastest overall, 3.80x speedup, best for high-throughput lanes
+- **Granite3 MoE**: Excellent speed/quality balance (2.58x), IBM's low-latency specialist
+- **Phi3 Mini**: Best for structured output and code (1.72x speedup)
+- **Llama 3.1**: Highest quality reasoning, best for complex tasks
+
+**Note:** Benchmarked on Apple M4 Max (Metal). NVIDIA A10/L4 GPUs achieve 2.5-4x higher absolute throughput, but relative speedups remain consistent.
+
+See full benchmark: `docs/benchmarks/LLM_Speed_Benchmark_Results.md`
+
+### TMD-LS Integration
+
+When integrated with TMD-LS architecture:
+
+1. **Router classifies TMD vector** (Task-Modifier-Domain)
+2. **Routes to appropriate specialist** based on lane configuration
+3. **Specialist processes** using optimized model for that semantic space
+4. **Echo Loop validates** output (cosine ≥ 0.82)
+5. **Falls back** to general model if validation fails
+
+See `docs/PRDs/PRD_TMD-LS.md` for full architecture details.
+
 ## Alternative Backend Setup
 
 ### Option A: Ollama (Default - Local)
@@ -146,16 +277,33 @@ You can override this by explicitly setting `LNSP_LLM_BACKEND=ollama|openai`.
 ### Available Models
 
 **Ollama Models:**
-The integration works with any Ollama-compatible model. Recommended options:
+The integration works with any Ollama-compatible model. Recommended for TMD-LS:
 
-- **llama3.1:8b** - Good balance of quality and speed
-- **qwen2.5:7b-instruct** - Fast and efficient
-- **phi3:mini** - Lightweight option
-- **llama3.1:70b** - Highest quality (requires more resources)
+**High-Speed Specialists (Lanes L1, L2, L6):**
+- **tinyllama:1.1b** - Fastest (277 tok/s), ultra-lightweight, 3.80x speedup
+- **granite3-moe:1b** - IBM MoE (188 tok/s), excellent balance, 2.58x speedup
+
+**Precision Specialists (Lanes L3, L5):**
+- **phi3:mini** - Code/structured output (125 tok/s), 3.8B params, 1.72x speedup
+
+**Reasoning Specialist (Lane L4):**
+- **llama3.1:8b** - Complex reasoning baseline (73 tok/s), highest quality
+
+**Other Options:**
+- **qwen2.5:7b-instruct** - Fast and efficient alternative
+- **llama3.1:70b** - Highest quality (requires significant resources)
 
 Check available models:
 ```bash
 ollama list
+```
+
+Download recommended TMD-LS specialist models:
+```bash
+ollama pull tinyllama:1.1b     # Fastest specialist
+ollama pull granite3-moe:1b    # Balanced specialist
+ollama pull phi3:mini          # Precision specialist
+ollama pull llama3.1:8b        # Reasoning specialist
 ```
 
 **OpenAI-Compatible Models:**

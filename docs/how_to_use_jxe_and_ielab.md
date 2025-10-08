@@ -79,13 +79,100 @@ VEC2TEXT_FORCE_PROJECT_VENV=1 ./venv/bin/python3 app/vect_text_vect/vec_text_vec
 --batch-file texts.txt  # One text per line
 ```
 
+## FastAPI Server Access (Recommended for Production)
+
+For TMD-LS lane specialist architecture, it's recommended to run vec2text and GTR-T5 as always-on FastAPI services. This eliminates cold-start latency and keeps models warm in memory.
+
+### Start GTR-T5 Embedding Server
+
+```bash
+# Terminal 1: Start GTR-T5 embedding service on port 8765
+./venv/bin/python3 app/api/gtr_embedding_server.py
+```
+
+**Test GTR-T5 Service:**
+```bash
+# Health check
+curl http://localhost:8765/health
+
+# Generate embeddings
+curl -X POST http://localhost:8765/embed \
+  -H "Content-Type: application/json" \
+  -d '{"texts": ["What is AI?", "Machine learning explained"]}'
+
+# Single text (convenience endpoint)
+curl -X POST "http://localhost:8765/embed/single?text=What%20is%20AI?"
+```
+
+### Start Vec2Text Decoding Server
+
+```bash
+# Terminal 2: Start vec2text service on port 8766
+./venv/bin/python3 app/api/vec2text_server.py
+```
+
+**Test Vec2Text Service:**
+```bash
+# Health check
+curl http://localhost:8766/health
+
+# Encode text then decode (round-trip test)
+curl -X POST http://localhost:8766/encode-decode \
+  -H "Content-Type: application/json" \
+  -d '{
+    "texts": ["What is AI?"],
+    "subscribers": "jxe,ielab",
+    "steps": 5
+  }'
+```
+
+### Benefits of FastAPI Deployment
+
+| Aspect | CLI (Isolated) | FastAPI Server |
+|--------|---------------|----------------|
+| **Startup Time** | 5-10s per request | <50ms per request |
+| **Model Loading** | Every request | Once on startup |
+| **Memory Usage** | Ephemeral | Persistent (warm) |
+| **Concurrency** | Sequential only | Async support |
+| **Production Ready** | No | Yes |
+| **TMD-LS Integration** | Manual | Direct HTTP routing |
+
+### TMD-LS Lane Integration
+
+```python
+# Route embeddings to appropriate lane based on TMD vector
+import requests
+
+def route_to_lane(text: str, tmd_vector: dict):
+    # Step 1: Generate embedding (GTR-T5 service)
+    embed_response = requests.post(
+        "http://localhost:8765/embed/single",
+        params={"text": text}
+    )
+    embedding = embed_response.json()["embedding"]
+
+    # Step 2: Decode with appropriate subscriber
+    subscriber = "jxe" if tmd_vector["task"] == "FAST" else "ielab"
+    decode_response = requests.post(
+        "http://localhost:8766/decode",
+        json={
+            "vectors": [embedding],
+            "subscribers": subscriber,
+            "steps": 1 if subscriber == "jxe" else 5
+        }
+    )
+
+    return decode_response.json()
+```
+
 ## Expected Output
 
 Both models should produce:
 - **Similar semantic content** - Both outputs should relate to the input text
 - **Different phrasing** - JXE and IELab will use different word choices
 - **Cosine similarity 0.65-0.85** - Typical range for successful reconstruction
-- **Processing time 5-15 seconds** - Depending on steps and text length
+- **Processing time (CLI)** - 5-15 seconds depending on steps
+- **Processing time (FastAPI)** - <1 second after warmup
 
 ### Example Output
 ```json

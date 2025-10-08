@@ -2,6 +2,13 @@
 source .venv/bin/activate
 claude --dangerously-skip-permissions
 
+# 10/8/2025. =====
+
+# Chunker Test Web Interface 
+http://127.0.0.1:8001/web
+
+
+
 #===. MODELS. ====
 10/7/2025
   - models/lvm_lstm_retrained.pt ← Use this for production
