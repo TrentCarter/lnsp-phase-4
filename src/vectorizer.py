@@ -4,6 +4,10 @@ import numpy as np
 import os
 import threading
 import time
+try:
+    import torch  # type: ignore
+except Exception:
+    torch = None  # type: ignore
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -39,9 +43,11 @@ class EmbeddingBackend:
     """
 
     def __init__(self, model_name: str = "sentence-transformers/gtr-t5-base", device: Optional[str] = None):
-        self.model_name = model_name
+        # Allow env to override model choice (prefers explicit model path via LNSP_EMBEDDER_PATH)
+        self.model_name = os.getenv("LNSP_EMBEDDER_MODEL") or os.getenv("LNSP_SENTENCE_MODEL") or model_name
         self.device = device
         self.model = None
+        self._effective_device: Optional[str] = None
         # Async controls
         # Defaults: safest synchronous behavior (block until ready, no placeholders)
         self._async = os.getenv("LNSP_EMBEDDER_ASYNC", "0") == "1"  # default: synchronous init
@@ -75,8 +81,29 @@ class EmbeddingBackend:
             # Use the offline-aware loader instead of direct instantiation
             # Accept both env names; docs refer to LNSP_EMBED_MODEL_DIR
             local_path = os.getenv("LNSP_EMBEDDER_PATH") or os.getenv("LNSP_EMBED_MODEL_DIR")
+            # Resolve requested device from ctor or env ("cpu" | "mps" | None for auto)
+            requested_device = (self.device or os.getenv("LNSP_EMBED_DEVICE") or "").strip().lower() or None
+            # Detect MPS availability (Apple Silicon)
+            mps_available = bool(getattr(torch, "backends", None) and getattr(torch.backends, "mps", None) and torch.backends.mps.is_available()) if torch else False
+            # Heuristic: treat any T5 variant (incl. GTR-T5) as T5-like
+            model_name_l = (self.model_name or "").lower()
+            local_base = os.path.basename(local_path).lower() if (local_path and os.path.isdir(local_path)) else ""
+            is_t5_like = ("t5" in model_name_l) or ("t5" in local_base)
+            # Determine if user effectively wants MPS (explicit or auto-on-Mac)
+            wants_mps = (requested_device == "mps") or (requested_device is None and mps_available)
+            # Guard: T5 + MPS is known to be slow/buggy; force CPU unless overridden
+            force_t5_mps = os.getenv("LNSP_FORCE_T5_MPS", "0") == "1"
+            if wants_mps and is_t5_like and not force_t5_mps:
+                effective_device = "cpu"
+                print("[EmbeddingBackend] T5+MPS guard: forcing CPU due to known performance issues on Apple Silicon (see transformers#31737). Set LNSP_FORCE_T5_MPS=1 to override.")
+            else:
+                effective_device = requested_device  # may be None (auto) or "mps"/"cpu"
+            self._effective_device = effective_device or ("mps" if (requested_device is None and mps_available) else None)
+
+            # Log the load plan
+            print(f"[EmbeddingBackend] Loading embedder model='{self.model_name}' local={'yes' if (local_path and os.path.isdir(local_path)) else 'no'} device='{self._effective_device or 'auto'}'")
             if local_path and os.path.isdir(local_path):
-                self.model = SentenceTransformer(local_path, device=self.device)
+                self.model = SentenceTransformer(local_path, device=effective_device)
             elif os.getenv("HF_HUB_OFFLINE") == "1" or os.getenv("TRANSFORMERS_OFFLINE") == "1":
                 raise RuntimeError(
                     "Embedder is offline but LNSP_EMBEDDER_PATH not set. "
@@ -84,7 +111,7 @@ class EmbeddingBackend:
                 )
             else:
                 # Online path (allowed only if your environment permits)
-                self.model = SentenceTransformer(self.model_name, device=self.device)
+                self.model = SentenceTransformer(self.model_name, device=effective_device)
             self._ready_event.set()
             if self._ready_file:
                 try:
@@ -92,7 +119,7 @@ class EmbeddingBackend:
                         f.write(f"READY {time.time()}\n")
                 except Exception:
                     pass
-            print("[EmbeddingBackend] Embedder ready.")
+            print(f"[EmbeddingBackend] Embedder ready (device='{self.get_device()}').")
         except Exception as exc:  # pragma: no cover
             self._load_error = exc
             # Keep model None; encode() will fallback or raise based on policy
@@ -100,6 +127,12 @@ class EmbeddingBackend:
 
     def is_ready(self) -> bool:
         return self._ready_event.is_set() and (self.model is not None)
+
+    def get_device(self) -> str:
+        """Return the effective device used by the embedder ("cpu", "mps", or "auto")."""
+        if self._effective_device:
+            return self._effective_device
+        return (self.device or "auto")
 
     def encode(self, texts: List[str], batch_size: int = 32) -> np.ndarray:
         # If ready, use the real model

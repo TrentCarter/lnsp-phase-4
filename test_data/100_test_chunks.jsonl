@@ -1,0 +1,100 @@
+{"text": "The Earth is the third planet from the Sun and the only known planet to harbor life.", "batch_id": "test_batch_1"}
+{"text": "Water covers approximately 71% of Earth's surface.", "batch_id": "test_batch_1"}
+{"text": "The atmosphere of Earth consists of nitrogen, oxygen, and trace amounts of other gases.", "batch_id": "test_batch_1"}
+{"text": "Mount Everest is the highest mountain on Earth, with a peak elevation of 8,849 meters.", "batch_id": "test_batch_1"}
+{"text": "The Pacific Ocean is the largest and deepest ocean on Earth.", "batch_id": "test_batch_1"}
+{"text": "Photosynthesis is the process by which plants convert sunlight into chemical energy.", "batch_id": "test_batch_2"}
+{"text": "Chlorophyll gives plants their green color and is essential for photosynthesis.", "batch_id": "test_batch_2"}
+{"text": "Plants release oxygen as a byproduct of photosynthesis.", "batch_id": "test_batch_2"}
+{"text": "Carbon dioxide is absorbed by plants during photosynthesis.", "batch_id": "test_batch_2"}
+{"text": "The process of photosynthesis occurs primarily in the leaves of plants.", "batch_id": "test_batch_2"}
+{"text": "The human brain contains approximately 86 billion neurons.", "batch_id": "test_batch_3"}
+{"text": "Neurons communicate with each other through electrical and chemical signals.", "batch_id": "test_batch_3"}
+{"text": "The cerebral cortex is the outer layer of the brain responsible for higher cognitive functions.", "batch_id": "test_batch_3"}
+{"text": "Memory formation involves the strengthening of connections between neurons.", "batch_id": "test_batch_3"}
+{"text": "The brain uses about 20% of the body's total energy despite being only 2% of body weight.", "batch_id": "test_batch_3"}
+{"text": "DNA stands for deoxyribonucleic acid and contains genetic instructions.", "batch_id": "test_batch_4"}
+{"text": "DNA is composed of four nucleotide bases: adenine, thymine, guanine, and cytosine.", "batch_id": "test_batch_4"}
+{"text": "The double helix structure of DNA was discovered by Watson and Crick in 1953.", "batch_id": "test_batch_4"}
+{"text": "DNA replication occurs before cell division to ensure genetic information is passed on.", "batch_id": "test_batch_4"}
+{"text": "Mutations in DNA can lead to changes in protein structure and function.", "batch_id": "test_batch_4"}
+{"text": "The speed of light in a vacuum is approximately 299,792,458 meters per second.", "batch_id": "test_batch_5"}
+{"text": "Light behaves as both a wave and a particle, a phenomenon known as wave-particle duality.", "batch_id": "test_batch_5"}
+{"text": "The electromagnetic spectrum includes radio waves, microwaves, infrared, visible light, ultraviolet, X-rays, and gamma rays.", "batch_id": "test_batch_5"}
+{"text": "Different colors of light have different wavelengths and frequencies.", "batch_id": "test_batch_5"}
+{"text": "Refraction is the bending of light as it passes from one medium to another.", "batch_id": "test_batch_5"}
+{"text": "Gravity is a fundamental force that attracts objects with mass toward each other.", "batch_id": "test_batch_6"}
+{"text": "Isaac Newton formulated the law of universal gravitation in 1687.", "batch_id": "test_batch_6"}
+{"text": "Einstein's theory of general relativity describes gravity as the curvature of spacetime.", "batch_id": "test_batch_6"}
+{"text": "The strength of gravitational force decreases with the square of the distance between objects.", "batch_id": "test_batch_6"}
+{"text": "Black holes have such strong gravity that not even light can escape them.", "batch_id": "test_batch_6"}
+{"text": "The Milky Way is a barred spiral galaxy containing our solar system.", "batch_id": "test_batch_7"}
+{"text": "The Milky Way contains an estimated 100 to 400 billion stars.", "batch_id": "test_batch_7"}
+{"text": "Our solar system is located in the Orion Arm of the Milky Way.", "batch_id": "test_batch_7"}
+{"text": "The Milky Way is approximately 100,000 light-years in diameter.", "batch_id": "test_batch_7"}
+{"text": "The Andromeda Galaxy is the nearest major galaxy to the Milky Way.", "batch_id": "test_batch_7"}
+{"text": "Atoms are the basic building blocks of matter.", "batch_id": "test_batch_8"}
+{"text": "An atom consists of a nucleus containing protons and neutrons, surrounded by electrons.", "batch_id": "test_batch_8"}
+{"text": "The number of protons in an atom determines its element.", "batch_id": "test_batch_8"}
+{"text": "Electrons orbit the nucleus in discrete energy levels or shells.", "batch_id": "test_batch_8"}
+{"text": "Chemical bonds form when atoms share or transfer electrons.", "batch_id": "test_batch_8"}
+{"text": "Temperature is a measure of the average kinetic energy of particles in a substance.", "batch_id": "test_batch_9"}
+{"text": "Absolute zero is the lowest possible temperature, equal to zero Kelvin or minus 273.15 degrees Celsius.", "batch_id": "test_batch_9"}
+{"text": "Heat transfer can occur through conduction, convection, and radiation.", "batch_id": "test_batch_9"}
+{"text": "Thermal equilibrium occurs when two objects reach the same temperature.", "batch_id": "test_batch_9"}
+{"text": "Phase transitions occur when matter changes between solid, liquid, and gas states.", "batch_id": "test_batch_9"}
+{"text": "The theory of evolution by natural selection was proposed by Charles Darwin.", "batch_id": "test_batch_10"}
+{"text": "Natural selection favors traits that increase an organism's ability to survive and reproduce.", "batch_id": "test_batch_10"}
+{"text": "Genetic variation within populations is essential for evolution to occur.", "batch_id": "test_batch_10"}
+{"text": "Speciation is the process by which new species form from existing populations.", "batch_id": "test_batch_10"}
+{"text": "Fossils provide evidence of how organisms have changed over geological time.", "batch_id": "test_batch_10"}
+{"text": "Electricity is the flow of electric charge through a conductor.", "batch_id": "test_batch_11"}
+{"text": "Electric current is measured in amperes and represents the rate of charge flow.", "batch_id": "test_batch_11"}
+{"text": "Voltage is the potential difference that drives electric current through a circuit.", "batch_id": "test_batch_11"}
+{"text": "Resistance opposes the flow of current and is measured in ohms.", "batch_id": "test_batch_11"}
+{"text": "Ohm's Law states that voltage equals current multiplied by resistance.", "batch_id": "test_batch_11"}
+{"text": "Chemical reactions involve the breaking and forming of chemical bonds.", "batch_id": "test_batch_12"}
+{"text": "Exothermic reactions release energy in the form of heat.", "batch_id": "test_batch_12"}
+{"text": "Endothermic reactions absorb energy from their surroundings.", "batch_id": "test_batch_12"}
+{"text": "Catalysts speed up chemical reactions without being consumed in the process.", "batch_id": "test_batch_12"}
+{"text": "The law of conservation of mass states that matter cannot be created or destroyed in chemical reactions.", "batch_id": "test_batch_12"}
+{"text": "Sound is a mechanical wave that propagates through a medium such as air, water, or solids.", "batch_id": "test_batch_13"}
+{"text": "The frequency of a sound wave determines its pitch.", "batch_id": "test_batch_13"}
+{"text": "The amplitude of a sound wave determines its loudness.", "batch_id": "test_batch_13"}
+{"text": "Sound travels faster in solids than in liquids, and faster in liquids than in gases.", "batch_id": "test_batch_13"}
+{"text": "The Doppler effect causes the frequency of sound to change when the source or observer is moving.", "batch_id": "test_batch_13"}
+{"text": "Quantum mechanics describes the behavior of matter and energy at atomic and subatomic scales.", "batch_id": "test_batch_14"}
+{"text": "The Heisenberg uncertainty principle states that certain pairs of properties cannot be precisely measured simultaneously.", "batch_id": "test_batch_14"}
+{"text": "Electrons in atoms exist in probability clouds rather than fixed orbits.", "batch_id": "test_batch_14"}
+{"text": "Quantum entanglement is a phenomenon where particles become correlated in ways that classical physics cannot explain.", "batch_id": "test_batch_14"}
+{"text": "The wave function collapse occurs when a quantum system is measured.", "batch_id": "test_batch_14"}
+{"text": "The periodic table organizes elements by their atomic number and chemical properties.", "batch_id": "test_batch_15"}
+{"text": "Dmitri Mendeleev developed the first widely recognized periodic table in 1869.", "batch_id": "test_batch_15"}
+{"text": "Elements in the same column of the periodic table have similar chemical properties.", "batch_id": "test_batch_15"}
+{"text": "The periodic table contains 118 confirmed elements as of 2025.", "batch_id": "test_batch_15"}
+{"text": "Noble gases are chemically inert because they have full outer electron shells.", "batch_id": "test_batch_15"}
+{"text": "Cellular respiration is the process by which cells convert glucose into ATP energy.", "batch_id": "test_batch_16"}
+{"text": "Mitochondria are the powerhouses of the cell where cellular respiration occurs.", "batch_id": "test_batch_16"}
+{"text": "Aerobic respiration requires oxygen and produces more ATP than anaerobic respiration.", "batch_id": "test_batch_16"}
+{"text": "The Krebs cycle is a key metabolic pathway in cellular respiration.", "batch_id": "test_batch_16"}
+{"text": "Glycolysis is the first step of cellular respiration and occurs in the cytoplasm.", "batch_id": "test_batch_16"}
+{"text": "The water cycle describes the continuous movement of water on, above, and below Earth's surface.", "batch_id": "test_batch_17"}
+{"text": "Evaporation converts liquid water into water vapor.", "batch_id": "test_batch_17"}
+{"text": "Condensation occurs when water vapor cools and forms liquid water droplets.", "batch_id": "test_batch_17"}
+{"text": "Precipitation includes rain, snow, sleet, and hail falling to Earth's surface.", "batch_id": "test_batch_17"}
+{"text": "Transpiration is the process by which plants release water vapor into the atmosphere.", "batch_id": "test_batch_17"}
+{"text": "Magnetic fields are produced by moving electric charges and magnetic materials.", "batch_id": "test_batch_18"}
+{"text": "The Earth has a magnetic field generated by electric currents in its molten outer core.", "batch_id": "test_batch_18"}
+{"text": "Compass needles align with Earth's magnetic field lines.", "batch_id": "test_batch_18"}
+{"text": "Magnetic poles are regions where the magnetic field is strongest.", "batch_id": "test_batch_18"}
+{"text": "Electromagnets are created by passing electric current through a coil of wire.", "batch_id": "test_batch_18"}
+{"text": "The laws of thermodynamics govern the behavior of energy in physical systems.", "batch_id": "test_batch_19"}
+{"text": "The first law of thermodynamics states that energy cannot be created or destroyed.", "batch_id": "test_batch_19"}
+{"text": "The second law of thermodynamics states that entropy in an isolated system always increases.", "batch_id": "test_batch_19"}
+{"text": "The third law of thermodynamics states that absolute zero cannot be reached.", "batch_id": "test_batch_19"}
+{"text": "Entropy is a measure of disorder or randomness in a system.", "batch_id": "test_batch_19"}
+{"text": "Proteins are large biomolecules made up of amino acid chains.", "batch_id": "test_batch_20"}
+{"text": "There are 20 different amino acids that serve as building blocks for proteins.", "batch_id": "test_batch_20"}
+{"text": "The sequence of amino acids determines a protein's structure and function.", "batch_id": "test_batch_20"}
+{"text": "Enzymes are proteins that catalyze biochemical reactions.", "batch_id": "test_batch_20"}
+{"text": "Protein folding is the process by which a protein assumes its functional three-dimensional shape.", "batch_id": "test_batch_20"}

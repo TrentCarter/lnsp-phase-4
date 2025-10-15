@@ -1,120 +1,65 @@
 #!/usr/bin/env python3
-# 20250825T061038_1
-"""
-IELab Vec2Text subscriber
-"""
+"""IELab vec2text subscriber using the shared processor."""
+
+from __future__ import annotations
 
 import torch
-import vec2text
-import transformers
-from typing import List, Dict, Any
+from typing import List
+
+from app.vect_text_vect.vec2text_processor import create_vec2text_processor
 
 
 class IELabVec2TextSubscriber:
-    """Improved vec2text implementation from IELab"""
-    
-    def __init__(self, 
-                 steps: int = 20,
-                 beam_width: int = 1,
-                 device: str = None,
-                 debug: bool = False):
-        """Initialize IELab vec2text decoder"""
+    """Vec2Text subscriber matching the IELab configuration."""
+
+    def __init__(
+        self,
+        steps: int = 20,
+        beam_width: int = 2,
+        device: str | None = None,
+        debug: bool = False,
+    ):
         self.steps = steps
-        self.beam_width = beam_width
+        self.beam_width = max(1, beam_width)
         self.debug = debug
         self.name = "ielab"
         self.output_type = "text"
-        
-        # IELab requires CPU due to MPS compatibility issues
+
+        # IELab models have historically been CPU-only for stability.
+        requested = device or "cpu"
+        if requested != "cpu" and debug:
+            print(f"[DEBUG] IELab subscriber forcing CPU despite request '{requested}'")
         self.device = torch.device("cpu")
-        
-        if self.debug:
-            print(f"[DEBUG] IELab Vec2Text using device: {self.device} (CPU required)")
-            print(f"[DEBUG] Steps: {self.steps}, Beam width: {self.beam_width}")
-        
-        # Load models
+
         try:
-            if self.debug:
-                print("[DEBUG] Loading IELab inversion model...")
-                
-            self.inversion = vec2text.models.InversionModel.from_pretrained(
-                "ielabgroup/vec2text_gtr-base-st_inversion",
-                torch_dtype=torch.float32,
-                low_cpu_mem_usage=False,
-                device_map=None,
+            self.processor = create_vec2text_processor(
+                teacher_model_name="data/teacher_models/gtr-t5-base",
+                device="cpu",
+                random_seed=123,
+                debug=self.debug,
             )
-            
-            if self.debug:
-                print("[DEBUG] Loading IELab corrector model...")
-                
-            self.corrector_model = vec2text.models.CorrectorEncoderModel.from_pretrained(
-                "ielabgroup/vec2text_gtr-base-st_corrector",
-                torch_dtype=torch.float32,
-                low_cpu_mem_usage=False,
-                device_map=None,
-            )
-            
-            # Move to CPU
-            self.inversion.to(self.device)
-            self.corrector_model.to(self.device)
-            
-            # Setup trainers
-            self.inversion_trainer = vec2text.trainers.InversionTrainer(
-                model=self.inversion,
-                train_dataset=None,
-                eval_dataset=None,
-                data_collator=transformers.DataCollatorForSeq2Seq(
-                    self.inversion.tokenizer,
-                    label_pad_token_id=-100,
-                ),
-            )
-            
-            self.corrector_model.config.dispatch_batches = None
-            
-            self.corrector = vec2text.trainers.Corrector(
-                model=self.corrector_model,
-                inversion_trainer=self.inversion_trainer,
-                args=None,
-                data_collator=vec2text.collator.DataCollatorForCorrection(
-                    tokenizer=self.inversion_trainer.model.tokenizer
-                ),
-            )
-            
-            if self.debug:
-                print("[DEBUG] IELab models loaded successfully")
-                
-        except Exception as e:
-            raise RuntimeError(f"Failed to load IELab models: {e}")
-    
-    def process(self, vectors: torch.Tensor, metadata: Dict[str, Any] = None) -> List[str]:
-        """
-        Decode vectors using IELab models
-        
-        Args:
-            vectors: [N, 768] tensor
-            metadata: Optional metadata (unused)
-            
-        Returns:
-            List of decoded texts
-        """
-        # Ensure vectors are on CPU and detached from any GPU computation graph
-        vectors = vectors.detach().cpu().float()
-        
-        try:
-            # Set default device to CPU for the operation
-            with torch.cuda.device('cpu') if torch.cuda.is_available() else torch.no_grad():
-                decoded_texts = vec2text.invert_embeddings(
-                    embeddings=vectors,
-                    corrector=self.corrector,
-                    num_steps=self.steps,
-                    sequence_beam_width=self.beam_width
+        except Exception as exc:
+            raise RuntimeError(f"Failed to initialise vec2text processor: {exc}")
+
+    def process(self, vectors: torch.Tensor, metadata=None) -> List[str]:
+        metadata = metadata or {}
+        original_texts = metadata.get("original_texts", [])
+        decoded_texts: List[str] = []
+
+        for idx in range(vectors.shape[0]):
+            embedding = vectors[idx].detach().to(self.processor.device)
+            prompt = original_texts[idx] if idx < len(original_texts) else " "
+            try:
+                result = self.processor.iterative_vec2text_process(
+                    input_text=prompt,
+                    vector_source="teacher",
+                    num_iterations=max(1, self.steps),
+                    beam_width=self.beam_width,
+                    target_embedding=embedding,
                 )
-            return decoded_texts
-            
-        except Exception as e:
-            if self.debug:
-                print(f"[DEBUG] IELab error details: {e}")
-                import traceback
-                traceback.print_exc()
-            # Return error messages for each vector
-            return [f"[IELab decode error: {e}]"] * vectors.shape[0]
+                decoded = (result or {}).get("final_text")
+                decoded_texts.append(decoded.strip() if decoded else "[IELab: No text returned]")
+            except Exception as exc:
+                decoded_texts.append(f"[IELab decode error: {exc}]")
+
+        return decoded_texts

@@ -90,7 +90,10 @@ def call_local_llama(prompt: str, system_prompt: Optional[str] = None) -> LlamaR
         "prompt": full_prompt,
         "stream": False,
         "options": {
-            "temperature": 0.0
+            "temperature": 0.0,
+            "num_predict": 8,
+            "top_k": 1,
+            "repeat_penalty": 1.0
         }
     }
 

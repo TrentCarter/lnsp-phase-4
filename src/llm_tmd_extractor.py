@@ -9,7 +9,9 @@ incorrect metadata (e.g., "software" → Biochemical modifier).
 import os
 import json
 import re
-from typing import Dict, Optional
+import hashlib
+from typing import Dict, Optional, Tuple
+from collections import OrderedDict
 import sys
 from pathlib import Path
 
@@ -23,6 +25,29 @@ try:
     HAS_LLAMA = True
 except ImportError:
     HAS_LLAMA = False
+
+
+# Simple LRU cache for TMD results
+_TMD_CACHE_MAX = 2048
+_tmd_cache: "OrderedDict[Tuple[str, str, str], Dict[str, int]]" = OrderedDict()
+
+
+def _cache_get(model: str, endpoint: str, text: str) -> Optional[Dict[str, int]]:
+    key = (model, endpoint, hashlib.sha1(text.encode("utf-8")).hexdigest())
+    val = _tmd_cache.get(key)
+    if val is not None:
+        # move to end (most recent)
+        _tmd_cache.move_to_end(key)
+    return val
+
+
+def _cache_set(model: str, endpoint: str, text: str, value: Dict[str, int]) -> None:
+    key = (model, endpoint, hashlib.sha1(text.encode("utf-8")).hexdigest())
+    _tmd_cache[key] = value
+    _tmd_cache.move_to_end(key)
+    if len(_tmd_cache) > _TMD_CACHE_MAX:
+        # pop least-recently used
+        _tmd_cache.popitem(last=False)
 
 
 # TMD Schema from docs/PRDs/TMD-Schema.md
@@ -100,6 +125,12 @@ def extract_tmd_with_llm(
     if llm_model:
         os.environ["LNSP_LLM_MODEL"] = llm_model
 
+    # Check cache first (normalized key)
+    normalized = text.strip().lower()
+    cached = _cache_get(llm_model, llm_endpoint or os.getenv("LNSP_LLM_ENDPOINT", "http://localhost:11434"), normalized)
+    if cached is not None:
+        return cached
+
     # Build prompt
     prompt = TMD_PROMPT_TEMPLATE.format(text=text)
 
@@ -133,11 +164,15 @@ def extract_tmd_with_llm(
         print(f"Invalid modifier {modifier} for '{text}', clamping")
         modifier = max(0, min(63, modifier))
 
-    return {
+    result = {
         'domain_code': domain,
         'task_code': task,
         'modifier_code': modifier
     }
+
+    # Store in cache
+    _cache_set(llm_model, os.getenv("LNSP_LLM_ENDPOINT", "http://localhost:11434") if llm_endpoint is None else llm_endpoint, normalized, result)
+    return result
 
 
 # Human-readable names for validation

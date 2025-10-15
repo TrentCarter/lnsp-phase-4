@@ -1,92 +1,60 @@
 #!/usr/bin/env python3
-"""
-Standalone JXE vec2text wrapper for subprocess execution
-"""
+"""Historic JXE vec2text wrapper retained for compatibility."""
 
-import sys
-import json
+from __future__ import annotations
+
 import pickle
-import torch
-import numpy as np
+import sys
 from pathlib import Path
 
-def main():
-    # Get input/output paths from command line
+import numpy as np
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.vect_text_vect.vec2text_processor import create_vec2text_processor
+
+
+def main() -> None:
     if len(sys.argv) != 3:
         print("Usage: jxe_wrapper.py <input_file> <output_file>", file=sys.stderr)
         sys.exit(1)
-    
-    input_path = sys.argv[1]
-    output_path = sys.argv[2]
-    
-    # Add project root to path
-    project_root = Path(__file__).resolve().parents[3]
-    sys.path.insert(0, str(project_root))
-    
-    try:
-        # Load input data
-        with open(input_path, 'rb') as f:
-            data = pickle.load(f)
-        
-        vectors = torch.from_numpy(data['vectors'])
-        metadata = data.get('metadata', {})
-        steps = data.get('steps', 1)
-        debug = data.get('debug', False)
-        
-        # Import and initialize subscriber
-        from app.agents.vec2text_agent import create_vec2text_processor
-        
-        processor = create_vec2text_processor(
-            teacher_model_name="data/teacher_models/gtr-t5-base"
-        )
-        
-        # Process each vector
-        results = []
-        for i in range(vectors.shape[0]):
-            vector = vectors[i]
-            original_text = metadata.get('original_texts', [''])[i] if metadata else ''
-            
-            # Prepare embedding
-            embedding_flat = vector.squeeze().detach()
-            if embedding_flat.dim() > 1:
-                embedding_flat = embedding_flat.view(-1)
-            
-            # Mock the get_vector function
-            original_get_vector = processor.get_vector_from_source
-            
-            def mock_get_vector(text, vector_source):
-                if vector_source == 'teacher':
-                    return embedding_flat
-                return original_get_vector(text, vector_source)
-            
-            processor.get_vector_from_source = mock_get_vector
-            
-            try:
-                result = processor.iterative_vec2text_process(
-                    input_text=original_text or " ",
-                    vector_source='teacher',
-                    num_iterations=max(1, steps)
-                )
-                
-                decoded = (result or {}).get('final_text', '')
-                if decoded:
-                    results.append(decoded.strip())
-                else:
-                    results.append("[JXE: No text returned]")
-                    
-            except Exception as e:
-                results.append(f"[JXE decode error: {e}]")
-            finally:
-                processor.get_vector_from_source = original_get_vector
-        
-        # Save output
-        output = {'status': 'success', 'result': results}
-        
-    except Exception as e:
-        output = {'status': 'error', 'error': str(e)}
-    
-    with open(output_path, 'wb') as f:
-        pickle.dump(output, f)
 
-if __name__ == '__main__':
+    input_path = Path(sys.argv[1])
+    output_path = Path(sys.argv[2])
+
+    try:
+        with input_path.open("rb") as handle:
+            payload = pickle.load(handle)
+
+        vectors = np.asarray(payload.get("vectors"), dtype=np.float32)
+        metadata = payload.get("metadata") or {}
+        steps = int(payload.get("steps", 1))
+
+        processor = create_vec2text_processor(
+            teacher_model_name="data/teacher_models/gtr-t5-base",
+            device="cpu",
+            random_seed=42,
+        )
+
+        texts = metadata.get("original_texts") or [" "] * vectors.shape[0]
+        prompts = [str(t) if t is not None else " " for t in texts]
+        info = processor.decode_embeddings(
+            vectors,
+            num_iterations=max(1, steps),
+            beam_width=1,
+            prompts=prompts,
+        )
+        results = [entry.get("final_text", "") or "<decode_error>" for entry in info]
+        output = {"status": "success", "result": results, "details": info}
+
+    except Exception as exc:
+        output = {"status": "error", "error": str(exc)}
+
+    with output_path.open("wb") as handle:
+        pickle.dump(output, handle)
+
+
+if __name__ == "__main__":  # pragma: no cover
     main()

@@ -164,7 +164,7 @@ def extract_stub(contents: str, title_hint: str | None = None) -> Extracted:
         relations=relations,
     )
 
-def extract_cpe_from_text(text: str) -> Dict[str, Any]:
+def extract_cpe_from_text(text: str, endpoint: str | None = None, model: str | None = None) -> Dict[str, Any]:
     """Extract CPE + TMD + relations using local Llama (JSON-only), then embed and fuse vectors.
 
     Falls back to heuristic extraction if local LLM or embeddings are unavailable.
@@ -195,7 +195,9 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
             'prop': ex.concept_text,
             'mission': f'Extract atomic facts from: {text[:120]}',
             'probe': ex.probe_question,
+            'probe_question': ex.probe_question,
             'expected': ex.expected_answer,
+            'expected_answer': ex.expected_answer,
             'soft_negatives': ex.soft_negatives,
             'hard_negatives': ex.hard_negatives,
             'domain': ex.domain,
@@ -254,9 +256,12 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
     relations = []
     domain = task = modifier = None
     try:
+        # Allow callers to override LLM endpoint/model; otherwise use environment defaults
+        ep = endpoint or os.getenv("LNSP_LLM_ENDPOINT", "http://localhost:11434")
+        mdl = model or os.getenv("LNSP_LLM_MODEL", "llama3.1:8b")
         llm = LocalLlamaClient(
-            endpoint=os.getenv("LNSP_LLM_ENDPOINT", "http://localhost:11434"),
-            model=os.getenv("LNSP_LLM_MODEL", "llama3.1:8b"),
+            endpoint=ep,
+            model=mdl,
         )
         j = llm.complete_json(prompt, timeout_s=float(os.getenv("LNSP_CPESH_TIMEOUT_S", "12")))
         concept = (j.get("concept") or j.get("prop") or "").strip()
@@ -310,7 +315,9 @@ def extract_cpe_from_text(text: str) -> Dict[str, Any]:
         'prop': concept or text.strip()[:200],
         'mission': f'Extract atomic facts from: {text[:120]}',
         'probe': probe or f"What is: {(concept or text.strip()[:80])}?",
+        'probe_question': probe or f"What is: {(concept or text.strip()[:80])}?",
         'expected': expected or concept or "",
+        'expected_answer': (expected or concept or ""),
         'soft_negatives': soft_negatives if soft_negatives else [],
         'hard_negatives': hard_negatives if hard_negatives else [],
         'domain': domain,

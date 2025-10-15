@@ -2,6 +2,24 @@
 source .venv/bin/activate
 claude --dangerously-skip-permissions
 
+# ===. 10/10/2025. ===
+
+# Recommended (no reload, venv Python 3.11)
+
+./.venv/bin/python tools/launch_fastapis.py
+
+# Enable reload for all services
+
+./.venv/bin/python tools/launch_fastapis.py --reload
+
+# Start a subset
+
+./.venv/bin/python tools/launch_fastapis.py --services chunker,tmd_router,ingest
+
+# Run a parallel stack with port offset
+
+./.venv/bin/python tools/launch_fastapis.py --port-offset 100
+
 # 10/8/2025. =====
 
 # Chunker Test Web Interface 
@@ -326,3 +344,47 @@ Available workflows:
 
 - This README intentionally removes legacy commands and logs from previous phases/projects.
 - For historical reference, see: `docs/archive/readme_legacy_20250918.txt`.
+
+
+⏺ Database Locations Summary
+
+  I've created a complete reference at docs/DATABASE_LOCATIONS.md. Here's the quick overview:
+
+  1. PostgreSQL (Primary Database)
+
+  - Location: /opt/homebrew/var/postgresql@17/
+  - Status: ✅ Running (port 5432)
+  - Connection: host=localhost dbname=lnsp user=lnsp password=lnsp
+  - Tables: cpe_entry, cpe_vectors
+
+  2. Neo4j (Graph Database)
+
+  - Location: /opt/homebrew/var/neo4j/
+  - Status: ✅ Running (ports 7474/7687)
+  - Web UI: http://localhost:7474/
+
+  3. FAISS Indexes (Vector Search)
+
+  - Location: ./artifacts/*.index
+  - Active Files:
+    - fw10k_ivf_flat_ip.index (6.1 MB - 10k vectors)
+    - ontology_13k_ivf_flat_ip.index (6.1 MB - 13k vectors)
+    - ontology_13k_ivf_flat_ip_rebuilt.index (6.4 MB - rebuilt)
+
+  4. NPZ Vector Files (Training Data)
+
+  - Location: ./artifacts/*.npz
+  - Key Files:
+    - fw10k_vectors.npz (150 MB - 10k concepts)
+    - ontology_13k.npz (38 MB - 13k ontology)
+    - lvm/wordnet_training_sequences.npz (LVM training)
+
+  5. SQLite Caches
+
+  - ./artifacts/cpesh_index.db (20 KB - CPESH cache)
+  - ./app/utils/mlflow/mlflow.db (MLflow tracking)
+
+  6. Ontology Chains (JSONL)
+
+  - Location: ./artifacts/ontology_chains/
+  - Files: swo_chains.jsonl, go_chains.jsonl, dbpedia_chains.jsonl, wordnet_chains.jsonl

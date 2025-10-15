@@ -85,9 +85,11 @@ print(f"Created {data['total_chunks']} chunks")
 
 ## 📚 Documentation
 
-- **Full Guide**: `docs/FASTAPI_CHUNKING_GUIDE.md`
+- **⭐ Complete Guide**: `CHUNKING_API_COMPLETE_GUIDE.md` (everything you need!)
+- **Quick Reference**: `CHUNKING_QUICK_REFERENCE.md` (cheat sheet)
+- **Settings Guide**: `CHUNKING_SETTINGS_GUIDE.md` (parameter tuning)
+- **Web UI Guide**: `WEB_CHUNKER_GUIDE.md` (web interface)
 - **API Docs** (when running): http://127.0.0.1:8001/docs
-- **Implementation**: `docs/SEMANTIC_CHUNKER_IMPLEMENTATION.md`
 
 ---
 

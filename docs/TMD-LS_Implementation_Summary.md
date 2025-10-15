@@ -39,7 +39,7 @@ Successfully implemented and benchmarked the **TMD-Lane Specialist (TMD-LS)** ar
 | tinyllama:1.1b  | 11435 | Fast lane specialist     |
 | phi3:mini       | 11436 | Precision lane           |
 | granite3-moe:1b | 11437 | Balanced fast lane       |
-| GTR-T5 service  | 8765  | Embedding generation     |
+| Vec2Text GTR-T5 service  | 8767  | Embedding generation     |
 | Vec2Text service| 8766  | Vector decoding          |
 
 ---
@@ -49,7 +49,7 @@ Successfully implemented and benchmarked the **TMD-Lane Specialist (TMD-LS)** ar
 ### GTR-T5 Embedding Server
 
 **Location:** `app/api/gtr_embedding_server.py`
-**Port:** 8765
+**Port:** 8767
 **Purpose:** Keep GTR-T5-base model warm for instant 768D embeddings
 
 **Start:**
@@ -195,7 +195,7 @@ def route_to_lane(tmd_vector: dict, text: str) -> str:
 | Stage | Component | TMD-LS Role |
 |-------|-----------|-------------|
 | **P5** | LLM Interrogation | Route to TinyLlama/Granite3 for CPESH extraction |
-| **P11** | Vector Storage | Use GTR-T5 FastAPI service (port 8765) |
+| **P11** | Vector Storage | Use Vec2Text GTR-T5 FastAPI service (port 8767) |
 | **P13** | Echo Validation | Route to Llama 3.1 for validation fallback |
 | **P17** | Inference Output | Route by TMD vector to appropriate specialist |
 
@@ -324,7 +324,7 @@ curl -s http://localhost:11436/api/tags | jq -r '.models[].name'
 curl -s http://localhost:11437/api/tags | jq -r '.models[].name'
 
 # Test FastAPI services
-curl http://localhost:8765/health
+curl http://localhost:8767/health
 curl http://localhost:8766/health
 ```
 

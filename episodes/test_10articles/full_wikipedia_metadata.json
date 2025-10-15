@@ -1,0 +1,8 @@
+{
+  "dataset": "wikimedia/wikipedia",
+  "language": "20231101.en",
+  "total_articles": 10,
+  "skipped_articles": 0,
+  "min_length": 500,
+  "output_file": "episodes/test_10articles/wiki_10.jsonl"
+}

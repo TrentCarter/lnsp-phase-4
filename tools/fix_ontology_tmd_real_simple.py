@@ -1,133 +1,160 @@
 #!/usr/bin/env python3
 """
-Real fix for TMD vectors - assign non-zero codes to produce valid embeddings.
-
-Uses domain=1, task=1, modifier=1 instead of 0,0,0 to avoid zero-norm vectors.
+Fix TMD Vectors with Vec2Text-Compatible Encoder
+==================================================
+Reads database chunks, re-encodes with port 8767 (vec2text-compatible),
+updates database, and regenerates training sequences NPZ.
 """
-
-import sys
-import os
-from pathlib import Path
-
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import psycopg2
 import numpy as np
+import requests
+from pathlib import Path
+import sys
+import json
 
-# Import the connection and TMD encoder
-from src.db_postgres import connect
-from src.tmd_encoder import tmd16_deterministic
+DB_CONFIG = {
+    "dbname": "lnsp",
+    "user": "trentcarter",
+    "password": "",
+    "host": "localhost",
+    "port": 5432
+}
 
-def fix_zero_tmd_vectors():
-    """Update all zero TMD codes to (1,1,1) and recompute 16D vectors."""
+VEC2TEXT_ENCODER_URL = "http://127.0.0.1:8767"
+VEC2TEXT_DECODER_URL = "http://127.0.0.1:8766"
+BATCH_SIZE = 100
 
-    conn = connect()
+def parse_pg_vector(vec_str):
+    """Parse PostgreSQL vector format to numpy array."""
+    if isinstance(vec_str, str):
+        # Remove brackets and parse
+        vec_str = vec_str.strip('[]')
+        return np.array([float(x) for x in vec_str.split(',')], dtype=np.float32)
+    return np.array(vec_str, dtype=np.float32)
+
+def main():
+    print("="*80)
+    print("Regenerating Vec2Text-Compatible Vectors")
+    print("="*80)
+    
+    # Step 1: Get all texts
+    conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
-
-    # Find entries with zero TMD codes (produces zero-norm vectors)
-    print("🔍 Finding entries with zero TMD codes...")
+    
     cur.execute("""
-        SELECT cpe_id, domain_code, task_code, modifier_code
-        FROM cpe_entry
-        WHERE domain_code = 0 AND task_code = 0 AND modifier_code = 0
+        SELECT e.cpe_id, e.concept_text
+        FROM cpe_entry e
+        WHERE e.dataset_source = 'user_input'
+        ORDER BY e.cpe_id
     """)
-
-    zero_entries = cur.fetchall()
-    total = len(zero_entries)
-    print(f"   Found {total} entries with zero TMD codes\n")
-
-    if total == 0:
-        print("✅ No entries need fixing!")
-        return
-
-    # Update each entry with non-zero codes
-    print("🔧 Fixing TMD codes and regenerating 16D vectors...")
-    fixed = 0
-
-    for cpe_id, old_d, old_t, old_m in zero_entries:
-        # Assign non-zero codes: science (1), fact_retrieval (1), computational (1)
-        new_domain = 1
-        new_task = 1
-        new_modifier = 1
-
-        # Generate the 16D unit vector
-        tmd_vec = tmd16_deterministic(new_domain, new_task, new_modifier)
-
-        # Convert to pgvector format string
-        tmd_str = '[' + ','.join(str(x) for x in tmd_vec) + ']'
-
-        # Update cpe_entry with new codes
-        cur.execute("""
-            UPDATE cpe_entry
-            SET domain_code = %s, task_code = %s, modifier_code = %s
-            WHERE cpe_id = %s
-        """, (new_domain, new_task, new_modifier, cpe_id))
-
-        # Update cpe_vectors with new 16D vector (cast to vector type)
+    rows = cur.fetchall()
+    print(f"✓ Found {len(rows)} texts")
+    
+    # Step 2: Re-encode in batches
+    print(f"\nRe-encoding in batches of {BATCH_SIZE}...")
+    all_vectors = []
+    
+    for i in range(0, len(rows), BATCH_SIZE):
+        batch = rows[i:i+BATCH_SIZE]
+        texts = [row[1] for row in batch]
+        
+        response = requests.post(
+            f"{VEC2TEXT_ENCODER_URL}/embed",
+            json={"texts": texts},
+            timeout=30
+        )
+        vectors = np.array(response.json()["embeddings"], dtype=np.float32)
+        all_vectors.append(vectors)
+        
+        print(f"  Batch {i//BATCH_SIZE + 1}: {vectors.shape}")
+    
+    all_vectors = np.vstack(all_vectors)
+    print(f"✓ Total: {all_vectors.shape}")
+    
+    # Step 3: Update database
+    print("\nUpdating database...")
+    for (cpe_id, _), vec in zip(rows, all_vectors):
         cur.execute("""
             UPDATE cpe_vectors
-            SET tmd_dense = %s::vector
+            SET concept_vec = %s::vector
             WHERE cpe_id = %s
-        """, (tmd_str, cpe_id))
-
-        fixed += 1
-        if fixed % 500 == 0:
-            print(f"   Fixed {fixed}/{total}...")
-            conn.commit()
-
+        """, (vec.tolist(), cpe_id))
+    
     conn.commit()
-    print(f"\n✅ Fixed {fixed} TMD vectors\n")
-
-    # Verify the fix
-    print("🔬 Verifying fix...")
+    print("✓ Database updated")
+    
+    # Step 4: Regenerate NPZ
+    print("\nRegenerating NPZ files...")
+    
     cur.execute("""
-        SELECT COUNT(*)
-        FROM cpe_entry
-        WHERE domain_code = 0 AND task_code = 0 AND modifier_code = 0
+        SELECT e.cpe_id, e.concept_text, v.concept_vec
+        FROM cpe_entry e
+        JOIN cpe_vectors v ON e.cpe_id = v.cpe_id
+        WHERE e.dataset_source = 'user_input'
+        ORDER BY e.cpe_id
     """)
-    remaining_zeros = cur.fetchone()[0]
-    print(f"   Remaining zero codes: {remaining_zeros}")
-
-    # Check actual vector norms
-    cur.execute("""
-        SELECT tmd_dense FROM cpe_vectors LIMIT 100
-    """)
-    sample_vecs = [np.array(row[0]) for row in cur.fetchall()]
-    norms = [np.linalg.norm(v) for v in sample_vecs]
-    zero_norms = sum(1 for n in norms if n == 0)
-
-    print(f"   Sample of 100 vectors:")
-    print(f"   - Zero norm: {zero_norms}/100")
-    print(f"   - Non-zero norm: {100-zero_norms}/100")
-    print(f"   - Mean norm: {np.mean(norms):.4f}")
-    print(f"   - Std norm: {np.std(norms):.4f}")
-
-    # Show one example
-    cur.execute("""
-        SELECT cv.tmd_dense, ce.domain_code, ce.task_code, ce.modifier_code, ce.concept_text
-        FROM cpe_vectors cv
-        JOIN cpe_entry ce ON cv.cpe_id = ce.cpe_id
-        WHERE ce.domain_code = 1 AND ce.task_code = 1 AND ce.modifier_code = 1
-        LIMIT 1
-    """)
-    example = cur.fetchone()
-    if example:
-        tmd_vec, d, t, m, concept = example
-        tmd_arr = np.array(tmd_vec)
-        print(f"\n   Example:")
-        print(f"   - Concept: {concept[:60]}...")
-        print(f"   - TMD codes: domain={d}, task={t}, modifier={m}")
-        print(f"   - Vector norm: {np.linalg.norm(tmd_arr):.4f}")
-        print(f"   - Vector[:4]: {tmd_arr[:4]}")
-
+    rows = cur.fetchall()
+    
+    cpe_ids = [str(r[0]) for r in rows]
+    texts = [r[1] for r in rows]
+    vectors = [parse_pg_vector(r[2]) for r in rows]
+    
+    print(f"✓ Parsed {len(vectors)} vectors from database")
+    
+    # Create sequences
+    context_size = 5
+    sequences = []
+    targets = []
+    
+    for i in range(len(vectors) - context_size):
+        ctx = np.stack(vectors[i:i+context_size])
+        tgt = vectors[i+context_size]
+        sequences.append(ctx)
+        targets.append(tgt)
+    
+    sequences = np.stack(sequences)
+    targets = np.stack(targets)
+    
+    print(f"✓ Created {len(sequences)} training sequences")
+    
+    # Save files
+    output_dir = Path("artifacts/lvm")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    ordered_path = output_dir / "wikipedia_42113_ordered.npz"
+    np.savez_compressed(ordered_path, cpe_ids=np.array(cpe_ids), texts=np.array(texts), vectors=np.stack(vectors))
+    
+    sequences_path = output_dir / "training_sequences_ctx5.npz"
+    np.savez_compressed(sequences_path, context_sequences=sequences, target_vectors=targets)
+    
+    print(f"✓ Saved: {ordered_path}")
+    print(f"✓ Saved: {sequences_path}")
+    
+    # Step 5: Verify
+    print("\nVerifying...")
+    test_vectors = np.stack(vectors[:3])
+    test_texts = texts[:3]
+    
+    for i, (vec, orig_text) in enumerate(zip(test_vectors, test_texts)):
+        response = requests.post(f"{VEC2TEXT_DECODER_URL}/invert", json={"embeddings": [vec.tolist()]}, timeout=30)
+        decoded = response.json()["texts"][0]
+        
+        enc_response = requests.post(f"{VEC2TEXT_ENCODER_URL}/embed", json={"texts": [decoded]}, timeout=30)
+        decoded_vec = np.array(enc_response.json()["embeddings"][0])
+        
+        cosine = np.dot(vec, decoded_vec) / (np.linalg.norm(vec) * np.linalg.norm(decoded_vec))
+        
+        print(f"\nTest {i+1}:")
+        print(f"  Original: {orig_text[:60]}...")
+        print(f"  Decoded:  {decoded[:60]}...")
+        print(f"  Cosine:   {cosine:.4f} {'✅' if cosine > 0.65 else '❌'}")
+    
     cur.close()
     conn.close()
-
-    if remaining_zeros == 0 and zero_norms == 0:
-        print("\n✅ SUCCESS: All TMD vectors now have non-zero norms!")
-    else:
-        print(f"\n⚠️  Warning: Still have issues (zeros={remaining_zeros}, zero_norms={zero_norms})")
+    
+    print("\n" + "="*80)
+    print("✅ DONE! New training data ready.")
+    print("="*80)
 
 if __name__ == "__main__":
-    fix_zero_tmd_vectors()
+    main()

@@ -5,6 +5,7 @@ output/
 data/
 artifacts/
 eval/
+app_cache/
 
 
 # Ignore compiled Python files

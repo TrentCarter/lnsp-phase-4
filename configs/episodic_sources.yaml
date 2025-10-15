@@ -1,0 +1,17 @@
+stem_backbone:
+  - name: enwiki_water_cycle
+    url: https://en.wikipedia.org/wiki/Water_cycle
+    type: wikipedia
+
+micro_concepts:
+  - name: simple_en_water_cycle
+    url: https://simple.wikipedia.org/wiki/Water_cycle
+    type: simplewiki
+
+software_manuals:
+  - name: osdev_interrupts
+    url: https://wiki.osdev.org/Interrupts
+    type: osdev
+  - name: mdn_fetch_api
+    url: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
+    type: mdn

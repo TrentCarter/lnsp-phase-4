@@ -18,10 +18,27 @@ That file contains the cardinal rules that must NEVER be violated:
 ## 🚨 CRITICAL RULES FOR DAILY OPERATIONS
 
 1. **ALWAYS use REAL data** - Never use stub/placeholder data. Always use actual datasets from `data/` directory.
-2. **NEVER use FactoidWiki** - Only ontologies (SWO, GO, ConceptNet, DBpedia). FactoidWiki is NOT ontological!
-3. **ALWAYS verify dataset_source labels** - Ontology data must use `ontology-{source}` format (not `factoid-wiki-large`)
-4. **ALWAYS call faiss_db.save()** - FAISS vectors must be persisted after ingestion (see Oct 4 fix)
-5. **ALWAYS use REAL LLM** - Never fall back to stub extraction. Use Ollama with Llama 3.1:
+2. **🔴 CRITICAL: NEVER USE ONTOLOGICAL DATASETS FOR LVM TRAINING** (Added Oct 11, 2025)
+   - **Ontologies (WordNet, SWO, GO, DBpedia) are TAXONOMIC, NOT SEQUENTIAL**
+   - They teach classification hierarchies ("dog → mammal → animal"), not narrative flow
+   - **For LVM training, use ONLY sequential document data:**
+     - ✅ **Wikipedia articles** (narrative progression)
+     - ✅ **Textbooks** (sequential instruction: "First... → Next... → Finally...")
+     - ✅ **Scientific papers** (temporal flow: "Methods → Results → Conclusions")
+     - ✅ **Programming tutorials** (step-by-step procedures)
+     - ✅ **Stories/narratives** (causal/temporal relationships)
+     - ❌ **NEVER WordNet** (taxonomic hierarchies)
+     - ❌ **NEVER SWO/GO** (ontological categories)
+     - ❌ **NEVER DBpedia ontology chains** (classification structures)
+   - **Why this matters**: Autoregressive LVMs predict next vector from context. They need temporal/causal relationships, not IS-A hierarchies.
+   - **Validation**: Use `tools/test_sequential_coherence.py` to verify dataset suitability before training
+   - **See**: `docs/LVM_TRAINING_CRITICAL_FACTS.md` for detailed explanation
+3. **Ontologies ARE useful for GraphRAG, NOT for LVM training**
+   - ✅ Use ontologies for: vecRAG retrieval, knowledge graphs, Neo4j relationships
+   - ❌ DO NOT use ontologies for: training autoregressive/generative models
+4. **ALWAYS verify dataset_source labels** - Training data must use sequential sources (not `ontology-*`)
+5. **ALWAYS call faiss_db.save()** - FAISS vectors must be persisted after ingestion (see Oct 4 fix)
+6. **ALWAYS use REAL LLM** - Never fall back to stub extraction. Use Ollama with Llama 3.1:
    - Install: `curl -fsSL https://ollama.ai/install.sh | sh`
    - Pull model: `ollama pull llama3.1:8b`
    - Start: `ollama serve` (keep running)

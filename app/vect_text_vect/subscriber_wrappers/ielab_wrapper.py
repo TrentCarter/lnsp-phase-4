@@ -1,233 +1,152 @@
 #!/usr/bin/env python3
-# 20250912T1236_16
-"""
-Standalone IELab vec2text wrapper for subprocess execution
-"""
+"""IELab vec2text wrapper that routes through the shared processor."""
 
-import sys
+from __future__ import annotations
+
 import os
 import pickle
-import torch
-import random
-import numpy as np
+import sys
 from pathlib import Path
+from typing import Any, Dict, List
 
-# Get device override from command line args if available
-device_override = None
-if len(sys.argv) >= 3:
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+os.environ.setdefault("ACCELERATE_DISABLE_INIT_EMPTY_WEIGHTS", "1")
+os.environ.setdefault("TRANSFORMERS_NO_ACCELERATE", "1")
+
+from app.vect_text_vect.vec2text_processor import create_vec2text_processor
+
+
+def _load_request(path: Path) -> Dict[str, Any]:
+    with path.open("rb") as handle:
+        data = pickle.load(handle)
+    return data if isinstance(data, dict) else {}
+
+
+def _ensure_float32_matrix(vectors: Any) -> np.ndarray:
+    arr = np.asarray(vectors, dtype=np.float32)
+    if arr.ndim != 2:
+        raise ValueError(f"expected 2D array of embeddings, received shape {arr.shape}")
+    if arr.shape[1] != 768:
+        raise ValueError(f"expected embeddings with dim 768, received {arr.shape[1]}")
+    return arr
+
+
+def _resolve_prompts(metadata: Dict[str, Any], count: int) -> List[str]:
+    prompts = metadata.get("original_texts") if isinstance(metadata, dict) else None
+    if isinstance(prompts, list) and len(prompts) == count:
+        return [str(p) if p is not None else " " for p in prompts]
+    return [" "] * count
+
+
+def _maybe_apply_mamba(vectors: torch.Tensor, checkpoint: str, debug: bool) -> torch.Tensor:
+    checkpoint_path = Path(checkpoint)
+    if not checkpoint_path.exists():
+        if debug:
+            print(f"[IELab] Mamba checkpoint not found: {checkpoint}", file=sys.stderr)
+        return vectors
+
     try:
-        with open(sys.argv[1], 'rb') as f:
-            temp_data = pickle.load(f)
-            device_override = temp_data.get('device_override', None)
-    except Exception:
-        pass
+        from app.nemotron_vmmoe.minimal_mamba import MinimalMamba
+        from app.nemotron_vmmoe.minimal_mamba_trainer import MambaVectorConfig
+    except Exception as exc:  # pragma: no cover - optional dependency
+        if debug:
+            print(f"[IELab] Failed to import Mamba modules: {exc}", file=sys.stderr)
+        return vectors
 
-# Setup environment based on device override
-os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
-os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-# Try to avoid meta-tensor initialization paths from Accelerate/Transformers
-os.environ['ACCELERATE_DISABLE_INIT_EMPTY_WEIGHTS'] = '1'
-os.environ['TRANSFORMERS_NO_ACCELERATE'] = '1'
+    if debug:
+        print(f"[IELab] Loading Mamba checkpoint from {checkpoint_path}", file=sys.stderr)
 
-# Apply device-specific settings
-if device_override == 'cpu':
-    os.environ['PYTORCH_MPS_DISABLE'] = '1'
-    os.environ['TRANSFORMERS_DEFAULT_DEVICE'] = 'cpu'
-    os.environ['CUDA_VISIBLE_DEVICES'] = ''
-elif device_override == 'mps':
-    os.environ.pop('PYTORCH_MPS_DISABLE', None)
-    os.environ['TRANSFORMERS_DEFAULT_DEVICE'] = 'mps'
-    os.environ['CUDA_VISIBLE_DEVICES'] = ''
-elif device_override == 'cuda':
-    os.environ.pop('PYTORCH_MPS_DISABLE', None)
-    os.environ['TRANSFORMERS_DEFAULT_DEVICE'] = 'cuda'
-    os.environ.pop('CUDA_VISIBLE_DEVICES', None)
-else:
-    # Default to CPU for IELab compatibility
-    os.environ['PYTORCH_MPS_DISABLE'] = '1'
-    os.environ['TRANSFORMERS_DEFAULT_DEVICE'] = 'cpu'
-    os.environ['CUDA_VISIBLE_DEVICES'] = ''
+    try:
+        ckpt = torch.load(checkpoint_path, map_location="cpu")
+        model = MinimalMamba(MambaVectorConfig())
+        model.load_state_dict(ckpt["model_state_dict"])
+        model.eval()
+        with torch.no_grad():
+            transformed = model(vectors.unsqueeze(1))  # [B, 1, D]
+        transformed = F.normalize(transformed.squeeze(1), dim=-1)
+        if debug:
+            cos = F.cosine_similarity(vectors, transformed, dim=-1).mean().item()
+            print(f"[IELab] Mamba transform mean cosine: {cos:.4f}", file=sys.stderr)
+        return transformed
+    except Exception as exc:  # pragma: no cover - optional path
+        if debug:
+            print(f"[IELab] Mamba transformation failed: {exc}", file=sys.stderr)
+        return vectors
 
-# Ensure shared HF cache by default (repo-local .hf_cache)
-try:
-    _repo_root = Path(__file__).resolve().parents[3]
-    _hf_cache = str(_repo_root / '.hf_cache')
-    os.environ.setdefault('HF_HOME', _hf_cache)
-    os.environ.setdefault('TRANSFORMERS_CACHE', _hf_cache)
-    os.environ.setdefault('HF_HUB_DISABLE_TELEMETRY', '1')
-except Exception:
-    pass
 
-# Set default device based on override (defaults to CPU)
-target_device = device_override or 'cpu'
-try:
-    torch.set_default_device(target_device)
-except Exception:
-    pass
-
-# Disable unused backends based on device choice
-try:
-    if target_device != 'mps' and hasattr(torch.backends, 'mps'):
-        torch.backends.mps.is_available = lambda: False  # type: ignore
-    if target_device != 'cuda' and hasattr(torch, 'cuda'):
-        torch.cuda.is_available = lambda: False  # type: ignore
-except Exception:
-    pass
-
-# Force assign=True on load_state_dict to materialize weights into non-meta tensors
-try:
-    _orig_load_state_dict = torch.nn.Module.load_state_dict
-    def _patched_load_state_dict(self, state_dict, strict=True, assign=False):  # type: ignore[override]
-        # Simply force assign=True, don't try to manipulate meta tensors
-        return _orig_load_state_dict(self, state_dict, strict=strict, assign=True)
-    torch.nn.Module.load_state_dict = _patched_load_state_dict  # type: ignore[assignment]
-except Exception as e:
-    print(f"[IELAB DEBUG] Could not patch load_state_dict: {e}", file=sys.stderr)
-    pass
-
-def _load_and_move_to_device(model_class, model_name, target_device):
-    """Helper function to load model to CPU then move to target device"""
-    # Load to CPU first
-    model = model_class.from_pretrained(
-        model_name,
-        torch_dtype=torch.float32,
-        device_map={"": "cpu"},
-        use_safetensors=True,
-        low_cpu_mem_usage=False
-    )
-    # Then move to target device using safe method
-    return model.to(target_device)
-
-def main():
-    # Get input/output paths from command line
+def main() -> None:
     if len(sys.argv) != 3:
         print("Usage: ielab_wrapper.py <input_file> <output_file>", file=sys.stderr)
         sys.exit(1)
-    
-    input_path = sys.argv[1]
-    output_path = sys.argv[2]
-    
+
+    input_path = Path(sys.argv[1])
+    output_path = Path(sys.argv[2])
+
     try:
-        # Load input data
-        with open(input_path, 'rb') as f:
-            data = pickle.load(f)
-        
-        vecs_np = data.get('vectors', None)
-        if vecs_np is None:
-            raise ValueError("no vectors provided for vec->text decode")
-        vectors = torch.from_numpy(vecs_np)
-        steps = data.get('steps', 20)
-        beam_width = data.get('beam_width', 1)
-        normalize_in = bool(data.get('normalize', False))
-        
-        # Debug: print only human-readable info (no raw vector dumps)
-        print(f"[IELAB DEBUG] Received vectors shape: {vectors.shape}", file=sys.stderr)
-        print(f"[IELAB DEBUG] Vectors norm: {torch.norm(vectors).item():.6f}", file=sys.stderr)
-        
-        # Use IELab-specific seed for differentiation from JXE
-        try:
-            random.seed(123)  # Different seed from JXE
-            np.random.seed(123)
-            torch.manual_seed(123)
-        except Exception:
-            pass
+        payload = _load_request(input_path)
+        metadata = payload.get("metadata") or {}
+        vectors = _ensure_float32_matrix(payload.get("vectors"))
+        steps = int(payload.get("steps", 20))
+        beam_width = max(1, int(payload.get("beam_width", 2)))
+        device_override = payload.get("device_override")
+        debug = bool(payload.get("debug", False))
+        normalize_input = bool(payload.get("normalize", False))
+        mamba_checkpoint = payload.get("mamba_checkpoint")
 
-        # Move to target device and ensure float32
-        vectors = vectors.detach().to(target_device).float()
-        # Optional normalization only if requested
-        if normalize_in:
-            try:
-                vectors = torch.nn.functional.normalize(vectors, dim=-1)
-            except Exception:
-                pass
-        # Debug vec->text mode and batch size
-        try:
-            print(f"[V2T] MODE=vec2text N={vectors.shape[0]}", file=sys.stderr)
-        except Exception:
-            pass
-        
-        # Use IELab explicit models path for inversion to match training setup
-        import vec2text
-        import transformers
-        print(f"[IELAB DEBUG] HF_HOME={os.environ.get('HF_HOME','')}", file=sys.stderr)
-        print(f"[IELAB DEBUG] TRANSFORMERS_CACHE={os.environ.get('TRANSFORMERS_CACHE','')}", file=sys.stderr)
-        print(f"[IELAB DEBUG] torch={torch.__version__}, transformers={transformers.__version__}", file=sys.stderr)
-        
-        # Apply Mamba transformation if checkpoint provided
-        mamba_checkpoint = data.get('mamba_checkpoint')
-        if mamba_checkpoint and mamba_checkpoint != "None":
-            try:
-                from app.nemotron_vmmoe.minimal_mamba import MinimalMamba
-                from app.nemotron_vmmoe.minimal_mamba_trainer import MambaVectorConfig
-                
-                print(f"[IELAB DEBUG] Loading Mamba from {mamba_checkpoint}", file=sys.stderr)
-                ckpt = torch.load(mamba_checkpoint, map_location='cpu')
-                config = MambaVectorConfig()
-                model = MinimalMamba(config)
-                model.load_state_dict(ckpt['model_state_dict'])
-                model.eval()
-                
-                # Transform vectors through Mamba
-                with torch.no_grad():
-                    # Ensure proper shape [batch, seq_len, dim]
-                    if vectors.dim() == 2:
-                        vectors = vectors.unsqueeze(1)  # Add sequence dimension
-                    
-                    transformed = model(vectors)
-                    vectors = torch.nn.functional.normalize(transformed, dim=-1).squeeze(1)  # Remove sequence dimension
-                    
-                    similarity = torch.nn.functional.cosine_similarity(
-                        vectors[0], vectors[0] if vectors.shape[0] == 1 else vectors[0], dim=0
-                    ).item()
-                    print(f"[IELAB DEBUG] Mamba transformation similarity: {similarity:.4f}", file=sys.stderr)
-                    
-            except Exception as e:
-                print(f"[IELAB DEBUG] Mamba transformation failed: {e}", file=sys.stderr)
-        
-        # Use the working API approach instead of manual model loading
-        print(f"[IELAB DEBUG] Using vec2text API approach for model loading", file=sys.stderr)
-        
-        try:
-            # For now, use standard gtr-base with IELab-specific configuration
-            # The IELab models have initialization issues that need to be resolved
-            corrector = vec2text.api.load_pretrained_corrector('gtr-base')
-            print(f"[IELAB DEBUG] Successfully loaded GTR-base corrector (IELab variant with seed 123)", file=sys.stderr)
-            
-            # Move corrector to target device
-            device = torch.device(target_device)
-            if hasattr(corrector, 'model') and hasattr(corrector.model, 'to'):
-                corrector.model = corrector.model.to(device)
-            if hasattr(corrector, 'inversion_trainer') and hasattr(corrector.inversion_trainer, 'model'):
-                corrector.inversion_trainer.model = corrector.inversion_trainer.model.to(device)
-            if hasattr(corrector, 'embedder_model') and hasattr(corrector.embedder_model, 'to'):
-                corrector.embedder_model = corrector.embedder_model.to(device)
-            # Note: CorrectorEncoderModel device property is read-only
-                
-            print(f"[IELAB DEBUG] Moved corrector components to {target_device}", file=sys.stderr)
-            
-        except Exception as e:
-            raise RuntimeError(f"Failed to load corrector via API: {e}")
-        
-        # Decode vectors
-        try:
-            # IELab uses beam width 2 for slightly different results
-            decoded_texts = vec2text.invert_embeddings(
-                embeddings=vectors,
-                corrector=corrector,
-                num_steps=steps,
-                sequence_beam_width=2 if beam_width == 1 else beam_width  # IELab defaults to beam width 2
-            )
-            output = {'status': 'success', 'result': decoded_texts}
-        except Exception as e:
-            # Return error messages for each vector
-            error_texts = [f"[IELab decode error: {e}]"] * vectors.shape[0]
-            output = {'status': 'success', 'result': error_texts}
-        
-    except Exception as e:
-        output = {'status': 'error', 'error': str(e)}
-    
-    with open(output_path, 'wb') as f:
-        pickle.dump(output, f)
+        teacher_hint = (
+            metadata.get("teacher_model_path")
+            or metadata.get("teacher_model")
+            or "data/teacher_models/gtr-t5-base"
+        )
 
-if __name__ == '__main__':
+        processor = create_vec2text_processor(
+            teacher_model_name=teacher_hint,
+            device=device_override,
+            random_seed=123,
+            debug=debug,
+        )
+
+        tensor = torch.from_numpy(vectors)
+        if normalize_input:
+            tensor = F.normalize(tensor, dim=-1)
+        if mamba_checkpoint and str(mamba_checkpoint).lower() not in {"", "none"}:
+            tensor = _maybe_apply_mamba(tensor, str(mamba_checkpoint), debug)
+        vectors_for_decode = tensor.cpu().numpy()
+
+        prompts = _resolve_prompts(metadata, vectors_for_decode.shape[0])
+        info = processor.decode_embeddings(
+            vectors_for_decode,
+            num_iterations=max(1, steps),
+            beam_width=beam_width,
+            prompts=prompts,
+        )
+
+        decoded_texts: List[str] = []
+        for record in info:
+            text = str(record.get("final_text", "")).strip()
+            decoded_texts.append(text if text else "<decode_error>")
+
+        output = {
+            "status": "success",
+            "result": decoded_texts,
+            "details": info,
+        }
+
+    except Exception as exc:  # pragma: no cover - defensive
+        output = {"status": "error", "error": str(exc)}
+
+    with output_path.open("wb") as handle:
+        pickle.dump(output, handle)
+
+
+if __name__ == "__main__":  # pragma: no cover
     main()

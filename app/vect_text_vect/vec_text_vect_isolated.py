@@ -70,7 +70,14 @@ class IsolatedVecTextVectOrchestrator:
         
     def _setup_device(self):
         """Setup compute device"""
-        if torch.backends.mps.is_available():
+        # Force CPU if environment variable is set (required for vec2text compatibility)
+        force_cpu = os.getenv("VEC2TEXT_FORCE_CPU", "0") == "1"
+
+        if force_cpu:
+            self._device = torch.device("cpu")
+            if self.debug:
+                print("[DEBUG] Device selection: VEC2TEXT_FORCE_CPU=1, using cpu")
+        elif torch.backends.mps.is_available():
             self._device = torch.device("mps")
             if self.debug:
                 print("[DEBUG] Device selection: MPS available, using mps")
