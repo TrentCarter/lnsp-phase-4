@@ -1,29 +1,43 @@
-# LNSP Database Locations
+# LNSP Database Locations & Active Data Map
 
-**Date**: 2025-10-09
-**Purpose**: Complete reference for all database and vector store locations
+**Last Updated**: October 16, 2025
+**Purpose**: Complete reference for all database and vector store locations with ACTIVE status indicators
+
+---
+
+## 🎯 Current Active Status
+
+| Database | Status | Size | Records | Purpose |
+|----------|--------|------|---------|---------|
+| **PostgreSQL** | ✅ **ACTIVE** | ~1.5 GB | 80,636 concepts | Primary data store |
+| **FAISS** | ✅ **ACTIVE** | 238 MB | 500k vectors | Semantic search |
+| **Neo4j** | ⚠️ **EMPTY** | 0 nodes | 0 | Not currently used |
+| **NPZ Vectors** | ✅ **ACTIVE** | 230 MB | 500k vectors | Training/inference |
+| **LVM Models** | ✅ **ACTIVE** | ~200 MB | 4 models | Prediction |
 
 ---
 
 ## Overview
 
-LNSP uses a **3-way synchronized data store**:
-1. **PostgreSQL** - Structured data (CPE entries, metadata, relationships)
-2. **FAISS** - Vector indexes (semantic search)
-3. **Neo4j** - Graph relationships (ontology traversal)
+LNSP uses a **2-way synchronized data store** (currently):
+1. ✅ **PostgreSQL** - Structured data (CPE entries, metadata, relationships)
+2. ✅ **FAISS** - Vector indexes (semantic search)
+3. ⚠️ **Neo4j** - Graph relationships (service running but empty, planned for future)
 
-Plus additional **SQLite** databases for local caching.
+Plus additional **NPZ vector files** for training/inference and **SQLite** for local caching.
 
 ---
 
 ## 1. PostgreSQL (Primary Relational Database)
+
+### ✅ ACTIVE - 80,636 Concepts
 
 ### Location
 ```bash
 # Active database (PostgreSQL 17)
 /opt/homebrew/var/postgresql@17/
 
-# Alternate database (PostgreSQL 16, not running)
+# ⚠️ Alternate database (PostgreSQL 16, not running)
 /opt/homebrew/var/postgresql@16/
 ```
 
@@ -61,11 +75,11 @@ cpe_entry (
     domain_code INTEGER,
     task_code INTEGER,
     modifier_code INTEGER,
-    dataset_source TEXT,
-    parent_cpe_ids JSONB,  -- NEW: For training chains
-    child_cpe_ids JSONB,   -- NEW: For training chains
-    confidence_score REAL, -- NEW: Quality metric
-    quality_metrics JSONB, -- NEW: Detailed metrics
+    dataset_source TEXT,  -- ✅ 'wikipedia' for active data
+    parent_cpe_ids JSONB,
+    child_cpe_ids JSONB,
+    confidence_score REAL,
+    quality_metrics JSONB,
     ...
 )
 
@@ -74,21 +88,26 @@ cpe_vectors (
     cpe_id UUID PRIMARY KEY REFERENCES cpe_entry(cpe_id),
     concept_vec REAL[],    -- 768D GTR-T5 vector
     question_vec REAL[],   -- 768D probe question vector
-    tmd_dense REAL[],      -- 16D TMD vector
-    fused_vec REAL[],      -- 784D combined vector
+    tmd_dense REAL[],      -- 16D TMD vector (not currently used)
+    fused_vec REAL[],      -- 784D combined vector (not currently used)
     fused_norm REAL
 )
 ```
 
-### Data Volume
+### Current Data Volume
 ```bash
-# Check row counts
+# ✅ ACTIVE: 80,636 concepts from Wikipedia
 psql -h localhost -U lnsp -d lnsp -c "
-  SELECT
-    'cpe_entry' AS table, COUNT(*) AS rows FROM cpe_entry
-  UNION ALL
-  SELECT
-    'cpe_vectors' AS table, COUNT(*) AS rows FROM cpe_vectors;
+  SELECT COUNT(*) as total FROM cpe_entry;
+  -- Result: 80,636
+"
+
+# Check data source breakdown
+psql -h localhost -U lnsp -d lnsp -c "
+  SELECT dataset_source, COUNT(*) as count
+  FROM cpe_entry
+  GROUP BY dataset_source
+  ORDER BY count DESC;
 "
 ```
 
@@ -96,46 +115,52 @@ psql -h localhost -U lnsp -d lnsp -c "
 
 ## 2. FAISS Vector Indexes
 
+### ✅ ACTIVE - 500k Wikipedia Vectors
+
 ### Location
 ```bash
 # All FAISS indexes stored in:
 ./artifacts/
 
-# Active indexes:
-./artifacts/fw10k_ivf_flat_ip.index              # 6.1 MB  (10k vectors, 768D)
-./artifacts/ontology_13k_ivf_flat_ip.index        # 6.1 MB  (13k ontology vectors, 768D)
-./artifacts/ontology_13k_ivf_flat_ip_rebuilt.index # 6.4 MB (rebuilt version)
+# ✅ ACTIVE INDEX:
+./artifacts/wikipedia_500k_corrected_ivf_flat_ip.index  # 238 MB - Wikipedia 500k vectors
 
-# Metadata files:
+# 🗑️ DEPRECATED (old ontology data):
+./artifacts/fw10k_ivf_flat_ip.index              # 6.1 MB  (replaced by Wikipedia data)
+./artifacts/ontology_13k_ivf_flat_ip.index        # 6.1 MB  (ontology data, not for LVM training)
+./artifacts/ontology_13k_ivf_flat_ip_rebuilt.index # 6.4 MB (deprecated)
+
+# ✅ Metadata files:
 ./artifacts/faiss_meta.json                       # Index metadata (dimension, count, ids)
-./artifacts/index_meta.json                       # Additional index metadata
 ```
 
-### Index Types
-- **IVF_FLAT_IP**: Inverted File with Flat quantization, Inner Product similarity
-- **Parameters**:
-  - nlist: 512 (number of clusters)
-  - nprobe: 16 (clusters to search)
-  - dimension: 768 or 784
+### Index Configuration
+- **Type**: IVF_FLAT_IP (Inverted File with Flat quantization, Inner Product similarity)
+- **Dimension**: 768 (GTR-T5 embeddings)
+- **Clusters (nlist)**: 512
+- **Search clusters (nprobe)**: 16
+- **Vector count**: ~500,000
 
 ### Usage
 ```python
 from src.faiss_db import FaissDB
 
-# Load existing index
+# ✅ Load active Wikipedia index
 faiss_db = FaissDB(
-    index_path="artifacts/ontology_13k_ivf_flat_ip.index",
+    index_path="artifacts/wikipedia_500k_corrected_ivf_flat_ip.index",
     meta_path="artifacts/faiss_meta.json",
-    dimension=784
+    dimension=768
 )
 
 # Check status
-print(f"Index size: {faiss_db.index.ntotal} vectors")
+print(f"Index size: {faiss_db.index.ntotal} vectors")  # ~500,000
 ```
 
 ---
 
 ## 3. Neo4j Graph Database
+
+### ⚠️ NOT CURRENTLY ACTIVE (0 nodes)
 
 ### Location
 ```bash
@@ -150,7 +175,7 @@ print(f"Index size: {faiss_db.index.ntotal} vectors")
 ```bash
 # Check status
 brew services list | grep neo4j
-# Status: running
+# Status: running (but empty database)
 
 # Web interface
 http://localhost:7474/
@@ -159,88 +184,133 @@ http://localhost:7474/
 bolt://localhost:7687
 ```
 
-### Connection String
-```python
-from neo4j import GraphDatabase
-
-driver = GraphDatabase.driver(
-    "bolt://localhost:7687",
-    auth=("neo4j", "password")
-)
-```
-
-### Graph Structure
-```cypher
-// Concept nodes
-(c:Concept {
-    cpe_id: "uuid",
-    text: "concept text",
-    domain_code: 0,
-    task_code: 16,
-    modifier_code: 37
-})
-
-// Relationships (6-degree separation + shortcuts)
-(c1:Concept)-[:RELATED_TO {weight: 0.85}]->(c2:Concept)
-(c1:Concept)-[:SHORTCUT {distance: 3}]->(c3:Concept)
-```
-
-### Data Volume
+### Current Status
 ```cypher
 // Check node count
 MATCH (c:Concept) RETURN count(c) AS concept_count;
-
-// Check relationship count
-MATCH ()-[r]->() RETURN count(r) AS relationship_count;
+// Result: 0 (database is empty)
 ```
+
+### Planned Usage
+Neo4j is installed and running but not currently populated. Future use for:
+- Graph-based ontology traversal
+- 6-degree separation + shortcuts
+- Relationship inference
 
 ---
 
 ## 4. NPZ Vector Files (Numpy Arrays)
 
+### ✅ ACTIVE Vector Files
+
 ### Location
 ```bash
-# All vector files stored in:
-./artifacts/*.npz
+# ✅ ACTIVE - Wikipedia 500k corpus
+./artifacts/wikipedia_500k_corrected_vectors.npz     # 230 MB - Primary vector store
 
-# Active vector files:
-./artifacts/fw10k_vectors.npz                # 150 MB (10k concepts with metadata)
-./artifacts/ontology_13k.npz                 # 38 MB  (13k ontology concepts)
-./artifacts/ontology_4k_tmd_llm.npz          # 31 MB  (4k with TMD codes)
+# ✅ ACTIVE - LVM Training Data
+./artifacts/lvm/training_sequences_ctx5.npz          # 449 MB - 80k training sequences
 
-# Training data:
-./artifacts/lvm/wordnet_training_sequences.npz  # LVM training sequences
-./artifacts/train/cpesh_10x_vectors.npz         # CPESH training data
+# 🗑️ DEPRECATED (old ontology/test data):
+./artifacts/fw10k_vectors.npz                # 150 MB (old test data)
+./artifacts/ontology_13k.npz                 # 38 MB  (ontology data, not for LVM)
+./artifacts/ontology_4k_tmd_llm.npz          # 31 MB  (deprecated)
 ```
 
-### NPZ File Structure
+### NPZ File Structure (Active Files)
+
+#### Wikipedia Vectors (wikipedia_500k_corrected_vectors.npz)
 ```python
 import numpy as np
 
-# Load NPZ file
-data = np.load("artifacts/fw10k_vectors.npz", allow_pickle=True)
+# Load active Wikipedia vectors
+data = np.load("artifacts/wikipedia_500k_corrected_vectors.npz", allow_pickle=True)
 
-# Standard keys:
-# - concept_texts: Array of concept strings
-# - cpe_ids: Array of UUIDs (for correlation with PostgreSQL)
-# - vectors: 768D or 784D arrays
-# - tmd_codes: TMD metadata (domain, task, modifier)
+# Keys:
+# - vectors: [N, 768] float32 array - GTR-T5 embeddings
+# - texts: [N] object array - Original chunk text
+# - ids: [N] object array - CPE IDs (UUIDs)
+# - metadata: dict - Dataset metadata
 ```
 
-### Critical for Training
-These NPZ files provide the **vector index → concept text → UUID** correlation needed for:
+#### LVM Training Sequences (training_sequences_ctx5.npz)
+```python
+# Load LVM training data
+data = np.load("artifacts/lvm/training_sequences_ctx5.npz", allow_pickle=True)
+
+# Keys:
+# - context_vectors: [N, 5, 768] - Context windows (5 previous chunks)
+# - target_vectors: [N, 768] - Next chunk to predict
+# - context_texts: [N, 5] - Original context text (for debugging)
+# - target_texts: [N] - Target text
+# - sequence_ids: [N] - Unique sequence identifiers
+```
+
+### Critical for Training & Inference
+These NPZ files provide the **vector ↔ text ↔ UUID** correlation needed for:
 - **vecRAG search**: Query → FAISS → CPE ID → concept text
-- **LVM training**: Chain concepts → match text → get vector index → training sequences
-- **Inference**: LVM output → FAISS nearest neighbor → CPE ID → final text
+- **LVM training**: Sequential chunks → context/target pairs → training data
+- **LVM inference**: Predicted vector → FAISS nearest neighbor → CPE ID → text
 
 ---
 
-## 5. SQLite Databases (Local Caching)
+## 5. LVM Models (Latent Vector Models)
+
+### ✅ ACTIVE - 4 Trained Models (October 16, 2025)
+
+### Location
+```bash
+./artifacts/lvm/models/
+
+# ✅ ACTIVE MODELS (Oct 16, 2025 - MSE Loss):
+./artifacts/lvm/models/amn_20251016_133427/          # AMN: 0.5664 val cosine, 1.5M params
+./artifacts/lvm/models/lstm_20251016_133934/         # LSTM: 0.5758 val cosine, 5.1M params
+./artifacts/lvm/models/gru_20251016_134451/          # GRU: 0.5754 val cosine, 7.1M params
+./artifacts/lvm/models/transformer_20251016_135606/  # Transformer: 0.5820 val cosine, 17.9M params
+
+# Each model directory contains:
+# - best_model.pt                 # Model checkpoint
+# - training.log                  # Training log
+# - config.json                   # Hyperparameters
+```
+
+### Model Performance Summary
+
+| Model | Val Cosine | ms/Query | Params | Recommended For |
+|-------|-----------|----------|--------|-----------------|
+| **Transformer** | **0.5820** | 2.68 | 17.9M | Maximum accuracy |
+| **LSTM** | **0.5758** | 0.56 | 5.1M | **Best balance** ⭐ |
+| **GRU** | **0.5754** | 2.08 | 7.1M | Good middle ground |
+| **AMN** | **0.5664** | **0.49** | **1.5M** | Ultra-low latency |
+
+### Usage
+```python
+import torch
+from app.lvm.models import create_model
+
+# Load LSTM model (recommended for production)
+checkpoint = torch.load('artifacts/lvm/models/lstm_20251016_133934/best_model.pt')
+model = create_model('lstm', input_dim=768, d_model=256, hidden_dim=512)
+model.load_state_dict(checkpoint['model_state_dict'])
+model.eval()
+
+# Inference
+context_vectors = torch.randn(1, 5, 768)  # [batch, context_len, dim]
+predicted_vector = model(context_vectors)  # [batch, 768]
+```
+
+See `artifacts/lvm/COMPREHENSIVE_LEADERBOARD.md` for full benchmarks.
+
+---
+
+## 6. SQLite Databases (Local Caching)
+
+### ✅ ACTIVE Caches
 
 ### Location
 ```bash
 # CPESH cache
-./artifacts/cpesh_index.db                   # 20 KB (CPESH extraction cache)
+./artifacts/cpesh_index.db                   # 20 KB - CPESH extraction cache
 
 # MLflow tracking
 ./app/utils/mlflow/mlflow.db                 # MLflow experiment tracking
@@ -255,55 +325,44 @@ sqlite3 artifacts/cpesh_index.db "SELECT COUNT(*) FROM cpesh_cache;"
 
 ---
 
-## 6. Ontology Chain Files (JSONL)
+## 7. Raw Data Sources
 
-### Location
+### ✅ ACTIVE - Wikipedia Dataset
+
 ```bash
-./artifacts/ontology_chains/*.jsonl
+# Wikipedia raw data (primary source for LVM training)
+./data/datasets/wikipedia/                   # Raw Wikipedia articles
 
-# Ontology sources:
-./artifacts/ontology_chains/swo_chains.jsonl         # Software Ontology chains
-./artifacts/ontology_chains/go_chains.jsonl          # Gene Ontology chains
-./artifacts/ontology_chains/dbpedia_chains.jsonl     # DBpedia chains
-./artifacts/ontology_chains/wordnet_chains.jsonl     # WordNet synset chains
-./artifacts/ontology_chains/wordnet_chains_8k.jsonl  # 8k WordNet chains
-
-# Sample sets:
-./artifacts/ontology_chains/swo_chains_1k_sample.jsonl
-./artifacts/ontology_chains/go_chains_1k_sample.jsonl
-./artifacts/ontology_chains/dbpedia_chains_1k_sample.jsonl
+# FactoidWiki (DEPRECATED - not used per CLAUDE.md rules)
+./data/factoidwiki_1k.jsonl                  # 🗑️ DO NOT USE (taxonomic, not sequential)
 ```
 
-### Format
-```jsonl
-{"chain_id": "swo_001", "concepts": ["Software", "Algorithm", "Sorting"], "relations": ["is_a", "is_a"]}
-{"chain_id": "go_002", "concepts": ["Cellular Process", "Metabolism", "Glycolysis"], "relations": ["part_of", "part_of"]}
-```
+### 🗑️ DEPRECATED - Ontology Data (Not for LVM Training)
 
----
-
-## 7. Knowledge Graph Files (JSONL)
-
-### Location
 ```bash
-./artifacts/kg/*.jsonl
+# Ontologies (for vecRAG/GraphRAG only, NOT for LVM training)
+./artifacts/ontology_chains/swo_chains.jsonl         # Software Ontology
+./artifacts/ontology_chains/go_chains.jsonl          # Gene Ontology
+./artifacts/ontology_chains/dbpedia_chains.jsonl     # DBpedia
+./artifacts/ontology_chains/wordnet_chains.jsonl     # WordNet
 
-# Knowledge graph exports:
-./artifacts/kg/nodes.jsonl     # Graph nodes
-./artifacts/kg/edges.jsonl     # Graph edges
-./artifacts/kg/stats.json      # Graph statistics
+# ⚠️ WARNING: Do NOT use ontologies for LVM training!
+# Reason: Taxonomic hierarchies, not sequential narrative flow
+# See: docs/LVM_TRAINING_CRITICAL_FACTS.md
 ```
 
 ---
 
 ## Database Synchronization
 
-### Critical Rule (from LNSP_LONG_TERM_MEMORY.md)
-**Data Synchronization is Sacred**: PostgreSQL + Neo4j + FAISS must stay synchronized.
+### Current Sync Status
+
+✅ **PostgreSQL ↔ FAISS**: Synchronized (80,636 concepts in both)
+⚠️ **Neo4j**: Empty (not currently synced)
 
 ### Atomic Write Operations
 ```python
-# All ingestion must write atomically to all 3 stores:
+# Current ingestion writes to PostgreSQL + FAISS atomically:
 
 # 1. PostgreSQL
 insert_cpe_entry(pg_conn, cpe_entry_data)
@@ -313,19 +372,19 @@ upsert_cpe_vectors(pg_conn, cpe_id, vectors)
 faiss_db.add_vectors(vectors, ids=[cpe_id])
 faiss_db.save()  # CRITICAL: Persist to disk
 
-# 3. Neo4j (TODO: implement)
+# 3. Neo4j (TODO: implement when needed)
 # create_concept_node(neo4j_session, cpe_id, concept_text)
 ```
 
 ### Verification
 ```bash
-# Run synchronization check
-./scripts/verify_data_sync.sh
+# Check sync status
+psql -h localhost -U lnsp -d lnsp -c "SELECT COUNT(*) FROM cpe_entry;"
+# Expected: 80,636
 
-# Expected output:
-# ✅ PostgreSQL: 13,000 concepts
-# ✅ FAISS: 13,000 vectors
-# ✅ Neo4j: 13,000 nodes
+# Check FAISS
+python3 -c "import faiss; idx = faiss.read_index('artifacts/wikipedia_500k_corrected_ivf_flat_ip.index'); print(f'FAISS: {idx.ntotal}')"
+# Expected: ~500,000 (includes duplicates/variations)
 ```
 
 ---
@@ -334,7 +393,8 @@ faiss_db.save()  # CRITICAL: Persist to disk
 
 ### Baseline Backups
 ```bash
-./backups/baseline_v1.0_20250929_215259/
+./backups/baseline_v1.0_20250929_215259/     # Pre-Wikipedia data
+./backups/pre_clear_20251009_202507/         # Before Oct 9 cleanup
 
 # Contains snapshots of:
 # - artifacts/*.npz
@@ -353,52 +413,23 @@ faiss_db.save()  # CRITICAL: Persist to disk
 
 ---
 
-## Cleanup Commands
-
-### Reset All Databases
-```bash
-# WARNING: This deletes all data!
-
-# 1. PostgreSQL
-psql -h localhost -U lnsp -d lnsp -c "TRUNCATE TABLE cpe_entry CASCADE;"
-
-# 2. FAISS
-rm -f artifacts/*.index artifacts/faiss_meta.json
-
-# 3. Neo4j
-cypher-shell -u neo4j -p password "MATCH (n) DETACH DELETE n;"
-
-# 4. NPZ files (optional - these can be regenerated)
-rm -f artifacts/*.npz
-```
-
-### Rebuild from Scratch
-```bash
-# Use new ingestion pipeline (Port 8004)
-# This will rebuild all 3 stores atomically
-
-curl -X POST http://localhost:8004/ingest \
-  -H "Content-Type: application/json" \
-  -d '{
-    "chunks": [...],
-    "dataset_source": "ontology-swo"
-  }'
-```
-
----
-
 ## Disk Usage Summary
 
 ```bash
 # Check total disk usage
 du -sh artifacts/
-# Expected: ~500 MB - 1 GB (depending on dataset size)
+# Current: ~1.2 GB
 
-# Breakdown:
-# - FAISS indexes: ~20 MB (3 indexes × 6-7 MB each)
-# - NPZ vectors: ~400 MB (13k concepts × 784D × 4 bytes)
-# - Ontology chains: ~50 MB (JSONL files)
-# - Cache files: ~20 MB (SQLite, metadata)
+# ✅ ACTIVE Breakdown:
+# - FAISS index (Wikipedia 500k): 238 MB
+# - NPZ vectors (Wikipedia 500k): 230 MB
+# - LVM training sequences: 449 MB
+# - LVM models (4 models): ~200 MB
+# - Cache files: ~20 MB
+
+# 🗑️ DEPRECATED (can be deleted):
+# - Old ontology indexes: ~20 MB
+# - Old test data: ~200 MB
 ```
 
 ---
@@ -414,65 +445,83 @@ export PGPASSWORD=lnsp
 export PGDATABASE=lnsp
 export PG_DSN="host=localhost dbname=lnsp user=lnsp password=lnsp"
 
-# Neo4j
+# Neo4j (service running but not populated)
 export NEO4J_URI="bolt://localhost:7687"
 export NEO4J_USER="neo4j"
 export NEO4J_PASSWORD="password"
 
-# FAISS
-export LNSP_FAISS_INDEX="artifacts/ontology_13k_ivf_flat_ip.index"
+# ✅ ACTIVE FAISS Index
+export LNSP_FAISS_INDEX="artifacts/wikipedia_500k_corrected_ivf_flat_ip.index"
 export LNSP_FAISS_META="artifacts/faiss_meta.json"
 
-# LLM
+# LLM (for CPESH generation)
 export LNSP_LLM_ENDPOINT="http://localhost:11434"
 export LNSP_LLM_MODEL="llama3.1:8b"
+
+# Vec2Text
+export VEC2TEXT_FORCE_PROJECT_VENV=1
+export VEC2TEXT_DEVICE=cpu
+export TOKENIZERS_PARALLELISM=false
 ```
 
 ---
 
 ## Quick Reference Table
 
-| Database | Type | Location | Size | Port | Status |
-|----------|------|----------|------|------|--------|
-| **PostgreSQL** | Relational | `/opt/homebrew/var/postgresql@17/` | ~100 MB | 5432 | ✅ Running |
-| **Neo4j** | Graph | `/opt/homebrew/var/neo4j/` | ~50 MB | 7474/7687 | ✅ Running |
-| **FAISS Indexes** | Vector | `./artifacts/*.index` | ~20 MB | N/A | ✅ Available |
-| **NPZ Vectors** | Files | `./artifacts/*.npz` | ~400 MB | N/A | ✅ Available |
-| **CPESH Cache** | SQLite | `./artifacts/cpesh_index.db` | 20 KB | N/A | ✅ Available |
-| **Ontology Chains** | JSONL | `./artifacts/ontology_chains/` | ~50 MB | N/A | ✅ Available |
-
----
-
-## Next Steps
-
-To rebuild the entire database from scratch using the new ingestion pipeline:
-
-1. **Clear existing data** (optional):
-   ```bash
-   psql -U lnsp -d lnsp -c "TRUNCATE TABLE cpe_entry CASCADE;"
-   rm -f artifacts/*.index artifacts/faiss_meta.json
-   ```
-
-2. **Start ingestion service**:
-   ```bash
-   ./.venv/bin/uvicorn app.api.ingest_chunks:app --port 8004
-   ```
-
-3. **Ingest ontology data** (see [INGESTION_API_COMPLETE.md](INGESTION_API_COMPLETE.md))
-
-4. **Verify synchronization**:
-   ```bash
-   ./scripts/verify_data_sync.sh
-   ```
+| Database | Type | Location | Size | Records | Status |
+|----------|------|----------|------|---------|--------|
+| **PostgreSQL** | Relational | `/opt/homebrew/var/postgresql@17/` | ~1.5 GB | 80,636 | ✅ **ACTIVE** |
+| **FAISS (Wikipedia)** | Vector | `artifacts/wikipedia_500k_corrected_ivf_flat_ip.index` | 238 MB | 500k | ✅ **ACTIVE** |
+| **NPZ (Wikipedia)** | Files | `artifacts/wikipedia_500k_corrected_vectors.npz` | 230 MB | 500k | ✅ **ACTIVE** |
+| **LVM Training** | Files | `artifacts/lvm/training_sequences_ctx5.npz` | 449 MB | 80k seq | ✅ **ACTIVE** |
+| **LVM Models** | Checkpoints | `artifacts/lvm/models/` | ~200 MB | 4 models | ✅ **ACTIVE** |
+| **Neo4j** | Graph | `/opt/homebrew/var/neo4j/` | 0 MB | 0 | ⚠️ **EMPTY** |
+| **CPESH Cache** | SQLite | `artifacts/cpesh_index.db` | 20 KB | N/A | ✅ Available |
 
 ---
 
 ## Summary
 
-✅ **PostgreSQL**: Primary structured data store at `/opt/homebrew/var/postgresql@17/`
-✅ **Neo4j**: Graph database at `/opt/homebrew/var/neo4j/`
-✅ **FAISS**: Vector indexes in `./artifacts/*.index`
-✅ **NPZ Files**: Training vectors in `./artifacts/*.npz`
-✅ **SQLite**: Local caches in `./artifacts/*.db`
+### ✅ ACTIVE Production Data
+- **PostgreSQL**: 80,636 Wikipedia concepts
+- **FAISS**: 500k Wikipedia vectors (238 MB index)
+- **NPZ**: 500k Wikipedia vectors (230 MB file)
+- **LVM Training**: 80k sequential training pairs (449 MB)
+- **LVM Models**: 4 trained models (AMN, LSTM, GRU, Transformer)
 
-All databases are **synchronized via the Ingestion API (Port 8004)** using atomic writes.
+### ⚠️ Not Currently Used
+- **Neo4j**: Service running but database empty (0 nodes)
+- **Ontology data**: Available but not used for LVM training (taxonomic, not sequential)
+
+### 🗑️ Deprecated (Can Be Removed)
+- Old ontology FAISS indexes (`fw10k_*`, `ontology_13k_*`)
+- Old test NPZ files (`fw1k_vectors.npz`, etc.)
+- FactoidWiki data (not suitable for LVM training)
+
+### 📊 Data Flow
+```
+Wikipedia Articles → PostgreSQL (80k concepts)
+                  ↓
+                  → FAISS Index (500k vectors, 238 MB)
+                  ↓
+                  → NPZ Vectors (500k vectors, 230 MB)
+                  ↓
+                  → LVM Training Sequences (80k pairs, 449 MB)
+                  ↓
+                  → Trained LVM Models (4 architectures)
+```
+
+---
+
+## Related Documentation
+
+- **LVM Training Data**: See `docs/LVM_DATA_MAP.md` (comprehensive LVM-specific data guide)
+- **Data Flow Diagram**: See `docs/DATA_FLOW_DIAGRAM.md` (visual system architecture)
+- **Training Rules**: See `CLAUDE.md` and `docs/LVM_TRAINING_CRITICAL_FACTS.md`
+- **Performance**: See `artifacts/lvm/COMPREHENSIVE_LEADERBOARD.md`
+
+---
+
+**Last Updated**: October 16, 2025
+**Status**: ✅ All active systems operational
+**Next Review**: When adding Neo4j graph data or new training datasets

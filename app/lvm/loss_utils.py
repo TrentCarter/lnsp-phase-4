@@ -13,7 +13,8 @@ class LossWeights:
     """Weights for auxiliary loss terms."""
 
     tau: float = 0.07
-    mse: float = 0.0
+    mse: float = 1.0  # MSE is now PRIMARY loss (changed from 0.0)
+    info_nce: float = 0.0  # InfoNCE is now OPTIONAL (disabled by default)
     moment: float = 0.0
     variance: float = 0.0
 
@@ -60,7 +61,8 @@ def compute_losses(
     moment = _moment_loss(pred_raw, targets)
     variance = _variance_loss(pred_cos)
 
-    total = info + weights.mse * mse + weights.moment * moment + weights.variance * variance
+    # FIXED: MSE is now PRIMARY, InfoNCE is optional
+    total = weights.mse * mse + weights.info_nce * info + weights.moment * moment + weights.variance * variance
     stats = {
         "loss_total": float(total.detach().item()),
         "loss_info": float(info.detach().item()),

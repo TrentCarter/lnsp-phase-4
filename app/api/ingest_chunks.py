@@ -156,6 +156,7 @@ class ChunkInput(BaseModel):
     text: str = Field(..., description="Chunk text content", min_length=1)  # Allow short ontology terms
     source_document: Optional[str] = Field(default="web_input", description="Source document name")
     chunk_index: Optional[int] = Field(default=0, description="Position in original document")
+    document_id: Optional[str] = Field(default=None, description="Document identifier for grouping chunks (used as batch_id)")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional metadata")
     parent_cpe_ids: Optional[List[str]] = Field(default=None, description="UUIDs of parent concepts (for training chains)")
     child_cpe_ids: Optional[List[str]] = Field(default=None, description="UUIDs of child concepts (for training chains)")
@@ -1003,20 +1004,40 @@ async def ingest_chunks_endpoint(request: IngestRequest):
     start_time = time.time()
 
     # Generate batch ID if not provided (must be a valid UUID string)
-    batch_id = request.batch_id or str(uuid.uuid4())
+    # CRITICAL FIX: Group chunks by document_id, not by request batch
+    default_batch_id = request.batch_id or str(uuid.uuid4())
 
     # Pre-generate UUIDs for all chunks (for sequential linking)
     chunk_uuids = [str(uuid.uuid4()) for _ in request.chunks]
 
-    # Auto-populate parent/child relationships if not provided
+    # Group chunks by document_id for proper article boundaries
+    doc_groups = {}
     for i, chunk in enumerate(request.chunks):
-        # Only auto-link if user didn't explicitly provide relationships
-        if chunk.parent_cpe_ids is None and chunk.child_cpe_ids is None:
-            # Parent = previous chunk (if exists)
-            chunk.parent_cpe_ids = [chunk_uuids[i - 1]] if i > 0 else []
+        # Use chunk's document_id as batch_id (preserves article boundaries)
+        chunk_batch_id = chunk.document_id if chunk.document_id else default_batch_id
 
-            # Child = next chunk (if exists)
-            chunk.child_cpe_ids = [chunk_uuids[i + 1]] if i < len(request.chunks) - 1 else []
+        if chunk_batch_id not in doc_groups:
+            doc_groups[chunk_batch_id] = []
+        doc_groups[chunk_batch_id].append((i, chunk))
+
+    # Auto-populate parent/child relationships WITHIN each document
+    for doc_id, doc_chunks in doc_groups.items():
+        for pos, (i, chunk) in enumerate(doc_chunks):
+            # Only auto-link if user didn't explicitly provide relationships
+            if chunk.parent_cpe_ids is None and chunk.child_cpe_ids is None:
+                # Parent = previous chunk in THIS document (if exists)
+                if pos > 0:
+                    prev_idx = doc_chunks[pos - 1][0]
+                    chunk.parent_cpe_ids = [chunk_uuids[prev_idx]]
+                else:
+                    chunk.parent_cpe_ids = []
+
+                # Child = next chunk in THIS document (if exists)
+                if pos < len(doc_chunks) - 1:
+                    next_idx = doc_chunks[pos + 1][0]
+                    chunk.child_cpe_ids = [chunk_uuids[next_idx]]
+                else:
+                    chunk.child_cpe_ids = []
 
     # Process chunks - choose architecture based on config
     if state.enable_parallel and state.enable_batch_embeddings and len(request.chunks) > 1:
@@ -1030,7 +1051,7 @@ async def ingest_chunks_endpoint(request: IngestRequest):
             IntermediateChunkData(
                 chunk=chunk,
                 cpe_id=chunk_uuids[i],
-                batch_id=batch_id,
+                batch_id=chunk.document_id if chunk.document_id else default_batch_id,  # Use chunk's document_id!
                 dataset_source=request.dataset_source,
                 skip_cpesh=request.skip_cpesh,
                 chunking_time_ms=request.chunking_time_ms
@@ -1216,12 +1237,14 @@ async def ingest_chunks_endpoint(request: IngestRequest):
         loop = asyncio.get_event_loop()
         tasks = []
         for i, chunk in enumerate(request.chunks):
+            # Use chunk's document_id as batch_id
+            chunk_batch_id = chunk.document_id if chunk.document_id else default_batch_id
             task = loop.run_in_executor(
                 state.executor,
                 ingest_chunk,
                 chunk,
                 request.dataset_source,
-                batch_id,
+                chunk_batch_id,  # Use document-specific batch_id!
                 chunk_uuids[i],  # pre_assigned_uuid (positional)
                 request.skip_cpesh,  # skip_cpesh (positional)
                 request.chunking_time_ms  # chunking_time_ms (positional)
@@ -1238,10 +1261,12 @@ async def ingest_chunks_endpoint(request: IngestRequest):
         # ========================================================================
         results = []
         for i, chunk in enumerate(request.chunks):
+            # Use chunk's document_id as batch_id
+            chunk_batch_id = chunk.document_id if chunk.document_id else default_batch_id
             result = ingest_chunk(
                 chunk,
                 request.dataset_source,
-                batch_id,
+                chunk_batch_id,  # Use document-specific batch_id!
                 pre_assigned_uuid=chunk_uuids[i],
                 skip_cpesh=request.skip_cpesh,
                 chunking_time_ms=request.chunking_time_ms,
@@ -1259,7 +1284,7 @@ async def ingest_chunks_endpoint(request: IngestRequest):
         total_chunks=len(results),
         successful=successful,
         failed=failed,
-        batch_id=batch_id,
+        batch_id=default_batch_id,
         processing_time_ms=processing_time_ms
     )
 

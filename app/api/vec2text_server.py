@@ -31,18 +31,39 @@ from app.vect_text_vect.vec_text_vect_isolated import IsolatedVecTextVectOrchest
 from app.vect_text_vect.vec2text_processor import Vec2TextProcessor, Vec2TextConfig
 from app.vect_text_vect.procrustes_adapter import ProcrustesAdapter
 
-app = FastAPI(
-    title="Vec2Text Decoding Server",
-    description="Always-on vec2text service for LNSP (JXE + IELab decoders)",
-    version="2.0.0"
-)
-
 # Global vec2text processors (kept warm in memory)
 vec2text_processors = {}
 
 # Optional Procrustes adapter for aligning external embeddings
 PROCRUSTES_PATH = os.getenv("VEC2TEXT_PROCRUSTES_PATH")
 _procrustes_adapter: ProcrustesAdapter | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup
+    print("Vec2Text server starting...")
+    try:
+        await load_vec2text_processors()
+        load_procrustes_adapter()
+        print("✅ Vec2Text server ready (in-memory mode)")
+    except Exception as exc:
+        print(f"❌ Failed to start Vec2Text server: {exc}")
+        raise
+
+    yield
+
+    # Shutdown
+    await cleanup_vec2text_processors()
+
+
+app = FastAPI(
+    title="Vec2Text Decoding Server",
+    description="Always-on vec2text service for LNSP (JXE + IELab decoders)",
+    version="2.0.0",
+    lifespan=lifespan
+)
 
 # Supported decoders for in-memory processing
 decoder_configs = {
@@ -361,26 +382,6 @@ def load_procrustes_adapter() -> None:
     except Exception as exc:
         _procrustes_adapter = None
         print(f"⚠️  Failed to load Procrustes adapter: {exc}")
-
-
-@app.on_event("startup")
-async def startup():
-    """Load vec2text processors at startup and keep them warm in memory."""
-
-    print("Vec2Text server starting...")
-    try:
-        await load_vec2text_processors()
-        load_procrustes_adapter()
-        print("✅ Vec2Text server ready (in-memory mode)")
-    except Exception as exc:
-        print(f"❌ Failed to start Vec2Text server: {exc}")
-        raise
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Cleanup on shutdown"""
-    await cleanup_vec2text_processors()
 
 
 @app.get("/health")

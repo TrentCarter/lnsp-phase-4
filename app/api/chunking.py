@@ -91,8 +91,8 @@ class ChunkRequest(BaseModel):
         le=1000
     )
     min_chunk_size: int = Field(
-        default=100,
-        description="Minimum characters per chunk",
+        default=10,
+        description="Minimum characters per chunk (small chunks are fine)",
         ge=10,
         le=2000
     )
@@ -121,7 +121,7 @@ class ChunkRequest(BaseModel):
                 "text": "Photosynthesis is the process by which plants convert light energy into chemical energy. This occurs in the chloroplasts of plant cells.",
                 "mode": "semantic",
                 "max_chunk_size": 320,
-                "min_chunk_size": 500,
+                "min_chunk_size": 10,
                 "metadata": {"document_id": "doc_123", "source": "biology_textbook"}
             }
         }
@@ -392,8 +392,10 @@ async def chunk_text(request: ChunkRequest):
             doc = Document(text=request.text, metadata=request.metadata or {})
             nodes = splitter.get_nodes_from_documents([doc])
 
-            # Convert to Chunk objects
+            # Convert to Chunk objects with size enforcement
             chunks = []
+            MAX_CHARS = 500  # Hard limit: 17 tokens × 2.5 chars typical, force chunk at 500 chars max
+
             for idx, node in enumerate(nodes):
                 chunk_text = node.get_content()
 
@@ -401,21 +403,63 @@ async def chunk_text(request: ChunkRequest):
                 if len(chunk_text) < request.min_chunk_size:
                     continue
 
-                chunk = Chunk(
-                    text=chunk_text,
-                    chunk_id=hashlib.md5(f"{chunk_text}{idx}".encode()).hexdigest()[:16],
-                    chunk_index=idx,
-                    word_count=len(chunk_text.split()),
-                    char_count=len(chunk_text),
-                    chunking_mode="semantic",
-                    metadata={
-                        **(request.metadata or {}),
-                        "embedding_model": state.embed_model,
-                        "buffer_size": 1,
-                        "breakpoint_threshold": request.breakpoint_threshold
-                    }
-                )
-                chunks.append(chunk)
+                # Enforce max chunk size by splitting on sentence boundaries
+                if len(chunk_text) > MAX_CHARS:
+                    # Split into sentences
+                    import re
+                    sentences = re.split(r'[.!?]+\s+', chunk_text)
+                    current_chunk = ""
+
+                    for sentence in sentences:
+                        if not sentence.strip():
+                            continue
+
+                        # If adding this sentence would exceed limit, save current chunk
+                        if current_chunk and len(current_chunk) + len(sentence) + 1 > MAX_CHARS:
+                            if len(current_chunk) >= request.min_chunk_size:
+                                chunk = Chunk(
+                                    text=current_chunk.strip(),
+                                    chunk_id=hashlib.md5(f"{current_chunk}{idx}".encode()).hexdigest()[:16],
+                                    chunk_index=len(chunks),
+                                    word_count=len(current_chunk.split()),
+                                    char_count=len(current_chunk),
+                                    chunking_mode="semantic",
+                                    metadata={**(request.metadata or {}), "split": True}
+                                )
+                                chunks.append(chunk)
+                            current_chunk = sentence
+                        else:
+                            current_chunk = current_chunk + (" " if current_chunk else "") + sentence
+
+                    # Add final chunk
+                    if current_chunk and len(current_chunk) >= request.min_chunk_size:
+                        chunk = Chunk(
+                            text=current_chunk.strip(),
+                            chunk_id=hashlib.md5(f"{current_chunk}{idx}".encode()).hexdigest()[:16],
+                            chunk_index=len(chunks),
+                            word_count=len(current_chunk.split()),
+                            char_count=len(current_chunk),
+                            chunking_mode="semantic",
+                            metadata={**(request.metadata or {}), "split": True}
+                        )
+                        chunks.append(chunk)
+                else:
+                    # Chunk is within size limits
+                    chunk = Chunk(
+                        text=chunk_text,
+                        chunk_id=hashlib.md5(f"{chunk_text}{idx}".encode()).hexdigest()[:16],
+                        chunk_index=len(chunks),
+                        word_count=len(chunk_text.split()),
+                        char_count=len(chunk_text),
+                        chunking_mode="semantic",
+                        metadata={
+                            **(request.metadata or {}),
+                            "embedding_model": state.embed_model,
+                            "buffer_size": 1,
+                            "breakpoint_threshold": request.breakpoint_threshold
+                        }
+                    )
+                    chunks.append(chunk)
 
             chunker = None  # No chunker object needed
 

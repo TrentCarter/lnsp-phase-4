@@ -1,49 +1,629 @@
 # How to Use JXE and IELab Vec2Text Models
 
-**Last Updated**: October 13, 2025
+**Last Updated**: October 16, 2025
+
+---
+
+# 🚨 CRITICAL: ENCODER COMPATIBILITY ISSUE - READ THIS FIRST! (Oct 16, 2025)
+
+## The Problem (In Simple Terms)
+
+If you encode text using the **wrong encoder**, the decoded output will be **complete gibberish**. This is not a bug - it's a fundamental compatibility issue between two different encoding methods that both claim to use "GTR-T5" but produce incompatible vectors.
+
+Think of it like trying to play a Blu-ray disc in a DVD player - both are optical discs, but they're not compatible.
+
+## Real Examples from Wikipedia Data
+
+### Example 1: Modern Schools
+**Original Text**: "Nonetheless, his ideas formed the inspiration for a series of modern schools around the world."
+
+**❌ WRONG Encoder (gives gibberish)**:
+- Output: "no cuckin' at the bluff; a similar re-example of the original wood. Guest boards found a..."
+- Quality: 0.0466 (4.66% match - completely broken!)
+
+**✅ CORRECT Encoder (gives accurate text)**:
+- Output: "His ideas formed the inspiration for a series of schools around the world, albeit a varying degree o..."
+- Quality: 0.8729 (87.29% match - excellent!)
+
+### Example 2: TV Schedule
+**Original Text**: "After many years of being held on Mondays at 9:00 pm Eastern/6:00 p.m Pacific, since the 1999 ceremonies, it was moved to Sundays at 8:30 pm ET/5:30 pm PT"
+
+**❌ WRONG Encoder (gives gibberish)**:
+- Output: "after visiting a country house. Impressed with the layout and art of 'dino' she wrote, not a map of..."
+- Quality: 0.0752 (7.52% match - nonsense!)
+
+**✅ CORRECT Encoder (gives accurate text)**:
+- Output: "After many years of being held on Mondays, it was moved to Sundays at 9:00 PM Eastern, and Pacific t..."
+- Quality: 0.8651 (86.51% match - accurate!)
+
+### Example 3: Medical Text
+**Original Text**: "The manner selected often depends upon the gestational age of the embryo or fetus, which increases in size as the pregnancy progresses."
+
+**❌ WRONG Encoder (gives gibberish)**:
+- Output: "not already members of the original project at the Red Cedar: How can you find a beautiful, well-des..."
+- Quality: 0.1479 (14.79% match - complete nonsense!)
+
+**✅ CORRECT Encoder (gives accurate text)**:
+- Output: "The manner chosen depends on the size of the fetus, and the embryo's size increases with age, especi..."
+- Quality: 0.9380 (93.80% match - near perfect!)
+
+---
+
+## Which Encoder Should You Use?
+
+### ❌ WRONG: Direct `sentence-transformers` Library (Port 8765 - DEPRECATED)
+
+**DO NOT USE THIS:**
+```python
+from sentence_transformers import SentenceTransformer
+
+# ❌ WRONG - This produces INCOMPATIBLE vectors!
+encoder = SentenceTransformer('sentence-transformers/gtr-t5-base')
+embeddings = encoder.encode(["Your text here"])
+# Result: 9.9x WORSE quality when decoded (gibberish output)
+```
+
+**API Call (DEPRECATED - DO NOT USE):**
+```bash
+# Port 8765 - DEPRECATED - Produces INCOMPATIBLE vectors!
+curl -X POST http://localhost:8765/embed \
+  -H "Content-Type: application/json" \
+  -d '{"texts": ["Your text here"]}'
+# ❌ These vectors will produce GIBBERISH when decoded!
+```
+
+---
+
+### ✅ CORRECT: Vec2Text Orchestrator (Port 8767 - USE THIS!)
+
+**Method 1: Use Vec2Text-Compatible API (Port 8767)**
+```bash
+# Port 8767 - CORRECT - Vec2text-compatible GTR-T5 encoder
+curl -X POST http://localhost:8767/embed \
+  -H "Content-Type: application/json" \
+  -d '{"texts": ["Your text here"]}'
+
+# Example response:
+# {
+#   "embeddings": [
+#     [-0.013334, 0.030690, -0.007377, ...]  # 768D vector
+#   ],
+#   "count": 1,
+#   "dimension": 768
+# }
+
+# ✅ These vectors will decode CORRECTLY (9.9x better quality)!
+```
+
+**Method 2: Use Python Orchestrator Directly**
+```python
+from app.vect_text_vect.vec_text_vect_isolated import IsolatedVecTextVectOrchestrator
+
+# ✅ CORRECT - This produces COMPATIBLE vectors!
+orchestrator = IsolatedVecTextVectOrchestrator()
+embeddings = orchestrator.encode_texts(["Your text here"])
+# Convert to numpy if needed
+embeddings_np = embeddings.cpu().detach().numpy()
+# Result: 9.9x BETTER quality when decoded (accurate output)
+```
+
+**Method 3: Use Ingestion API (Port 8004 - Automatic)**
+```bash
+# Port 8004 - CORRECT - Uses vec2text-compatible encoder internally
+curl -X POST http://localhost:8004/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"chunks": [{"text": "Your text here", ...}]}'
+
+# ✅ The ingestion API automatically uses the CORRECT encoder!
+# No action needed - it just works!
+```
+
+---
+
+## Test Your Encoder Compatibility
+
+**Quick Test Script**: `tools/compare_encoders.py`
+
+```bash
+# Run the comparison test with real Wikipedia data
+./.venv/bin/python tools/compare_encoders.py
+
+# Expected output:
+# - WRONG encoder: Average cosine 0.0899 ❌ (gibberish)
+# - CORRECT encoder: Average cosine 0.8920 ✅ (accurate)
+# - Improvement: 9.9x better quality
+```
+
+**Full test results**: See `/tmp/encoder_comparison.log`
+
+---
+
+## FastAPI Service Ports Reference
+
+| Port | Service | Encoder Type | Status | Use For |
+|------|---------|--------------|--------|---------|
+| **8765** | GTR-T5 (sentence-transformers) | ❌ INCOMPATIBLE | DEPRECATED | **DO NOT USE** |
+| **8767** | GTR-T5 (vec2text orchestrator) | ✅ COMPATIBLE | PRODUCTION | **Encoding for vec2text** |
+| **8766** | Vec2Text Decoder (JXE/IELab) | N/A (decoder only) | PRODUCTION | **Decoding 768D → text** |
+| **8004** | Ingestion API | ✅ COMPATIBLE (internal) | PRODUCTION | **Automatic encoding** |
+
+---
+
+## Why This Happens (Technical Details)
+
+Both the `sentence-transformers` library and vec2text's internal encoder claim to use "GTR-T5-base" with L2 normalization, but they produce **nearly orthogonal vectors** (only 1.46% cosine similarity between encodings).
+
+**Root causes**:
+1. **Different tokenization**: Special tokens, padding strategies, truncation
+2. **Different pooling**: Subtle implementation differences in mean pooling
+3. **Library versions**: Different transformer library versions
+4. **Initialization**: Different model initialization or fine-tuning
+
+**Result**: Vectors from sentence-transformers have **average L2 distance of 1.40** from vec2text vectors - they're almost completely different despite using the "same" model.
+
+---
+
+## How to Fix Existing Bad Data
+
+If you have data encoded with the WRONG encoder (sentence-transformers), you need to re-encode it with the CORRECT encoder (vec2text orchestrator). Here are 3 approaches:
+
+### Method 1: Full Re-Ingestion (Cleanest - Recommended)
+
+**When to use**: You have the original text sources available
+**Pros**: Clean slate, guaranteed correct encoding, updates all data stores atomically
+**Cons**: Takes time to re-ingest everything
+
+```bash
+# Step 1: Backup existing data (optional but recommended)
+pg_dump lnsp > /tmp/lnsp_backup_$(date +%Y%m%d).sql
+cp -r artifacts/faiss_indices /tmp/faiss_backup_$(date +%Y%m%d)
+
+# Step 2: Clean database and vector stores
+psql lnsp -c "TRUNCATE TABLE cpe_entry CASCADE;"
+psql lnsp -c "TRUNCATE TABLE cpe_vectors CASCADE;"
+rm -rf artifacts/faiss_indices/*.index
+rm -rf artifacts/*_vectors.npz
+
+# Step 3: Re-ingest with CORRECT encoder (Port 8004 - automatic)
+# The ingestion API uses Vec2TextCompatibleEmbedder internally
+LNSP_TMD_MODE=hybrid ./.venv/bin/python tools/ingest_wikipedia_pipeline.py \
+  --input data/datasets/wikipedia/wikipedia_500k.jsonl \
+  --limit 1031
+
+# Step 4: Verify vectors are compatible
+./.venv/bin/python tools/compare_encoders.py
+# Expected: Cosine > 0.85 (compatible!)
+```
+
+---
+
+### Method 2: In-Place Re-Encoding (Fastest - For Large Datasets)
+
+**When to use**: You have text in database but don't want to lose other metadata
+**Pros**: Preserves CPE IDs, TMD codes, graph relationships, CPESH data
+**Cons**: Requires custom script, risk of data inconsistency if interrupted
+
+```python
+#!/usr/bin/env python3
+"""Re-encode existing database vectors with correct encoder"""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from src.db_postgres import connect as connect_pg
+from app.vect_text_vect.vec_text_vect_isolated import IsolatedVecTextVectOrchestrator
+import numpy as np
+
+# Initialize CORRECT encoder
+print("Loading vec2text-compatible encoder...")
+orchestrator = IsolatedVecTextVectOrchestrator()
+
+# Connect to database
+conn = connect_pg()
+cur = conn.cursor()
+
+# Get all entries that need re-encoding
+print("Fetching entries from database...")
+cur.execute("""
+    SELECT cpe_id, concept_text
+    FROM cpe_entry
+    WHERE dataset_source = 'wikipedia_500k'
+    ORDER BY created_at
+""")
+rows = cur.fetchall()
+
+print(f"Re-encoding {len(rows)} entries...")
+
+# Process in batches of 100
+batch_size = 100
+for i in range(0, len(rows), batch_size):
+    batch = rows[i:i+batch_size]
+    cpe_ids = [row[0] for row in batch]
+    texts = [row[1] for row in batch]
+
+    # Re-encode with CORRECT encoder
+    vectors = orchestrator.encode_texts(texts)
+    vectors_np = vectors.cpu().detach().numpy()
+
+    # Update database
+    for cpe_id, vector in zip(cpe_ids, vectors_np):
+        # Convert to PostgreSQL array format
+        vector_str = '[' + ','.join(map(str, vector)) + ']'
+        cur.execute("""
+            UPDATE cpe_vectors
+            SET concept_vec = %s::vector(768)
+            WHERE cpe_id = %s
+        """, (vector_str, cpe_id))
+
+    conn.commit()
+    print(f"  Progress: {min(i+batch_size, len(rows))}/{len(rows)}")
+
+print("✓ Re-encoding complete!")
+cur.close()
+conn.close()
+```
+
+**Save as**: `tools/reencode_database_vectors.py`
+**Run with**: `./.venv/bin/python tools/reencode_database_vectors.py`
+
+---
+
+### Method 3: Selective Re-Encoding (Surgical - For Specific Data)
+
+**When to use**: Only specific batches/articles have bad vectors
+**Pros**: Fast, surgical fix for known-bad data
+**Cons**: Requires identifying which data is bad
+
+```bash
+# Step 1: Identify bad vectors (test a sample)
+psql lnsp -c "
+SELECT DISTINCT e.batch_id, e.dataset_source, count(*) as chunks
+FROM cpe_entry e
+WHERE e.dataset_source = 'wikipedia_500k'
+  AND e.batch_id LIKE 'wikipedia_%'
+GROUP BY e.batch_id, e.dataset_source
+ORDER BY e.batch_id
+LIMIT 10;
+"
+
+# Step 2: Test if specific batches have bad vectors
+./.venv/bin/python -c "
+from src.db_postgres import connect as connect_pg
+from app.vect_text_vect.vec_text_vect_isolated import IsolatedVecTextVectOrchestrator
+import torch
+
+conn = connect_pg()
+cur = conn.cursor()
+
+# Test batch 'wikipedia_1'
+cur.execute('''
+    SELECT e.concept_text, v.concept_vec::text
+    FROM cpe_entry e
+    JOIN cpe_vectors v ON e.cpe_id = v.cpe_id
+    WHERE e.batch_id = 'wikipedia_1'
+    LIMIT 1
+''')
+row = cur.fetchone()
+text, vec_str = row
+
+# Decode and check quality
+orchestrator = IsolatedVecTextVectOrchestrator()
+# Parse vector from pgvector format
+vec_clean = vec_str.strip('[]')
+vec = torch.tensor([float(x) for x in vec_clean.split(',')]).unsqueeze(0)
+
+result = orchestrator._run_subscriber_subprocess(
+    'ielab', vec.cpu(),
+    metadata={'original_texts': [text]},
+    device_override='cpu'
+)
+
+decoded = result['result'][0] if result['status'] == 'success' else 'ERROR'
+print(f'Original: {text[:80]}')
+print(f'Decoded:  {decoded[:80]}')
+print(f'Quality:  {\"✓ GOOD\" if text[:20] in decoded or decoded[:20] in text else \"✗ BAD - NEEDS RE-ENCODING\"}')
+"
+
+# Step 3: Re-encode specific batches
+./.venv/bin/python -c "
+from src.db_postgres import connect as connect_pg
+from app.vect_text_vect.vec_text_vect_isolated import IsolatedVecTextVectOrchestrator
+
+conn = connect_pg()
+cur = conn.cursor()
+orchestrator = IsolatedVecTextVectOrchestrator()
+
+# Re-encode batches 1-100 (adjust as needed)
+for batch_num in range(1, 101):
+    batch_id = f'wikipedia_{batch_num}'
+
+    # Get texts for this batch
+    cur.execute('''
+        SELECT cpe_id, concept_text
+        FROM cpe_entry
+        WHERE batch_id = %s
+    ''', (batch_id,))
+
+    rows = cur.fetchall()
+    if not rows:
+        continue
+
+    # Re-encode
+    cpe_ids = [r[0] for r in rows]
+    texts = [r[1] for r in rows]
+    vectors = orchestrator.encode_texts(texts).cpu().detach().numpy()
+
+    # Update
+    for cpe_id, vector in zip(cpe_ids, vectors):
+        vector_str = '[' + ','.join(map(str, vector)) + ']'
+        cur.execute('UPDATE cpe_vectors SET concept_vec = %s::vector(768) WHERE cpe_id = %s',
+                   (vector_str, cpe_id))
+
+    conn.commit()
+    print(f'✓ Re-encoded {batch_id} ({len(rows)} chunks)')
+
+cur.close()
+conn.close()
+"
+```
+
+---
+
+## Verification After Re-Encoding
+
+**Always verify** that re-encoding worked:
+
+```bash
+# Test 1: Compare encoder output (should be high cosine)
+./.venv/bin/python tools/compare_encoders.py
+
+# Test 2: Decode a few random samples
+./.venv/bin/python -c "
+from src.db_postgres import connect as connect_pg
+from app.vect_text_vect.vec_text_vect_isolated import IsolatedVecTextVectOrchestrator
+import torch
+import random
+
+conn = connect_pg()
+cur = conn.cursor()
+orchestrator = IsolatedVecTextVectOrchestrator()
+
+# Get 3 random samples
+cur.execute('''
+    SELECT e.concept_text, v.concept_vec::text
+    FROM cpe_entry e
+    JOIN cpe_vectors v ON e.cpe_id = v.cpe_id
+    WHERE e.dataset_source = 'wikipedia_500k'
+    ORDER BY RANDOM()
+    LIMIT 3
+''')
+
+for i, (text, vec_str) in enumerate(cur.fetchall()):
+    vec_clean = vec_str.strip('[]')
+    vec = torch.tensor([float(x) for x in vec_clean.split(',')]).unsqueeze(0)
+
+    result = orchestrator._run_subscriber_subprocess(
+        'ielab', vec.cpu(),
+        metadata={'original_texts': [text]},
+        device_override='cpu'
+    )
+
+    if result['status'] == 'success':
+        decoded = result['result'][0]
+        # Calculate word overlap
+        orig_words = set(text.lower().split())
+        decoded_words = set(decoded.lower().split())
+        overlap = len(orig_words & decoded_words) / len(orig_words) * 100
+
+        print(f'Sample {i+1}:')
+        print(f'  Original: {text[:60]}...')
+        print(f'  Decoded:  {decoded[:60]}...')
+        print(f'  Quality:  {overlap:.1f}% word overlap {\"✓\" if overlap > 50 else \"✗\"}')
+        print()
+
+cur.close()
+conn.close()
+"
+
+# Test 3: Run LVM training test
+./.venv/bin/python tools/test_lvm_pipeline.py
+# Expected: Step 1 cosine > 0.85 (not ~0.08!)
+```
+
+---
+
+## Recommendation for Your Case
+
+Based on your Phase 1 ingestion (80,634 chunks from 1,031 articles):
+
+**✅ Your data is ALREADY CORRECT!**
+
+According to the ingestion API code (`app/api/ingest_chunks.py`), it uses `Vec2TextCompatibleEmbedder` which wraps the vec2text orchestrator. This means your 80,634 chunks were encoded with the CORRECT encoder from day one.
+
+**No re-encoding needed** - proceed with LVM training!
+
+**Verification**:
+```bash
+# Quick check - decode a sample from your database
+./.venv/bin/python -c "
+from src.db_postgres import connect as connect_pg
+from app.vect_text_vect.vec_text_vect_isolated import IsolatedVecTextVectOrchestrator
+import torch
+
+conn = connect_pg()
+cur = conn.cursor()
+cur.execute('''
+    SELECT e.concept_text, v.concept_vec::text
+    FROM cpe_entry e
+    JOIN cpe_vectors v ON e.cpe_id = v.cpe_id
+    WHERE e.dataset_source = 'wikipedia_500k'
+    LIMIT 1
+''')
+text, vec_str = cur.fetchone()
+
+orchestrator = IsolatedVecTextVectOrchestrator()
+vec_clean = vec_str.strip('[]')
+vec = torch.tensor([float(x) for x in vec_clean.split(',')]).unsqueeze(0)
+
+result = orchestrator._run_subscriber_subprocess('ielab', vec.cpu(), metadata={'original_texts': [text]}, device_override='cpu')
+decoded = result['result'][0]
+
+print('TEST: Is your database data vec2text-compatible?')
+print(f'Original:  {text}')
+print(f'Decoded:   {decoded}')
+overlap = len(set(text.lower().split()) & set(decoded.lower().split())) / len(set(text.lower().split())) * 100
+print(f'Quality:   {overlap:.1f}% word overlap')
+print(f'Status:    {\"✅ COMPATIBLE - Ready for LVM training!\" if overlap > 50 else \"❌ INCOMPATIBLE - Needs re-encoding\"}')
+
+cur.close()
+conn.close()
+"
+```
+
+---
 
 ## Overview
 
 JXE and IELab are two different vec2text decoder implementations that convert 768-dimensional GTR-T5 embeddings back into text. While both use the same underlying vec2text library and GTR-base model, they produce slightly different outputs through different decoding configurations.
 
-## 📋 Current Status (October 13, 2025)
+## 📋 Current Status (October 14, 2025)
 
-### ✅ Vec2Text Decoder FIXED AND VERIFIED WORKING
+### ✅ Vec2Text Server MODERNIZED AND PRODUCTION READY
 
-**Status**: Vec2text round-trip pipeline is now **fully functional** with excellent reconstruction quality.
+**Status**: Vec2text server fully operational with FastAPI lifespan pattern (modern best practices).
 
-**Test Results** (October 13, 2025):
-- **JXE Decoder**: Cosine similarity **0.9147** ✅
-- **IELab Decoder**: Cosine similarity **0.9147** ✅
-- **Server Status**: Both processors loaded successfully in memory
-- **Latency**: ~710-730ms per decode (in-memory mode)
+**Latest Verification** (October 14, 2025):
+- **Server**: Running on port 8766 with the FastAPI lifespan pattern ✅
+- **Decoders**: JXE and IELab processors loaded in-memory (CPU-only) ✅
+- **Health Check**: `{"status":"healthy","decoders":["jxe","ielab"],"dimensions":768,"mode":"in_memory"}` ✅
+- **Configuration**: `GET /config → {"vector_dimension":768,"default_steps":1,"adapter_loaded":false}` ✅
+- **Decoding Quality**: Cycle cosine ≈0.81 at steps=1 (self-test), ≈0.90 at steps=5 ✅
+- **Latency**: ~0.85 s per decode at steps=1 (warm, CPU) ✅
 
 ### Verified Working Example
 
-**Selftest Endpoint**:
+**Self-test Endpoint** (`POST /selftest`):
 ```bash
-curl -X POST http://localhost:8766/selftest -H "Content-Type: application/json" -d '{}'
+curl -s -X POST http://localhost:8766/selftest \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Machine learning enables predictive analytics."}' | jq
 ```
 
-**Response**:
+**Observed Response**:
 ```json
 {
+  "text": "Machine learning enables predictive analytics.",
+  "steps": 1,
+  "subscribers": ["jxe", "ielab"],
+  "adapter_available": false,
   "teacher_cycle": {
     "gtr → jxe": {
       "status": "success",
-      "output": "Photosynthesis in plants converts chemical energy to light energy...",
-      "cosine": 0.9147,
-      "elapsed_ms": 710.68
+      "output": "Engineering enables machine learning to support predictive analytics. Machine learning enables a broader understanding of the underlying linguistics and anthropology.",
+      "cosine": 0.8134,
+      "elapsed_ms": 881.63
     },
     "gtr → ielab": {
       "status": "success",
-      "output": "Photosynthesis in plants converts chemical energy to light energy...",
-      "cosine": 0.9147,
-      "elapsed_ms": 729.73
+      "output": "Engineering enables machine learning to support predictive analytics. Machine learning enables a broader understanding of the underlying linguistics and anthropology.",
+      "cosine": 0.8134,
+      "elapsed_ms": 877.82
     }
   }
 }
 ```
+
+## 🔧 API Usage Guide (October 14, 2025)
+
+### Decoding Vectors (POST /decode)
+
+**Endpoint**: `http://localhost:8766/decode`
+
+**Request Format**:
+```python
+import requests
+import numpy as np
+
+# Your 768D vectors (can be single or batch)
+vectors = [your_768d_vector.tolist()]  # Must be list of lists
+
+payload = {
+    "vectors": vectors,              # List[List[float]] - multiple vectors supported
+    "subscribers": "jxe,ielab",      # Comma-separated string
+    "steps": 10,                     # 1-20, higher = better quality
+    "device": "cpu",                 # cpu, mps, or cuda
+    "apply_adapter": False           # Procrustes adapter (usually False)
+}
+
+response = requests.post("http://localhost:8766/decode", json=payload)
+result = response.json()
+```
+
+**Response Format**:
+```json
+{
+  "results": [
+    {
+      "index": 0,
+      "subscribers": {
+        "gtr → jxe": {
+          "status": "success",
+          "output": "Decoded text from JXE...",
+          "cosine": 0.8045,
+          "elapsed_ms": 3409.56
+        },
+        "gtr → ielab": {
+          "status": "success",
+          "output": "Decoded text from IELab...",
+          "cosine": 0.8045,
+          "elapsed_ms": 3377.61
+        }
+      }
+    }
+  ],
+  "count": 1
+}
+```
+
+**Python Usage Example**:
+```python
+# Extract decoded texts
+for result in response.json()['results']:
+    subscribers = result['subscribers']
+    jxe_text = subscribers['gtr → jxe']['output']
+    ielab_text = subscribers['gtr → ielab']['output']
+    print(f"JXE:   {jxe_text}")
+    print(f"IELab: {ielab_text}")
+```
+
+### Health & Configuration Endpoints
+
+```bash
+curl -s http://localhost:8766/health | jq
+curl -s http://localhost:8766/config | jq
+```
+
+---
+
+## 📈 Automated Arithmetic Evaluation (October 14, 2025)
+
+Use the dedicated evaluator to score semantic vector arithmetic across a large,
+unlabeled slice of the Wikipedia corpus:
+
+```bash
+python tools/semantic_vector_arithmetic_eval.py \
+  --num-samples 200 \
+  --decode-samples 12 \
+  --output artifacts/demos/semantic_vector_arithmetic_metrics.json
+```
+
+**Latest metrics** (steps = 1, 200 random analogies):
+- Mean cosine (result → ground truth): **0.46**
+- Median retrieval rank of ground truth: **34** (top-50 hit rate 54%)
+- Vec2Text decode cosine vs. ground truth: **0.36** (BLEU-2 ≈ 0 → decoded prose still drifts)
+
+Keep these numbers as regression baselines whenever model weights or decoding
+parameters change.
 
 ### Critical Fix Applied (October 13, 2025)
 
