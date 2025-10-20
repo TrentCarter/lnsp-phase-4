@@ -15,22 +15,29 @@ That file contains the cardinal rules that must NEVER be violated:
 
 ---
 
-## 📌 ACTIVE CHECKPOINT: Wikipedia Ingestion (2025-10-16)
+## 📌 ACTIVE CHECKPOINT: Wikipedia Ingestion (2025-10-18 - Updated)
 
-**PAUSED**: Wikipedia ingestion in progress - see `WIKIPEDIA_INGESTION_CHECKPOINT.md`
+**STATUS**: Ready to continue ingestion with improved checkpoint system
 
-- **Current progress**: 3,425 articles processed → 232,525 concepts
-- **Next resume point**: Article 3,426
-- **Estimated time**: 30-40 hours for 7,000 more articles
-- **Resume command**: See checkpoint file for exact command
+- **Current data**: 339,615 concepts (articles 1-3,431)
+- **Next batch**: Articles 3,432+ (checkpoint system now active!)
+- **Improvements**: Auto-save every 100 articles, `--resume` flag, graceful shutdown
+- **Estimated time**: ~30-40 hours for 3,000 more articles
 
-To resume tonight:
+To continue ingestion with checkpoints:
 ```bash
-LNSP_TMD_MODE=hybrid ./.venv/bin/python tools/ingest_wikipedia_pipeline.py \
+# Start fresh batch (saves progress every 100 articles)
+LNSP_TMD_MODE=hybrid \
+LNSP_LLM_ENDPOINT="http://localhost:11434" \
+LNSP_LLM_MODEL="llama3.1:8b" \
+./.venv/bin/python tools/ingest_wikipedia_pipeline.py \
   --input data/datasets/wikipedia/wikipedia_500k.jsonl \
-  --skip-offset 3426 \
-  --limit 7000 \
+  --skip-offset 3432 \
+  --limit 3000 \
   > logs/wikipedia_ingestion_$(date +%Y%m%d_%H%M%S).log 2>&1 &
+
+# Or resume from checkpoint (if crashed)
+LNSP_TMD_MODE=hybrid ./.venv/bin/python tools/ingest_wikipedia_pipeline.py --resume
 ```
 
 ---
@@ -95,8 +102,25 @@ LNSP_TMD_MODE=hybrid ./.venv/bin/python tools/ingest_wikipedia_pipeline.py \
 
 <!-- Audio notifications section removed to keep repo guidance focused and neutral. -->
 
-## 📍 CURRENT STATUS (2025-10-16)
-- **Production Data**: 80,636 Wikipedia concepts in PostgreSQL + 500k vectors in FAISS
+---
+
+## ✅ EXPECTED BEHAVIORS (As-Expected, Not Bugs)
+
+1. **Missing CPESH metadata in Wikipedia ingestion** (Added Oct 18, 2025)
+   - **Behavior**: Wikipedia concepts may have empty `probe_question` and `expected_answer` fields
+   - **Why**: Wikipedia ingestion currently focuses on vector generation for LVM training
+   - **Expected**: Concepts have vectors in `cpe_vectors` table and NPZ files, but may lack CPESH metadata
+   - **Usage**: These vectors are sufficient for LVM training (vector-to-vector prediction)
+   - **Future**: CPESH backfill can be added later if needed for vecRAG applications
+   - **Verification**: Check `cpe_vectors` table has matching records, not `probe_question` fields
+
+---
+
+## 📍 CURRENT STATUS (2025-10-18 - Updated)
+- **Production Data**: 339,615 Wikipedia concepts (articles 1-3,431) with vectors in PostgreSQL
+  - Vectors: 663MB NPZ file (`artifacts/wikipedia_500k_corrected_vectors.npz`)
+  - CPESH metadata: Not populated (expected - see "Expected Behaviors" above)
+  - Ingested: Oct 15-18, 2025 (complete fresh dataset)
 - **LVM Models**: 4 trained models operational (AMN, LSTM⭐, GRU, Transformer)
   - Best balance: LSTM (0.5758 val cosine, 0.56ms/query)
   - Best accuracy: Transformer (0.5820 val cosine)
@@ -163,6 +187,48 @@ print('✓ Vec2text-compatible vectors (will decode correctly)')
 # Expected: CORRECT encoder = 0.89 cosine, WRONG encoder = 0.09 cosine
 ```
 
+### FastAPI Service Management (Added Oct 18, 2025)
+```bash
+# 🚨 CRITICAL: ALWAYS restart services before ingestion runs
+# Why: Clears memory, resets connections, prevents resource leaks
+
+# Start all required services (Episode, Semantic, GTR-T5, Ingest)
+./scripts/start_all_fastapi_services.sh
+
+# Check service health
+curl -s http://localhost:8900/health  # Episode Chunker
+curl -s http://localhost:8001/health  # Semantic Chunker
+curl -s http://localhost:8767/health  # GTR-T5 Embeddings
+curl -s http://localhost:8004/health  # Ingest API
+
+# Stop all services (clean shutdown)
+./scripts/stop_all_fastapi_services.sh
+
+# Service logs (if needed)
+tail -f /tmp/lnsp_api_logs/*.log
+```
+
+**Best Practice for Long Ingestion Runs:**
+```bash
+# 1. Stop old services (clear memory)
+./scripts/stop_all_fastapi_services.sh
+
+# 2. Wait 5 seconds for clean shutdown
+sleep 5
+
+# 3. Start fresh services
+./scripts/start_all_fastapi_services.sh
+
+# 4. Wait 10 seconds for initialization
+sleep 10
+
+# 5. Run ingestion
+LNSP_TMD_MODE=hybrid ./.venv/bin/python tools/ingest_wikipedia_pipeline.py \
+  --input data/datasets/wikipedia/wikipedia_500k.jsonl \
+  --skip-offset 3432 \
+  --limit 3000
+```
+
 ### Ontology Data Ingestion (No FactoidWiki)
 ```bash
 # CRITICAL: Do NOT use FactoidWiki. Use ontology sources only (SWO/GO/DBpedia/etc.)
@@ -183,6 +249,24 @@ export LNSP_LLM_MODEL="llama3.1:8b"
 
 
 ## 📂 KEY COMMANDS
+
+### FastAPI Service Management (NEW - 2025-10-18)
+```bash
+# Start all required services for ingestion pipeline
+./scripts/start_all_fastapi_services.sh
+
+# Stop all services (always do this before starting a new ingestion run!)
+./scripts/stop_all_fastapi_services.sh
+
+# Check individual service health
+curl -s http://localhost:8900/health  # Episode Chunker
+curl -s http://localhost:8001/health  # Semantic Chunker
+curl -s http://localhost:8767/health  # GTR-T5 Embeddings
+curl -s http://localhost:8004/health  # Ingest API
+
+# View service logs
+tail -f /tmp/lnsp_api_logs/*.log
+```
 
 ### n8n Integration Commands (NEW - 2025-09-19)
 ```bash

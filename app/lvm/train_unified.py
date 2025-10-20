@@ -207,6 +207,21 @@ def get_model_config(model_type: str):
             'input_dim': 768,
             'd_model': 256,
             'hidden_dim': 512
+        },
+        'hierarchical_gru': {
+            'd_model': 768,
+            'hidden_dim': 512,
+            'chunk_size': 10,
+            'num_chunks': 10,
+            'local_layers': 2,
+            'global_layers': 2
+        },
+        'memory_gru': {
+            'd_model': 768,
+            'hidden_dim': 512,
+            'num_layers': 4,
+            'memory_slots': 2048,
+            'use_memory_write': True
         }
     }
     return configs.get(model_type, {})
@@ -216,7 +231,8 @@ def main():
     parser = argparse.ArgumentParser(description='Unified LVM Trainer')
 
     # Model selection
-    parser.add_argument('--model-type', required=True, choices=['lstm', 'gru', 'transformer', 'amn'],
+    parser.add_argument('--model-type', required=True,
+                        choices=['lstm', 'gru', 'transformer', 'amn', 'hierarchical_gru', 'memory_gru'],
                         help='Model architecture to train')
 
     # Data and training

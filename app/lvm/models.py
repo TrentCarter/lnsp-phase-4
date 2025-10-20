@@ -20,6 +20,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# Extended context models (Experiment A & B)
+try:
+    # Try relative import first (when running from app/lvm/)
+    from .hierarchical_gru import HierarchicalGRU
+    from .memory_gru import MemoryAugmentedGRU
+except ImportError:
+    # Fall back to absolute import (when running from project root)
+    from app.lvm.hierarchical_gru import HierarchicalGRU
+    from app.lvm.memory_gru import MemoryAugmentedGRU
+
 
 # ============================================================================
 # 1. LSTM BASELINE
@@ -390,8 +400,27 @@ def create_model(model_type: str, **kwargs):
             hidden_dim=kwargs.get('hidden_dim', 512)
         )
 
+    elif model_type == 'hierarchical_gru':
+        return HierarchicalGRU(
+            d_model=kwargs.get('d_model', 768),
+            hidden_dim=kwargs.get('hidden_dim', 512),
+            chunk_size=kwargs.get('chunk_size', 10),
+            num_chunks=kwargs.get('num_chunks', 10),
+            local_layers=kwargs.get('local_layers', 2),
+            global_layers=kwargs.get('global_layers', 2)
+        )
+
+    elif model_type == 'memory_gru':
+        return MemoryAugmentedGRU(
+            d_model=kwargs.get('d_model', 768),
+            hidden_dim=kwargs.get('hidden_dim', 512),
+            num_layers=kwargs.get('num_layers', 4),
+            memory_slots=kwargs.get('memory_slots', 2048),
+            use_memory_write=kwargs.get('use_memory_write', True)
+        )
+
     else:
-        raise ValueError(f"Unknown model type: {model_type}. Choose from: lstm, gru, transformer, amn")
+        raise ValueError(f"Unknown model type: {model_type}. Choose from: lstm, gru, transformer, amn, hierarchical_gru, memory_gru")
 
 
 # ============================================================================
@@ -433,6 +462,24 @@ MODEL_SPECS = {
         'pros': ['Beats baseline by design', 'Interpretable', 'Efficient'],
         'cons': ['Single attention head', 'Simpler than transformer'],
         'best_for': 'LNSP latent space, interpretable predictions'
+    },
+
+    'hierarchical_gru': {
+        'name': 'Hierarchical GRU (Extended Context)',
+        'params': '~8-10M',
+        'description': 'Two-level processing: local chunks + global attention',
+        'pros': ['100-vector context (2k tokens)', 'Hierarchical processing', 'Scales to 1000+ vectors'],
+        'cons': ['More complex than baseline', 'Requires extended context data'],
+        'best_for': 'Extended context experiments (Experiment A)'
+    },
+
+    'memory_gru': {
+        'name': 'Memory-Augmented GRU (Extended Context)',
+        'params': '~10-12M (+ 1.5M memory bank)',
+        'description': 'GRU with external memory bank (2,048 slots)',
+        'pros': ['Persistent knowledge', 'Content-based addressing', 'TMD-aware routing'],
+        'cons': ['Memory overhead', 'Complex training dynamics'],
+        'best_for': 'Extended context experiments (Experiment B)'
     }
 }
 

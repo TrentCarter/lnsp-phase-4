@@ -153,6 +153,80 @@ rag-status:
 rag-watch:
 	@PYTHONPATH=. ./.venv/bin/python tools/rag_dashboard.py --watch
 
-.PHONY: graphrag-track
-graphrag-track:
-	@./.venv/bin/python tools/graphrag_tracker.py $(ARGS)
+
+# =============================
+# Makefile (phase 2)
+# Save as: Makefile
+# =============================
+
+ARTIFACTS ?= artifacts/lvm/models_phase2
+RUN ?= run_500ctx_routingA
+SEQS ?= data/gwom_sequences.jsonl      # chains (ordered) passing coherence gates
+VECDB ?= data/vector_index.npz          # retrieval bank (post‑norm, correct dim)
+LANE_FILTER ?= on
+
+# Common hyperparams
+LR ?= 1e-4
+WD ?= 1e-4
+BATCH ?= 64
+ACCUM ?= 4
+CTX ?= 500
+ALPHA ?= 0.03        # InfoNCE weight (warm)
+TAU ?= 0.07          # InfoNCE temperature
+PATIENCE ?= 3
+MODEL ?= memory_gru  # winner from Phase 1
+ROUTING ?= tmd16     # 16 TMD specialists (top2)
+SCHED ?= cosine
+WARMUP ?= 1
+
+.PHONY: phase2-warm phase2-softnegs phase2-hardnegs eval best monitor clean
+
+phase2-warm:
+	bash scripts/train_phase2.sh \
+	  --model $(MODEL) --context $(CTX) --routing $(ROUTING) \
+	  --alpha $(ALPHA) --tau $(TAU) \
+	  --lr $(LR) --wd $(WD) --sched $(SCHED) --warmup $(WARMUP) \
+	  --batch $(BATCH) --accum $(ACCUM) \
+	  --earlystop hit5 --patience $(PATIENCE) \
+	  --seqs $(SEQS) --vecdb $(VECDB) \
+	  --save $(ARTIFACTS)/$(RUN)
+
+phase2-softnegs:
+	bash scripts/train_phase2.sh \
+	  --model $(MODEL) --context $(CTX) --routing $(ROUTING) \
+	  --alpha 0.05 --tau $(TAU) --negatives soft --neg-lo 0.60 --neg-hi 0.80 \
+	  --lr $(LR) --wd $(WD) --sched $(SCHED) --warmup $(WARMUP) \
+	  --batch $(BATCH) --accum $(ACCUM) \
+	  --earlystop hit5 --patience $(PATIENCE) \
+	  --seqs $(SEQS) --vecdb $(VECDB) \
+	  --save $(ARTIFACTS)/$(RUN)_soft
+
+phase2-hardnegs:
+	bash scripts/train_phase2.sh \
+	  --model $(MODEL) --context $(CTX) --routing $(ROUTING) \
+	  --alpha 0.05 --tau $(TAU) --negatives hard --neg-lo 0.75 --neg-hi 0.90 \
+	  --lr $(LR) --wd $(WD) --sched $(SCHED) --warmup $(WARMUP) \
+	  --batch $(BATCH) --accum $(ACCUM) \
+	  --earlystop hit5 --patience $(PATIENCE) \
+	  --seqs $(SEQS) --vecdb $(VECDB) \
+	  --save $(ARTIFACTS)/$(RUN)_hard
+
+# Evaluate best checkpoint (must mirror training vector: delta recon + L2 norm)
+# Expects best_val_hit5.pt and training_history.json in save dir
+best:
+	bash scripts/eval_phase2.sh \
+	  --ckpt $(ARTIFACTS)/$(RUN)/best_val_hit5.pt \
+	  --vecdb $(VECDB) --k 1 5 10 --lane $(LANE_FILTER)
+
+# Evaluate an arbitrary run folder
+EVAL_RUN ?= $(ARTIFACTS)/$(RUN)
+eval:
+	bash scripts/eval_phase2.sh \
+	  --ckpt $(EVAL_RUN)/best_val_hit5.pt \
+	  --vecdb $(VECDB) --k 1 5 10 --lane $(LANE_FILTER)
+
+monitor:
+	@echo "History:" && jq '.epoch, .metrics.val.hit5' $(EVAL_RUN)/training_history.json 2>/dev/null || echo "no history"
+
+clean:
+	rm -rf $(ARTIFACTS)/$(RUN) $(ARTIFACTS)/$(RUN)_soft $(ARTIFACTS)/$(RUN)_hard

@@ -130,6 +130,9 @@ class PipelineTimings:
 
 def check_apis():
     """Verify all APIs are running"""
+    # Get TMD mode from environment for display
+    tmd_mode = os.environ.get("LNSP_TMD_MODE", "hybrid")
+
     apis = {
         "Episode Chunker": f"{EPISODE_API}/health",
         "Semantic Chunker": f"{SEMANTIC_API}/health",
@@ -150,7 +153,7 @@ def check_apis():
             print(f"  ❌ {name}: {url} ({e})")
             return False
 
-    print(f"  ℹ️  TMD extraction: handled internally by Ingest API (mode: {TMD_MODE})")
+    print(f"  ℹ️  TMD extraction: handled internally by Ingest API (mode: {tmd_mode})")
     return True
 
 
@@ -338,6 +341,9 @@ def main():
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint")
 
     args = parser.parse_args()
+
+    # Get TMD mode from environment
+    TMD_MODE = os.environ.get("LNSP_TMD_MODE", "hybrid")
 
     print("🚀 Wikipedia Ingestion Pipeline")
     print("=" * 80)
