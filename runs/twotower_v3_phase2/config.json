@@ -1,0 +1,21 @@
+{
+  "pairs": "artifacts/twotower/pairs_v3_synth.npz",
+  "bank": "artifacts/wikipedia_500k_corrected_vectors.npz",
+  "init_ckpt": "runs/twotower_v3_phase1/checkpoints/best_recall500.pt",
+  "query_tower": "gru_pool",
+  "doc_tower": "identity",
+  "hidden_dim": 512,
+  "num_layers": 1,
+  "bs": 32,
+  "accum": 8,
+  "epochs": 50,
+  "lr": 1e-05,
+  "wd": 0.01,
+  "tau": 0.07,
+  "memory_bank_size": 20000,
+  "mine_every": 2,
+  "num_hard_negs": 16,
+  "device": "mps",
+  "seed": 42,
+  "out": "runs/twotower_v3_phase2"
+}

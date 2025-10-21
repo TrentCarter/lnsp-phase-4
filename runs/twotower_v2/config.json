@@ -1,0 +1,17 @@
+{
+  "pairs": "artifacts/twotower/pairs_v2.npz",
+  "bank": "artifacts/wikipedia_500k_corrected_vectors.npz",
+  "query_tower": "gru_pool",
+  "doc_tower": "identity",
+  "hidden_dim": 512,
+  "num_layers": 1,
+  "bs": 32,
+  "accum": 8,
+  "epochs": 20,
+  "lr": 2e-05,
+  "wd": 0.01,
+  "tau": 0.07,
+  "device": "mps",
+  "seed": 42,
+  "out": "runs/twotower_v2"
+}

@@ -102,6 +102,7 @@ def create_extended_sequences(vectors, context_length=100, overlap=50, min_coher
         sequences: [num_sequences, context_length, D]
         targets: [num_sequences, D]
         coherence_scores: [num_sequences] array of coherence scores
+        target_indices: [num_sequences] array of target bank indices (for TMD eval)
     """
     N, D = vectors.shape
 
@@ -122,6 +123,7 @@ def create_extended_sequences(vectors, context_length=100, overlap=50, min_coher
     sequences_list = []
     targets_list = []
     coherence_list = []
+    target_indices_list = []  # NEW: Track source indices for TMD evaluation
 
     for i in tqdm(range(num_sequences), desc="Creating sequences"):
         start_idx = i * stride
@@ -139,12 +141,14 @@ def create_extended_sequences(vectors, context_length=100, overlap=50, min_coher
             sequences_list.append(seq)
             targets_list.append(target)
             coherence_list.append(coherence)
+            target_indices_list.append(target_idx)  # NEW: Save target index
 
     # Convert to arrays
     num_kept = len(sequences_list)
     sequences = np.array(sequences_list, dtype=np.float32)
     targets = np.array(targets_list, dtype=np.float32)
     coherence_scores = np.array(coherence_list, dtype=np.float32)
+    target_indices = np.array(target_indices_list, dtype=np.int64)  # NEW
 
     logger.info(f"\nSequence filtering results:")
     logger.info(f"  Total created: {num_sequences}")
@@ -156,10 +160,10 @@ def create_extended_sequences(vectors, context_length=100, overlap=50, min_coher
         logger.info(f"    Mean: {coherence_scores.mean():.3f}")
         logger.info(f"    Max: {coherence_scores.max():.3f}")
 
-    return sequences, targets, coherence_scores
+    return sequences, targets, coherence_scores, target_indices
 
 
-def split_train_val(sequences, targets, val_split=0.1, seed=42):
+def split_train_val(sequences, targets, target_indices, val_split=0.1, seed=42):
     """Split sequences into train/val with deterministic shuffle."""
     np.random.seed(seed)
 
@@ -170,48 +174,54 @@ def split_train_val(sequences, targets, val_split=0.1, seed=42):
     val_size = int(N * val_split)
     train_size = N - val_size
 
-    train_indices = indices[:train_size]
-    val_indices = indices[train_size:]
+    train_idx = indices[:train_size]
+    val_idx = indices[train_size:]
 
-    train_seqs = sequences[train_indices]
-    train_targets = targets[train_indices]
+    train_seqs = sequences[train_idx]
+    train_targets = targets[train_idx]
+    train_target_ids = target_indices[train_idx]  # NEW: Split indices
 
-    val_seqs = sequences[val_indices]
-    val_targets = targets[val_indices]
+    val_seqs = sequences[val_idx]
+    val_targets = targets[val_idx]
+    val_target_ids = target_indices[val_idx]  # NEW: Split indices
 
     logger.info(f"Split: {train_size} train, {val_size} val ({val_split*100:.1f}%)")
 
-    return (train_seqs, train_targets), (val_seqs, val_targets)
+    return (train_seqs, train_targets, train_target_ids), (val_seqs, val_targets, val_target_ids)
 
 
 def save_dataset(output_dir: Path, train_data, val_data, metadata):
     """Save train/val NPZ files and metadata JSON."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    train_seqs, train_targets = train_data
-    val_seqs, val_targets = val_data
+    train_seqs, train_targets, train_target_ids = train_data
+    val_seqs, val_targets, val_target_ids = val_data
 
-    # Save training data
+    # Save training data (with target indices for TMD evaluation)
     train_path = output_dir / "training_sequences_ctx100.npz"
     np.savez_compressed(
         train_path,
         context_sequences=train_seqs,
-        target_vectors=train_targets
+        target_vectors=train_targets,
+        target_indices=train_target_ids  # NEW: Save target bank indices
     )
     logger.info(f"Saved training data: {train_path}")
     logger.info(f"  Sequences: {train_seqs.shape}")
     logger.info(f"  Targets: {train_targets.shape}")
+    logger.info(f"  Target indices: {train_target_ids.shape}")
 
-    # Save validation data
+    # Save validation data (with target indices for TMD evaluation)
     val_path = output_dir / "validation_sequences_ctx100.npz"
     np.savez_compressed(
         val_path,
         context_sequences=val_seqs,
-        target_vectors=val_targets
+        target_vectors=val_targets,
+        target_indices=val_target_ids  # NEW: Save target bank indices
     )
     logger.info(f"Saved validation data: {val_path}")
     logger.info(f"  Sequences: {val_seqs.shape}")
     logger.info(f"  Targets: {val_targets.shape}")
+    logger.info(f"  Target indices: {val_target_ids.shape}")
 
     # Save metadata
     meta_path = output_dir / "metadata_ctx100.json"
@@ -270,7 +280,7 @@ def main():
     vectors = data['vectors']
 
     # Create sequences (with optional coherence filtering)
-    sequences, targets, coherence_scores = create_extended_sequences(
+    sequences, targets, coherence_scores, target_indices = create_extended_sequences(
         vectors,
         context_length=args.context_length,
         overlap=args.overlap,
@@ -281,6 +291,7 @@ def main():
     train_data, val_data = split_train_val(
         sequences,
         targets,
+        target_indices,  # NEW: Pass target indices through
         val_split=args.val_split
     )
 
