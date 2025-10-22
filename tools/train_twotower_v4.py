@@ -19,6 +19,9 @@ import torch.nn.functional as F
 from pathlib import Path
 from tqdm import tqdm
 import time
+import sys
+sys.path.insert(0, str(Path(__file__).parent))
+from async_miner import AsyncMiner
 
 
 # ============================================================
@@ -87,6 +90,11 @@ def mine_hard_negatives_with_filter(model_q, model_d, train_loader, bank_vectors
     model_d.eval()
 
     print(f"  Mining hard negatives (cos range: {cos_min:.2f}-{cos_max:.2f})...")
+
+    # Clear MPS cache before large CPU transfer (prevents memory fragmentation)
+    if device == 'mps':
+        torch.mps.empty_cache()
+        torch.mps.synchronize()
 
     # Build FAISS index
     bank_np = bank_vectors.cpu().numpy().astype(np.float32)
@@ -223,60 +231,195 @@ def info_nce_loss_with_extras(query, doc_pos, tau=0.05, margin=0.03,
 # ============================================================
 
 def train_one_epoch(model_q, model_d, train_loader, optimizer, epoch, args,
-                     memory_bank=None, hard_neg_indices=None, bank_vectors=None, device='mps'):
-    """Train for one epoch"""
+                     memory_bank=None, hard_neg_indices=None, bank_vectors=None,
+                     async_miner=None, mining_spec=None, device='mps'):
+    """Train for one epoch with optional async mining"""
+    from collections import deque
+
     model_q.train()
     model_d.train()
 
     total_loss = 0
     num_batches = 0
 
-    optimizer.zero_grad()
+    # 🚨 STABILITY FIX: set_to_none=True reduces memory fragmentation
+    optimizer.zero_grad(set_to_none=True)
+
+    # FIFO alignment queue for async mining (pairs batches with mined results)
+    batch_fifo = deque(maxlen=8)  # holds (q_cpu, d_pos_cpu) awaiting mined negs
+
+    # Queue health monitoring
+    queue_log_interval = 200
 
     for batch_idx, (X_batch, Y_batch) in enumerate(tqdm(train_loader, desc=f"  Training", leave=False)):
-        X_batch = X_batch.to(device)
-        Y_batch = Y_batch.to(device)
+        try:
+            X_batch = X_batch.to(device)
+            Y_batch = Y_batch.to(device)
 
-        # Encode
-        q = model_q(X_batch)
-        d_pos = model_d(Y_batch)
+            # Encode
+            q = model_q(X_batch)
+            d_pos = model_d(Y_batch)
 
-        # Get hard negatives if available
-        hard_neg_vecs = None
-        if hard_neg_indices is not None and bank_vectors is not None:
-            global_indices = range(batch_idx * args.bs, (batch_idx + 1) * args.bs)
-            batch_hard_indices = hard_neg_indices[global_indices]  # (B, K)
-            hard_neg_vecs = bank_vectors[batch_hard_indices]  # (B, K, D)
-            hard_neg_vecs = hard_neg_vecs.to(device)
+            # Get hard negatives (async or pre-mined)
+            hard_neg_vecs = None
 
-        # Compute loss
-        loss = info_nce_loss_with_extras(
-            q, d_pos,
-            tau=args.tau,
-            margin=args.margin,
-            memory_bank=memory_bank,
-            hard_neg_vecs=hard_neg_vecs
-        )
+            # Path 1: Async mining with FIFO alignment (overlap FAISS with training)
+            if async_miner is not None and mining_spec is not None:
+                # PRODUCER: Stash current batch (CPU copies) + submit for async mining
+                batch_fifo.append((q.detach().cpu(), d_pos.detach().cpu()))
+                async_miner.submit(batch_idx, q)
 
-        # Accumulate
-        loss = loss / args.accum
-        loss.backward()
+                # CONSUMER: Try to retrieve mined negatives for the OLDEST batch in FIFO
+                mined = async_miner.try_get()
+                if mined is not None and len(batch_fifo) > 0:
+                    prev_step, neg_indices = mined  # (B, K) indices into bank
+                    q_wait, d_pos_wait = batch_fifo.popleft()  # matching oldest batch
 
-        if (batch_idx + 1) % args.accum == 0:
-            optimizer.step()
-            optimizer.zero_grad()
+                    try:
+                        # neg_indices is (B, K) where K = args.mine_k (candidate pool)
+                        # Filter to mining_spec['num'] negatives + apply cos range
+                        B = len(neg_indices)
 
-        total_loss += loss.item() * args.accum
-        num_batches += 1
+                        # Get candidate vectors (cached, avoid repeated conversion)
+                        if not hasattr(bank_vectors, '_cached_np'):
+                            bank_vectors._cached_np = bank_vectors.cpu().numpy().astype(np.float32)
+                        bank_np = bank_vectors._cached_np
 
-        # Update memory bank
-        if memory_bank is not None:
-            memory_bank.add(d_pos.detach())
+                        # Convert query to numpy for fast similarity computation
+                        q_np = q_wait.numpy().astype(np.float32)
+
+                        # For each query, filter candidates by cosine range
+                        filtered_indices = []
+                        for i in range(B):
+                            cand_idxs = neg_indices[i]
+                            cand_vecs = bank_np[cand_idxs]
+                            query_vec = q_np[i]
+
+                            # Compute similarities (already normalized vectors)
+                            sims = (query_vec @ cand_vecs.T).tolist()
+
+                            # Filter by cosine range
+                            valid_pairs = [(idx, sim) for idx, sim in zip(cand_idxs, sims)
+                                          if mining_spec['cos_min'] <= sim <= mining_spec['cos_max']]
+
+                            # Take top mining_spec['num']
+                            valid_pairs = sorted(valid_pairs, key=lambda x: x[1], reverse=True)
+                            valid_indices = [int(idx) for idx, _ in valid_pairs[:mining_spec['num']]]
+
+                            # Pad if needed
+                            while len(valid_indices) < mining_spec['num']:
+                                valid_indices.append(valid_indices[0] if valid_indices else 0)
+
+                            filtered_indices.append(valid_indices[:mining_spec['num']])
+
+                        # Convert to tensor and gather
+                        filtered_indices_tensor = torch.tensor(filtered_indices, dtype=torch.long)  # (B, num)
+                        mined_hard_vecs = bank_vectors[filtered_indices_tensor]  # (B, num, D)
+
+                        # Mix FAISS + memory bank according to hardneg_frac
+                        num_from_faiss = int(mining_spec['num'] * args.hardneg_frac)
+                        num_from_memory = mining_spec['num'] - num_from_faiss
+
+                        # Take first num_from_faiss from FAISS mining
+                        hard_neg_vecs = mined_hard_vecs[:, :num_from_faiss, :].to(device)
+
+                        # Add memory bank negatives if needed
+                        if num_from_memory > 0 and memory_bank is not None:
+                            bank_vecs = memory_bank.get_all()
+                            if len(bank_vecs) >= num_from_memory:
+                                # Random sample from memory bank
+                                mem_indices = torch.randperm(len(bank_vecs))[:num_from_memory * B]
+                                mem_neg_vecs = bank_vecs[mem_indices].view(B, num_from_memory, -1)
+                                hard_neg_vecs = torch.cat([hard_neg_vecs, mem_neg_vecs], dim=1)
+
+                        # Use the waited batch (not current batch) for loss
+                        q = q_wait.to(device)
+                        d_pos = d_pos_wait.to(device)
+
+                    except Exception as e:
+                        # Fall back to current batch + memory bank if async mining fails
+                        batch_fifo.clear()  # Reset FIFO on error
+                        pass
+
+            # Path 2: Pre-mined negatives (synchronous, original path)
+            elif hard_neg_indices is not None and bank_vectors is not None:
+                try:
+                    # FIX: Handle partial batches correctly (last batch may have fewer items)
+                    start_idx = batch_idx * args.bs
+                    end_idx = min((batch_idx + 1) * args.bs, len(hard_neg_indices))
+                    actual_batch_size = end_idx - start_idx
+
+                    # Only use the actual batch size we received
+                    global_indices = range(start_idx, start_idx + len(q))
+
+                    batch_hard_indices = hard_neg_indices[global_indices]  # (B, K)
+                    hard_neg_vecs = bank_vectors[batch_hard_indices]  # (B, K, D)
+                    hard_neg_vecs = hard_neg_vecs.to(device)
+                except Exception as e:
+                    print(f"\n💥 CRASH at batch {batch_idx}/{len(train_loader)}")
+                    print(f"   Error in hard negative indexing: {e}")
+                    print(f"   batch_idx: {batch_idx}, args.bs: {args.bs}")
+                    print(f"   hard_neg_indices shape: {hard_neg_indices.shape if hard_neg_indices is not None else 'None'}")
+                    print(f"   bank_vectors shape: {bank_vectors.shape if bank_vectors is not None else 'None'}")
+                    raise
+
+            # Compute loss
+            loss = info_nce_loss_with_extras(
+                q, d_pos,
+                tau=args.tau,
+                margin=args.margin,
+                memory_bank=memory_bank,
+                hard_neg_vecs=hard_neg_vecs
+            )
+
+            # Check for NaN loss
+            if torch.isnan(loss) or torch.isinf(loss):
+                print(f"\n💥 CRASH: NaN/Inf loss at batch {batch_idx}")
+                print(f"   q range: [{q.min():.4f}, {q.max():.4f}]")
+                print(f"   d_pos range: [{d_pos.min():.4f}, {d_pos.max():.4f}]")
+                print(f"   loss value: {loss.item()}")
+                raise ValueError(f"NaN/Inf loss at batch {batch_idx}")
+
+            # Accumulate
+            loss = loss / args.accum
+            loss.backward()
+
+            if (batch_idx + 1) % args.accum == 0:
+                # 🚨 STABILITY FIX: Gradient clipping prevents exploding gradients
+                torch.nn.utils.clip_grad_norm_(model_q.parameters(), max_norm=1.0)
+                optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
+
+            total_loss += loss.item() * args.accum
+            num_batches += 1
+
+            # Queue health monitoring (every 200 steps)
+            if async_miner is not None and batch_idx % queue_log_interval == 0 and batch_idx > 0:
+                in_q_size = async_miner.in_q.qsize()
+                out_q_size = async_miner.out_q.qsize()
+                fifo_size = len(batch_fifo)
+                print(f"\n  [Queue Health @ step {batch_idx}] in_q={in_q_size}, out_q={out_q_size}, fifo={fifo_size}")
+                if out_q_size == 0:
+                    print(f"  ⚠️  Output queue empty - consider increasing prefetch or qbatch")
+
+            # Update memory bank
+            if memory_bank is not None:
+                memory_bank.add(d_pos.detach())
+
+        except Exception as e:
+            print(f"\n💥 FATAL ERROR in training loop at batch {batch_idx}/{len(train_loader)}")
+            print(f"   Exception: {type(e).__name__}: {e}")
+            print(f"   Epoch: {epoch}")
+            print(f"   Num batches completed: {num_batches}")
+            import traceback
+            traceback.print_exc()
+            raise
 
     # Final step if needed
     if num_batches % args.accum != 0:
+        torch.nn.utils.clip_grad_norm_(model_q.parameters(), max_norm=1.0)
         optimizer.step()
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
 
     avg_loss = total_loss / num_batches
     return avg_loss
@@ -291,6 +434,11 @@ def compute_separation_margin(model_q, model_d, val_loader, bank_vectors, device
 
     model_q.eval()
     model_d.eval()
+
+    # Clear MPS cache before large CPU transfer (prevents memory fragmentation)
+    if device == 'mps':
+        torch.mps.empty_cache()
+        torch.mps.synchronize()
 
     # Build FAISS index
     bank_np = bank_vectors.cpu().numpy().astype(np.float32)
@@ -344,6 +492,11 @@ def evaluate(model_q, model_d, val_loader, bank_vectors, device='mps'):
 
     model_q.eval()
     model_d.eval()
+
+    # Clear MPS cache before large CPU transfer (prevents memory fragmentation)
+    if device == 'mps':
+        torch.mps.empty_cache()
+        torch.mps.synchronize()
 
     # Build FAISS index
     bank_np = bank_vectors.cpu().numpy().astype(np.float32)
@@ -429,6 +582,22 @@ def main():
     parser.add_argument('--filter-threshold', type=float, default=0.98,
                         help='Filter hard negs with cos>threshold to both q and d_pos')
 
+    # Async mining (GPU optimization)
+    parser.add_argument('--async-mining', action='store_true',
+                        help='Enable async FAISS mining (overlap with training)')
+    parser.add_argument('--mine-k', type=int, default=128,
+                        help='Candidate pool size for async mining')
+    parser.add_argument('--mine-qbatch', type=int, default=2048,
+                        help='FAISS query batch size (default 2048 for aggressive batching)')
+    parser.add_argument('--mine-prefetch', type=int, default=3,
+                        help='Mining queue depth (concurrent batches, default 3)')
+    parser.add_argument('--mine-ttl', type=int, default=5,
+                        help='Reuse mined negatives for N steps (cache TTL, default 5)')
+    parser.add_argument('--hardneg-frac', type=float, default=0.5,
+                        help='Fraction of hard negatives from FAISS (rest from memory/in-batch)')
+    parser.add_argument('--mine-refresh-steps', type=int, default=3000,
+                        help='Refresh mining every N steps (default 3000)')
+
     # Infrastructure
     parser.add_argument('--device', type=str, default='mps')
     parser.add_argument('--seed', type=int, default=42)
@@ -471,10 +640,32 @@ def main():
 
     # Data loaders
     train_dataset = torch.utils.data.TensorDataset(X_train, Y_train)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
+
+    # 🚨 SAFETY RAILS:
+    # - num_workers=0: Data already in RAM (TensorDataset), workers add overhead
+    # - drop_last=True: Avoid partial batches (simplifies FIFO alignment)
+    # - pin_memory: Only for device transfer efficiency
+
+    use_pin_memory = device.type in ['mps', 'cuda']
+
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=args.bs,
+        shuffle=True,
+        num_workers=0,           # SAFETY: TensorDataset already in RAM
+        drop_last=True,          # SAFETY: No partial batches
+        pin_memory=use_pin_memory
+    )
 
     val_dataset = torch.utils.data.TensorDataset(X_val, Y_val)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.bs, shuffle=False)
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset,
+        batch_size=args.bs,
+        shuffle=False,
+        num_workers=0,           # SAFETY: TensorDataset already in RAM
+        drop_last=False,         # Keep all validation samples
+        pin_memory=use_pin_memory
+    )
 
     # Models
     print("Building models...")
@@ -484,7 +675,16 @@ def main():
     print()
 
     # Optimizer with cosine decay
-    optimizer = torch.optim.AdamW(model_q.parameters(), lr=args.lr, weight_decay=args.wd)
+    # 🚨 STABILITY FIX: Disable multi-tensor kernels (foreach=False, fused=False)
+    # to prevent silent crashes during optimizer.step()
+    optimizer = torch.optim.AdamW(
+        model_q.parameters(),
+        lr=args.lr,
+        weight_decay=args.wd,
+        foreach=False,  # Disable multi-tensor kernels
+        fused=False,    # Disable fused implementation
+        capturable=False  # Disable CUDA graph capture
+    )
 
     # Cosine LR scheduler
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -533,22 +733,56 @@ def main():
     # Margin tracking for abort condition
     margin_history = []
 
+    # Initialize async miner if enabled
+    async_miner = None
+    if args.async_mining:
+        import faiss
+        print("Initializing async FAISS miner...")
+
+        # Build FAISS index once
+        if device == 'mps':
+            torch.mps.empty_cache()
+            torch.mps.synchronize()
+
+        bank_np = bank_vectors.cpu().numpy().astype(np.float32)
+        bank_np = bank_np / (np.linalg.norm(bank_np, axis=1, keepdims=True) + 1e-9)
+        faiss_index = faiss.IndexFlatIP(768)
+        faiss_index.add(bank_np)
+
+        # Create async miner
+        async_miner = AsyncMiner(
+            faiss_index=faiss_index,
+            k=args.mine_k,
+            qbatch=args.mine_qbatch,
+            prefetch=args.mine_prefetch,
+            ttl=args.mine_ttl
+        )
+        async_miner.start()
+        print(f"  ✓ Async miner started (k={args.mine_k}, qbatch={args.mine_qbatch}, ttl={args.mine_ttl})")
+
     for epoch in range(1, args.epochs + 1):
         print(f"Epoch {epoch}/{args.epochs}")
 
-        # Check if we need to mine hard negatives
-        hard_neg_indices = None
+        # Get mining spec for this epoch
+        mining_spec = None
         if epoch in mining_schedule and mining_schedule[epoch] is not None:
-            spec = mining_schedule[epoch]
+            mining_spec = mining_schedule[epoch]
+
+        # Check if we need to mine hard negatives (synchronous path)
+        hard_neg_indices = None
+        if not args.async_mining and mining_spec is not None:
+            # Synchronous mining (original behavior)
             hard_neg_indices = mine_hard_negatives_with_filter(
                 model_q, model_d, train_loader, bank_vectors,
-                num_hard_negs=spec['num'],
-                cos_min=spec['cos_min'],
-                cos_max=spec['cos_max'],
+                num_hard_negs=mining_spec['num'],
+                cos_min=mining_spec['cos_min'],
+                cos_max=mining_spec['cos_max'],
                 filter_threshold=args.filter_threshold,
                 device=device
             )
-            print(f"  Mined {spec['num']} hard negatives per sample (cos {spec['cos_min']:.2f}-{spec['cos_max']:.2f})")
+            print(f"  Mined {mining_spec['num']} hard negatives per sample (cos {mining_spec['cos_min']:.2f}-{mining_spec['cos_max']:.2f})")
+        elif args.async_mining and mining_spec is not None:
+            print(f"  Using async mining ({mining_spec['num']} hard negs, cos {mining_spec['cos_min']:.2f}-{mining_spec['cos_max']:.2f})")
 
         # Train
         train_loss = train_one_epoch(
@@ -556,6 +790,8 @@ def main():
             memory_bank=memory_bank,
             hard_neg_indices=hard_neg_indices,
             bank_vectors=bank_vectors,
+            async_miner=async_miner if args.async_mining else None,
+            mining_spec=mining_spec,
             device=device
         )
 
@@ -648,6 +884,12 @@ def main():
                 break
 
         print()
+
+    # Stop async miner if running
+    if async_miner is not None:
+        print("Stopping async miner...")
+        async_miner.stop()
+        print("  ✓ Async miner stopped")
 
     print("============================================================")
     print("TRAINING COMPLETE")

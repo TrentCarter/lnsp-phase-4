@@ -1,0 +1,25 @@
+accum: 1
+bank: artifacts/wikipedia_500k_corrected_vectors.npz
+bs: 16
+device: mps
+epochs: 5
+filter_threshold: 0.98
+hidden_dim: 512
+lr: 5.0e-05
+lr_min: 1.0e-06
+margin: 0.03
+memory_bank_size: 50000
+mine_schedule: 0-5:none
+mining_schedule:
+  0: null
+  1: null
+  2: null
+  3: null
+  4: null
+  5: null
+num_layers: 1
+out: runs/twotower_v4_test
+pairs: artifacts/twotower/pairs_v4_synth.npz
+seed: 42
+tau: 0.05
+wd: 0.01

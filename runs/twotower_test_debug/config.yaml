@@ -1,8 +1,8 @@
-accum: 16
+accum: 1
 bank: artifacts/wikipedia_500k_corrected_vectors.npz
-bs: 32
+bs: 8
 device: cpu
-epochs: 30
+epochs: 1
 filter_threshold: 0.98
 hidden_dim: 512
 lr: 5.0e-05
@@ -118,8 +118,8 @@ mining_schedule:
     cos_min: 0.84
     num: 16
 num_layers: 1
-out: runs/twotower_v4
-pairs: artifacts/twotower/pairs_v4_synth.npz
+out: runs/twotower_test_debug
+pairs: artifacts/twotower/pairs_tiny.npz
 seed: 42
 tau: 0.05
 wd: 0.01

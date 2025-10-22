@@ -99,6 +99,16 @@ LNSP_TMD_MODE=hybrid ./.venv/bin/python tools/ingest_wikipedia_pipeline.py --res
 6. **Devices**: JXE can use MPS or CPU; IELab is CPU-only. GTR-T5 can use MPS or CPU.
 7. **Steps**: Use `--steps 1` for vec2text by default; increase only when asked.
 8. **CPESH data**: Always generate complete CPESH (Concept-Probe-Expected-SoftNegatives-HardNegatives) using LLM, never empty arrays.
+9. **🔴 CRITICAL: macOS OpenMP Crash Fix** (Added Oct 21, 2025)
+   - **Problem**: Duplicate OpenMP libraries (PyTorch + FAISS both load `libomp.dylib`)
+   - **Symptom**: "Abort trap: 6" crashes at random batches during training
+   - **Root cause**: macOS doesn't allow multiple OpenMP runtimes in same process
+   - **Solution**: `export KMP_DUPLICATE_LIB_OK=TRUE` (add to ALL training scripts)
+   - **Why this works**: Tells OpenMP to ignore duplicate runtime copies
+   - **Is it safe?**: YES for single-process training (our use case)
+   - **Applies to**: CPU training only (MPS/GPU doesn't use OpenMP)
+   - **See**: `CRASH_ROOT_CAUSE.md` for full diagnostic details
+   - **Verification**: Run `bash test_fix.sh` to confirm fix works
 
 <!-- Audio notifications section removed to keep repo guidance focused and neutral. -->
 
@@ -228,6 +238,32 @@ LNSP_TMD_MODE=hybrid ./.venv/bin/python tools/ingest_wikipedia_pipeline.py \
   --skip-offset 3432 \
   --limit 3000
 ```
+
+### macOS OpenMP Fix (CRITICAL for Training)
+```bash
+# 🚨 ALWAYS add this to training scripts on macOS
+# Fixes "Abort trap: 6" crashes caused by PyTorch + FAISS OpenMP conflict
+export KMP_DUPLICATE_LIB_OK=TRUE
+
+# Example: Add to top of any training launch script
+#!/bin/bash
+export KMP_DUPLICATE_LIB_OK=TRUE
+python tools/train_model.py ...
+
+# Verify fix works
+bash test_fix.sh
+```
+
+**Why needed:**
+- PyTorch loads `libomp.dylib` (OpenMP runtime)
+- FAISS also loads `libomp.dylib`
+- macOS kills process when multiple OpenMP runtimes detected
+- Setting `KMP_DUPLICATE_LIB_OK=TRUE` tells OpenMP to allow duplicates
+
+**When needed:**
+- ✅ **Always** for CPU training on macOS (especially with FAISS)
+- ❌ **NOT needed** for MPS/GPU training (MPS doesn't use OpenMP)
+- ❌ **NOT needed** on Linux (handles multiple OpenMP better)
 
 ### Ontology Data Ingestion (No FactoidWiki)
 ```bash
