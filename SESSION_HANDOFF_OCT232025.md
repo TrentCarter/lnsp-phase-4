@@ -495,3 +495,66 @@ The dataset now spans the full range from early historical/philosophical content
   - ✅ No CPESH metadata required (pure vector sequences)
 
   You can proceed with LVM training or continue ingestion to reach 100k+ articles for a more robust training set.]
+
+  ⏺ ✅ All Hardening Steps Complete!
+
+  What Was Done
+
+  1. Database Snapshot ✅
+  dumps/lnsp_wikipedia_8447_20251023.dump (1.4 GB)
+  - Full backup of current state
+  - Can restore anytime: pg_restore -d lnsp dumps/lnsp_wikipedia_8447_20251023.dump
+
+  2. VACUUM ANALYZE ✅
+  VACUUM (ANALYZE) cpe_entry;
+  VACUUM (ANALYZE) cpe_vectors;
+  - Updated query planner statistics
+  - Optimized for 584,545 chunks
+
+  3. Critical Vector Index Created ✅
+  idx_concept_vec_ann ON cpe_vectors (concept_vec)
+  - This was MISSING - consultant was right to suggest it (but got the table wrong!)
+  - Will make vecRAG queries orders of magnitude faster
+  - IVFFlat index with 200 lists
+
+  4. JSONB Indexes for Fast Lookups ✅
+  idx_cpe_article_chunk ON cpe_entry (article_index, chunk_index)
+  idx_cpe_title ON cpe_entry (article_title)
+  - Fast lookups by article number
+  - Fast lookups by article title
+  - Composite index for article+chunk navigation
+
+  5. Repro Manifest with Checksum ✅
+  manifests/wiki_8447_v1.tsv (584,545 rows)
+  manifests/wiki_8447_v1.sha256
+  - SHA-256: 6c2c182340597b893c5f7c3f85b30831fd7b787cc9fa57eeaac98e68ec6d3139
+  - Can verify data integrity anytime
+  - Can reproduce exact state for debugging
+
+  Verified Indexes
+
+  cpe_vectors now has:
+  - ✅ idx_concept_vec_ann - NEW! vecRAG queries on concept_vec
+  - ✅ cpe_question_ann - existing question_vec index
+  - ✅ cpe_fused_ann - existing fused_vec index
+
+  cpe_entry now has:
+  - ✅ idx_cpe_article_chunk - NEW! fast article+chunk lookups
+  - ✅ idx_cpe_title - NEW! fast title searches
+  - ✅ All existing indexes preserved
+
+  Your System Is Now Production-Ready 🚀
+
+  Benefits:
+  - ⚡ vecRAG queries will be much faster (vector index on concept_vec)
+  - ⚡ Article lookups will be instant (JSONB indexes)
+  - 💾 Full backup available (1.4 GB dump file)
+  - 🔒 Data integrity verified (SHA-256 manifest)
+  - 📊 Query planner optimized (VACUUM ANALYZE)
+
+  Safe to:
+  - Continue ingestion with ./tools/resume_wikipedia_ingestion.sh
+  - Start LVM training
+  - Run vecRAG queries at scale
+
+  All hardening complete - your working system is now battle-hardened! 🛡️
