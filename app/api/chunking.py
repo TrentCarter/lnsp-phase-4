@@ -200,6 +200,67 @@ app.add_middleware(
 
 
 # ============================================================================
+# Helper Functions
+# ============================================================================
+
+def add_structural_breaks(text: str) -> str:
+    """
+    Add explicit break markers at structural boundaries to prevent mid-section splits.
+
+    Detects:
+    - Section headers (References, Works, Honours, Personal life, etc.)
+    - Markdown headers (## Header)
+    - Bullet/numbered lists
+    - Tables and infoboxes
+
+    Returns text with <<STRUCTURAL_BREAK>> markers inserted.
+    """
+    import re
+
+    # Define structural patterns
+    section_headers = [
+        r'^(References?|External links?|Works?|Honours?|Personal life|Early life|Career|'
+        r'See also|Notes|Bibliography|Further reading|Electoral history|Awards?|'
+        r'Publications?|Legacy|Death|Controversy|Criticism|Reception)$',
+    ]
+
+    lines = text.split('\n')
+    processed_lines = []
+
+    for i, line in enumerate(lines):
+        line_stripped = line.strip()
+
+        # Check for section headers (standalone capitalized lines)
+        if line_stripped and len(line_stripped) < 60:
+            # Markdown headers
+            if re.match(r'^#{1,6}\s+', line_stripped):
+                processed_lines.append('\n<<STRUCTURAL_BREAK>>\n')
+                processed_lines.append(line)
+                continue
+
+            # Common Wikipedia section headers
+            for pattern in section_headers:
+                if re.match(pattern, line_stripped, re.IGNORECASE):
+                    processed_lines.append('\n<<STRUCTURAL_BREAK>>\n')
+                    processed_lines.append(line)
+                    continue
+
+        # Bullet/numbered lists
+        if re.match(r'^\s*[-*•]\s+', line_stripped) or re.match(r'^\s*\d+\.\s+', line_stripped):
+            if i > 0 and not re.match(r'^\s*[-*•]\s+', lines[i-1].strip()):
+                processed_lines.append('\n<<STRUCTURAL_BREAK>>\n')
+
+        # Tables (detect table markers)
+        if re.match(r'^\s*\|', line_stripped):
+            if i > 0 and not re.match(r'^\s*\|', lines[i-1].strip()):
+                processed_lines.append('\n<<STRUCTURAL_BREAK>>\n')
+
+        processed_lines.append(line)
+
+    return '\n'.join(processed_lines)
+
+
+# ============================================================================
 # Global State
 # ============================================================================
 
@@ -381,16 +442,33 @@ async def chunk_text(request: ChunkRequest):
             chunker = None  # No chunker object for simple mode
 
         elif request.mode == ChunkingMode.SEMANTIC:
-            # Use cached embedding model (FAST - no reload)
+            # IMPROVED SEMANTIC CHUNKING
+            # 1. Add structural breaks to prevent mid-section splits
+            preprocessed_text = add_structural_breaks(request.text)
+
+            # 2. Split on structural breaks first
+            structural_segments = preprocessed_text.split('<<STRUCTURAL_BREAK>>')
+
+            # 3. Use improved semantic splitter settings
             splitter = SemanticSplitterNodeParser(
-                buffer_size=1,
-                breakpoint_percentile_threshold=request.breakpoint_threshold,
+                buffer_size=2,  # Smoother boundary detection (was 1)
+                breakpoint_percentile_threshold=68,  # Less aggressive (was 75+)
                 embed_model=state.cached_embed_model
             )
 
-            # Create document and split
-            doc = Document(text=request.text, metadata=request.metadata or {})
-            nodes = splitter.get_nodes_from_documents([doc])
+            # 4. Process each structural segment independently
+            all_nodes = []
+            for segment in structural_segments:
+                segment = segment.strip()
+                if not segment or len(segment) < request.min_chunk_size:
+                    continue
+
+                doc = Document(text=segment, metadata=request.metadata or {})
+                nodes = splitter.get_nodes_from_documents([doc])
+                all_nodes.extend(nodes)
+
+            # Use all_nodes instead of nodes for the rest of the processing
+            nodes = all_nodes
 
             # Convert to Chunk objects with size enforcement
             chunks = []
@@ -455,8 +533,9 @@ async def chunk_text(request: ChunkRequest):
                         metadata={
                             **(request.metadata or {}),
                             "embedding_model": state.embed_model,
-                            "buffer_size": 1,
-                            "breakpoint_threshold": request.breakpoint_threshold
+                            "buffer_size": 2,
+                            "breakpoint_threshold": 68,
+                            "structural_preprocessing": True
                         }
                     )
                     chunks.append(chunk)

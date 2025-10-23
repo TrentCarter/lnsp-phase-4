@@ -155,6 +155,8 @@ class ChunkInput(BaseModel):
     """Single chunk to ingest"""
     text: str = Field(..., description="Chunk text content", min_length=1)  # Allow short ontology terms
     source_document: Optional[str] = Field(default="web_input", description="Source document name")
+    article_title: Optional[str] = Field(default=None, description="Article title for Wikipedia chunks")
+    article_index: Optional[int] = Field(default=None, description="Article index for correlation (UUID → Article mapping)")
     chunk_index: Optional[int] = Field(default=0, description="Position in original document")
     document_id: Optional[str] = Field(default=None, description="Document identifier for grouping chunks (used as batch_id)")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional metadata")
@@ -574,7 +576,12 @@ def ingest_chunk(
             "modifier_code": modifier_code,
             "content_type": "factual",
             "dataset_source": dataset_source,
-            "chunk_position": {"index": chunk.chunk_index, "source": chunk.source_document},
+            "chunk_position": {
+                "article_title": chunk.article_title,
+                "article_index": chunk.article_index,
+                "chunk_index": chunk.chunk_index,
+                "source": chunk.source_document
+            },
             "relations_text": [],
             "echo_score": None,
             "validation_status": "pending",
@@ -873,7 +880,12 @@ def write_to_db_phase(intermediate: IntermediateChunkData) -> IngestResult:
             "modifier_code": intermediate.modifier_code,
             "content_type": "factual",
             "dataset_source": intermediate.dataset_source,
-            "chunk_position": {"index": intermediate.chunk.chunk_index, "source": intermediate.chunk.source_document},
+            "chunk_position": {
+                "article_title": intermediate.chunk.article_title,
+                "article_index": intermediate.chunk.article_index,
+                "chunk_index": intermediate.chunk.chunk_index,
+                "source": intermediate.chunk.source_document
+            },
             "relations_text": [],
             "echo_score": None,
             "validation_status": "pending",
@@ -1150,7 +1162,12 @@ async def ingest_chunks_endpoint(request: IngestRequest):
                 "modifier_code": intermediate.modifier_code,
                 "content_type": "factual",
                 "dataset_source": intermediate.dataset_source,
-                "chunk_position": {"index": intermediate.chunk.chunk_index, "source": intermediate.chunk.source_document},
+                "chunk_position": {
+                    "article_title": intermediate.chunk.article_title,
+                    "article_index": intermediate.chunk.article_index,
+                    "chunk_index": intermediate.chunk.chunk_index,
+                    "source": intermediate.chunk.source_document
+                },
                 "relations_text": [],
                 "echo_score": None,
                 "validation_status": "pending",

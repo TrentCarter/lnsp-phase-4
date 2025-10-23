@@ -1,0 +1,1786 @@
+{
+  "timestamp": "2025-10-23T13:59:43.149406",
+  "range_checked": {
+    "start": 1,
+    "end": 420
+  },
+  "stats": {
+    "total_articles": 420,
+    "total_chunks": 69479,
+    "unique_article_indices": 420,
+    "min_article_index": 1,
+    "max_article_index": 420
+  },
+  "missing_articles": [],
+  "chunk_counts": {
+    "1": 284,
+    "2": 152,
+    "3": 50,
+    "4": 548,
+    "5": 314,
+    "6": 664,
+    "7": 431,
+    "8": 64,
+    "9": 21,
+    "10": 294,
+    "11": 11,
+    "12": 19,
+    "13": 51,
+    "14": 241,
+    "15": 284,
+    "16": 27,
+    "17": 28,
+    "18": 569,
+    "19": 242,
+    "20": 316,
+    "21": 24,
+    "22": 389,
+    "23": 4,
+    "24": 32,
+    "25": 184,
+    "26": 3,
+    "27": 226,
+    "28": 1107,
+    "29": 395,
+    "30": 168,
+    "31": 328,
+    "32": 375,
+    "33": 59,
+    "34": 48,
+    "35": 277,
+    "36": 577,
+    "37": 543,
+    "38": 392,
+    "39": 173,
+    "40": 2,
+    "41": 2,
+    "42": 198,
+    "43": 236,
+    "44": 285,
+    "45": 134,
+    "46": 11,
+    "47": 56,
+    "48": 48,
+    "49": 77,
+    "50": 250,
+    "51": 179,
+    "52": 233,
+    "53": 360,
+    "54": 58,
+    "55": 2,
+    "56": 501,
+    "57": 342,
+    "58": 184,
+    "59": 75,
+    "60": 581,
+    "61": 207,
+    "62": 55,
+    "63": 322,
+    "64": 41,
+    "65": 300,
+    "66": 155,
+    "67": 33,
+    "68": 3,
+    "69": 173,
+    "70": 101,
+    "71": 115,
+    "72": 30,
+    "73": 273,
+    "74": 457,
+    "75": 236,
+    "76": 320,
+    "77": 534,
+    "78": 434,
+    "79": 50,
+    "80": 58,
+    "81": 131,
+    "82": 8,
+    "83": 84,
+    "84": 12,
+    "85": 278,
+    "86": 131,
+    "87": 428,
+    "88": 39,
+    "89": 57,
+    "90": 496,
+    "91": 659,
+    "92": 627,
+    "93": 118,
+    "94": 7,
+    "95": 531,
+    "96": 174,
+    "97": 172,
+    "98": 385,
+    "99": 26,
+    "100": 343,
+    "101": 8,
+    "102": 679,
+    "103": 34,
+    "104": 445,
+    "105": 32,
+    "106": 6,
+    "107": 4,
+    "108": 171,
+    "109": 575,
+    "110": 70,
+    "111": 142,
+    "112": 198,
+    "113": 33,
+    "114": 22,
+    "115": 37,
+    "116": 417,
+    "117": 18,
+    "118": 50,
+    "119": 210,
+    "120": 123,
+    "121": 267,
+    "122": 376,
+    "123": 547,
+    "124": 508,
+    "125": 16,
+    "126": 245,
+    "127": 69,
+    "128": 261,
+    "129": 201,
+    "130": 176,
+    "131": 202,
+    "132": 665,
+    "133": 28,
+    "134": 395,
+    "135": 226,
+    "136": 110,
+    "137": 399,
+    "138": 198,
+    "139": 507,
+    "140": 113,
+    "141": 15,
+    "142": 797,
+    "143": 481,
+    "144": 101,
+    "145": 54,
+    "146": 400,
+    "147": 518,
+    "148": 11,
+    "149": 73,
+    "150": 49,
+    "151": 131,
+    "152": 489,
+    "153": 57,
+    "154": 1,
+    "155": 112,
+    "156": 133,
+    "157": 172,
+    "158": 26,
+    "159": 133,
+    "160": 143,
+    "161": 379,
+    "162": 178,
+    "163": 113,
+    "164": 233,
+    "165": 214,
+    "166": 377,
+    "167": 39,
+    "168": 363,
+    "169": 47,
+    "170": 131,
+    "171": 7,
+    "172": 23,
+    "173": 83,
+    "174": 50,
+    "175": 23,
+    "176": 249,
+    "177": 115,
+    "178": 18,
+    "179": 166,
+    "180": 40,
+    "181": 85,
+    "182": 211,
+    "183": 3,
+    "184": 273,
+    "185": 19,
+    "186": 387,
+    "187": 163,
+    "188": 87,
+    "189": 232,
+    "190": 66,
+    "191": 11,
+    "192": 98,
+    "193": 140,
+    "194": 243,
+    "195": 133,
+    "196": 438,
+    "197": 248,
+    "198": 401,
+    "199": 196,
+    "200": 35,
+    "201": 77,
+    "202": 20,
+    "203": 13,
+    "204": 280,
+    "205": 111,
+    "206": 40,
+    "207": 28,
+    "208": 122,
+    "209": 19,
+    "210": 19,
+    "211": 18,
+    "212": 17,
+    "213": 20,
+    "214": 21,
+    "215": 127,
+    "216": 181,
+    "217": 342,
+    "218": 56,
+    "219": 18,
+    "220": 168,
+    "221": 23,
+    "222": 217,
+    "223": 291,
+    "224": 21,
+    "225": 198,
+    "226": 292,
+    "227": 152,
+    "228": 107,
+    "229": 28,
+    "230": 490,
+    "231": 6,
+    "232": 1,
+    "233": 49,
+    "234": 96,
+    "235": 88,
+    "236": 46,
+    "237": 117,
+    "238": 58,
+    "239": 214,
+    "240": 16,
+    "241": 38,
+    "242": 2,
+    "243": 11,
+    "244": 376,
+    "245": 159,
+    "246": 44,
+    "247": 31,
+    "248": 241,
+    "249": 40,
+    "250": 104,
+    "251": 58,
+    "252": 468,
+    "253": 67,
+    "254": 203,
+    "255": 50,
+    "256": 22,
+    "257": 25,
+    "258": 6,
+    "259": 13,
+    "260": 314,
+    "261": 358,
+    "262": 74,
+    "263": 115,
+    "264": 9,
+    "265": 172,
+    "266": 653,
+    "267": 159,
+    "268": 93,
+    "269": 117,
+    "270": 440,
+    "271": 124,
+    "272": 24,
+    "273": 2,
+    "274": 57,
+    "275": 63,
+    "276": 279,
+    "277": 407,
+    "278": 55,
+    "279": 86,
+    "280": 182,
+    "281": 1,
+    "282": 116,
+    "283": 139,
+    "284": 429,
+    "285": 15,
+    "286": 14,
+    "287": 437,
+    "288": 453,
+    "289": 59,
+    "290": 351,
+    "291": 105,
+    "292": 2,
+    "293": 195,
+    "294": 31,
+    "295": 216,
+    "296": 1,
+    "297": 124,
+    "298": 1,
+    "299": 138,
+    "300": 41,
+    "301": 250,
+    "302": 45,
+    "303": 292,
+    "304": 315,
+    "305": 238,
+    "306": 290,
+    "307": 144,
+    "308": 126,
+    "309": 38,
+    "310": 60,
+    "311": 445,
+    "312": 348,
+    "313": 206,
+    "314": 3,
+    "315": 56,
+    "316": 19,
+    "317": 129,
+    "318": 561,
+    "319": 95,
+    "320": 150,
+    "321": 55,
+    "322": 177,
+    "323": 20,
+    "324": 199,
+    "325": 12,
+    "326": 144,
+    "327": 9,
+    "328": 89,
+    "329": 81,
+    "330": 197,
+    "331": 86,
+    "332": 506,
+    "333": 83,
+    "334": 69,
+    "335": 74,
+    "336": 32,
+    "337": 167,
+    "338": 107,
+    "339": 62,
+    "340": 160,
+    "341": 158,
+    "342": 50,
+    "343": 28,
+    "344": 3,
+    "345": 80,
+    "346": 211,
+    "347": 70,
+    "348": 48,
+    "349": 58,
+    "350": 223,
+    "351": 171,
+    "352": 198,
+    "353": 98,
+    "354": 61,
+    "355": 182,
+    "356": 81,
+    "357": 33,
+    "358": 14,
+    "359": 18,
+    "360": 17,
+    "361": 59,
+    "362": 31,
+    "363": 266,
+    "364": 92,
+    "365": 278,
+    "366": 350,
+    "367": 240,
+    "368": 73,
+    "369": 187,
+    "370": 7,
+    "371": 292,
+    "372": 44,
+    "373": 57,
+    "374": 135,
+    "375": 27,
+    "376": 51,
+    "377": 418,
+    "378": 95,
+    "379": 195,
+    "380": 269,
+    "381": 40,
+    "382": 334,
+    "383": 17,
+    "384": 194,
+    "385": 16,
+    "386": 37,
+    "387": 140,
+    "388": 30,
+    "389": 80,
+    "390": 244,
+    "391": 36,
+    "392": 114,
+    "393": 73,
+    "394": 2,
+    "395": 11,
+    "396": 57,
+    "397": 276,
+    "398": 348,
+    "399": 100,
+    "400": 2,
+    "401": 182,
+    "402": 32,
+    "403": 134,
+    "404": 12,
+    "405": 14,
+    "406": 122,
+    "407": 145,
+    "408": 65,
+    "409": 192,
+    "410": 201,
+    "411": 16,
+    "412": 29,
+    "413": 44,
+    "414": 239,
+    "415": 159,
+    "416": 119,
+    "417": 121,
+    "418": 98,
+    "419": 20,
+    "420": 134
+  },
+  "samples": {
+    "1": {
+      "chunk_count": 284,
+      "sample_chunks": [
+        {
+          "cpe_id": "6bcc4bd3-c5e8-4794-8af3-ee09e284f650",
+          "concept_text": "Anarchism is a political philosophy and movement that is skeptical of all justifications for authority and seeks to abolish the institutions it claims maintain unnecessary coercion and hierarchy, typically including nation-states, and capitalism.",
+          "chunk_position": {
+            "source": "wikipedia_1",
+            "chunk_index": 0,
+            "article_index": 1,
+            "article_title": "Anarchism"
+          },
+          "created_at": "2025-10-23T08:44:18.272083-04:00"
+        },
+        {
+          "cpe_id": "9975eb6d-26b1-4ca2-84ad-47a4df3daf5b",
+          "concept_text": "Anarchism advocates for the replacement of the state with stateless societies and voluntary free associations.",
+          "chunk_position": {
+            "source": "wikipedia_1",
+            "chunk_index": 1,
+            "article_index": 1,
+            "article_title": "Anarchism"
+          },
+          "created_at": "2025-10-23T08:44:18.272083-04:00"
+        },
+        {
+          "cpe_id": "784784be-ef64-40b0-a08f-662e91ebebac",
+          "concept_text": "As a historically left-wing movement, this reading of anarchism is placed on the farthest left of the political spectrum, usually described as the libertarian wing of the socialist movement (libertarian socialism).",
+          "chunk_position": {
+            "source": "wikipedia_1",
+            "chunk_index": 2,
+            "article_index": 1,
+            "article_title": "Anarchism"
+          },
+          "created_at": "2025-10-23T08:44:18.272083-04:00"
+        },
+        {
+          "cpe_id": "668f98c1-fbe3-44e8-8daf-cf4ae06c3dd8",
+          "concept_text": "Humans have lived in societies without formal hierarchies long before the establishment of states, realms, or empires.",
+          "chunk_position": {
+            "source": "wikipedia_1",
+            "chunk_index": 3,
+            "article_index": 1,
+            "article_title": "Anarchism"
+          },
+          "created_at": "2025-10-23T08:44:18.272083-04:00"
+        },
+        {
+          "cpe_id": "7ed52288-22c0-45e7-9221-1da7e9436816",
+          "concept_text": "With the rise of organised hierarchical bodies, scepticism toward authority also rose.",
+          "chunk_position": {
+            "source": "wikipedia_1",
+            "chunk_index": 4,
+            "article_index": 1,
+            "article_title": "Anarchism"
+          },
+          "created_at": "2025-10-23T08:44:18.272083-04:00"
+        }
+      ]
+    },
+    "210": {
+      "chunk_count": 19,
+      "sample_chunks": [
+        {
+          "cpe_id": "31b2b2c4-9350-4e81-bab9-dcf6232b3a6b",
+          "concept_text": "Events  Pre-1600  240 – Shapur I becomes co-emperor of the Sasanian Empire with his father Ardashir I.  467 – Anthemius is elevated to Emperor of the Western Roman Empire.  627 – King Edwin of Northumbria is converted to Christianity by Paulinus, bishop of York. 1012 – Duke Oldřich of Bohemia deposes and blinds his brother Jaromír, who flees to Poland. 1204 – The Crusaders of the Fourth Crusade breach the walls of Constantinople and enter the city, which they completely occupy the following day.  1601–1900 1606 – The Union Flag is adopted as the flag of English and Scottish ships. 1776 – American Revolution: With the Halifax Resolves, the North Carolina Provincial Congress authorizes its Congressional delegation to vote for independence from Britain. 1807 – The Froberg mutiny on Malta ends when the remaining mutineers blow up the magazine of Fort Ricasoli. 1820 – Alexander Ypsilantis is declared leader of Filiki Eteria, a secret organization to overthrow Ottoman rule over Greece. 1831 – Soldiers marching on the Broughton Suspension Bridge in Manchester, England, cause it to collapse. 1861 – American Civil War: Battle of Fort Sumter.",
+          "chunk_position": {
+            "source": "wikipedia_210",
+            "chunk_index": 0,
+            "article_index": 210,
+            "article_title": "April 12"
+          },
+          "created_at": "2025-10-23T08:54:11.978401-04:00"
+        },
+        {
+          "cpe_id": "eb1108f8-ad0c-40a3-82e7-7d931074ab2c",
+          "concept_text": "The war begins with Confederate forces firing on Fort Sumter, in the harbor of Charleston, South Carolina. 1862 – American Civil War: The Andrews Raid (the Great Locomotive Chase) occurs, starting from Big Shanty, Georgia (now Kennesaw). 1864 – American Civil War: The Battle of Fort Pillow: Confederate forces kill most of the African American soldiers that surrendered at Fort Pillow, Tennessee. 1865 – American Civil War: Mobile, Alabama, falls to the Union Army. 1877 – The United Kingdom annexes the Transvaal. 1900 – One day after its enactment by the Congress, President William McKinley signs the Foraker Act into law, giving Puerto Rico limited self-rule.  1901–present 1910 – , one of the last pre-dreadnought battleships built by the Austro-Hungarian Navy, is launched. 1917 – World War I: Canadian forces successfully complete the taking of Vimy Ridge from the Germans. 1927 – Shanghai massacre of 1927: Chiang Kai-shek orders the Chinese Communist Party members executed in Shanghai, ending the First United Front.   1927   – Rocksprings, Texas is hit by an F5 tornado that destroys 235 of the 247 buildings in the town, kills 72 townspeople and injures 205; third deadliest tornado in Texas history. 1928 – The Bremen, a German Junkers W 33 type aircraft, takes off for the first successful transatlantic aeroplane flight from east to west. 1934 – The strongest surface wind gust in the world at the time of 231 mph, is measured on the summit of Mount Washington, New Hampshire.",
+          "chunk_position": {
+            "source": "wikipedia_210",
+            "chunk_index": 1,
+            "article_index": 210,
+            "article_title": "April 12"
+          },
+          "created_at": "2025-10-23T08:54:11.978401-04:00"
+        },
+        {
+          "cpe_id": "79329284-1e8f-4d59-9c2a-b94bc57217d9",
+          "concept_text": "It has since been surpassed.   1934   – The U. S. Auto-Lite strike begins, culminating in a five-day melee between Ohio National Guard troops and 6,000 strikers and picketers. 1937 – Sir Frank Whittle ground-tests the first jet engine designed to power an aircraft, at Rugby, England. 1945 – U. S. President Franklin D.",
+          "chunk_position": {
+            "source": "wikipedia_210",
+            "chunk_index": 2,
+            "article_index": 210,
+            "article_title": "April 12"
+          },
+          "created_at": "2025-10-23T08:54:11.978401-04:00"
+        },
+        {
+          "cpe_id": "070c2ff0-9830-4436-af35-6850810f7af0",
+          "concept_text": "Roosevelt dies in office; Vice President Harry S. Truman becomes President upon Roosevelt's death.   1945   – World War II: The U. S. Ninth Army under General William H.",
+          "chunk_position": {
+            "source": "wikipedia_210",
+            "chunk_index": 3,
+            "article_index": 210,
+            "article_title": "April 12"
+          },
+          "created_at": "2025-10-23T08:54:11.978401-04:00"
+        },
+        {
+          "cpe_id": "0fa51253-4b71-4154-a989-1b50f962becd",
+          "concept_text": "Truman becomes President upon Roosevelt's death.   1945   – World War II: The U. S. Ninth Army under General William H.",
+          "chunk_position": {
+            "source": "wikipedia_210",
+            "chunk_index": 4,
+            "article_index": 210,
+            "article_title": "April 12"
+          },
+          "created_at": "2025-10-23T08:54:11.978401-04:00"
+        }
+      ]
+    },
+    "420": {
+      "chunk_count": 134,
+      "sample_chunks": [
+        {
+          "cpe_id": "4ee48f6a-89cf-4e56-95e9-f7b5e4ef4b57",
+          "concept_text": "Acacia s.l. (pronounced  or ), known commonly as mimosa, acacia, thorntree or wattle,  babul [India/hindi] is a polyphyletic genus of shrubs and trees belonging to the subfamily Mimosoideae of the family Fabaceae.",
+          "chunk_position": {
+            "source": "wikipedia_420",
+            "chunk_index": 0,
+            "article_index": 420,
+            "article_title": "Acacia sensu lato"
+          },
+          "created_at": "2025-10-23T09:01:12.173804-04:00"
+        },
+        {
+          "cpe_id": "fc016b2e-6908-4a61-b58e-388e902b6fd7",
+          "concept_text": "It was described by the Swedish botanist Carl Linnaeus in 1773 based on the African species Acacia nilotica.",
+          "chunk_position": {
+            "source": "wikipedia_420",
+            "chunk_index": 1,
+            "article_index": 420,
+            "article_title": "Acacia sensu lato"
+          },
+          "created_at": "2025-10-23T09:01:12.173804-04:00"
+        },
+        {
+          "cpe_id": "6dc357d7-18db-4014-916e-9959bb1797bc",
+          "concept_text": "Many non-Australian species tend to be thorny, whereas the majority of Australian acacias are not.",
+          "chunk_position": {
+            "source": "wikipedia_420",
+            "chunk_index": 2,
+            "article_index": 420,
+            "article_title": "Acacia sensu lato"
+          },
+          "created_at": "2025-10-23T09:01:12.173804-04:00"
+        },
+        {
+          "cpe_id": "894a825e-7542-4424-8d70-bd928457fe0b",
+          "concept_text": "All species are pod-bearing, with sap and leaves often bearing large amounts of tannins and condensed tannins that historically found use as pharmaceuticals and preservatives.",
+          "chunk_position": {
+            "source": "wikipedia_420",
+            "chunk_index": 3,
+            "article_index": 420,
+            "article_title": "Acacia sensu lato"
+          },
+          "created_at": "2025-10-23T09:01:12.173804-04:00"
+        },
+        {
+          "cpe_id": "cf9a4c91-5822-4825-ac3b-e791fe199cf7",
+          "concept_text": "The genus Acacia constitutes, in its traditional circumspection, the second largest genus in Fabaceae (Astragalus being the largest), with roughly 1,300 species, about 960 of them native to Australia, with the remainder spread around the tropical to warm-temperate regions of both hemispheres, including Europe, Africa, southern Asia, and the Americas (see List of Acacia species).",
+          "chunk_position": {
+            "source": "wikipedia_420",
+            "chunk_index": 4,
+            "article_index": 420,
+            "article_title": "Acacia sensu lato"
+          },
+          "created_at": "2025-10-23T09:01:12.173804-04:00"
+        }
+      ]
+    },
+    "72": {
+      "chunk_count": 30,
+      "sample_chunks": [
+        {
+          "cpe_id": "d1345942-0b9d-4d92-a4c8-5be128d1b913",
+          "concept_text": "An adventure is an exciting experience or undertaking that is typically bold, sometimes risky.",
+          "chunk_position": {
+            "source": "wikipedia_72",
+            "chunk_index": 0,
+            "article_index": 72,
+            "article_title": "Adventure"
+          },
+          "created_at": "2025-10-23T08:47:59.856963-04:00"
+        },
+        {
+          "cpe_id": "5ccead04-128a-44ba-bcd0-6076329056fe",
+          "concept_text": "Adventures may be activities with danger such as traveling, exploring, skydiving, mountain climbing, scuba diving, river rafting, or other extreme sports.",
+          "chunk_position": {
+            "source": "wikipedia_72",
+            "chunk_index": 1,
+            "article_index": 72,
+            "article_title": "Adventure"
+          },
+          "created_at": "2025-10-23T08:47:59.856963-04:00"
+        },
+        {
+          "cpe_id": "5b82897a-dd24-49c0-be01-554d1de503c7",
+          "concept_text": "Adventures are often undertaken to create psychological arousal or in order to achieve a greater goal, such as the pursuit of knowledge that can only be obtained by such activities.",
+          "chunk_position": {
+            "source": "wikipedia_72",
+            "chunk_index": 2,
+            "article_index": 72,
+            "article_title": "Adventure"
+          },
+          "created_at": "2025-10-23T08:47:59.856963-04:00"
+        },
+        {
+          "cpe_id": "13d504a1-ef8d-4bc6-88a9-a45cfa962bac",
+          "concept_text": "Motivation Adventurous experiences create psychological arousal, which can be interpreted as negative (e.g. fear) or positive (e.g. flow).",
+          "chunk_position": {
+            "source": "wikipedia_72",
+            "chunk_index": 3,
+            "article_index": 72,
+            "article_title": "Adventure"
+          },
+          "created_at": "2025-10-23T08:47:59.856963-04:00"
+        },
+        {
+          "cpe_id": "dac1a568-2b85-40da-ab4d-5eb9f9853f80",
+          "concept_text": "For some people, adventure becomes a major pursuit in and of itself.",
+          "chunk_position": {
+            "source": "wikipedia_72",
+            "chunk_index": 4,
+            "article_index": 72,
+            "article_title": "Adventure"
+          },
+          "created_at": "2025-10-23T08:47:59.856963-04:00"
+        }
+      ]
+    },
+    "369": {
+      "chunk_count": 187,
+      "sample_chunks": [
+        {
+          "cpe_id": "0e232569-c1c6-46d5-9a88-a27ebab3c480",
+          "concept_text": "The Andes ( ), Andes Mountains or Andean Mountain Range (; ) are the longest continental mountain range in the world, forming a continuous highland along the western edge of South America.",
+          "chunk_position": {
+            "source": "wikipedia_369",
+            "chunk_index": 0,
+            "article_index": 369,
+            "article_title": "Andes"
+          },
+          "created_at": "2025-10-23T08:59:43.274926-04:00"
+        },
+        {
+          "cpe_id": "822cda2b-b718-40a7-8c29-0fe54f6df3ab",
+          "concept_text": "The range is  long,  wide (widest between 18°S – 20°S latitude), and has an average height of about .",
+          "chunk_position": {
+            "source": "wikipedia_369",
+            "chunk_index": 1,
+            "article_index": 369,
+            "article_title": "Andes"
+          },
+          "created_at": "2025-10-23T08:59:43.274926-04:00"
+        },
+        {
+          "cpe_id": "b7c1620a-4c47-4dd6-8e82-207618df343a",
+          "concept_text": "The Andes extend from north to south through seven South American countries: Venezuela, Colombia, Ecuador, Peru, Bolivia, Chile and Argentina.",
+          "chunk_position": {
+            "source": "wikipedia_369",
+            "chunk_index": 2,
+            "article_index": 369,
+            "article_title": "Andes"
+          },
+          "created_at": "2025-10-23T08:59:43.274926-04:00"
+        },
+        {
+          "cpe_id": "9ac33f33-5f5f-4cea-9e81-f4b6663d014d",
+          "concept_text": "Along their length, the Andes are split into several ranges, separated by intermediate depressions.",
+          "chunk_position": {
+            "source": "wikipedia_369",
+            "chunk_index": 3,
+            "article_index": 369,
+            "article_title": "Andes"
+          },
+          "created_at": "2025-10-23T08:59:43.274926-04:00"
+        },
+        {
+          "cpe_id": "4a058523-1749-4a7a-8cdf-205666caedfa",
+          "concept_text": "The Andes are the location of several high plateaus—some of which host major cities such as Quito, Bogotá, Cali, Arequipa, Medellín, Bucaramanga, Sucre, Mérida, El Alto and La Paz.",
+          "chunk_position": {
+            "source": "wikipedia_369",
+            "chunk_index": 4,
+            "article_index": 369,
+            "article_title": "Andes"
+          },
+          "created_at": "2025-10-23T08:59:43.274926-04:00"
+        }
+      ]
+    },
+    "235": {
+      "chunk_count": 88,
+      "sample_chunks": [
+        {
+          "cpe_id": "1c80d9a8-5c81-47e0-9fcc-111eaf4d0f53",
+          "concept_text": "All Souls' Day, also called The Commemoration of All the Faithful Departed, is a day of prayer and remembrance for the faithful departed, observed by certain Christian denominations on 2 November.",
+          "chunk_position": {
+            "source": "wikipedia_235",
+            "chunk_index": 0,
+            "article_index": 235,
+            "article_title": "All Souls' Day"
+          },
+          "created_at": "2025-10-23T08:55:07.277813-04:00"
+        },
+        {
+          "cpe_id": "8e20892a-14d0-4bda-abd6-61b5878bca2f",
+          "concept_text": "Through prayer, intercessions, alms and visits to cemeteries, people commemorate the poor souls in purgatory and gain them indulgences.",
+          "chunk_position": {
+            "source": "wikipedia_235",
+            "chunk_index": 1,
+            "article_index": 235,
+            "article_title": "All Souls' Day"
+          },
+          "created_at": "2025-10-23T08:55:07.277813-04:00"
+        },
+        {
+          "cpe_id": "38a194e9-044c-4ec6-b5c6-538f44698f38",
+          "concept_text": "In Western Christianity, including Roman Catholicism and certain parts of Lutheranism and Anglicanism, All Souls' Day is the third day of Allhallowtide, after All Saints' Day (1 November) and All Hallows' Eve (October 31).",
+          "chunk_position": {
+            "source": "wikipedia_235",
+            "chunk_index": 2,
+            "article_index": 235,
+            "article_title": "All Souls' Day"
+          },
+          "created_at": "2025-10-23T08:55:07.277813-04:00"
+        },
+        {
+          "cpe_id": "19c08a0c-ab37-46c0-babe-e12f6627696e",
+          "concept_text": "Before the standardization of Western Christian observance on 2 November by St.",
+          "chunk_position": {
+            "source": "wikipedia_235",
+            "chunk_index": 3,
+            "article_index": 235,
+            "article_title": "All Souls' Day"
+          },
+          "created_at": "2025-10-23T08:55:07.277813-04:00"
+        },
+        {
+          "cpe_id": "4a7bb1dd-72ab-4ad8-8d80-6a413bcb4ecb",
+          "concept_text": "Odilo of Cluny in the 10th century, many Catholic congregations celebrated All Souls Day on various dates during the Easter season as it is still observed in some Eastern Orthodox Church, Eastern Catholic and Eastern Lutheran churches.",
+          "chunk_position": {
+            "source": "wikipedia_235",
+            "chunk_index": 4,
+            "article_index": 235,
+            "article_title": "All Souls' Day"
+          },
+          "created_at": "2025-10-23T08:55:07.277813-04:00"
+        }
+      ]
+    }
+  },
+  "issues": {
+    "missing_count": 0,
+    "low_chunk_articles": [
+      [
+        3,
+        50
+      ],
+      [
+        8,
+        64
+      ],
+      [
+        9,
+        21
+      ],
+      [
+        11,
+        11
+      ],
+      [
+        12,
+        19
+      ],
+      [
+        13,
+        51
+      ],
+      [
+        16,
+        27
+      ],
+      [
+        17,
+        28
+      ],
+      [
+        21,
+        24
+      ],
+      [
+        23,
+        4
+      ],
+      [
+        24,
+        32
+      ],
+      [
+        26,
+        3
+      ],
+      [
+        33,
+        59
+      ],
+      [
+        34,
+        48
+      ],
+      [
+        40,
+        2
+      ],
+      [
+        41,
+        2
+      ],
+      [
+        46,
+        11
+      ],
+      [
+        47,
+        56
+      ],
+      [
+        48,
+        48
+      ],
+      [
+        49,
+        77
+      ],
+      [
+        54,
+        58
+      ],
+      [
+        55,
+        2
+      ],
+      [
+        59,
+        75
+      ],
+      [
+        62,
+        55
+      ],
+      [
+        64,
+        41
+      ],
+      [
+        67,
+        33
+      ],
+      [
+        68,
+        3
+      ],
+      [
+        72,
+        30
+      ],
+      [
+        79,
+        50
+      ],
+      [
+        80,
+        58
+      ],
+      [
+        82,
+        8
+      ],
+      [
+        84,
+        12
+      ],
+      [
+        88,
+        39
+      ],
+      [
+        89,
+        57
+      ],
+      [
+        94,
+        7
+      ],
+      [
+        99,
+        26
+      ],
+      [
+        101,
+        8
+      ],
+      [
+        103,
+        34
+      ],
+      [
+        105,
+        32
+      ],
+      [
+        106,
+        6
+      ],
+      [
+        107,
+        4
+      ],
+      [
+        110,
+        70
+      ],
+      [
+        113,
+        33
+      ],
+      [
+        114,
+        22
+      ],
+      [
+        115,
+        37
+      ],
+      [
+        117,
+        18
+      ],
+      [
+        118,
+        50
+      ],
+      [
+        125,
+        16
+      ],
+      [
+        127,
+        69
+      ],
+      [
+        133,
+        28
+      ],
+      [
+        141,
+        15
+      ],
+      [
+        145,
+        54
+      ],
+      [
+        148,
+        11
+      ],
+      [
+        149,
+        73
+      ],
+      [
+        150,
+        49
+      ],
+      [
+        153,
+        57
+      ],
+      [
+        154,
+        1
+      ],
+      [
+        158,
+        26
+      ],
+      [
+        167,
+        39
+      ],
+      [
+        169,
+        47
+      ],
+      [
+        171,
+        7
+      ],
+      [
+        172,
+        23
+      ],
+      [
+        174,
+        50
+      ],
+      [
+        175,
+        23
+      ],
+      [
+        178,
+        18
+      ],
+      [
+        180,
+        40
+      ],
+      [
+        183,
+        3
+      ],
+      [
+        185,
+        19
+      ],
+      [
+        190,
+        66
+      ],
+      [
+        191,
+        11
+      ],
+      [
+        200,
+        35
+      ],
+      [
+        201,
+        77
+      ],
+      [
+        202,
+        20
+      ],
+      [
+        203,
+        13
+      ],
+      [
+        206,
+        40
+      ],
+      [
+        207,
+        28
+      ],
+      [
+        209,
+        19
+      ],
+      [
+        210,
+        19
+      ],
+      [
+        211,
+        18
+      ],
+      [
+        212,
+        17
+      ],
+      [
+        213,
+        20
+      ],
+      [
+        214,
+        21
+      ],
+      [
+        218,
+        56
+      ],
+      [
+        219,
+        18
+      ],
+      [
+        221,
+        23
+      ],
+      [
+        224,
+        21
+      ],
+      [
+        229,
+        28
+      ],
+      [
+        231,
+        6
+      ],
+      [
+        232,
+        1
+      ],
+      [
+        233,
+        49
+      ],
+      [
+        236,
+        46
+      ],
+      [
+        238,
+        58
+      ],
+      [
+        240,
+        16
+      ],
+      [
+        241,
+        38
+      ],
+      [
+        242,
+        2
+      ],
+      [
+        243,
+        11
+      ],
+      [
+        246,
+        44
+      ],
+      [
+        247,
+        31
+      ],
+      [
+        249,
+        40
+      ],
+      [
+        251,
+        58
+      ],
+      [
+        253,
+        67
+      ],
+      [
+        255,
+        50
+      ],
+      [
+        256,
+        22
+      ],
+      [
+        257,
+        25
+      ],
+      [
+        258,
+        6
+      ],
+      [
+        259,
+        13
+      ],
+      [
+        262,
+        74
+      ],
+      [
+        264,
+        9
+      ],
+      [
+        272,
+        24
+      ],
+      [
+        273,
+        2
+      ],
+      [
+        274,
+        57
+      ],
+      [
+        275,
+        63
+      ],
+      [
+        278,
+        55
+      ],
+      [
+        281,
+        1
+      ],
+      [
+        285,
+        15
+      ],
+      [
+        286,
+        14
+      ],
+      [
+        289,
+        59
+      ],
+      [
+        292,
+        2
+      ],
+      [
+        294,
+        31
+      ],
+      [
+        296,
+        1
+      ],
+      [
+        298,
+        1
+      ],
+      [
+        300,
+        41
+      ],
+      [
+        302,
+        45
+      ],
+      [
+        309,
+        38
+      ],
+      [
+        310,
+        60
+      ],
+      [
+        314,
+        3
+      ],
+      [
+        315,
+        56
+      ],
+      [
+        316,
+        19
+      ],
+      [
+        321,
+        55
+      ],
+      [
+        323,
+        20
+      ],
+      [
+        325,
+        12
+      ],
+      [
+        327,
+        9
+      ],
+      [
+        329,
+        81
+      ],
+      [
+        334,
+        69
+      ],
+      [
+        335,
+        74
+      ],
+      [
+        336,
+        32
+      ],
+      [
+        339,
+        62
+      ],
+      [
+        342,
+        50
+      ],
+      [
+        343,
+        28
+      ],
+      [
+        344,
+        3
+      ],
+      [
+        345,
+        80
+      ],
+      [
+        347,
+        70
+      ],
+      [
+        348,
+        48
+      ],
+      [
+        349,
+        58
+      ],
+      [
+        354,
+        61
+      ],
+      [
+        356,
+        81
+      ],
+      [
+        357,
+        33
+      ],
+      [
+        358,
+        14
+      ],
+      [
+        359,
+        18
+      ],
+      [
+        360,
+        17
+      ],
+      [
+        361,
+        59
+      ],
+      [
+        362,
+        31
+      ],
+      [
+        368,
+        73
+      ],
+      [
+        370,
+        7
+      ],
+      [
+        372,
+        44
+      ],
+      [
+        373,
+        57
+      ],
+      [
+        375,
+        27
+      ],
+      [
+        376,
+        51
+      ],
+      [
+        381,
+        40
+      ],
+      [
+        383,
+        17
+      ],
+      [
+        385,
+        16
+      ],
+      [
+        386,
+        37
+      ],
+      [
+        388,
+        30
+      ],
+      [
+        389,
+        80
+      ],
+      [
+        391,
+        36
+      ],
+      [
+        393,
+        73
+      ],
+      [
+        394,
+        2
+      ],
+      [
+        395,
+        11
+      ],
+      [
+        396,
+        57
+      ],
+      [
+        400,
+        2
+      ],
+      [
+        402,
+        32
+      ],
+      [
+        404,
+        12
+      ],
+      [
+        405,
+        14
+      ],
+      [
+        408,
+        65
+      ],
+      [
+        411,
+        16
+      ],
+      [
+        412,
+        29
+      ],
+      [
+        413,
+        44
+      ],
+      [
+        419,
+        20
+      ]
+    ],
+    "high_chunk_articles": [
+      [
+        4,
+        548
+      ],
+      [
+        6,
+        664
+      ],
+      [
+        7,
+        431
+      ],
+      [
+        18,
+        569
+      ],
+      [
+        22,
+        389
+      ],
+      [
+        28,
+        1107
+      ],
+      [
+        29,
+        395
+      ],
+      [
+        32,
+        375
+      ],
+      [
+        36,
+        577
+      ],
+      [
+        37,
+        543
+      ],
+      [
+        38,
+        392
+      ],
+      [
+        53,
+        360
+      ],
+      [
+        56,
+        501
+      ],
+      [
+        57,
+        342
+      ],
+      [
+        60,
+        581
+      ],
+      [
+        74,
+        457
+      ],
+      [
+        77,
+        534
+      ],
+      [
+        78,
+        434
+      ],
+      [
+        87,
+        428
+      ],
+      [
+        90,
+        496
+      ],
+      [
+        91,
+        659
+      ],
+      [
+        92,
+        627
+      ],
+      [
+        95,
+        531
+      ],
+      [
+        98,
+        385
+      ],
+      [
+        100,
+        343
+      ],
+      [
+        102,
+        679
+      ],
+      [
+        104,
+        445
+      ],
+      [
+        109,
+        575
+      ],
+      [
+        116,
+        417
+      ],
+      [
+        122,
+        376
+      ],
+      [
+        123,
+        547
+      ],
+      [
+        124,
+        508
+      ],
+      [
+        132,
+        665
+      ],
+      [
+        134,
+        395
+      ],
+      [
+        137,
+        399
+      ],
+      [
+        139,
+        507
+      ],
+      [
+        142,
+        797
+      ],
+      [
+        143,
+        481
+      ],
+      [
+        146,
+        400
+      ],
+      [
+        147,
+        518
+      ],
+      [
+        152,
+        489
+      ],
+      [
+        161,
+        379
+      ],
+      [
+        166,
+        377
+      ],
+      [
+        168,
+        363
+      ],
+      [
+        186,
+        387
+      ],
+      [
+        196,
+        438
+      ],
+      [
+        198,
+        401
+      ],
+      [
+        217,
+        342
+      ],
+      [
+        230,
+        490
+      ],
+      [
+        244,
+        376
+      ],
+      [
+        252,
+        468
+      ],
+      [
+        261,
+        358
+      ],
+      [
+        266,
+        653
+      ],
+      [
+        270,
+        440
+      ],
+      [
+        277,
+        407
+      ],
+      [
+        284,
+        429
+      ],
+      [
+        287,
+        437
+      ],
+      [
+        288,
+        453
+      ],
+      [
+        290,
+        351
+      ],
+      [
+        311,
+        445
+      ],
+      [
+        312,
+        348
+      ],
+      [
+        318,
+        561
+      ],
+      [
+        332,
+        506
+      ],
+      [
+        366,
+        350
+      ],
+      [
+        377,
+        418
+      ],
+      [
+        382,
+        334
+      ],
+      [
+        398,
+        348
+      ]
+    ]
+  }
+}

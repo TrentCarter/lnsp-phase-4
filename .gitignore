@@ -9,6 +9,7 @@ app_cache/
 
 
 # Ignore compiled Python files
+*.dump
 *.pyc
 *.pth
 *.pt
@@ -21,7 +22,7 @@ app/utils/semantic_3d_tests/semantic_test_data/*
 # 6/22/25
 data/teacher_models/*
 data/*
-
+dumps/*
 backups/*
 
 restores/*

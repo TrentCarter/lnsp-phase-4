@@ -1,0 +1,39 @@
+accum: 2
+async_mining: false
+bank: artifacts/wikipedia_500k_corrected_vectors.npz
+bs: 8
+device: cpu
+epochs: 3
+filter_threshold: 0.98
+gc_every: 0
+grad_clip: 1.0
+hardneg_frac: 0.5
+hidden_dim: 512
+lr: 5.0e-05
+lr_min: 1.0e-06
+margin: 0.03
+memory_bank_size: 10000
+mine_k: 128
+mine_prefetch: 3
+mine_qbatch: 2048
+mine_refresh_steps: 3000
+mine_schedule: 0-1:none;2-3:4@0.82-0.92
+mine_ttl: 5
+mining_schedule:
+  0: null
+  1: null
+  2:
+    cos_max: 0.92
+    cos_min: 0.82
+    num: 4
+  3:
+    cos_max: 0.92
+    cos_min: 0.82
+    num: 4
+num_layers: 1
+out: runs/twotower_v4_cpu_test
+pairs: artifacts/twotower/pairs_v4_synth.npz
+seed: 42
+sync_mps_every: 100
+tau: 0.05
+wd: 0.01

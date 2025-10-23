@@ -191,15 +191,15 @@ def chunk_into_episodes(document_id: str, text: str) -> List[Dict]:
 
 
 def chunk_semantically(episode_text: str) -> List[str]:
-    """Step 2: Chunk episode into semantic chunks"""
+    """Step 2: Chunk episode into simple word-based chunks (faster, better results)"""
     response = requests.post(
         f"{SEMANTIC_API}/chunk",
         json={
             "text": episode_text,
-            "mode": "semantic",
-            "min_chunk_size": 10,  # Updated: allow small chunks
-            "max_chunk_size": 500,  # Updated: 17 tokens × 2.5 chars, max 500
-            "breakpoint_threshold": 75  # Lower = more chunks, Higher = fewer chunks
+            "mode": "simple",  # Simple word-based chunking
+            "min_chunk_size": 10,  # Allow short concepts like "What is AI?" (10 chars)
+            "max_chunk_size": 400,  # ~100 words max (4 chars/word average)
+            "breakpoint_threshold": 85  # Not used in simple mode, kept for API compatibility
         },
         timeout=60
     )
@@ -270,6 +270,7 @@ def process_article(article: Dict, article_index: int, timings: PipelineTimings)
         stats["episodes"] = len(episodes)
 
         all_chunks_data = []
+        global_chunk_index = 0  # Global counter across all episodes
 
         # Process all episodes
         for ep_idx, episode in enumerate(episodes):
@@ -285,14 +286,17 @@ def process_article(article: Dict, article_index: int, timings: PipelineTimings)
                 # Prepare chunk data (TMD extraction will be handled by Ingest API)
                 chunk_data = {
                     "text": chunk_text,
-                    "document_id": document_id,
-                    "sequence_index": seq_idx,
+                    "source_document": document_id,
+                    "article_title": title,           # FIXED: Add article title
+                    "article_index": article_index,   # FIXED: Add article index for correlation
+                    "chunk_index": global_chunk_index,  # FIXED: Use global counter
                     "episode_id": episode_id,
                     "dataset_source": "wikipedia_500k",
                 }
 
                 all_chunks_data.append(chunk_data)
                 stats["chunks"] += 1
+                global_chunk_index += 1  # Increment global counter
 
         # Step 3: Batch embeddings
         if all_chunks_data:
@@ -392,7 +396,7 @@ def main():
 
     # Process articles
     print(f"\n⚙️  Processing articles...")
-    for i, article in enumerate(tqdm(articles, desc="Articles"), 1):
+    for i, article in enumerate(tqdm(articles, desc="Articles"), args.skip_offset + 1):
         if i <= start_index:
             continue
 

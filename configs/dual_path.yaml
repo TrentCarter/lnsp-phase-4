@@ -1,0 +1,26 @@
+profiles:
+  conservative:
+    tau_snap: 0.94
+    tau_novel: 0.88
+    K: 500
+  neutral:
+    tau_snap: 0.92
+    tau_novel: 0.85
+    K: 500
+  creative:
+    tau_snap: 0.90
+    tau_novel: 0.82
+    K: 300
+near_duplicate:
+  cosine_threshold: 0.98
+  recent_window: 8
+faiss:
+  mode: sync  # sync | threaded
+  index_type: ivf_flat
+  nlist: 1024
+  nprobe: 8
+  qbatch: 1024
+  prefetch_depth: 0
+  lane_shard: true
+logging:
+  level: INFO

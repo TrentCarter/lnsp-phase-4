@@ -386,12 +386,22 @@ def train_one_epoch(model_q, model_d, train_loader, optimizer, epoch, args,
 
             if (batch_idx + 1) % args.accum == 0:
                 # 🚨 STABILITY FIX: Gradient clipping prevents exploding gradients
-                torch.nn.utils.clip_grad_norm_(model_q.parameters(), max_norm=1.0)
+                torch.nn.utils.clip_grad_norm_(model_q.parameters(), max_norm=args.grad_clip)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
 
             total_loss += loss.item() * args.accum
             num_batches += 1
+
+            # 🚨 MPS STABILITY: Periodic synchronization to flush command queue
+            if args.sync_mps_every > 0 and batch_idx % args.sync_mps_every == 0 and batch_idx > 0:
+                if device == 'mps':
+                    torch.mps.synchronize()
+
+            # 🚨 MEMORY: Periodic garbage collection (if enabled)
+            if args.gc_every > 0 and batch_idx % args.gc_every == 0 and batch_idx > 0:
+                import gc
+                gc.collect()
 
             # Queue health monitoring (every 200 steps)
             if async_miner is not None and batch_idx % queue_log_interval == 0 and batch_idx > 0:
@@ -417,7 +427,7 @@ def train_one_epoch(model_q, model_d, train_loader, optimizer, epoch, args,
 
     # Final step if needed
     if num_batches % args.accum != 0:
-        torch.nn.utils.clip_grad_norm_(model_q.parameters(), max_norm=1.0)
+        torch.nn.utils.clip_grad_norm_(model_q.parameters(), max_norm=args.grad_clip)
         optimizer.step()
         optimizer.zero_grad(set_to_none=True)
 
@@ -602,12 +612,27 @@ def main():
     parser.add_argument('--device', type=str, default='mps')
     parser.add_argument('--seed', type=int, default=42)
 
+    # MPS stability toggles
+    parser.add_argument('--grad-clip', type=float, default=1.0,
+                        help='Gradient clipping max norm (default 1.0)')
+    parser.add_argument('--sync-mps-every', type=int, default=100,
+                        help='Synchronize MPS every N steps (default 100, 0=disable)')
+    parser.add_argument('--gc-every', type=int, default=0,
+                        help='Run gc.collect() every N steps (default 0=disable)')
+
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
     device = torch.device(args.device)
+
+    # 🧹 MPS CLEANUP: Clear cache before training to ensure clean memory state
+    if device.type == 'mps':
+        torch.mps.empty_cache()
+        import gc
+        gc.collect()
+        print("✓ MPS cache cleared for clean start")
 
     print("============================================================")
     print("TWO-TOWER RETRIEVER TRAINING - V4 (CURRICULUM)")
@@ -644,9 +669,9 @@ def main():
     # 🚨 SAFETY RAILS:
     # - num_workers=0: Data already in RAM (TensorDataset), workers add overhead
     # - drop_last=True: Avoid partial batches (simplifies FIFO alignment)
-    # - pin_memory: Only for device transfer efficiency
+    # - pin_memory: Only for CUDA (NOT MPS - causes semaphore leaks on macOS)
 
-    use_pin_memory = device.type in ['mps', 'cuda']
+    use_pin_memory = (device.type == 'cuda')  # Only CUDA, NOT MPS
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -795,11 +820,42 @@ def main():
             device=device
         )
 
-        # Evaluate
-        recalls = evaluate(model_q, model_d, val_loader, bank_vectors, device=device)
+        # Save pre-validation checkpoint (in case validation crashes)
+        print(f"\n  💾 Saving pre-validation checkpoint...")
+        torch.save({
+            'epoch': epoch,
+            'model_q_state_dict': model_q.state_dict(),
+            'model_d_state_dict': model_d.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'config': vars(args)
+        }, ckpt_dir / f'epoch_{epoch:03d}_pre_validation.pt')
+        print(f"  ✓ Saved: {ckpt_dir / f'epoch_{epoch:03d}_pre_validation.pt'}")
+
+        # Evaluate (with error handling)
+        try:
+            print(f"\n  🔍 Starting validation evaluation...")
+            recalls = evaluate(model_q, model_d, val_loader, bank_vectors, device=device)
+            print(f"  ✓ Evaluation complete")
+        except Exception as e:
+            print(f"\n💥 FATAL ERROR during evaluation")
+            print(f"   Exception: {type(e).__name__}: {e}")
+            print(f"   Epoch: {epoch}")
+            import traceback
+            traceback.print_exc()
+            raise
 
         # Compute separation margin (critical diagnostic)
-        margin_stats = compute_separation_margin(model_q, model_d, val_loader, bank_vectors, device=device)
+        try:
+            print(f"  📊 Computing separation margin...")
+            margin_stats = compute_separation_margin(model_q, model_d, val_loader, bank_vectors, device=device)
+            print(f"  ✓ Margin computation complete")
+        except Exception as e:
+            print(f"\n💥 FATAL ERROR during margin computation")
+            print(f"   Exception: {type(e).__name__}: {e}")
+            print(f"   Epoch: {epoch}")
+            import traceback
+            traceback.print_exc()
+            raise
 
         # LR step
         current_lr = optimizer.param_groups[0]['lr']

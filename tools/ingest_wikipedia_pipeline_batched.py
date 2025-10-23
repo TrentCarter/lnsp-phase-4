@@ -197,8 +197,8 @@ def process_article_to_chunks(article: Dict, article_index: int) -> List[Dict]:
 
                 chunk_data = {
                     "text": chunk_text,
-                    "document_id": document_id,
-                    "sequence_index": seq_idx,
+                    "source_document": document_id,  # Fixed: was "document_id"
+                    "chunk_index": seq_idx,          # Fixed: was "sequence_index"
                     "episode_id": episode_id,
                     "domain_code": domain_code,
                     "task_code": task_code,

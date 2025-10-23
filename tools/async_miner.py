@@ -11,7 +11,18 @@ class AsyncMiner:
         self.th = threading.Thread(target=self._worker, daemon=True)
 
     def start(self): self.th.start()
-    def stop(self):  self._stop = True;  self.th.join(timeout=1)
+    def stop(self):
+        """Stop worker thread with proper cleanup (critical for MPS)"""
+        self._stop = True
+        # Drain input queue to unblock worker
+        try:
+            while not self.in_q.empty():
+                self.in_q.get_nowait()
+        except: pass
+        # Wait longer for FAISS operations to complete (MPS needs this)
+        self.th.join(timeout=5.0)
+        if self.th.is_alive():
+            print("⚠️  AsyncMiner thread still alive after 5s shutdown")
 
     def submit(self, step, Q):  # Q: [N,768] torch or np.float32, L2-normalized
         if isinstance(Q, torch.Tensor): Q = Q.detach().cpu().float().numpy()

@@ -254,8 +254,8 @@ def process_article(article: Dict, article_index: int) -> Dict:
             for seq_idx, chunk_text in enumerate(semantic_chunks):
                 chunk_data = {
                     "text": chunk_text,
-                    "document_id": document_id,
-                    "sequence_index": seq_idx,
+                    "source_document": document_id,  # Fixed: was "document_id"
+                    "chunk_index": seq_idx,          # Fixed: was "sequence_index"
                     "episode_id": episode_id,
                     "dataset_source": "wikipedia_500k",
                 }

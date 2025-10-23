@@ -1,0 +1,1790 @@
+{
+  "timestamp": "2025-10-23T14:00:55.130452",
+  "range_checked": {
+    "start": 1,
+    "end": 430
+  },
+  "stats": {
+    "total_articles": 421,
+    "total_chunks": 69483,
+    "unique_article_indices": 421,
+    "min_article_index": 1,
+    "max_article_index": 430
+  },
+  "missing_articles": [
+    421,
+    422,
+    423,
+    424,
+    425,
+    426,
+    427,
+    428,
+    429
+  ],
+  "chunk_counts": {
+    "1": 284,
+    "2": 152,
+    "3": 50,
+    "4": 548,
+    "5": 314,
+    "6": 664,
+    "7": 431,
+    "8": 64,
+    "9": 21,
+    "10": 294,
+    "11": 11,
+    "12": 19,
+    "13": 51,
+    "14": 241,
+    "15": 284,
+    "16": 27,
+    "17": 28,
+    "18": 569,
+    "19": 242,
+    "20": 316,
+    "21": 24,
+    "22": 389,
+    "23": 4,
+    "24": 32,
+    "25": 184,
+    "26": 3,
+    "27": 226,
+    "28": 1107,
+    "29": 395,
+    "30": 168,
+    "31": 328,
+    "32": 375,
+    "33": 59,
+    "34": 48,
+    "35": 277,
+    "36": 577,
+    "37": 543,
+    "38": 392,
+    "39": 173,
+    "40": 2,
+    "41": 2,
+    "42": 198,
+    "43": 236,
+    "44": 285,
+    "45": 134,
+    "46": 11,
+    "47": 56,
+    "48": 48,
+    "49": 77,
+    "50": 250,
+    "51": 179,
+    "52": 233,
+    "53": 360,
+    "54": 58,
+    "55": 2,
+    "56": 501,
+    "57": 342,
+    "58": 184,
+    "59": 75,
+    "60": 581,
+    "61": 207,
+    "62": 55,
+    "63": 322,
+    "64": 41,
+    "65": 300,
+    "66": 155,
+    "67": 33,
+    "68": 3,
+    "69": 173,
+    "70": 101,
+    "71": 115,
+    "72": 30,
+    "73": 273,
+    "74": 457,
+    "75": 236,
+    "76": 320,
+    "77": 534,
+    "78": 434,
+    "79": 50,
+    "80": 58,
+    "81": 131,
+    "82": 8,
+    "83": 84,
+    "84": 12,
+    "85": 278,
+    "86": 131,
+    "87": 428,
+    "88": 39,
+    "89": 57,
+    "90": 496,
+    "91": 659,
+    "92": 627,
+    "93": 118,
+    "94": 7,
+    "95": 531,
+    "96": 174,
+    "97": 172,
+    "98": 385,
+    "99": 26,
+    "100": 343,
+    "101": 8,
+    "102": 679,
+    "103": 34,
+    "104": 445,
+    "105": 32,
+    "106": 6,
+    "107": 4,
+    "108": 171,
+    "109": 575,
+    "110": 70,
+    "111": 142,
+    "112": 198,
+    "113": 33,
+    "114": 22,
+    "115": 37,
+    "116": 417,
+    "117": 18,
+    "118": 50,
+    "119": 210,
+    "120": 123,
+    "121": 267,
+    "122": 376,
+    "123": 547,
+    "124": 508,
+    "125": 16,
+    "126": 245,
+    "127": 69,
+    "128": 261,
+    "129": 201,
+    "130": 176,
+    "131": 202,
+    "132": 665,
+    "133": 28,
+    "134": 395,
+    "135": 226,
+    "136": 110,
+    "137": 399,
+    "138": 198,
+    "139": 507,
+    "140": 113,
+    "141": 15,
+    "142": 797,
+    "143": 481,
+    "144": 101,
+    "145": 54,
+    "146": 400,
+    "147": 518,
+    "148": 11,
+    "149": 73,
+    "150": 49,
+    "151": 131,
+    "152": 489,
+    "153": 57,
+    "154": 1,
+    "155": 112,
+    "156": 133,
+    "157": 172,
+    "158": 26,
+    "159": 133,
+    "160": 143,
+    "161": 379,
+    "162": 178,
+    "163": 113,
+    "164": 233,
+    "165": 214,
+    "166": 377,
+    "167": 39,
+    "168": 363,
+    "169": 47,
+    "170": 131,
+    "171": 7,
+    "172": 23,
+    "173": 83,
+    "174": 50,
+    "175": 23,
+    "176": 249,
+    "177": 115,
+    "178": 18,
+    "179": 166,
+    "180": 40,
+    "181": 85,
+    "182": 211,
+    "183": 3,
+    "184": 273,
+    "185": 19,
+    "186": 387,
+    "187": 163,
+    "188": 87,
+    "189": 232,
+    "190": 66,
+    "191": 11,
+    "192": 98,
+    "193": 140,
+    "194": 243,
+    "195": 133,
+    "196": 438,
+    "197": 248,
+    "198": 401,
+    "199": 196,
+    "200": 35,
+    "201": 77,
+    "202": 20,
+    "203": 13,
+    "204": 280,
+    "205": 111,
+    "206": 40,
+    "207": 28,
+    "208": 122,
+    "209": 19,
+    "210": 19,
+    "211": 18,
+    "212": 17,
+    "213": 20,
+    "214": 21,
+    "215": 127,
+    "216": 181,
+    "217": 342,
+    "218": 56,
+    "219": 18,
+    "220": 168,
+    "221": 23,
+    "222": 217,
+    "223": 291,
+    "224": 21,
+    "225": 198,
+    "226": 292,
+    "227": 152,
+    "228": 107,
+    "229": 28,
+    "230": 490,
+    "231": 6,
+    "232": 1,
+    "233": 49,
+    "234": 96,
+    "235": 88,
+    "236": 46,
+    "237": 117,
+    "238": 58,
+    "239": 214,
+    "240": 16,
+    "241": 38,
+    "242": 2,
+    "243": 11,
+    "244": 376,
+    "245": 159,
+    "246": 44,
+    "247": 31,
+    "248": 241,
+    "249": 40,
+    "250": 104,
+    "251": 58,
+    "252": 468,
+    "253": 67,
+    "254": 203,
+    "255": 50,
+    "256": 22,
+    "257": 25,
+    "258": 6,
+    "259": 13,
+    "260": 314,
+    "261": 358,
+    "262": 74,
+    "263": 115,
+    "264": 9,
+    "265": 172,
+    "266": 653,
+    "267": 159,
+    "268": 93,
+    "269": 117,
+    "270": 440,
+    "271": 124,
+    "272": 24,
+    "273": 2,
+    "274": 57,
+    "275": 63,
+    "276": 279,
+    "277": 407,
+    "278": 55,
+    "279": 86,
+    "280": 182,
+    "281": 1,
+    "282": 116,
+    "283": 139,
+    "284": 429,
+    "285": 15,
+    "286": 14,
+    "287": 437,
+    "288": 453,
+    "289": 59,
+    "290": 351,
+    "291": 105,
+    "292": 2,
+    "293": 195,
+    "294": 31,
+    "295": 216,
+    "296": 1,
+    "297": 124,
+    "298": 1,
+    "299": 138,
+    "300": 41,
+    "301": 250,
+    "302": 45,
+    "303": 292,
+    "304": 315,
+    "305": 238,
+    "306": 290,
+    "307": 144,
+    "308": 126,
+    "309": 38,
+    "310": 60,
+    "311": 445,
+    "312": 348,
+    "313": 206,
+    "314": 3,
+    "315": 56,
+    "316": 19,
+    "317": 129,
+    "318": 561,
+    "319": 95,
+    "320": 150,
+    "321": 55,
+    "322": 177,
+    "323": 20,
+    "324": 199,
+    "325": 12,
+    "326": 144,
+    "327": 9,
+    "328": 89,
+    "329": 81,
+    "330": 197,
+    "331": 86,
+    "332": 506,
+    "333": 83,
+    "334": 69,
+    "335": 74,
+    "336": 32,
+    "337": 167,
+    "338": 107,
+    "339": 62,
+    "340": 160,
+    "341": 158,
+    "342": 50,
+    "343": 28,
+    "344": 3,
+    "345": 80,
+    "346": 211,
+    "347": 70,
+    "348": 48,
+    "349": 58,
+    "350": 223,
+    "351": 171,
+    "352": 198,
+    "353": 98,
+    "354": 61,
+    "355": 182,
+    "356": 81,
+    "357": 33,
+    "358": 14,
+    "359": 18,
+    "360": 17,
+    "361": 59,
+    "362": 31,
+    "363": 266,
+    "364": 92,
+    "365": 278,
+    "366": 350,
+    "367": 240,
+    "368": 73,
+    "369": 187,
+    "370": 7,
+    "371": 292,
+    "372": 44,
+    "373": 57,
+    "374": 135,
+    "375": 27,
+    "376": 51,
+    "377": 418,
+    "378": 95,
+    "379": 195,
+    "380": 269,
+    "381": 40,
+    "382": 334,
+    "383": 17,
+    "384": 194,
+    "385": 16,
+    "386": 37,
+    "387": 140,
+    "388": 30,
+    "389": 80,
+    "390": 244,
+    "391": 36,
+    "392": 114,
+    "393": 73,
+    "394": 2,
+    "395": 11,
+    "396": 57,
+    "397": 276,
+    "398": 348,
+    "399": 100,
+    "400": 2,
+    "401": 182,
+    "402": 32,
+    "403": 134,
+    "404": 12,
+    "405": 14,
+    "406": 122,
+    "407": 145,
+    "408": 65,
+    "409": 192,
+    "410": 201,
+    "411": 16,
+    "412": 29,
+    "413": 44,
+    "414": 239,
+    "415": 159,
+    "416": 119,
+    "417": 121,
+    "418": 98,
+    "419": 20,
+    "420": 134,
+    "430": 4
+  },
+  "samples": {
+    "1": {
+      "chunk_count": 284,
+      "sample_chunks": [
+        {
+          "cpe_id": "6bcc4bd3-c5e8-4794-8af3-ee09e284f650",
+          "concept_text": "Anarchism is a political philosophy and movement that is skeptical of all justifications for authority and seeks to abolish the institutions it claims maintain unnecessary coercion and hierarchy, typically including nation-states, and capitalism.",
+          "chunk_position": {
+            "source": "wikipedia_1",
+            "chunk_index": 0,
+            "article_index": 1,
+            "article_title": "Anarchism"
+          },
+          "created_at": "2025-10-23T08:44:18.272083-04:00"
+        },
+        {
+          "cpe_id": "9975eb6d-26b1-4ca2-84ad-47a4df3daf5b",
+          "concept_text": "Anarchism advocates for the replacement of the state with stateless societies and voluntary free associations.",
+          "chunk_position": {
+            "source": "wikipedia_1",
+            "chunk_index": 1,
+            "article_index": 1,
+            "article_title": "Anarchism"
+          },
+          "created_at": "2025-10-23T08:44:18.272083-04:00"
+        },
+        {
+          "cpe_id": "784784be-ef64-40b0-a08f-662e91ebebac",
+          "concept_text": "As a historically left-wing movement, this reading of anarchism is placed on the farthest left of the political spectrum, usually described as the libertarian wing of the socialist movement (libertarian socialism).",
+          "chunk_position": {
+            "source": "wikipedia_1",
+            "chunk_index": 2,
+            "article_index": 1,
+            "article_title": "Anarchism"
+          },
+          "created_at": "2025-10-23T08:44:18.272083-04:00"
+        },
+        {
+          "cpe_id": "668f98c1-fbe3-44e8-8daf-cf4ae06c3dd8",
+          "concept_text": "Humans have lived in societies without formal hierarchies long before the establishment of states, realms, or empires.",
+          "chunk_position": {
+            "source": "wikipedia_1",
+            "chunk_index": 3,
+            "article_index": 1,
+            "article_title": "Anarchism"
+          },
+          "created_at": "2025-10-23T08:44:18.272083-04:00"
+        },
+        {
+          "cpe_id": "7ed52288-22c0-45e7-9221-1da7e9436816",
+          "concept_text": "With the rise of organised hierarchical bodies, scepticism toward authority also rose.",
+          "chunk_position": {
+            "source": "wikipedia_1",
+            "chunk_index": 4,
+            "article_index": 1,
+            "article_title": "Anarchism"
+          },
+          "created_at": "2025-10-23T08:44:18.272083-04:00"
+        }
+      ]
+    },
+    "215": {
+      "chunk_count": 127,
+      "sample_chunks": [
+        {
+          "cpe_id": "2482bc00-b651-49d9-a263-a2493b7ab14c",
+          "concept_text": "In chemistry, an alcohol is a type of organic compound that carries at least one hydroxyl () functional group  bound to a saturated carbon atom.",
+          "chunk_position": {
+            "source": "wikipedia_215",
+            "chunk_index": 0,
+            "article_index": 215,
+            "article_title": "Alcohol (chemistry)"
+          },
+          "created_at": "2025-10-23T08:54:28.987139-04:00"
+        },
+        {
+          "cpe_id": "35424a7f-544c-4007-9cac-165c000dffce",
+          "concept_text": "Alcohols range from the simple, like methanol and ethanol, to complex, like sucrose and cholesterol.",
+          "chunk_position": {
+            "source": "wikipedia_215",
+            "chunk_index": 1,
+            "article_index": 215,
+            "article_title": "Alcohol (chemistry)"
+          },
+          "created_at": "2025-10-23T08:54:28.987139-04:00"
+        },
+        {
+          "cpe_id": "b0a74f2f-053b-4e0f-b5d9-264f2d48ef59",
+          "concept_text": "The presence of an OH group strongly modifies the properties of hydrocarbons, conferring hydrophilic (water-loving) properties.",
+          "chunk_position": {
+            "source": "wikipedia_215",
+            "chunk_index": 2,
+            "article_index": 215,
+            "article_title": "Alcohol (chemistry)"
+          },
+          "created_at": "2025-10-23T08:54:28.987139-04:00"
+        },
+        {
+          "cpe_id": "36b1bf83-3cb8-4a5f-bc6e-b0879e92a872",
+          "concept_text": "The OH group provides a site at which many reactions can occur.",
+          "chunk_position": {
+            "source": "wikipedia_215",
+            "chunk_index": 3,
+            "article_index": 215,
+            "article_title": "Alcohol (chemistry)"
+          },
+          "created_at": "2025-10-23T08:54:28.987139-04:00"
+        },
+        {
+          "cpe_id": "6afacb99-ff6a-415a-ba3d-161ad87ed04c",
+          "concept_text": "History The flammable nature of the exhalations of wine was already known to ancient natural philosophers such as Aristotle (384–322 BCE), Theophrastus (–287 BCE), and Pliny the Elder (23/24–79 CE).",
+          "chunk_position": {
+            "source": "wikipedia_215",
+            "chunk_index": 4,
+            "article_index": 215,
+            "article_title": "Alcohol (chemistry)"
+          },
+          "created_at": "2025-10-23T08:54:28.987139-04:00"
+        }
+      ]
+    },
+    "430": {
+      "chunk_count": 4,
+      "sample_chunks": [
+        {
+          "cpe_id": "9a1c1eef-42b9-4496-a26e-64e5ea92e92d",
+          "concept_text": "In Norse cosmology, Álfheimr (Old Norse: , \"Land of the Elves\" or \"Elfland\"; anglicized as Alfheim), also called \"Ljósálfheimr\" ( , \"home of the Light Elves\"), is home of the Light Elves.",
+          "chunk_position": {
+            "source": "wikipedia_430",
+            "chunk_index": 0,
+            "article_index": 430,
+            "article_title": "Álfheimr"
+          },
+          "created_at": "2025-10-23T14:00:40.805443-04:00"
+        },
+        {
+          "cpe_id": "a936b6c4-0307-449f-9686-e6a5f552911d",
+          "concept_text": "Attestations Álfheim as an abode of the Elves is mentioned only twice in Old Norse texts.",
+          "chunk_position": {
+            "source": "wikipedia_430",
+            "chunk_index": 1,
+            "article_index": 430,
+            "article_title": "Álfheimr"
+          },
+          "created_at": "2025-10-23T14:00:40.805443-04:00"
+        },
+        {
+          "cpe_id": "9d1e68f6-7b14-4993-9907-c49e52fcf464",
+          "concept_text": "Grímnismál The Eddic poem Grímnismál describes twelve divine dwellings beginning the stanza 5 with:  A tooth-gift is a gift given to an infant on the cutting of the first tooth.",
+          "chunk_position": {
+            "source": "wikipedia_430",
+            "chunk_index": 2,
+            "article_index": 430,
+            "article_title": "Álfheimr"
+          },
+          "created_at": "2025-10-23T14:00:40.805443-04:00"
+        },
+        {
+          "cpe_id": "9a72ac5d-e241-4888-bb0a-4a35a4566280",
+          "concept_text": "Gylfaginning In the 12th century Eddic prose Gylfaginning, Snorri Sturluson relates it in the stanza 17 as the first of a series of abodes in heaven:  Later in the section, in speaking of a hall in the Highest Heaven called Gimlé that shall survive when heaven and earth have died, explains:  See also  Alfheimbjerg  Fairyland, a folkloric location sometimes referred to as Elfame  Svartálfaheimr   Svartálfar (black elves)  Citations  Bibliography  Primary  External links  Locations in Norse mythology Saga locations Elves Freyr",
+          "chunk_position": {
+            "source": "wikipedia_430",
+            "chunk_index": 3,
+            "article_index": 430,
+            "article_title": "Álfheimr"
+          },
+          "created_at": "2025-10-23T14:00:40.805443-04:00"
+        }
+      ]
+    },
+    "65": {
+      "chunk_count": 300,
+      "sample_chunks": [
+        {
+          "cpe_id": "ca7cdc49-c5e8-40d7-b3be-2eab089faf56",
+          "concept_text": "Andrei Arsenyevich Tarkovsky (; 4 April 1932 – 29 December 1986) was a Russian film director and screenwriter.",
+          "chunk_position": {
+            "source": "wikipedia_65",
+            "chunk_index": 0,
+            "article_index": 65,
+            "article_title": "Andrei Tarkovsky"
+          },
+          "created_at": "2025-10-23T08:47:22.157669-04:00"
+        },
+        {
+          "cpe_id": "e4682ffb-7834-4dee-af06-a44b0c100f63",
+          "concept_text": "Widely considered one of the greatest and most influential directors in cinema history, Tarkovsky's films explore spiritual and metaphysical themes, and are noted for their slow pacing and long takes, dreamlike visual imagery, and preoccupation with nature and memory.",
+          "chunk_position": {
+            "source": "wikipedia_65",
+            "chunk_index": 1,
+            "article_index": 65,
+            "article_title": "Andrei Tarkovsky"
+          },
+          "created_at": "2025-10-23T08:47:22.157669-04:00"
+        },
+        {
+          "cpe_id": "aebb2796-2384-4371-8dc5-87129e4f1c37",
+          "concept_text": "Tarkovsky studied film at Moscow's VGIK under filmmaker Mikhail Romm, and subsequently directed his first five features in the Soviet Union: Ivan's Childhood (1962), Andrei Rublev (1966), Solaris (1972), Mirror (1975), and Stalker (1979).",
+          "chunk_position": {
+            "source": "wikipedia_65",
+            "chunk_index": 2,
+            "article_index": 65,
+            "article_title": "Andrei Tarkovsky"
+          },
+          "created_at": "2025-10-23T08:47:22.157669-04:00"
+        },
+        {
+          "cpe_id": "c839a080-5ae0-49ad-b8bb-59cf2f6acf30",
+          "concept_text": "A number of his films from this period are ranked among the best films ever made.",
+          "chunk_position": {
+            "source": "wikipedia_65",
+            "chunk_index": 3,
+            "article_index": 65,
+            "article_title": "Andrei Tarkovsky"
+          },
+          "created_at": "2025-10-23T08:47:22.157669-04:00"
+        },
+        {
+          "cpe_id": "7a694330-10f4-4c7e-a401-68bb5d3db270",
+          "concept_text": "After years of creative conflict with state film authorities, Tarkovsky left the country in 1979 and made his final two films abroad; Nostalghia (1983) and The Sacrifice (1986) were produced in Italy and Sweden respectively.",
+          "chunk_position": {
+            "source": "wikipedia_65",
+            "chunk_index": 4,
+            "article_index": 65,
+            "article_title": "Andrei Tarkovsky"
+          },
+          "created_at": "2025-10-23T08:47:22.157669-04:00"
+        }
+      ]
+    },
+    "349": {
+      "chunk_count": 58,
+      "sample_chunks": [
+        {
+          "cpe_id": "7eb29290-ac18-4026-bc0b-5cf4ba31c998",
+          "concept_text": "Aromatic compounds, also known as \"mono- and polycyclic aromatic hydrocarbons\", are organic compounds containing one or more aromatic rings.",
+          "chunk_position": {
+            "source": "wikipedia_349",
+            "chunk_index": 0,
+            "article_index": 349,
+            "article_title": "Aromatic compound"
+          },
+          "created_at": "2025-10-23T08:59:05.421491-04:00"
+        },
+        {
+          "cpe_id": "1cb649a4-9ccd-4a82-8f10-f94d6d55022e",
+          "concept_text": "The word \"aromatic\" originates from the past grouping of molecules based on odor, before their general chemical properties were understood.",
+          "chunk_position": {
+            "source": "wikipedia_349",
+            "chunk_index": 1,
+            "article_index": 349,
+            "article_title": "Aromatic compound"
+          },
+          "created_at": "2025-10-23T08:59:05.421491-04:00"
+        },
+        {
+          "cpe_id": "6e3d19f4-0637-4223-990b-f3e7b74200b0",
+          "concept_text": "The current definition of aromatic compounds does not have any relation with their odor.",
+          "chunk_position": {
+            "source": "wikipedia_349",
+            "chunk_index": 2,
+            "article_index": 349,
+            "article_title": "Aromatic compound"
+          },
+          "created_at": "2025-10-23T08:59:05.421491-04:00"
+        },
+        {
+          "cpe_id": "b919c37f-c8ac-45ae-93de-ec5ab0fe6d6f",
+          "concept_text": "Heteroarenes are closely related, since at least one carbon atom of CH group is replaced by one of the heteroatoms oxygen, nitrogen, or sulfur.",
+          "chunk_position": {
+            "source": "wikipedia_349",
+            "chunk_index": 3,
+            "article_index": 349,
+            "article_title": "Aromatic compound"
+          },
+          "created_at": "2025-10-23T08:59:05.421491-04:00"
+        },
+        {
+          "cpe_id": "c1cf1556-3bc4-409f-8115-ba99023d1aaf",
+          "concept_text": "Examples of non-benzene compounds with aromatic properties are furan, a heterocyclic compound with a five-membered ring that includes a single oxygen atom, and pyridine, a heterocyclic compound with a six-membered ring containing one nitrogen atom.",
+          "chunk_position": {
+            "source": "wikipedia_349",
+            "chunk_index": 4,
+            "article_index": 349,
+            "article_title": "Aromatic compound"
+          },
+          "created_at": "2025-10-23T08:59:05.421491-04:00"
+        }
+      ]
+    },
+    "362": {
+      "chunk_count": 31,
+      "sample_chunks": [
+        {
+          "cpe_id": "4f5dbdf2-d4a9-4309-8469-cfee000a8848",
+          "concept_text": "The Apache Software Foundation ( ; ASF) is an American nonprofit corporation (classified as a 501(c)(3) organization in the United States) to support a number of open-source software projects.",
+          "chunk_position": {
+            "source": "wikipedia_362",
+            "chunk_index": 0,
+            "article_index": 362,
+            "article_title": "The Apache Software Foundation"
+          },
+          "created_at": "2025-10-23T08:59:43.274926-04:00"
+        },
+        {
+          "cpe_id": "2c2863d7-ce2c-41e3-a2ee-6194dacb244f",
+          "concept_text": "The ASF was formed from a group of developers of the Apache HTTP Server, and incorporated on March 25, 1999.  it includes approximately 1000 members.",
+          "chunk_position": {
+            "source": "wikipedia_362",
+            "chunk_index": 1,
+            "article_index": 362,
+            "article_title": "The Apache Software Foundation"
+          },
+          "created_at": "2025-10-23T08:59:43.274926-04:00"
+        },
+        {
+          "cpe_id": "6fe0d022-121b-46f8-aa2d-95c39474bbc5",
+          "concept_text": "The Apache Software Foundation is a decentralized open source community of developers.",
+          "chunk_position": {
+            "source": "wikipedia_362",
+            "chunk_index": 2,
+            "article_index": 362,
+            "article_title": "The Apache Software Foundation"
+          },
+          "created_at": "2025-10-23T08:59:43.274926-04:00"
+        },
+        {
+          "cpe_id": "6a04ead7-d7b2-4fb9-8686-0e275b013ab5",
+          "concept_text": "The software they produce is distributed under the terms of the Apache License, a permissive open-source license for free and open-source software (FOSS).",
+          "chunk_position": {
+            "source": "wikipedia_362",
+            "chunk_index": 3,
+            "article_index": 362,
+            "article_title": "The Apache Software Foundation"
+          },
+          "created_at": "2025-10-23T08:59:43.274926-04:00"
+        },
+        {
+          "cpe_id": "5cad511b-6bee-40fc-acbd-d3305ca2752e",
+          "concept_text": "The Apache projects are characterized by a collaborative, consensus-based development process and an open and pragmatic software license, which is to say that it allows developers, who receive the software freely, to redistribute it under non-free terms.",
+          "chunk_position": {
+            "source": "wikipedia_362",
+            "chunk_index": 4,
+            "article_index": 362,
+            "article_title": "The Apache Software Foundation"
+          },
+          "created_at": "2025-10-23T08:59:43.274926-04:00"
+        }
+      ]
+    }
+  },
+  "issues": {
+    "missing_count": 9,
+    "low_chunk_articles": [
+      [
+        3,
+        50
+      ],
+      [
+        8,
+        64
+      ],
+      [
+        9,
+        21
+      ],
+      [
+        11,
+        11
+      ],
+      [
+        12,
+        19
+      ],
+      [
+        13,
+        51
+      ],
+      [
+        16,
+        27
+      ],
+      [
+        17,
+        28
+      ],
+      [
+        21,
+        24
+      ],
+      [
+        23,
+        4
+      ],
+      [
+        24,
+        32
+      ],
+      [
+        26,
+        3
+      ],
+      [
+        33,
+        59
+      ],
+      [
+        34,
+        48
+      ],
+      [
+        40,
+        2
+      ],
+      [
+        41,
+        2
+      ],
+      [
+        46,
+        11
+      ],
+      [
+        47,
+        56
+      ],
+      [
+        48,
+        48
+      ],
+      [
+        49,
+        77
+      ],
+      [
+        54,
+        58
+      ],
+      [
+        55,
+        2
+      ],
+      [
+        59,
+        75
+      ],
+      [
+        62,
+        55
+      ],
+      [
+        64,
+        41
+      ],
+      [
+        67,
+        33
+      ],
+      [
+        68,
+        3
+      ],
+      [
+        72,
+        30
+      ],
+      [
+        79,
+        50
+      ],
+      [
+        80,
+        58
+      ],
+      [
+        82,
+        8
+      ],
+      [
+        84,
+        12
+      ],
+      [
+        88,
+        39
+      ],
+      [
+        89,
+        57
+      ],
+      [
+        94,
+        7
+      ],
+      [
+        99,
+        26
+      ],
+      [
+        101,
+        8
+      ],
+      [
+        103,
+        34
+      ],
+      [
+        105,
+        32
+      ],
+      [
+        106,
+        6
+      ],
+      [
+        107,
+        4
+      ],
+      [
+        110,
+        70
+      ],
+      [
+        113,
+        33
+      ],
+      [
+        114,
+        22
+      ],
+      [
+        115,
+        37
+      ],
+      [
+        117,
+        18
+      ],
+      [
+        118,
+        50
+      ],
+      [
+        125,
+        16
+      ],
+      [
+        127,
+        69
+      ],
+      [
+        133,
+        28
+      ],
+      [
+        141,
+        15
+      ],
+      [
+        145,
+        54
+      ],
+      [
+        148,
+        11
+      ],
+      [
+        149,
+        73
+      ],
+      [
+        150,
+        49
+      ],
+      [
+        153,
+        57
+      ],
+      [
+        154,
+        1
+      ],
+      [
+        158,
+        26
+      ],
+      [
+        167,
+        39
+      ],
+      [
+        169,
+        47
+      ],
+      [
+        171,
+        7
+      ],
+      [
+        172,
+        23
+      ],
+      [
+        174,
+        50
+      ],
+      [
+        175,
+        23
+      ],
+      [
+        178,
+        18
+      ],
+      [
+        180,
+        40
+      ],
+      [
+        183,
+        3
+      ],
+      [
+        185,
+        19
+      ],
+      [
+        190,
+        66
+      ],
+      [
+        191,
+        11
+      ],
+      [
+        200,
+        35
+      ],
+      [
+        201,
+        77
+      ],
+      [
+        202,
+        20
+      ],
+      [
+        203,
+        13
+      ],
+      [
+        206,
+        40
+      ],
+      [
+        207,
+        28
+      ],
+      [
+        209,
+        19
+      ],
+      [
+        210,
+        19
+      ],
+      [
+        211,
+        18
+      ],
+      [
+        212,
+        17
+      ],
+      [
+        213,
+        20
+      ],
+      [
+        214,
+        21
+      ],
+      [
+        218,
+        56
+      ],
+      [
+        219,
+        18
+      ],
+      [
+        221,
+        23
+      ],
+      [
+        224,
+        21
+      ],
+      [
+        229,
+        28
+      ],
+      [
+        231,
+        6
+      ],
+      [
+        232,
+        1
+      ],
+      [
+        233,
+        49
+      ],
+      [
+        236,
+        46
+      ],
+      [
+        238,
+        58
+      ],
+      [
+        240,
+        16
+      ],
+      [
+        241,
+        38
+      ],
+      [
+        242,
+        2
+      ],
+      [
+        243,
+        11
+      ],
+      [
+        246,
+        44
+      ],
+      [
+        247,
+        31
+      ],
+      [
+        249,
+        40
+      ],
+      [
+        251,
+        58
+      ],
+      [
+        253,
+        67
+      ],
+      [
+        255,
+        50
+      ],
+      [
+        256,
+        22
+      ],
+      [
+        257,
+        25
+      ],
+      [
+        258,
+        6
+      ],
+      [
+        259,
+        13
+      ],
+      [
+        262,
+        74
+      ],
+      [
+        264,
+        9
+      ],
+      [
+        272,
+        24
+      ],
+      [
+        273,
+        2
+      ],
+      [
+        274,
+        57
+      ],
+      [
+        275,
+        63
+      ],
+      [
+        278,
+        55
+      ],
+      [
+        281,
+        1
+      ],
+      [
+        285,
+        15
+      ],
+      [
+        286,
+        14
+      ],
+      [
+        289,
+        59
+      ],
+      [
+        292,
+        2
+      ],
+      [
+        294,
+        31
+      ],
+      [
+        296,
+        1
+      ],
+      [
+        298,
+        1
+      ],
+      [
+        300,
+        41
+      ],
+      [
+        302,
+        45
+      ],
+      [
+        309,
+        38
+      ],
+      [
+        310,
+        60
+      ],
+      [
+        314,
+        3
+      ],
+      [
+        315,
+        56
+      ],
+      [
+        316,
+        19
+      ],
+      [
+        321,
+        55
+      ],
+      [
+        323,
+        20
+      ],
+      [
+        325,
+        12
+      ],
+      [
+        327,
+        9
+      ],
+      [
+        329,
+        81
+      ],
+      [
+        334,
+        69
+      ],
+      [
+        335,
+        74
+      ],
+      [
+        336,
+        32
+      ],
+      [
+        339,
+        62
+      ],
+      [
+        342,
+        50
+      ],
+      [
+        343,
+        28
+      ],
+      [
+        344,
+        3
+      ],
+      [
+        345,
+        80
+      ],
+      [
+        347,
+        70
+      ],
+      [
+        348,
+        48
+      ],
+      [
+        349,
+        58
+      ],
+      [
+        354,
+        61
+      ],
+      [
+        356,
+        81
+      ],
+      [
+        357,
+        33
+      ],
+      [
+        358,
+        14
+      ],
+      [
+        359,
+        18
+      ],
+      [
+        360,
+        17
+      ],
+      [
+        361,
+        59
+      ],
+      [
+        362,
+        31
+      ],
+      [
+        368,
+        73
+      ],
+      [
+        370,
+        7
+      ],
+      [
+        372,
+        44
+      ],
+      [
+        373,
+        57
+      ],
+      [
+        375,
+        27
+      ],
+      [
+        376,
+        51
+      ],
+      [
+        381,
+        40
+      ],
+      [
+        383,
+        17
+      ],
+      [
+        385,
+        16
+      ],
+      [
+        386,
+        37
+      ],
+      [
+        388,
+        30
+      ],
+      [
+        389,
+        80
+      ],
+      [
+        391,
+        36
+      ],
+      [
+        393,
+        73
+      ],
+      [
+        394,
+        2
+      ],
+      [
+        395,
+        11
+      ],
+      [
+        396,
+        57
+      ],
+      [
+        400,
+        2
+      ],
+      [
+        402,
+        32
+      ],
+      [
+        404,
+        12
+      ],
+      [
+        405,
+        14
+      ],
+      [
+        408,
+        65
+      ],
+      [
+        411,
+        16
+      ],
+      [
+        412,
+        29
+      ],
+      [
+        413,
+        44
+      ],
+      [
+        419,
+        20
+      ],
+      [
+        430,
+        4
+      ]
+    ],
+    "high_chunk_articles": [
+      [
+        4,
+        548
+      ],
+      [
+        6,
+        664
+      ],
+      [
+        7,
+        431
+      ],
+      [
+        18,
+        569
+      ],
+      [
+        22,
+        389
+      ],
+      [
+        28,
+        1107
+      ],
+      [
+        29,
+        395
+      ],
+      [
+        32,
+        375
+      ],
+      [
+        36,
+        577
+      ],
+      [
+        37,
+        543
+      ],
+      [
+        38,
+        392
+      ],
+      [
+        53,
+        360
+      ],
+      [
+        56,
+        501
+      ],
+      [
+        57,
+        342
+      ],
+      [
+        60,
+        581
+      ],
+      [
+        74,
+        457
+      ],
+      [
+        77,
+        534
+      ],
+      [
+        78,
+        434
+      ],
+      [
+        87,
+        428
+      ],
+      [
+        90,
+        496
+      ],
+      [
+        91,
+        659
+      ],
+      [
+        92,
+        627
+      ],
+      [
+        95,
+        531
+      ],
+      [
+        98,
+        385
+      ],
+      [
+        100,
+        343
+      ],
+      [
+        102,
+        679
+      ],
+      [
+        104,
+        445
+      ],
+      [
+        109,
+        575
+      ],
+      [
+        116,
+        417
+      ],
+      [
+        122,
+        376
+      ],
+      [
+        123,
+        547
+      ],
+      [
+        124,
+        508
+      ],
+      [
+        132,
+        665
+      ],
+      [
+        134,
+        395
+      ],
+      [
+        137,
+        399
+      ],
+      [
+        139,
+        507
+      ],
+      [
+        142,
+        797
+      ],
+      [
+        143,
+        481
+      ],
+      [
+        146,
+        400
+      ],
+      [
+        147,
+        518
+      ],
+      [
+        152,
+        489
+      ],
+      [
+        161,
+        379
+      ],
+      [
+        166,
+        377
+      ],
+      [
+        168,
+        363
+      ],
+      [
+        186,
+        387
+      ],
+      [
+        196,
+        438
+      ],
+      [
+        198,
+        401
+      ],
+      [
+        217,
+        342
+      ],
+      [
+        230,
+        490
+      ],
+      [
+        244,
+        376
+      ],
+      [
+        252,
+        468
+      ],
+      [
+        261,
+        358
+      ],
+      [
+        266,
+        653
+      ],
+      [
+        270,
+        440
+      ],
+      [
+        277,
+        407
+      ],
+      [
+        284,
+        429
+      ],
+      [
+        287,
+        437
+      ],
+      [
+        288,
+        453
+      ],
+      [
+        290,
+        351
+      ],
+      [
+        311,
+        445
+      ],
+      [
+        312,
+        348
+      ],
+      [
+        318,
+        561
+      ],
+      [
+        332,
+        506
+      ],
+      [
+        366,
+        350
+      ],
+      [
+        377,
+        418
+      ],
+      [
+        382,
+        334
+      ],
+      [
+        398,
+        348
+      ]
+    ]
+  }
+}

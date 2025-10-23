@@ -1,0 +1,135 @@
+accum: 4
+async_mining: false
+bank: artifacts/wikipedia_500k_corrected_vectors.npz
+bs: 16
+device: mps
+epochs: 30
+filter_threshold: 0.98
+gc_every: 0
+grad_clip: 1.0
+hardneg_frac: 0.5
+hidden_dim: 512
+lr: 5.0e-05
+lr_min: 1.0e-06
+margin: 0.03
+memory_bank_size: 50000
+mine_k: 128
+mine_prefetch: 3
+mine_qbatch: 2048
+mine_refresh_steps: 3000
+mine_schedule: 0-5:none;6-10:8@0.82-0.92;11-30:16@0.84-0.96
+mine_ttl: 5
+mining_schedule:
+  0: null
+  1: null
+  2: null
+  3: null
+  4: null
+  5: null
+  6:
+    cos_max: 0.92
+    cos_min: 0.82
+    num: 8
+  7:
+    cos_max: 0.92
+    cos_min: 0.82
+    num: 8
+  8:
+    cos_max: 0.92
+    cos_min: 0.82
+    num: 8
+  9:
+    cos_max: 0.92
+    cos_min: 0.82
+    num: 8
+  10:
+    cos_max: 0.92
+    cos_min: 0.82
+    num: 8
+  11:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  12:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  13:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  14:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  15:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  16:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  17:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  18:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  19:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  20:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  21:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  22:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  23:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  24:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  25:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  26:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  27:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  28:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  29:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+  30:
+    cos_max: 0.96
+    cos_min: 0.84
+    num: 16
+num_layers: 1
+out: runs/twotower_v4_mps_simple
+pairs: artifacts/twotower/pairs_v4_synth.npz
+seed: 42
+sync_mps_every: 100
+tau: 0.05
+wd: 0.01
