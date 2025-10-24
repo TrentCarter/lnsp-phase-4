@@ -26,9 +26,14 @@ try:
     from .hierarchical_gru import HierarchicalGRU
     from .memory_gru import MemoryAugmentedGRU
 except ImportError:
-    # Fall back to absolute import (when running from project root)
-    from app.lvm.hierarchical_gru import HierarchicalGRU
-    from app.lvm.memory_gru import MemoryAugmentedGRU
+    try:
+        # Try absolute import (when running from project root)
+        from app.lvm.hierarchical_gru import HierarchicalGRU
+        from app.lvm.memory_gru import MemoryAugmentedGRU
+    except (ImportError, ModuleNotFoundError):
+        # If not available, define placeholders (not used by main 4 models)
+        HierarchicalGRU = None
+        MemoryAugmentedGRU = None
 
 
 # ============================================================================
