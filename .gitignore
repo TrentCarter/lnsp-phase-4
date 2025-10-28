@@ -3,10 +3,38 @@ outputs/
 logs/
 output/
 data/
-artifacts/
 eval/
 app_cache/
 micrograd/
+
+# Artifacts directory - ignore large files but keep documentation
+artifacts/*
+!artifacts/**/*.md
+!artifacts/**/*.json
+!artifacts/**/*.txt
+!artifacts/**/*.sh
+!artifacts/**/
+# But still ignore these even if they match above patterns
+artifacts/**/*.npy
+artifacts/**/*.npz
+artifacts/**/*.pt
+artifacts/**/*.pth
+artifacts/**/*.pkl
+artifacts/**/*.joblib
+artifacts/**/*.onnx
+artifacts/**/*.faiss
+artifacts/**/*.index
+artifacts/**/*.ivf
+artifacts/**/*.hdf5
+artifacts/**/*.parquet
+# Exclude large JSON files (>2MB) - common patterns for data/cache files
+artifacts/**/*_data.json
+artifacts/**/*_dataset.json
+artifacts/**/*_corpus.json
+artifacts/**/*_cache.json
+artifacts/**/*_vectors.json
+artifacts/**/*_embeddings.json
+artifacts/**/*_backup.json
 
 
 # Ignore compiled Python files

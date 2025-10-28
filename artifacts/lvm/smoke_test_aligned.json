@@ -1,0 +1,14 @@
+{
+  "n_samples": 500,
+  "R@1": 0.0,
+  "R@5": 0.0,
+  "R@10": 0.0,
+  "Contain@50": 0.0,
+  "Eff@5": 0.0,
+  "latency_mean_ms": 1.2075905799865723,
+  "latency_p95_ms": 1.2283325195312498,
+  "latency_p99_ms": 1.3793873786926267,
+  "model": "artifacts/lvm/models/mamba_sandwich/best.pt",
+  "eval_npz": "artifacts/lvm/eval_v2_payload_aligned.npz",
+  "limit": 500
+}

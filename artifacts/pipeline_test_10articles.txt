@@ -1,0 +1,36 @@
+🚀 Wikipedia Ingestion Pipeline
+================================================================================
+🔍 Checking APIs...
+  ✅ Episode Chunker: http://localhost:8900/health
+  ✅ Semantic Chunker: http://localhost:8001/health
+  ✅ TMD Router: http://localhost:8002/health
+  ✅ GTR-T5 Embeddings: http://localhost:8765/health
+  ✅ Ingest: http://localhost:8004/health
+
+📥 Loading articles from data/datasets/wikipedia/wikipedia_simple_articles.jsonl...
+   Loaded: 10 articles
+
+⚙️  Processing articles...
+Articles:   0%|          | 0/10 [00:00<?, ?it/s]Articles:  10%|█         | 1/10 [00:00<00:08,  1.07it/s]Articles:  20%|██        | 2/10 [00:07<00:36,  4.53s/it]Articles:  30%|███       | 3/10 [00:12<00:32,  4.71s/it]Articles:  40%|████      | 4/10 [00:18<00:29,  4.89s/it]Articles:  50%|█████     | 5/10 [00:23<00:25,  5.16s/it]Articles:  60%|██████    | 6/10 [00:27<00:18,  4.52s/it]Articles:  70%|███████   | 7/10 [00:36<00:18,  6.17s/it]Articles:  80%|████████  | 8/10 [00:45<00:13,  6.99s/it]Articles:  90%|█████████ | 9/10 [00:47<00:05,  5.35s/it]Articles: 100%|██████████| 10/10 [01:01<00:00,  8.10s/it]Articles: 100%|██████████| 10/10 [01:01<00:00,  6.13s/it]
+
+✅ Pipeline Complete!
+   Articles processed: 10
+   Episodes created: 35
+   Chunks ingested: 130
+
+⏱️  Performance Metrics (per article average):
+   Episode Chunking: 159.9ms
+   Semantic Chunking: 286.5ms
+   TMD Extraction: 2556.9ms
+   Embeddings: 185.9ms
+   Ingestion: 3519.8ms
+   Total Pipeline: 6709.1ms
+
+📊 Total Time:
+   Pipeline: 60.4s
+   Throughput: 0.2 articles/sec
+
+⚠️  Errors: 1
+      April: 422 Client Error: Unprocessable Content for url: http://localhost:8001/chunk
+
+💾 Metrics saved to: artifacts/pipeline_metrics.json

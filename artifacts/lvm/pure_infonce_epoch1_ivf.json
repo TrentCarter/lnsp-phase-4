@@ -1,0 +1,37 @@
+{
+  "n_samples": 1000,
+  "R@1": 0.0,
+  "R@5": 0.0,
+  "R@10": 0.0,
+  "R@20": 0.0,
+  "Contain@20": 0.0,
+  "Contain@50": 0.0,
+  "Eff@5": 0.0,
+  "latency_mean_ms": 0.981198787689209,
+  "latency_p50_ms": 0.9679794311523438,
+  "latency_p95_ms": 1.0769844055175781,
+  "latency_p99_ms": 1.1869287490844727,
+  "checkpoint": "artifacts/lvm/models/mamba_s_pure_infonce/best.pt",
+  "epoch": null,
+  "limit": 1000,
+  "val_cosine": 0.3620849847793579,
+  "val_cosine_pred_target": -0.017656955868005753,
+  "truth_payload_cos_mean": 1.0,
+  "truth_payload_cos_p5": 0.9999995231628418,
+  "gates_passed": [
+    "\u2705 P95: 1.08ms \u2264 1.45ms"
+  ],
+  "gates_failed": [
+    "\u274c Contain@50: 0.0% < 60%",
+    "\u274c Eff@5: 0.0% < 68%",
+    "\u274c R@5: 0.0% < 40%"
+  ],
+  "retrieval_knobs": {
+    "nprobe": 64,
+    "mmr_lambda": 0.7,
+    "seq_bias_same": 0.05,
+    "seq_bias_gap": 0.12,
+    "directional": 0.03,
+    "shard_assist": "false"
+  }
+}

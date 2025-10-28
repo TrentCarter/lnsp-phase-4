@@ -1,0 +1,307 @@
+🔬 FIXED TMD BENCHMARK
+================================================================================
+Test cases: 21 (5 canonical + 16 additional)
+Fixes:
+  ✅ All 3 codes validated (domain, task, modifier)
+  ✅ Proper warm-up (3rd query timing only)
+  ✅ Raw LLM output logged
+  ✅ Canonical ground truth from TMD-Schema.md
+
+======================================================================
+Testing: llama3.1:8b
+======================================================================
+
+🔥 Warming up model (3 queries, timing discarded)...
+  Warm-up 1/3: raw='2, 4, 37...'
+  Warm-up 2/3: raw='2, 4, 37...'
+  Warm-up 3/3: raw='2, 4, 37...'
+
+✅ Warm-up complete. Starting timed benchmark...
+
+
+Test 1/21: software
+  Expected: D=2, T=5, M=9
+  Actual:   D=2 ✓, T=5 ✓, M=37 ✗
+  Raw output: '2, 5, 37...'
+  Latency: 3296.5ms
+
+Test 2/21: Gene Ontology
+  Expected: D=4, T=5, M=55
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'After analyzing the concept "Gene Ontology...'
+  Latency: 3342.5ms
+
+Test 3/21: Python programming language
+  Expected: D=2, T=14, M=9
+  Actual:   D=2 ✓, T=14 ✓, M=9 ✓
+  Raw output: '2, 14, 9...'
+  Latency: 3418.3ms
+
+Test 4/21: World War II
+  Expected: D=7, T=6, M=45
+  Actual:   D=7 ✓, T=6 ✓, M=5 ✗
+  Raw output: '7, 6, 5...'
+  Latency: 3278.2ms
+
+Test 5/21: cardiac arrest
+  Expected: D=4, T=5, M=9
+  Actual:   D=4 ✓, T=5 ✓, M=37 ✗
+  Raw output: '4, 5, 37...'
+  Latency: 3296.5ms
+
+Test 6/21: diabetes mellitus
+  Expected: D=4, T=1, M=29
+  Actual:   D=4 ✓, T=5 ✗, M=37 ✗
+  Raw output: '4, 5, 37...'
+  Latency: 3319.0ms
+
+Test 7/21: myocardial infarction
+  Expected: D=4, T=5, M=9
+  Actual:   D=4 ✓, T=5 ✓, M=37 ✗
+  Raw output: '4, 5, 37...'
+  Latency: 3303.1ms
+
+Test 8/21: binary search algorithm
+  Expected: D=15, T=14, M=2
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'After analyzing the concept "binary search algorithm...'
+  Latency: 3381.9ms
+
+Test 9/21: REST API endpoint
+  Expected: D=15, T=5, M=9
+  Actual:   D=2 ✗, T=7 ✗, M=37 ✗
+  Raw output: '2, 7, 37...'
+  Latency: 3109.7ms
+
+Test 10/21: photosynthesis
+  Expected: D=0, T=3, M=0
+  Actual:   D=14 ✗, T=31 ✗, M=55 ✗
+  Raw output: '14, 37, 55...'
+  Latency: 3274.7ms
+
+Test 11/21: quantum mechanics
+  Expected: D=0, T=1, M=11
+  Actual:   D=0 ✓, T=16 ✗, M=37 ✗
+  Raw output: '0, 16, 37...'
+  Latency: 3328.8ms
+
+Test 12/21: Pythagorean theorem
+  Expected: D=1, T=16, M=3
+  Actual:   D=1 ✓, T=16 ✓, M=37 ✗
+  Raw output: '1, 16, 37...'
+  Latency: 3299.4ms
+
+Test 13/21: prime factorization
+  Expected: D=1, T=4, M=2
+  Actual:   D=1 ✓, T=16 ✗, M=37 ✗
+  Raw output: '1, 16, 37...'
+  Latency: 3276.5ms
+
+Test 14/21: French Revolution
+  Expected: D=7, T=0, M=5
+  Actual:   D=7 ✓, T=12 ✗, M=5 ✓
+  Raw output: '7, 12, 5...'
+  Latency: 3429.9ms
+
+Test 15/21: Cold War
+  Expected: D=7, T=6, M=16
+  Actual:   D=7 ✓, T=12 ✗, M=5 ✗
+  Raw output: '7, 12, 5...'
+  Latency: 3358.9ms
+
+Test 16/21: machine learning
+  Expected: D=2, T=1, M=2
+  Actual:   D=2 ✓, T=4 ✗, M=37 ✗
+  Raw output: '2, 4, 37...'
+  Latency: 3245.1ms
+
+Test 17/21: neural networks
+  Expected: D=2, T=1, M=36
+  Actual:   D=2 ✓, T=4 ✗, M=37 ✗
+  Raw output: '2, 4, 37...'
+  Latency: 3383.6ms
+
+Test 18/21: bridge construction
+  Expected: D=3, T=19, M=36
+  Actual:   D=3 ✓, T=6 ✗, M=37 ✗
+  Raw output: '3, 6, 37...'
+  Latency: 3309.2ms
+
+Test 19/21: circuit design
+  Expected: D=3, T=14, M=35
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'After analyzing the concept "circuit design...'
+  Latency: 3171.8ms
+
+Test 20/21: existentialism
+  Expected: D=6, T=1, M=7
+  Actual:   D=6 ✓, T=20 ✗, M=7 ✓
+  Raw output: '6, 20, 7...'
+  Latency: 3461.0ms
+
+Test 21/21: epistemology
+  Expected: D=6, T=1, M=56
+  Actual:   D=6 ✓, T=28 ✗, M=56 ✓
+  Raw output: '6, 28, 56...'
+  Latency: 3325.3ms
+
+======================================================================
+Testing: tinyllama:1.1b
+======================================================================
+
+🔥 Warming up model (3 queries, timing discarded)...
+  Warm-up 1/3: raw='CONCEPT: "Machinie...'
+  Warm-up 2/3: raw='CONCEPT: "Machinie...'
+  Warm-up 3/3: raw='CONCEPT: "Machinie...'
+
+✅ Warm-up complete. Starting timed benchmark...
+
+
+Test 1/21: software
+  Expected: D=2, T=5, M=9
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "software"...'
+  Latency: 1545.5ms
+
+Test 2/21: Gene Ontology
+  Expected: D=4, T=5, M=55
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "Genome"...'
+  Latency: 1443.0ms
+
+Test 3/21: Python programming language
+  Expected: D=2, T=14, M=9
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "Python...'
+  Latency: 1309.4ms
+
+Test 4/21: World War II
+  Expected: D=7, T=6, M=45
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "World War II...'
+  Latency: 1432.6ms
+
+Test 5/21: cardiac arrest
+  Expected: D=4, T=5, M=9
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "cardiac arrest...'
+  Latency: 1208.6ms
+
+Test 6/21: diabetes mellitus
+  Expected: D=4, T=1, M=29
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "diabetes...'
+  Latency: 1432.3ms
+
+Test 7/21: myocardial infarction
+  Expected: D=4, T=5, M=9
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "myocard...'
+  Latency: 1350.2ms
+
+Test 8/21: binary search algorithm
+  Expected: D=15, T=14, M=2
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "binary search algorithm...'
+  Latency: 1267.5ms
+
+Test 9/21: REST API endpoint
+  Expected: D=15, T=5, M=9
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "RESST API...'
+  Latency: 1413.9ms
+
+Test 10/21: photosynthesis
+  Expected: D=0, T=3, M=0
+  Actual:   D=0 ✓, T=0 ✗, M=0 ✓
+  Raw output: 'CONCEPT: "photosynthesis...'
+  Latency: 1418.3ms
+
+Test 11/21: quantum mechanics
+  Expected: D=0, T=1, M=11
+  Actual:   D=0 ✓, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "quantum mechan...'
+  Latency: 1357.0ms
+
+Test 12/21: Pythagorean theorem
+  Expected: D=1, T=16, M=3
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "Pythagor...'
+  Latency: 1459.0ms
+
+Test 13/21: prime factorization
+  Expected: D=1, T=4, M=2
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "prime factorization...'
+  Latency: 1315.4ms
+
+Test 14/21: French Revolution
+  Expected: D=7, T=0, M=5
+  Actual:   D=0 ✗, T=0 ✓, M=0 ✗
+  Raw output: 'CONCEPT: "Fanciful...'
+  Latency: 1413.7ms
+
+Test 15/21: Cold War
+  Expected: D=7, T=6, M=16
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "Cold War...'
+  Latency: 1410.0ms
+
+Test 16/21: machine learning
+  Expected: D=2, T=1, M=2
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "machinine...'
+  Latency: 1345.2ms
+
+Test 17/21: neural networks
+  Expected: D=2, T=1, M=36
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "neural networks...'
+  Latency: 1361.1ms
+
+Test 18/21: bridge construction
+  Expected: D=3, T=19, M=36
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "bridge construction"...'
+  Latency: 1293.5ms
+
+Test 19/21: circuit design
+  Expected: D=3, T=14, M=35
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "circuit design...'
+  Latency: 1408.5ms
+
+Test 20/21: existentialism
+  Expected: D=6, T=1, M=7
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "existentialism...'
+  Latency: 1376.5ms
+
+Test 21/21: epistemology
+  Expected: D=6, T=1, M=56
+  Actual:   D=0 ✗, T=0 ✗, M=0 ✗
+  Raw output: 'CONCEPT: "epistemo...'
+  Latency: 1346.8ms
+
+================================================================================
+FIXED TMD BENCHMARK RESULTS
+================================================================================
+
+📊 ACCURACY (ALL 3 CODES TESTED):
+--------------------------------------------------------------------------------
+Model                    Domain       Task   Modifier      All 3     Errors
+--------------------------------------------------------------------------------
+llama3.1:8b              76.2%      28.6%      19.0%       4.8%           3
+tinyllama:1.1b            9.5%       4.8%       4.8%       0.0%          21
+
+⚡ LATENCY (3RD QUERY AFTER WARM-UP):
+--------------------------------------------------------------------------------
+Model                         Avg          Min          Max
+--------------------------------------------------------------------------------
+llama3.1:8b              3314.8ms      3109.7ms      3461.0ms
+tinyllama:1.1b           1376.6ms      1208.6ms      1545.5ms
+
+🚀 Speedup: 2.4x
+--------------------------------------------------------------------------------
+
+💾 Results saved to: artifacts/tmd_benchmark_fixed.json

@@ -1,0 +1,19 @@
+{
+  "model_type": "amn",
+  "model_name": "Attention Mixture Network",
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.0015833797781256798,
+      "train_cosine": 0.5068263749688916,
+      "train_loss_mse": 0.0015833797781256798,
+      "train_loss_info": 2.180148617090161,
+      "val_loss": 0.0012622573995031416,
+      "val_cosine": 0.5152931972628548,
+      "lr": 0.0005
+    }
+  ],
+  "best_val_loss": 0.0012622573995031416,
+  "final_params": 1510912,
+  "trained_at": "2025-10-16T13:14:05.991387"
+}

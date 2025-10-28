@@ -1,0 +1,12 @@
+{
+  "batch_id": "comprehensive-20250928_181853",
+  "timestamp": "2025-09-28T18:19:13.231917",
+  "statistics": {
+    "total_items": 6,
+    "successful": 6,
+    "failed": 0,
+    "success_rate": 100.0
+  },
+  "failed_items": [],
+  "remaining_in_queue": 0
+}

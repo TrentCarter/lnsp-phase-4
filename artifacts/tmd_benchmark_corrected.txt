@@ -1,0 +1,194 @@
+🔬 TMD EXTRACTION MODEL BENCHMARK
+================================================================================
+Test cases: 10
+LLM endpoint: http://localhost:11434
+
+============================================================
+Testing: llama3.1:8b
+============================================================
+
+Warming up model (3 queries)...
+  Warm-up 1/3 complete
+  Warm-up 2/3 complete
+  Warm-up 3/3 complete
+✓ Model warmed up, starting benchmark...
+
+
+Test 1/10: science
+  Text: The water cycle involves evaporation, condensation, and prec...
+  Domain: 14 (expected 0) ✗
+  Task: 18 (expected 8) ✗
+  Latency: 1167.3ms
+
+Test 2/10: science
+  Text: Photosynthesis converts light energy into chemical energy in...
+Invalid task 37 for 'Photosynthesis converts light energy into chemical energy in plants', clamping
+  Domain: 14 (expected 0) ✗
+  Task: 31 (expected 3) ✗
+  Latency: 1162.3ms
+
+Test 3/10: science
+  Text: DNA replication occurs during the S phase of the cell cycle...
+  Domain: 0 (expected 4) ✗
+  Task: 5 (expected 0) ✗
+  Latency: 1167.1ms
+
+Test 4/10: tech
+  Text: A binary search tree maintains sorted order with O(log n) lo...
+  Domain: 1 (expected 15) ✗
+  Task: 16 (expected 1) ✗
+  Latency: 1156.8ms
+
+Test 5/10: tech
+  Text: REST APIs use HTTP methods like GET, POST, PUT, and DELETE...
+  Domain: 2 (expected 15) ✗
+  Task: 5 (expected 5) ✓
+  Latency: 1203.8ms
+
+Test 6/10: tech
+  Text: Python list comprehensions provide concise syntax for creati...
+  Domain: 2 (expected 15) ✗
+  Task: 14 (expected 1) ✗
+  Latency: 1250.5ms
+
+Test 7/10: math
+  Text: The quadratic formula solves equations of the form ax² + bx ...
+  Domain: 1 (expected 1) ✓
+  Task: 16 (expected 1) ✗
+  Latency: 1260.2ms
+
+Test 8/10: math
+  Text: Prime numbers are divisible only by 1 and themselves...
+  Domain: 1 (expected 1) ✓
+  Task: 16 (expected 1) ✗
+  Latency: 1212.9ms
+
+Test 9/10: history
+  Text: The Industrial Revolution transformed manufacturing in the 1...
+  Domain: 7 (expected 7) ✓
+  Task: 6 (expected 0) ✗
+  Latency: 1346.2ms
+
+Test 10/10: history
+  Text: Democracy is a system of government where citizens vote for ...
+  Domain: 12 (expected 12) ✓
+  Task: 5 (expected 1) ✗
+  Latency: 1301.6ms
+
+============================================================
+Testing: tinyllama:1.1b
+============================================================
+
+Warming up model (3 queries)...
+Failed to parse LLM response for 'Machine learning is a subset of artificial intelligence': CONCEPT: "Machinie
+  Warm-up 1/3 complete
+Failed to parse LLM response for 'Machine learning is a subset of artificial intelligence': CONCEPT: "Machinie
+  Warm-up 2/3 complete
+Failed to parse LLM response for 'Machine learning is a subset of artificial intelligence': CONCEPT: "Machinie
+  Warm-up 3/3 complete
+✓ Model warmed up, starting benchmark...
+
+
+Test 1/10: science
+  Text: The water cycle involves evaporation, condensation, and prec...
+Failed to parse LLM response for 'The water cycle involves evaporation, condensation, and precipitation': CONCEPT: "The water cycle
+  Domain: 0 (expected 0) ✓
+  Task: 0 (expected 8) ✗
+  Latency: 265.4ms
+
+Test 2/10: science
+  Text: Photosynthesis converts light energy into chemical energy in...
+Failed to parse LLM response for 'Photosynthesis converts light energy into chemical energy in plants': CONCEPT: "Photosynthesis
+  Domain: 0 (expected 0) ✓
+  Task: 0 (expected 3) ✗
+  Latency: 267.2ms
+
+Test 3/10: science
+  Text: DNA replication occurs during the S phase of the cell cycle...
+Failed to parse LLM response for 'DNA replication occurs during the S phase of the cell cycle': CONCEPT: "DNAs rep
+  Domain: 0 (expected 4) ✗
+  Task: 0 (expected 0) ✓
+  Latency: 265.2ms
+
+Test 4/10: tech
+  Text: A binary search tree maintains sorted order with O(log n) lo...
+Failed to parse LLM response for 'A binary search tree maintains sorted order with O(log n) lookup time': CONCEPT: "A binary search
+  Domain: 0 (expected 15) ✗
+  Task: 0 (expected 1) ✗
+  Latency: 266.7ms
+
+Test 5/10: tech
+  Text: REST APIs use HTTP methods like GET, POST, PUT, and DELETE...
+Failed to parse LLM response for 'REST APIs use HTTP methods like GET, POST, PUT, and DELETE': CONCEPT: "RESST APIs
+  Domain: 0 (expected 15) ✗
+  Task: 0 (expected 5) ✗
+  Latency: 270.3ms
+
+Test 6/10: tech
+  Text: Python list comprehensions provide concise syntax for creati...
+Failed to parse LLM response for 'Python list comprehensions provide concise syntax for creating lists': CONCEPT: "Python
+  Domain: 0 (expected 15) ✗
+  Task: 0 (expected 1) ✗
+  Latency: 266.4ms
+
+Test 7/10: math
+  Text: The quadratic formula solves equations of the form ax² + bx ...
+Failed to parse LLM response for 'The quadratic formula solves equations of the form ax² + bx + c = 0': CONCEPT: "The quadratic formula
+  Domain: 0 (expected 1) ✗
+  Task: 0 (expected 1) ✗
+  Latency: 269.8ms
+
+Test 8/10: math
+  Text: Prime numbers are divisible only by 1 and themselves...
+Failed to parse LLM response for 'Prime numbers are divisible only by 1 and themselves': CONCEPT: "Primitive numbers
+  Domain: 0 (expected 1) ✗
+  Task: 0 (expected 1) ✗
+  Latency: 264.7ms
+
+Test 9/10: history
+  Text: The Industrial Revolution transformed manufacturing in the 1...
+Failed to parse LLM response for 'The Industrial Revolution transformed manufacturing in the 18th century': CONCEPT: "The Industrial
+  Domain: 0 (expected 7) ✗
+  Task: 0 (expected 0) ✓
+  Latency: 268.1ms
+
+Test 10/10: history
+  Text: Democracy is a system of government where citizens vote for ...
+Failed to parse LLM response for 'Democracy is a system of government where citizens vote for leaders': CONCEPT: "Democracy
+  Domain: 0 (expected 12) ✗
+  Task: 0 (expected 1) ✗
+  Latency: 265.8ms
+
+================================================================================
+BENCHMARK RESULTS: TMD EXTRACTION MODEL COMPARISON
+================================================================================
+
+📊 ACCURACY COMPARISON:
+--------------------------------------------------------------------------------
+Model                Domain          Task            Both Correct   
+--------------------------------------------------------------------------------
+llama3.1:8b            40.0% (4/10)       10.0% (1/10)        0.0% (0/10)
+tinyllama:1.1b         20.0% (2/10)       20.0% (2/10)        0.0% (0/10)
+
+⚡ SPEED COMPARISON:
+--------------------------------------------------------------------------------
+Model                Avg Latency     Min          Max          Total Time  
+--------------------------------------------------------------------------------
+llama3.1:8b            1222.9 ms     1156.8 ms   1346.2 ms     12.2 s
+tinyllama:1.1b          267.0 ms      264.7 ms    270.3 ms      2.7 s
+
+🚀 PERFORMANCE IMPROVEMENT:
+   Speedup: 4.6x faster
+   Time saved: 9.6s (78% faster)
+   Latency reduction: 955.9ms
+
+💡 RECOMMENDATION:
+--------------------------------------------------------------------------------
+❌ NOT RECOMMENDED: Stick with llama3.1:8b
+   • tinyllama:1.1b accuracy too low (0.0%)
+   • Speed gain not worth accuracy loss
+--------------------------------------------------------------------------------
+
+💾 Results saved to: artifacts/tmd_model_benchmark.json
+
+✅ Benchmark complete!

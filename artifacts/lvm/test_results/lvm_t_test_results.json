@@ -1,0 +1,230 @@
+{
+  "config": {
+    "model_path": "artifacts/lvm/models/transformer_corrected_80k/best_model.pt",
+    "data_path": "artifacts/wikipedia_500k_corrected_vectors.npz",
+    "device": "mps",
+    "test_samples": 1000,
+    "decode_samples": 10,
+    "output_dir": "artifacts/lvm/test_results"
+  },
+  "single_predictions": [
+    {
+      "index": 10896,
+      "cosine_similarity": 0.27623313665390015,
+      "target_text_original": "The Magny Cours and Lisbon server parts were released in 2010. The Magny Cours part came in 8 to 12\u00a0cores and the Lisbon part in 4 and 6\u00a0core parts. Magny Cours is focused on performance while the Lisbon part is focused on high performance per watt. Magny Cours is an MCM (multi-chip module) with two hexa-core \"Istanbul\" Opteron parts. This will use a new socket G34 for dual and quad-socket processors and thus will be marketed as Opteron 61xx series processors. ",
+      "target_text_decoded": "The Magny Cours and Lisbon server parts were released in 2010. The Magny Cours part came in 8 to 12\u00a0cores and the Lisbon part in 4 and 6\u00a0core parts. Magny Cours is focused on performance while the Lisbon part is focused on high performance per watt. Magny Cours is an MCM (multi-chip module) with two hexa-core \"Istanbul\" Opteron parts. This will use a new socket G34 for dual and quad-socket processors and thus will be marketed as Opteron 61xx series processors. ",
+      "predicted_text": "[ERROR: 'IsolatedVecTextVectOrchestrator' object has no attribute 'decode_vector']",
+      "context_texts": [
+        "However, AMD built the Spider at 65nm, which was uncompetitive with Intel's smaller and more power-efficient 45nm In January 2009, AMD released a new processor line dubbed Phenom II, a refresh of the original Phenom built using the 45\u00a0nm process AMD's new platform, codenamed \"Dragon\", used the new Phenom II processor, and an ATI R770 GPU from the R700 GPU family, as well as a 790 GX/FX chipset from the AMD 700 chipset series",
+        "The Phenom II came in dual-core, triple-core and quad-core variants, all using the same die, with cores disabled for the triple-core and dual-core versions",
+        "The Phenom II resolved issues that the original Phenom had, including a low clock speed, a small L3 cache, and a Cool'n'Quiet bug that decreased performance The Phenom II cost less but was not performance-competitive with Intel's mid-to-high-range Core 2 Quads",
+        "The Phenom II also enhanced its predecessor's memory controller, allowing it to use DDR3 in a new native socket AM3, while maintaining backward compatibility with AM2+, the socket used for the Phenom, and allowing the use of the DDR2 memory that was used with the platform In April 2010, AMD released a new Phenom II Hexa-core (6-core) processor codenamed \"Thuban\"",
+        "This was a totally new die based on the hexa-core \"Istanbul\" Opteron processor. "
+      ]
+    },
+    {
+      "index": 2292,
+      "cosine_similarity": 0.3158706724643707,
+      "target_text_original": "In a 2001 mourning ceremony at Moscow to honour the memory of Ahmad Shah Massoud, one-time foe Colonel Abdul Qadir stated: \"Though Massoud and I used to be enemies, I am sure he deserves great respect as an outstanding military leader and, first of all, as a patriot of his country\".\n\nLion of Panjshir\nMassoud's byname, \"Lion of Panjshir\" (, \"Shir-e-Panjshir\"), earned for his role during the Soviet occupation, is a rhyming play on words in Persian, as the name of the valley means \"five lions\".",
+      "target_text_decoded": "In a 2001 mourning ceremony at Moscow to honour the memory of Ahmad Shah Massoud, one-time foe Colonel Abdul Qadir stated: \"Though Massoud and I used to be enemies, I am sure he deserves great respect as an outstanding military leader and, first of all, as a patriot of his country\".\n\nLion of Panjshir\nMassoud's byname, \"Lion of Panjshir\" (, \"Shir-e-Panjshir\"), earned for his role during the Soviet occupation, is a rhyming play on words in Persian, as the name of the valley means \"five lions\".",
+      "predicted_text": "[ERROR: 'IsolatedVecTextVectOrchestrator' object has no attribute 'decode_vector']",
+      "context_texts": [
+        "Today Panjshir, the home of Massoud,\n\nis arguably the most peaceful place in the entire country. A small US military reconstruction team is based here, but there are none of the signs of foreign occupation that exist elsewhere. ",
+        "Even Afghan soldiers are few and far between. ",
+        "Instead, the people like to boast about how they keep their own security.\n A Massoud Foundation was established in 2003, to provide humanitarian assistance to Afghans, especially in the fields of health care and education. It also runs programs in the fields of culture, construction, agriculture and welfare.\n ",
+        "A major road in Kabul was named Great Massoud Road A monument to Massoud was installed outside the US Embassy A street in New Delhi, India, is named after Ahmad Shah Massoud It is the first time that such an honour has been extended to a leader from that country as part of close ties between Afghanistan and India Magpul Massoud was a 7.62 NATO rifle produced by Magpul which was named after himself",
+        "The road near the Afghanistan Embassy is a \"symbol of ties\" that binds the two nations that have always \"enjoyed excellent relations\"."
+      ]
+    },
+    {
+      "index": 10666,
+      "cosine_similarity": 0.39009329676628113,
+      "target_text_original": "Hopkins reprised his role as Lecter twice; in Ridley Scott's Hannibal (2001), and Red Dragon (2002) His original portrayal of the character in The Silence of the Lambs has been labelled by the AFI as the number-one film villain Director Jonathan Demme wanted a British actor for the role, with Jodie Foster stating, \"Lecter is a manipulator and has a way of using language to keep people at bay",
+      "target_text_decoded": "Hopkins reprised his role as Lecter twice; in Ridley Scott's Hannibal (2001), and Red Dragon (2002) His original portrayal of the character in The Silence of the Lambs has been labelled by the AFI as the number-one film villain Director Jonathan Demme wanted a British actor for the role, with Jodie Foster stating, \"Lecter is a manipulator and has a way of using language to keep people at bay",
+      "predicted_text": "[ERROR: 'IsolatedVecTextVectOrchestrator' object has no attribute 'decode_vector']",
+      "context_texts": [
+        "Hopkins creates a memorable image of a perversely brilliant modern-day barbarian.\"\n\nIn 1986, he starred in David Hare's production of King Lear, Hopkins's favourite Shakespeare play, at the National Theatre. The next year, he starred as Antony in the National Theatre production of Antony and Cleopatra opposite Judi Dench, and in 1989, Hopkins made his last appearance on stage in a West End production of M. Butterfly. \"It was a torment\", he claimed in a later interview. ",
+        "Of a matinee where nobody laughed, there was, he said \"not a titter\". When the lights came up, the cast realised the entire audience was Japanese. \"Oh God,\" he recalled, \"You'd go to your dressing room and someone would pop their head round the door and say, 'Coffee? ",
+        "And I'd think, 'An open razor, please.'\" In 1989 he starred as Abel Magwitch in the miniseries Great Expectations which was broadcast on ITV in the UK and The Disney Channel in the US. The adaptation of the Dickens' novel also starred Jean Simmons and John Rhys-Davies. He received his fourth Primetime Emmy Award nomination, this time for Outstanding Supporting Actor in a Limited Series or Movie.",
+        "1990\u20131998: Stardom and acclaim\n\nHopkins won acclaim among critics and audiences as the cannibalistic serial killer Hannibal Lecter in The Silence of the Lambs, for which he won the Academy Award for Best Actor in 1991, with Jodie Foster as Clarice Starling, who also won for Best Actress The film won Best Picture, Best Director and Best Adapted Screenplay, and Hopkins also picked up his first BAFTA for Best Actor",
+        "During this period, Hopkins had the chance to work with Bart the Bear in two films: Legends of the Fall (1994) and The Edge (1997) According to trainer, Lynn Seus, \"Tony Hopkins was absolutely brilliant with Bart...He acknowledged and respected him like a fellow actor He would spend hours just looking at Bart and admiring him"
+      ]
+    },
+    {
+      "index": 13090,
+      "cosine_similarity": 0.2538587749004364,
+      "target_text_original": "This remained the case until the 19th century. In 1799, the Helvetic republic abolished all special tolls, and, in 1802, removed the poll tax.  On 5 May 1809, they were declared citizens and given broad rights regarding trade and farming. ",
+      "target_text_decoded": "This remained the case until the 19th century. In 1799, the Helvetic republic abolished all special tolls, and, in 1802, removed the poll tax.  On 5 May 1809, they were declared citizens and given broad rights regarding trade and farming. ",
+      "predicted_text": "[ERROR: 'IsolatedVecTextVectOrchestrator' object has no attribute 'decode_vector']",
+      "context_texts": [
+        "Migration accounted for 8.7%, while births and deaths accounted for 2.8% Most of the population () speaks German (477,093 or 87.1%) as their first language, Italian is the second most common (17,847 or 3.3%) and Serbo-Croatian is the third (10,645 or 1.9%) There are 4,151 people who speak French and 618 people who speak Romansh Of the population in the canton, 146,421 or about 26.7% were born in Aargau and lived there in 2000",
+        ", children and teenagers (0\u201319 years old) make up 24.3% of the population, while adults (20\u201364 years old) make up 62.3% and seniors (over 64 years old) make up 13.4%.\n\n, there were 227,656 people who were single and never married in the canton. There were 264,939 married individuals, 27,603 widows or widowers and 27,295 individuals who are divorced.\n\n, there were 224,128 private households in the canton, and an average of 2.4 persons per household. ",
+        "There were 69,062 households that consist of only one person and 16,254 households with five or more people. , the construction rate of new housing units was 6.5 new units per 1000 residents. ",
+        "The vacancy rate for the canton, , was 1.54%.",
+        "The majority of the population is centered on one of three areas: the Aare Valley, the side branches of the Aare Valley, or along the Rhine.\n\nHistoric population\nThe historical population is given in the following chart:\n\nPolitics\nIn the 2011 federal election, the most popular party was the SVP which received 34.7% of the vote. "
+      ]
+    },
+    {
+      "index": 4473,
+      "cosine_similarity": 0.39571553468704224,
+      "target_text_original": "This word is derived from Proto-Indo-European *h\u2082r\u0325\u01f5ipy\u00f3s, with cognates in Sanskrit (\u090b\u091c\u093f\u092a\u094d\u092f, \u1e5bjipy\u00e1), Avestan (\u0259r\u0259zifiia), and Greek (\u03b1\u1f30\u03b3\u03af\u03c0\u03b9\u03bf\u03c2, aig\u00edpios)",
+      "target_text_decoded": "This word is derived from Proto-Indo-European *h\u2082r\u0325\u01f5ipy\u00f3s, with cognates in Sanskrit (\u090b\u091c\u093f\u092a\u094d\u092f, \u1e5bjipy\u00e1), Avestan (\u0259r\u0259zifiia), and Greek (\u03b1\u1f30\u03b3\u03af\u03c0\u03b9\u03bf\u03c2, aig\u00edpios)",
+      "predicted_text": "[ERROR: 'IsolatedVecTextVectOrchestrator' object has no attribute 'decode_vector']",
+      "context_texts": [
+        "al(l)a(e)\u1e2b\u1e2benne), cov \"sea\" ( \u2190 Urart",
+        "\u1e63\u00fb\u01dd \"(inland) sea\"), u\u0142t \"camel\" ( \u2190 Hurr. u\u1e37tu), and xnjor \"apple (tree)\" ( \u2190 Hurr. ",
+        "\u1e2binzuri). ",
+        "Some of the terms he gives admittedly have an Akkadian or Sumerian provenance, but he suggests they were borrowed through Hurrian or Urartian Given that these borrowings do not undergo sound changes characteristic of the development of Armenian from Proto-Indo-European, he dates their borrowing to a time before the written record but after the Proto-Armenian language stage",
+        "Contemporary linguists, such as Hrach Martirosyan, have rejected many of the Hurro-Urartian and Northeast Caucasian origins for these words and instead suggest native Armenian etymologies, leaving the possibility that these words may have been loaned into Hurro-Urartian and Caucasian languages from Armenian, and not vice versa A notable example is arciv, meaning \"eagle\", believed to have been the origin of Urartian Ar\u1e63ibi and Northeast Caucasian  arzu"
+      ]
+    },
+    {
+      "index": 9228,
+      "cosine_similarity": 0.024740071967244148,
+      "target_text_original": "Initially supporting the new government of Burhanuddin Rabbani, he switched sides in 1994 by allying with Gulbuddin Hekmatyar, but he backed Rabbani again by 1996. During this time he remained in control of the country's north which functioned as a relatively stable proto-state, but remained a loose partner of Massoud in the Northern Alliance. ",
+      "target_text_decoded": "Initially supporting the new government of Burhanuddin Rabbani, he switched sides in 1994 by allying with Gulbuddin Hekmatyar, but he backed Rabbani again by 1996. During this time he remained in control of the country's north which functioned as a relatively stable proto-state, but remained a loose partner of Massoud in the Northern Alliance. ",
+      "predicted_text": "[ERROR: 'IsolatedVecTextVectOrchestrator' object has no attribute 'decode_vector']",
+      "context_texts": [
+        "Home media\nThe first seven episodes were released on DVD on May 30, 2006, in Region 1 from Lionsgate Home Entertainment in a single-disc release entitled ALF and The Beanstalk and Other Classic Fairy Tales.\n\nSee also\nList of animated spinoffs from prime time shows\n\nReferences",
+        "External links\n\nALF (TV series)\n1980s American animated television series\n1980s American comic science fiction television series\n1988 American television series debuts\n1989 American television series endings\nAmerican animated television spin-offs\nAmerican children's animated comic science fiction television series\nAnimated television series about extraterrestrial life\nEnglish-language television shows\nNBC original programming\nTelevision series by DIC Entertainment\nTelevision series by Lorimar Television\nTelevision series by Saban Entertainment\nTelevision series created by Paul Fusco\nTelevision series created by Tom Patchett\nTelevision shows based on fairy tales\nTelevision series by Lorimar-Telepictures",
+        "Cast\nPaul Fusco \u2013 ALF (Gordon Shumway)/Rick Fusterman\nTabitha St. Germain (as Paulina Gillis) \u2013 Augie/Rhonda\nPeggy Mahon \u2013 Flo\nThick Wilson \u2013 Larson Petty/Bob\nDan Hennessey \u2013 Sloop\nRob Cowan \u2013 Skip\nEllen-Ray Hennessy \u2013 Stella the Waitress\nNoam Zylberman \u2013 Curtis (1988)\nMichael Fantini \u2013 Curtis (1989)\n\nEpisodes\n\nSeason 1 (1988\u201389)\n\nSeason 2 (1989)",
+        "The fairy tale parody was usually altered for comedic effect in a manner akin to Jay Ward's \"Fractured Fairy Tales\".\n\n",
+        "The episodes were performed in the style of a resident theater company or ensemble cast where Gordon and Rhonda would take the leading male and female roles, and the other characters were cast according to their characteristics Many stories spoof a film genre, such as the \"Cinderella\" episode which is presented like an Elvis Presley film"
+      ]
+    },
+    {
+      "index": 15730,
+      "cosine_similarity": 0.488582044839859,
+      "target_text_original": "During the 1980s wrestling boom, Roussimoff became a mainstay of the WWWF (by then renamed the World Wrestling Federation), being paired with the villainous manager Bobby Heenan and feuding with Hulk Hogan The two headlined WrestleMania III in 1987, and in 1988, he defeated Hogan to win the WWF Championship, his sole world heavyweight championship, on the first episode of The Main Event",
+      "target_text_decoded": "During the 1980s wrestling boom, Roussimoff became a mainstay of the WWWF (by then renamed the World Wrestling Federation), being paired with the villainous manager Bobby Heenan and feuding with Hulk Hogan The two headlined WrestleMania III in 1987, and in 1988, he defeated Hogan to win the WWF Championship, his sole world heavyweight championship, on the first episode of The Main Event",
+      "predicted_text": "[ERROR: 'IsolatedVecTextVectOrchestrator' object has no attribute 'decode_vector']",
+      "context_texts": [
+        "vs. Raw 2006, WWE Legends of WrestleMania, WWE All Stars, WWE 2K14, WWE 2K15, WWE 2K16, WWE 2K17, WWE 2K18, WWE 2K19, WWE 2K20, WWE 2K Battlegrounds, WWE 2K22, WWE 2K23 and many others.",
+        "In January 2005, WWE released Andr\u00e9 The Giant, a DVD focusing on the life and career of Roussimoff. The DVD is a reissue of the out-of-print Andr\u00e9 The Giant VHS made by Coliseum Video in 1985, with commentary by Michael Cole and Tazz replacing Gorilla Monsoon and Jesse Ventura's commentary on his WrestleMania match with Big John Studd. The video is hosted by Lord Alfred Hayes. ",
+        "After winning, Roussimoff \"sold\" the title to DiBiase; the transaction was declared invalid by then-WWF president Jack Tunney and the title was declared vacant",
+        "Canadian promoter and wrestler Frank Valois met Roussimoff in 1966, years later to become his business manager and adviser",
+        "Beginning his career in 1966, Roussimoff relocated to North America in 1971 From 1973 to the mid-1980s, Roussimoff was booked by World Wide Wrestling Federation (WWWF) promoter Vincent J McMahon as a roving \"special attraction\" who wrestled for promotions throughout the United States, as well as in Japan for New Japan Pro-Wrestling"
+      ]
+    },
+    {
+      "index": 12175,
+      "cosine_similarity": 0.2117328941822052,
+      "target_text_original": "However, the unit did demonstrate the basic principle.\n\n",
+      "target_text_decoded": "However, the unit did demonstrate the basic principle.\n\n",
+      "predicted_text": "[ERROR: 'IsolatedVecTextVectOrchestrator' object has no attribute 'decode_vector']",
+      "context_texts": [
+        "Electronic analog computers\n\nThe similarity between linear mechanical components, such as springs and dashpots (viscous-fluid dampers), and electrical components, such as capacitors, inductors, and resistors is striking in terms of mathematics. They can be modeled using equations of the same form.\n\n",
+        "In such systems, the digital computer controlled the analog computer, providing initial set-up, initiating multiple analog runs, and automatically feeding and collecting data The digital computer may also participate to the calculation itself using analog-to-digital and digital-to-analog converters.",
+        "General Electric also marketed an \"educational\" analog computer kit of a simple design in the early 1960s consisting of two transistor tone generators and three potentiometers wired such that the frequency of the oscillator was nulled when the potentiometer dials were positioned by hand to satisfy an equation The relative resistance of the potentiometer was then equivalent to the formula of the equation being solved",
+        "Multiplication or division could be performed, depending on which dials were inputs and which was the output. ",
+        "Accuracy and resolution was limited and a simple slide rule was more accurate. "
+      ]
+    },
+    {
+      "index": 5307,
+      "cosine_similarity": 0.41162702441215515,
+      "target_text_original": "the pre-nation state, historical ethnonym Afghan was used to refer to a member of the Pashtun ethnic group. ",
+      "target_text_decoded": "the pre-nation state, historical ethnonym Afghan was used to refer to a member of the Pashtun ethnic group. ",
+      "predicted_text": "[ERROR: 'IsolatedVecTextVectOrchestrator' object has no attribute 'decode_vector']",
+      "context_texts": [
+        "Afghans (; Persian/) or Afghan people are nationals or citizens of Afghanistan, or people with ancestry from there Afghanistan is made up of various ethnicities, of which  Pashtuns, Tajiks, Hazaras and Uzbeks are the largest The two main languages spoken by Afghans are Pashto and Dari (the Afghan dialect of the Persian language), and many Afghans are bilingual in speaking fluent Pashto and Dari",
+        "Background\nThe earliest mention of the name Afghan (Abg\u00e2n) is by Shapur I of the Sassanid Empire during the 3rd century CE, In the 4th century the word \"Afghans/Afghana\" (\u03b1\u03b2\u03b3\u03b1\u03bd\u03b1\u03bd\u03bf) as reference to a particular people is mentioned in the Bactrian documents found in Northern Afghanistan",
+        "The word 'Afghan' is of Persian origin to refer to the Pashtun people In the past, several scholars sought a connection with \"horse\", Skt.a\u015bva-, Av.aspa-, i.e.the A\u015bvaka or A\u015bvakayana the name of the A\u015bvakan or Assakan, ancient inhabitants of the Hindu Kush region, however according to some linguists, it would be extremely difficult to reconcile either A\u015bvaka or A\u015bvakayana with the world Afghan",
+        "As an adjective, the word Afghan also means \"of or relating to Afghanistan or its people, language or culture\"",
+        "There are political disputes regarding this: there are members of the non-Pashtun ethnicities of Afghanistan that reject the term Afghan being applied to them, and there are Pashtuns in Pakistan that wish to have the term Afghan applied to them"
+      ]
+    },
+    {
+      "index": 4118,
+      "cosine_similarity": 0.30172470211982727,
+      "target_text_original": "He loses her in a drowning accident. The song plays during the opening credits for the highly acclaimed John Ford movie \"My Darling Clementine\". ",
+      "target_text_decoded": "He loses her in a drowning accident. The song plays during the opening credits for the highly acclaimed John Ford movie \"My Darling Clementine\". ",
+      "predicted_text": "[ERROR: 'IsolatedVecTextVectOrchestrator' object has no attribute 'decode_vector']",
+      "context_texts": [
+        "Work songs sung by sailors between the 18th and 20th centuries are known as sea shanties. The shanty was a distinct type of work song, developed especially in American-style merchant vessels that had come to prominence in decades prior to the American Civil War. These songs were typically performed while adjusting the rigging, raising anchor, and other tasks where men would need to pull in rhythm. ",
+        "Folk songs may be classified by subject matter, such as: drinking songs, sporting songs, train songs, work songs, war songs, and ballads The Star-Spangled Banner's tune was adapted from an old English drinking song by John Stafford Smith called \"To Anacreon in Heaven.\"\n \"The Ballad of Casey Jones\" is a traditional song about railroad engineer Casey Jones and his death at the controls of the train he was driving",
+        "It tells of how Jones and his fireman Sim Webb raced their locomotive to make up for lost time, but discovered another train ahead of them on the line, and how Jones remained on board to try to stop the train as Webb jumped to safety \"When Johnny Comes Marching Home\" (sometimes \"When Johnny Comes Marching Home Again\") is a popular song of the American Civil War that expressed people's longing for the return of their friends and relatives who were fighting in the war",
+        "Other locations and landmarks that have become part of American folklore include: Independence Hall, Monument Valley, Ellis Island, Hoover Dam, Pearl Harbor, the Vietnam War Memorial, and the Grand Canyon.",
+        "The Irish anti-war song \"Johnny I Hardly Knew Ye\" and \"When Johnny Comes Marching Home\" share the same melodic material Based on internal textual references, \"Johnny I Hardly Knew Ye\" apparently dates from the early 1820s, while When Johnny Comes Marching Home was first published in 1863 \"Johnny I Hardly Knew Ye\" is a popular traditional Irish anti-war and anti-recruiting song"
+      ]
+    }
+  ],
+  "heldout_metrics": {
+    "cosine_mean": 0.3539336621761322,
+    "cosine_std": 0.09099937230348587,
+    "cosine_min": -0.04503795877099037,
+    "cosine_max": 0.5675656795501709,
+    "cosine_median": 0.36916959285736084,
+    "l2_mean": 1.1340384483337402,
+    "l2_std": 0.07803484052419662,
+    "top1_accuracy": 0.0,
+    "top5_accuracy": 0.019
+  },
+  "baseline_comparisons": {
+    "metrics": {
+      "random": {
+        "cosine_mean": 0.00015597569230566438,
+        "cosine_std": 0.03485793567235292,
+        "cosine_min": -0.12799420812425968,
+        "cosine_max": 0.12565132401451215,
+        "cosine_median": -0.0005010687895650813,
+        "l2_mean": 1.4138880075683475,
+        "l2_std": 0.024672877297204757,
+        "top1_accuracy": 0.0,
+        "top5_accuracy": 0.0
+      },
+      "mean": {
+        "cosine_mean": 0.4218270182609558,
+        "cosine_std": 0.07364033162593842,
+        "cosine_min": 0.2061588615179062,
+        "cosine_max": 0.573328971862793,
+        "cosine_median": 0.4322093725204468,
+        "l2_mean": 1.0731946229934692,
+        "l2_std": 0.06781873852014542,
+        "top1_accuracy": 0.0,
+        "top5_accuracy": 0.14
+      },
+      "persistence": {
+        "cosine_mean": 0.4383106827735901,
+        "cosine_std": 0.1559123992919922,
+        "cosine_min": 0.042821288108825684,
+        "cosine_max": 0.8330656290054321,
+        "cosine_median": 0.4460795223712921,
+        "l2_mean": 1.0490989685058594,
+        "l2_std": 0.1508972942829132,
+        "top1_accuracy": 0.0,
+        "top5_accuracy": 0.368
+      },
+      "linear": {
+        "cosine_mean": 0.5461766123771667,
+        "cosine_std": 0.13410378992557526,
+        "cosine_min": 0.07092148065567017,
+        "cosine_max": 0.8343883752822876,
+        "cosine_median": 0.56950843334198,
+        "l2_mean": 0.9426400065422058,
+        "l2_std": 0.13811814785003662,
+        "top1_accuracy": 0.0,
+        "top5_accuracy": 0.678
+      },
+      "lvm_t": {
+        "cosine_mean": 0.3539336621761322,
+        "cosine_std": 0.09099937230348587,
+        "cosine_min": -0.04503795877099037,
+        "cosine_max": 0.5675656795501709,
+        "cosine_median": 0.36916959285736084,
+        "l2_mean": 1.1340384483337402,
+        "l2_std": 0.07803484052419662,
+        "top1_accuracy": 0.0,
+        "top5_accuracy": 0.019
+      }
+    },
+    "improvements": {
+      "Random": 226815.9103859152,
+      "Mean": -16.09507052552584,
+      "Persistence": -19.25050515847065,
+      "Linear Avg": -35.19794620357702
+    }
+  },
+  "test_size": 16127,
+  "timestamp": "2025-10-16 10:59:11"
+}

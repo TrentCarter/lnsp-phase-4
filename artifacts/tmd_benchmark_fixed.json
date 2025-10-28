@@ -1,0 +1,702 @@
+[
+  {
+    "model": "llama3.1:8b",
+    "total_tests": 21,
+    "domain_accuracy": 0.7619047619047619,
+    "task_accuracy": 0.2857142857142857,
+    "modifier_accuracy": 0.19047619047619047,
+    "combined_accuracy": 0.047619047619047616,
+    "parse_errors": 3,
+    "avg_latency_ms": 3314.7530328659786,
+    "min_latency_ms": 3109.6601486206055,
+    "max_latency_ms": 3461.0071182250977,
+    "results": [
+      {
+        "text": "software",
+        "expected": {
+          "domain": 2,
+          "task": 5,
+          "modifier": 9
+        },
+        "actual": {
+          "domain": 2,
+          "task": 5,
+          "modifier": 37,
+          "parse_error": false
+        },
+        "raw_output": "2, 5, 37",
+        "latency_ms": 3296.4720726013184
+      },
+      {
+        "text": "Gene Ontology",
+        "expected": {
+          "domain": 4,
+          "task": 5,
+          "modifier": 55
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "After analyzing the concept \"Gene Ontology",
+        "latency_ms": 3342.484951019287
+      },
+      {
+        "text": "Python programming language",
+        "expected": {
+          "domain": 2,
+          "task": 14,
+          "modifier": 9
+        },
+        "actual": {
+          "domain": 2,
+          "task": 14,
+          "modifier": 9,
+          "parse_error": false
+        },
+        "raw_output": "2, 14, 9",
+        "latency_ms": 3418.282985687256
+      },
+      {
+        "text": "World War II",
+        "expected": {
+          "domain": 7,
+          "task": 6,
+          "modifier": 45
+        },
+        "actual": {
+          "domain": 7,
+          "task": 6,
+          "modifier": 5,
+          "parse_error": false
+        },
+        "raw_output": "7, 6, 5",
+        "latency_ms": 3278.2130241394043
+      },
+      {
+        "text": "cardiac arrest",
+        "expected": {
+          "domain": 4,
+          "task": 5,
+          "modifier": 9
+        },
+        "actual": {
+          "domain": 4,
+          "task": 5,
+          "modifier": 37,
+          "parse_error": false
+        },
+        "raw_output": "4, 5, 37",
+        "latency_ms": 3296.4742183685303
+      },
+      {
+        "text": "diabetes mellitus",
+        "expected": {
+          "domain": 4,
+          "task": 1,
+          "modifier": 29
+        },
+        "actual": {
+          "domain": 4,
+          "task": 5,
+          "modifier": 37,
+          "parse_error": false
+        },
+        "raw_output": "4, 5, 37",
+        "latency_ms": 3318.9921379089355
+      },
+      {
+        "text": "myocardial infarction",
+        "expected": {
+          "domain": 4,
+          "task": 5,
+          "modifier": 9
+        },
+        "actual": {
+          "domain": 4,
+          "task": 5,
+          "modifier": 37,
+          "parse_error": false
+        },
+        "raw_output": "4, 5, 37",
+        "latency_ms": 3303.110361099243
+      },
+      {
+        "text": "binary search algorithm",
+        "expected": {
+          "domain": 15,
+          "task": 14,
+          "modifier": 2
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "After analyzing the concept \"binary search algorithm",
+        "latency_ms": 3381.8910121917725
+      },
+      {
+        "text": "REST API endpoint",
+        "expected": {
+          "domain": 15,
+          "task": 5,
+          "modifier": 9
+        },
+        "actual": {
+          "domain": 2,
+          "task": 7,
+          "modifier": 37,
+          "parse_error": false
+        },
+        "raw_output": "2, 7, 37",
+        "latency_ms": 3109.6601486206055
+      },
+      {
+        "text": "photosynthesis",
+        "expected": {
+          "domain": 0,
+          "task": 3,
+          "modifier": 0
+        },
+        "actual": {
+          "domain": 14,
+          "task": 31,
+          "modifier": 55,
+          "parse_error": false
+        },
+        "raw_output": "14, 37, 55",
+        "latency_ms": 3274.669885635376
+      },
+      {
+        "text": "quantum mechanics",
+        "expected": {
+          "domain": 0,
+          "task": 1,
+          "modifier": 11
+        },
+        "actual": {
+          "domain": 0,
+          "task": 16,
+          "modifier": 37,
+          "parse_error": false
+        },
+        "raw_output": "0, 16, 37",
+        "latency_ms": 3328.8073539733887
+      },
+      {
+        "text": "Pythagorean theorem",
+        "expected": {
+          "domain": 1,
+          "task": 16,
+          "modifier": 3
+        },
+        "actual": {
+          "domain": 1,
+          "task": 16,
+          "modifier": 37,
+          "parse_error": false
+        },
+        "raw_output": "1, 16, 37",
+        "latency_ms": 3299.4439601898193
+      },
+      {
+        "text": "prime factorization",
+        "expected": {
+          "domain": 1,
+          "task": 4,
+          "modifier": 2
+        },
+        "actual": {
+          "domain": 1,
+          "task": 16,
+          "modifier": 37,
+          "parse_error": false
+        },
+        "raw_output": "1, 16, 37",
+        "latency_ms": 3276.5088081359863
+      },
+      {
+        "text": "French Revolution",
+        "expected": {
+          "domain": 7,
+          "task": 0,
+          "modifier": 5
+        },
+        "actual": {
+          "domain": 7,
+          "task": 12,
+          "modifier": 5,
+          "parse_error": false
+        },
+        "raw_output": "7, 12, 5",
+        "latency_ms": 3429.866075515747
+      },
+      {
+        "text": "Cold War",
+        "expected": {
+          "domain": 7,
+          "task": 6,
+          "modifier": 16
+        },
+        "actual": {
+          "domain": 7,
+          "task": 12,
+          "modifier": 5,
+          "parse_error": false
+        },
+        "raw_output": "7, 12, 5",
+        "latency_ms": 3358.8669300079346
+      },
+      {
+        "text": "machine learning",
+        "expected": {
+          "domain": 2,
+          "task": 1,
+          "modifier": 2
+        },
+        "actual": {
+          "domain": 2,
+          "task": 4,
+          "modifier": 37,
+          "parse_error": false
+        },
+        "raw_output": "2, 4, 37",
+        "latency_ms": 3245.084762573242
+      },
+      {
+        "text": "neural networks",
+        "expected": {
+          "domain": 2,
+          "task": 1,
+          "modifier": 36
+        },
+        "actual": {
+          "domain": 2,
+          "task": 4,
+          "modifier": 37,
+          "parse_error": false
+        },
+        "raw_output": "2, 4, 37",
+        "latency_ms": 3383.625030517578
+      },
+      {
+        "text": "bridge construction",
+        "expected": {
+          "domain": 3,
+          "task": 19,
+          "modifier": 36
+        },
+        "actual": {
+          "domain": 3,
+          "task": 6,
+          "modifier": 37,
+          "parse_error": false
+        },
+        "raw_output": "3, 6, 37",
+        "latency_ms": 3309.2358112335205
+      },
+      {
+        "text": "circuit design",
+        "expected": {
+          "domain": 3,
+          "task": 14,
+          "modifier": 35
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "After analyzing the concept \"circuit design",
+        "latency_ms": 3171.846866607666
+      },
+      {
+        "text": "existentialism",
+        "expected": {
+          "domain": 6,
+          "task": 1,
+          "modifier": 7
+        },
+        "actual": {
+          "domain": 6,
+          "task": 20,
+          "modifier": 7,
+          "parse_error": false
+        },
+        "raw_output": "6, 20, 7",
+        "latency_ms": 3461.0071182250977
+      },
+      {
+        "text": "epistemology",
+        "expected": {
+          "domain": 6,
+          "task": 1,
+          "modifier": 56
+        },
+        "actual": {
+          "domain": 6,
+          "task": 28,
+          "modifier": 56,
+          "parse_error": false
+        },
+        "raw_output": "6, 28, 56",
+        "latency_ms": 3325.270175933838
+      }
+    ]
+  },
+  {
+    "model": "tinyllama:1.1b",
+    "total_tests": 21,
+    "domain_accuracy": 0.09523809523809523,
+    "task_accuracy": 0.047619047619047616,
+    "modifier_accuracy": 0.047619047619047616,
+    "combined_accuracy": 0.0,
+    "parse_errors": 21,
+    "avg_latency_ms": 1376.5642302376884,
+    "min_latency_ms": 1208.5511684417725,
+    "max_latency_ms": 1545.5279350280762,
+    "results": [
+      {
+        "text": "software",
+        "expected": {
+          "domain": 2,
+          "task": 5,
+          "modifier": 9
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"software\"",
+        "latency_ms": 1545.5279350280762
+      },
+      {
+        "text": "Gene Ontology",
+        "expected": {
+          "domain": 4,
+          "task": 5,
+          "modifier": 55
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"Genome\"",
+        "latency_ms": 1443.0248737335205
+      },
+      {
+        "text": "Python programming language",
+        "expected": {
+          "domain": 2,
+          "task": 14,
+          "modifier": 9
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"Python",
+        "latency_ms": 1309.4139099121094
+      },
+      {
+        "text": "World War II",
+        "expected": {
+          "domain": 7,
+          "task": 6,
+          "modifier": 45
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"World War II",
+        "latency_ms": 1432.5671195983887
+      },
+      {
+        "text": "cardiac arrest",
+        "expected": {
+          "domain": 4,
+          "task": 5,
+          "modifier": 9
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"cardiac arrest",
+        "latency_ms": 1208.5511684417725
+      },
+      {
+        "text": "diabetes mellitus",
+        "expected": {
+          "domain": 4,
+          "task": 1,
+          "modifier": 29
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"diabetes",
+        "latency_ms": 1432.3320388793945
+      },
+      {
+        "text": "myocardial infarction",
+        "expected": {
+          "domain": 4,
+          "task": 5,
+          "modifier": 9
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"myocard",
+        "latency_ms": 1350.2318859100342
+      },
+      {
+        "text": "binary search algorithm",
+        "expected": {
+          "domain": 15,
+          "task": 14,
+          "modifier": 2
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"binary search algorithm",
+        "latency_ms": 1267.5399780273438
+      },
+      {
+        "text": "REST API endpoint",
+        "expected": {
+          "domain": 15,
+          "task": 5,
+          "modifier": 9
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"RESST API",
+        "latency_ms": 1413.8648509979248
+      },
+      {
+        "text": "photosynthesis",
+        "expected": {
+          "domain": 0,
+          "task": 3,
+          "modifier": 0
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"photosynthesis",
+        "latency_ms": 1418.2510375976562
+      },
+      {
+        "text": "quantum mechanics",
+        "expected": {
+          "domain": 0,
+          "task": 1,
+          "modifier": 11
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"quantum mechan",
+        "latency_ms": 1356.964111328125
+      },
+      {
+        "text": "Pythagorean theorem",
+        "expected": {
+          "domain": 1,
+          "task": 16,
+          "modifier": 3
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"Pythagor",
+        "latency_ms": 1459.028959274292
+      },
+      {
+        "text": "prime factorization",
+        "expected": {
+          "domain": 1,
+          "task": 4,
+          "modifier": 2
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"prime factorization",
+        "latency_ms": 1315.3908252716064
+      },
+      {
+        "text": "French Revolution",
+        "expected": {
+          "domain": 7,
+          "task": 0,
+          "modifier": 5
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"Fanciful",
+        "latency_ms": 1413.6550426483154
+      },
+      {
+        "text": "Cold War",
+        "expected": {
+          "domain": 7,
+          "task": 6,
+          "modifier": 16
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"Cold War",
+        "latency_ms": 1409.9547863006592
+      },
+      {
+        "text": "machine learning",
+        "expected": {
+          "domain": 2,
+          "task": 1,
+          "modifier": 2
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"machinine",
+        "latency_ms": 1345.1831340789795
+      },
+      {
+        "text": "neural networks",
+        "expected": {
+          "domain": 2,
+          "task": 1,
+          "modifier": 36
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"neural networks",
+        "latency_ms": 1361.0780239105225
+      },
+      {
+        "text": "bridge construction",
+        "expected": {
+          "domain": 3,
+          "task": 19,
+          "modifier": 36
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"bridge construction\"",
+        "latency_ms": 1293.5419082641602
+      },
+      {
+        "text": "circuit design",
+        "expected": {
+          "domain": 3,
+          "task": 14,
+          "modifier": 35
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"circuit design",
+        "latency_ms": 1408.458948135376
+      },
+      {
+        "text": "existentialism",
+        "expected": {
+          "domain": 6,
+          "task": 1,
+          "modifier": 7
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"existentialism",
+        "latency_ms": 1376.4853477478027
+      },
+      {
+        "text": "epistemology",
+        "expected": {
+          "domain": 6,
+          "task": 1,
+          "modifier": 56
+        },
+        "actual": {
+          "domain": 0,
+          "task": 0,
+          "modifier": 0,
+          "parse_error": true
+        },
+        "raw_output": "CONCEPT: \"epistemo",
+        "latency_ms": 1346.8029499053955
+      }
+    ]
+  }
+]

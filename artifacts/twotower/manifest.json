@@ -1,0 +1,13 @@
+{
+  "total_pairs": 1386,
+  "train_pairs": 1247,
+  "val_pairs": 139,
+  "context_len": 100,
+  "vector_dim": 768,
+  "train_split": 0.9,
+  "seed": 42,
+  "input_files": [
+    "artifacts/lvm/data_phase3_tmd/training_sequences_ctx100.npz"
+  ],
+  "output_file": "artifacts/twotower/pairs_v2.npz"
+}

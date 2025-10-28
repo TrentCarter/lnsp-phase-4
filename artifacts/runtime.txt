@@ -1,0 +1,2 @@
+strategy=auto date=2025-09-25T15:14:27Z
+strategy=conda date=2025-09-25T15:40:12Z

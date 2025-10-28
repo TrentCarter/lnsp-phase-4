@@ -1,0 +1,142 @@
+{
+  "best_models": {
+    "ood": {
+      "direct_prediction": {
+        "model": "amn",
+        "cosine_similarity": 0.6300524291065004
+      },
+      "tiny_recursion": {
+        "model": "amn",
+        "cosine_similarity": 0.6278615595565902
+      },
+      "twotower": {
+        "model": "amn",
+        "cosine_similarity": 0.6076523159941037
+      }
+    },
+    "ind": {
+      "direct_prediction": {
+        "model": "amn",
+        "cosine_similarity": 0.564914784166548
+      },
+      "tiny_recursion": {
+        "model": "amn",
+        "cosine_similarity": 0.5620171268781026
+      },
+      "twotower": {
+        "model": "amn",
+        "cosine_similarity": 0.5392348337504599
+      }
+    }
+  },
+  "context_size_analysis": {
+    "ood": {
+      "5": {
+        "direct_prediction": {
+          "amn": 0.6405628864963849,
+          "transformer": 0.6447280153632164,
+          "gru": 0.6401208639144897
+        },
+        "tiny_recursion": {
+          "amn": 0.6319075629115105,
+          "transformer": 0.6424007952213288,
+          "gru": 0.637124931315581
+        },
+        "twotower": {
+          "amn": 0.5785769283771515,
+          "transformer": 0.5545675968130429,
+          "gru": 0.5430374120672544
+        }
+      },
+      "10": {
+        "direct_prediction": {
+          "amn": 0.6368982315063476,
+          "transformer": 0.5179890553156535,
+          "gru": 0.5773947303493817
+        },
+        "tiny_recursion": {
+          "amn": 0.6383176346619924,
+          "transformer": 0.5172306721409162,
+          "gru": 0.5659793049097062
+        },
+        "twotower": {
+          "amn": 0.6313368250926336,
+          "transformer": 0.5055911347270012,
+          "gru": 0.5010587568084399
+        }
+      },
+      "20": {
+        "direct_prediction": {
+          "amn": 0.6126961693167686,
+          "transformer": 0.5166354576746622,
+          "gru": 0.5508254249890645
+        },
+        "tiny_recursion": {
+          "amn": 0.6133594810962677,
+          "transformer": 0.5168141752481461,
+          "gru": 0.5244020243485769
+        },
+        "twotower": {
+          "amn": 0.6130431945125262,
+          "transformer": 0.5104418446620306,
+          "gru": 0.4117400000492732
+        }
+      }
+    },
+    "ind": {
+      "5": {
+        "direct_prediction": {
+          "amn": 0.5686728676160177,
+          "transformer": 0.5891450792551041,
+          "gru": 0.6003838737805685
+        },
+        "tiny_recursion": {
+          "amn": 0.5571561257044474,
+          "transformer": 0.5844727486371994,
+          "gru": 0.5942377905050914
+        },
+        "twotower": {
+          "amn": 0.49760032147169114,
+          "transformer": 0.4749734227856,
+          "gru": 0.4995230903228124
+        }
+      },
+      "10": {
+        "direct_prediction": {
+          "amn": 0.5754672904809316,
+          "transformer": 0.450817929704984,
+          "gru": 0.55385522544384
+        },
+        "tiny_recursion": {
+          "amn": 0.5772435049215953,
+          "transformer": 0.450502455731233,
+          "gru": 0.5467179914315542
+        },
+        "twotower": {
+          "amn": 0.5692179530858994,
+          "transformer": 0.4405265673995018,
+          "gru": 0.4776615619659424
+        }
+      },
+      "20": {
+        "direct_prediction": {
+          "amn": 0.5506041944026947,
+          "transformer": 0.4516490896542867,
+          "gru": 0.5213519821564356
+        },
+        "tiny_recursion": {
+          "amn": 0.5516517500082652,
+          "transformer": 0.4522700617710749,
+          "gru": 0.504146467645963
+        },
+        "twotower": {
+          "amn": 0.5508862266937892,
+          "transformer": 0.44514887432257333,
+          "gru": 0.4207732637723287
+        }
+      }
+    }
+  },
+  "approach_analysis": {},
+  "performance_comparison": {}
+}

@@ -1,0 +1,142 @@
+{
+  "best_models": {
+    "ood": {
+      "direct_prediction": {
+        "model": "gru",
+        "cosine_similarity": 0.7147236992915471
+      },
+      "tiny_recursion": {
+        "model": "gru",
+        "cosine_similarity": 0.6907896488904953
+      },
+      "twotower": {
+        "model": "amn",
+        "cosine_similarity": 0.6534240616692437
+      }
+    },
+    "ind": {
+      "direct_prediction": {
+        "model": "amn",
+        "cosine_similarity": 0.564914784166548
+      },
+      "tiny_recursion": {
+        "model": "amn",
+        "cosine_similarity": 0.5620171268781026
+      },
+      "twotower": {
+        "model": "amn",
+        "cosine_similarity": 0.5400344123442967
+      }
+    }
+  },
+  "context_size_analysis": {
+    "ood": {
+      "5": {
+        "direct_prediction": {
+          "amn": 0.6339027394851049,
+          "transformer": 0.7340734362602234,
+          "gru": 0.7838337143262227
+        },
+        "tiny_recursion": {
+          "amn": 0.60734021961689,
+          "transformer": 0.7232523789008458,
+          "gru": 0.7739370624224345
+        },
+        "twotower": {
+          "amn": 0.530957113703092,
+          "transformer": 0.42099856038888295,
+          "gru": 0.3373922472198804
+        }
+      },
+      "10": {
+        "direct_prediction": {
+          "amn": 0.7205504447221756,
+          "transformer": 0.5651687895258267,
+          "gru": 0.6841939012209575
+        },
+        "tiny_recursion": {
+          "amn": 0.7174106200536092,
+          "transformer": 0.5640815441807111,
+          "gru": 0.6569005181392034
+        },
+        "twotower": {
+          "amn": 0.7000758439302445,
+          "transformer": 0.5555382500092189,
+          "gru": 0.5092763135830561
+        }
+      },
+      "20": {
+        "direct_prediction": {
+          "amn": 0.733238908648491,
+          "transformer": 0.5650591636697452,
+          "gru": 0.6761434823274612
+        },
+        "tiny_recursion": {
+          "amn": 0.7327649335066477,
+          "transformer": 0.5648758019010226,
+          "gru": 0.6415313661098481
+        },
+        "twotower": {
+          "amn": 0.7292392273743947,
+          "transformer": 0.5586311320463816,
+          "gru": 0.47482300251722337
+        }
+      }
+    },
+    "ind": {
+      "5": {
+        "direct_prediction": {
+          "amn": 0.5686728676160177,
+          "transformer": 0.5891450792551041,
+          "gru": 0.6003838737805685
+        },
+        "tiny_recursion": {
+          "amn": 0.5571561257044474,
+          "transformer": 0.5844727486371994,
+          "gru": 0.5942377905050914
+        },
+        "twotower": {
+          "amn": 0.49841853976249695,
+          "transformer": 0.47081781427065533,
+          "gru": 0.49596646179755527
+        }
+      },
+      "10": {
+        "direct_prediction": {
+          "amn": 0.5754672904809316,
+          "transformer": 0.450817929704984,
+          "gru": 0.55385522544384
+        },
+        "tiny_recursion": {
+          "amn": 0.5772435049215953,
+          "transformer": 0.450502455731233,
+          "gru": 0.5467179914315542
+        },
+        "twotower": {
+          "amn": 0.5708438704411188,
+          "transformer": 0.43970448126395545,
+          "gru": 0.4737151265144348
+        }
+      },
+      "20": {
+        "direct_prediction": {
+          "amn": 0.5506041944026947,
+          "transformer": 0.4516490896542867,
+          "gru": 0.5213519821564356
+        },
+        "tiny_recursion": {
+          "amn": 0.5516517500082652,
+          "transformer": 0.4522700617710749,
+          "gru": 0.504146467645963
+        },
+        "twotower": {
+          "amn": 0.5508408268292745,
+          "transformer": 0.444966159760952,
+          "gru": 0.409679514169693
+        }
+      }
+    }
+  },
+  "approach_analysis": {},
+  "performance_comparison": {}
+}

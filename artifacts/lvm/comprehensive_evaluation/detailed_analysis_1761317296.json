@@ -1,0 +1,1238 @@
+{
+  "performance_results": {
+    "by_model": {
+      "amn": {
+        "approaches": {
+          "direct_prediction": [
+            {
+              "context_size": "5",
+              "dataset": "ood",
+              "avg_cosine": 0.6405628864963849,
+              "std_cosine": 0.12559788385360549,
+              "min_cosine": 0.1351696401834488,
+              "max_cosine": 0.8019412159919739,
+              "avg_time": 0.0032033443450927733,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ood",
+              "avg_cosine": 0.6368982315063476,
+              "std_cosine": 0.1291614526746686,
+              "min_cosine": 0.1578477919101715,
+              "max_cosine": 0.7967840433120728,
+              "avg_time": 0.0010341246922810873,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ood",
+              "avg_cosine": 0.6126961693167686,
+              "std_cosine": 0.13171321690730292,
+              "min_cosine": 0.16391991078853607,
+              "max_cosine": 0.7933398485183716,
+              "avg_time": 0.0009285449981689453,
+              "num_samples": 30
+            },
+            {
+              "context_size": "5",
+              "dataset": "ind",
+              "avg_cosine": 0.5686728676160177,
+              "std_cosine": 0.10425880810747332,
+              "min_cosine": 0.3210022449493408,
+              "max_cosine": 0.7263758778572083,
+              "avg_time": 0.0004618644714355469,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ind",
+              "avg_cosine": 0.5754672904809316,
+              "std_cosine": 0.12704143548586055,
+              "min_cosine": 0.3338944911956787,
+              "max_cosine": 0.7980816960334778,
+              "avg_time": 0.0004800001780192057,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ind",
+              "avg_cosine": 0.5506041944026947,
+              "std_cosine": 0.1424688812309775,
+              "min_cosine": 0.2844085097312927,
+              "max_cosine": 0.8045356273651123,
+              "avg_time": 0.0004432837168375651,
+              "num_samples": 30
+            }
+          ],
+          "tiny_recursion": [
+            {
+              "context_size": "5",
+              "dataset": "ood",
+              "avg_cosine": 0.6319075629115105,
+              "std_cosine": 0.12437301102964655,
+              "min_cosine": 0.13204728066921234,
+              "max_cosine": 0.7942427396774292,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ood",
+              "avg_cosine": 0.6383176346619924,
+              "std_cosine": 0.1285023920217058,
+              "min_cosine": 0.15835905075073242,
+              "max_cosine": 0.7978684902191162,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ood",
+              "avg_cosine": 0.6133594810962677,
+              "std_cosine": 0.13142195642369262,
+              "min_cosine": 0.16448158025741577,
+              "max_cosine": 0.7930710315704346,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "5",
+              "dataset": "ind",
+              "avg_cosine": 0.5571561257044474,
+              "std_cosine": 0.10196566410448324,
+              "min_cosine": 0.28747642040252686,
+              "max_cosine": 0.7009954452514648,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ind",
+              "avg_cosine": 0.5772435049215953,
+              "std_cosine": 0.12469395490428682,
+              "min_cosine": 0.3409070074558258,
+              "max_cosine": 0.7959990501403809,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ind",
+              "avg_cosine": 0.5516517500082652,
+              "std_cosine": 0.14158296207081164,
+              "min_cosine": 0.28676360845565796,
+              "max_cosine": 0.8032864332199097,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ],
+          "twotower": [
+            {
+              "context_size": "5",
+              "dataset": "ood",
+              "avg_cosine": 0.5789365676542123,
+              "std_cosine": 0.11680246766966364,
+              "min_cosine": 0.11845874041318893,
+              "max_cosine": 0.7387410402297974,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ood",
+              "avg_cosine": 0.6317927181720734,
+              "std_cosine": 0.125877294036792,
+              "min_cosine": 0.1596575379371643,
+              "max_cosine": 0.7870435118675232,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ood",
+              "avg_cosine": 0.6126540939013163,
+              "std_cosine": 0.1310733705861983,
+              "min_cosine": 0.1663530468940735,
+              "max_cosine": 0.7970871925354004,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "5",
+              "dataset": "ind",
+              "avg_cosine": 0.49763980905214944,
+              "std_cosine": 0.09718273283336015,
+              "min_cosine": 0.22097936272621155,
+              "max_cosine": 0.6557471752166748,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ind",
+              "avg_cosine": 0.5711873402198155,
+              "std_cosine": 0.1180175786838294,
+              "min_cosine": 0.3446042537689209,
+              "max_cosine": 0.782652735710144,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ind",
+              "avg_cosine": 0.5509565869967142,
+              "std_cosine": 0.13992575072971544,
+              "min_cosine": 0.28415608406066895,
+              "max_cosine": 0.8000131845474243,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ]
+        },
+        "contexts": {
+          "5": [
+            {
+              "approach": "direct_prediction",
+              "dataset": "ood",
+              "avg_cosine": 0.6405628864963849,
+              "std_cosine": 0.12559788385360549,
+              "min_cosine": 0.1351696401834488,
+              "max_cosine": 0.8019412159919739,
+              "avg_time": 0.0032033443450927733,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ood",
+              "avg_cosine": 0.6319075629115105,
+              "std_cosine": 0.12437301102964655,
+              "min_cosine": 0.13204728066921234,
+              "max_cosine": 0.7942427396774292,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ood",
+              "avg_cosine": 0.5789365676542123,
+              "std_cosine": 0.11680246766966364,
+              "min_cosine": 0.11845874041318893,
+              "max_cosine": 0.7387410402297974,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "direct_prediction",
+              "dataset": "ind",
+              "avg_cosine": 0.5686728676160177,
+              "std_cosine": 0.10425880810747332,
+              "min_cosine": 0.3210022449493408,
+              "max_cosine": 0.7263758778572083,
+              "avg_time": 0.0004618644714355469,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ind",
+              "avg_cosine": 0.5571561257044474,
+              "std_cosine": 0.10196566410448324,
+              "min_cosine": 0.28747642040252686,
+              "max_cosine": 0.7009954452514648,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ind",
+              "avg_cosine": 0.49763980905214944,
+              "std_cosine": 0.09718273283336015,
+              "min_cosine": 0.22097936272621155,
+              "max_cosine": 0.6557471752166748,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ],
+          "10": [
+            {
+              "approach": "direct_prediction",
+              "dataset": "ood",
+              "avg_cosine": 0.6368982315063476,
+              "std_cosine": 0.1291614526746686,
+              "min_cosine": 0.1578477919101715,
+              "max_cosine": 0.7967840433120728,
+              "avg_time": 0.0010341246922810873,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ood",
+              "avg_cosine": 0.6383176346619924,
+              "std_cosine": 0.1285023920217058,
+              "min_cosine": 0.15835905075073242,
+              "max_cosine": 0.7978684902191162,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ood",
+              "avg_cosine": 0.6317927181720734,
+              "std_cosine": 0.125877294036792,
+              "min_cosine": 0.1596575379371643,
+              "max_cosine": 0.7870435118675232,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "direct_prediction",
+              "dataset": "ind",
+              "avg_cosine": 0.5754672904809316,
+              "std_cosine": 0.12704143548586055,
+              "min_cosine": 0.3338944911956787,
+              "max_cosine": 0.7980816960334778,
+              "avg_time": 0.0004800001780192057,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ind",
+              "avg_cosine": 0.5772435049215953,
+              "std_cosine": 0.12469395490428682,
+              "min_cosine": 0.3409070074558258,
+              "max_cosine": 0.7959990501403809,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ind",
+              "avg_cosine": 0.5711873402198155,
+              "std_cosine": 0.1180175786838294,
+              "min_cosine": 0.3446042537689209,
+              "max_cosine": 0.782652735710144,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ],
+          "20": [
+            {
+              "approach": "direct_prediction",
+              "dataset": "ood",
+              "avg_cosine": 0.6126961693167686,
+              "std_cosine": 0.13171321690730292,
+              "min_cosine": 0.16391991078853607,
+              "max_cosine": 0.7933398485183716,
+              "avg_time": 0.0009285449981689453,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ood",
+              "avg_cosine": 0.6133594810962677,
+              "std_cosine": 0.13142195642369262,
+              "min_cosine": 0.16448158025741577,
+              "max_cosine": 0.7930710315704346,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ood",
+              "avg_cosine": 0.6126540939013163,
+              "std_cosine": 0.1310733705861983,
+              "min_cosine": 0.1663530468940735,
+              "max_cosine": 0.7970871925354004,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "direct_prediction",
+              "dataset": "ind",
+              "avg_cosine": 0.5506041944026947,
+              "std_cosine": 0.1424688812309775,
+              "min_cosine": 0.2844085097312927,
+              "max_cosine": 0.8045356273651123,
+              "avg_time": 0.0004432837168375651,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ind",
+              "avg_cosine": 0.5516517500082652,
+              "std_cosine": 0.14158296207081164,
+              "min_cosine": 0.28676360845565796,
+              "max_cosine": 0.8032864332199097,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ind",
+              "avg_cosine": 0.5509565869967142,
+              "std_cosine": 0.13992575072971544,
+              "min_cosine": 0.28415608406066895,
+              "max_cosine": 0.8000131845474243,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ]
+        },
+        "overall": {
+          "total_samples": 540,
+          "total_cosine": 317.93114445358515
+        }
+      },
+      "transformer": {
+        "approaches": {
+          "direct_prediction": [
+            {
+              "context_size": "5",
+              "dataset": "ood",
+              "avg_cosine": 0.6447280153632164,
+              "std_cosine": 0.10330059035271183,
+              "min_cosine": 0.24434466660022736,
+              "max_cosine": 0.7688411474227905,
+              "avg_time": 0.004938817024230957,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ood",
+              "avg_cosine": 0.5179890553156535,
+              "std_cosine": 0.11023118116873967,
+              "min_cosine": 0.17310696840286255,
+              "max_cosine": 0.676815390586853,
+              "avg_time": 0.0041866223017374676,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ood",
+              "avg_cosine": 0.5166354576746622,
+              "std_cosine": 0.10842590833429425,
+              "min_cosine": 0.17665523290634155,
+              "max_cosine": 0.6769534349441528,
+              "avg_time": 0.005002291997273763,
+              "num_samples": 30
+            },
+            {
+              "context_size": "5",
+              "dataset": "ind",
+              "avg_cosine": 0.5891450792551041,
+              "std_cosine": 0.09784909787504877,
+              "min_cosine": 0.3868787884712219,
+              "max_cosine": 0.7702524065971375,
+              "avg_time": 0.0033825159072875975,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ind",
+              "avg_cosine": 0.450817929704984,
+              "std_cosine": 0.11545463882597105,
+              "min_cosine": 0.23901993036270142,
+              "max_cosine": 0.684955358505249,
+              "avg_time": 0.0033740997314453125,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ind",
+              "avg_cosine": 0.4516490896542867,
+              "std_cosine": 0.1159578587065219,
+              "min_cosine": 0.23763281106948853,
+              "max_cosine": 0.685701847076416,
+              "avg_time": 0.003370865186055501,
+              "num_samples": 30
+            }
+          ],
+          "tiny_recursion": [
+            {
+              "context_size": "5",
+              "dataset": "ood",
+              "avg_cosine": 0.6424007952213288,
+              "std_cosine": 0.10143576936539067,
+              "min_cosine": 0.24498659372329712,
+              "max_cosine": 0.7722408771514893,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ood",
+              "avg_cosine": 0.5172306721409162,
+              "std_cosine": 0.10968869074193134,
+              "min_cosine": 0.17335782945156097,
+              "max_cosine": 0.6761905550956726,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ood",
+              "avg_cosine": 0.5168141752481461,
+              "std_cosine": 0.10811928981371324,
+              "min_cosine": 0.17675834894180298,
+              "max_cosine": 0.6766893267631531,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "5",
+              "dataset": "ind",
+              "avg_cosine": 0.5844727486371994,
+              "std_cosine": 0.09699153992781696,
+              "min_cosine": 0.3471222519874573,
+              "max_cosine": 0.74997878074646,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ind",
+              "avg_cosine": 0.450502455731233,
+              "std_cosine": 0.11468345799857296,
+              "min_cosine": 0.23967795073986053,
+              "max_cosine": 0.683968186378479,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ind",
+              "avg_cosine": 0.4522700617710749,
+              "std_cosine": 0.11584309171232614,
+              "min_cosine": 0.23889684677124023,
+              "max_cosine": 0.6855301260948181,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ],
+          "twotower": [
+            {
+              "context_size": "5",
+              "dataset": "ood",
+              "avg_cosine": 0.5470778365929921,
+              "std_cosine": 0.11956582035512574,
+              "min_cosine": 0.28661227226257324,
+              "max_cosine": 0.7227778434753418,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ood",
+              "avg_cosine": 0.5079455589254697,
+              "std_cosine": 0.11057630616178876,
+              "min_cosine": 0.16726480424404144,
+              "max_cosine": 0.668383002281189,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ood",
+              "avg_cosine": 0.510839528342088,
+              "std_cosine": 0.10824068996246422,
+              "min_cosine": 0.17425008118152618,
+              "max_cosine": 0.673576831817627,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "5",
+              "dataset": "ind",
+              "avg_cosine": 0.4663170347611109,
+              "std_cosine": 0.10855878094808619,
+              "min_cosine": 0.2605687081813812,
+              "max_cosine": 0.6765074729919434,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ind",
+              "avg_cosine": 0.4383080984155337,
+              "std_cosine": 0.1196877580111318,
+              "min_cosine": 0.21656112372875214,
+              "max_cosine": 0.6759498715400696,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ind",
+              "avg_cosine": 0.4440625747044881,
+              "std_cosine": 0.11863306812259955,
+              "min_cosine": 0.23172777891159058,
+              "max_cosine": 0.6831153035163879,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ]
+        },
+        "contexts": {
+          "5": [
+            {
+              "approach": "direct_prediction",
+              "dataset": "ood",
+              "avg_cosine": 0.6447280153632164,
+              "std_cosine": 0.10330059035271183,
+              "min_cosine": 0.24434466660022736,
+              "max_cosine": 0.7688411474227905,
+              "avg_time": 0.004938817024230957,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ood",
+              "avg_cosine": 0.6424007952213288,
+              "std_cosine": 0.10143576936539067,
+              "min_cosine": 0.24498659372329712,
+              "max_cosine": 0.7722408771514893,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ood",
+              "avg_cosine": 0.5470778365929921,
+              "std_cosine": 0.11956582035512574,
+              "min_cosine": 0.28661227226257324,
+              "max_cosine": 0.7227778434753418,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "direct_prediction",
+              "dataset": "ind",
+              "avg_cosine": 0.5891450792551041,
+              "std_cosine": 0.09784909787504877,
+              "min_cosine": 0.3868787884712219,
+              "max_cosine": 0.7702524065971375,
+              "avg_time": 0.0033825159072875975,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ind",
+              "avg_cosine": 0.5844727486371994,
+              "std_cosine": 0.09699153992781696,
+              "min_cosine": 0.3471222519874573,
+              "max_cosine": 0.74997878074646,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ind",
+              "avg_cosine": 0.4663170347611109,
+              "std_cosine": 0.10855878094808619,
+              "min_cosine": 0.2605687081813812,
+              "max_cosine": 0.6765074729919434,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ],
+          "10": [
+            {
+              "approach": "direct_prediction",
+              "dataset": "ood",
+              "avg_cosine": 0.5179890553156535,
+              "std_cosine": 0.11023118116873967,
+              "min_cosine": 0.17310696840286255,
+              "max_cosine": 0.676815390586853,
+              "avg_time": 0.0041866223017374676,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ood",
+              "avg_cosine": 0.5172306721409162,
+              "std_cosine": 0.10968869074193134,
+              "min_cosine": 0.17335782945156097,
+              "max_cosine": 0.6761905550956726,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ood",
+              "avg_cosine": 0.5079455589254697,
+              "std_cosine": 0.11057630616178876,
+              "min_cosine": 0.16726480424404144,
+              "max_cosine": 0.668383002281189,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "direct_prediction",
+              "dataset": "ind",
+              "avg_cosine": 0.450817929704984,
+              "std_cosine": 0.11545463882597105,
+              "min_cosine": 0.23901993036270142,
+              "max_cosine": 0.684955358505249,
+              "avg_time": 0.0033740997314453125,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ind",
+              "avg_cosine": 0.450502455731233,
+              "std_cosine": 0.11468345799857296,
+              "min_cosine": 0.23967795073986053,
+              "max_cosine": 0.683968186378479,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ind",
+              "avg_cosine": 0.4383080984155337,
+              "std_cosine": 0.1196877580111318,
+              "min_cosine": 0.21656112372875214,
+              "max_cosine": 0.6759498715400696,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ],
+          "20": [
+            {
+              "approach": "direct_prediction",
+              "dataset": "ood",
+              "avg_cosine": 0.5166354576746622,
+              "std_cosine": 0.10842590833429425,
+              "min_cosine": 0.17665523290634155,
+              "max_cosine": 0.6769534349441528,
+              "avg_time": 0.005002291997273763,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ood",
+              "avg_cosine": 0.5168141752481461,
+              "std_cosine": 0.10811928981371324,
+              "min_cosine": 0.17675834894180298,
+              "max_cosine": 0.6766893267631531,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ood",
+              "avg_cosine": 0.510839528342088,
+              "std_cosine": 0.10824068996246422,
+              "min_cosine": 0.17425008118152618,
+              "max_cosine": 0.673576831817627,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "direct_prediction",
+              "dataset": "ind",
+              "avg_cosine": 0.4516490896542867,
+              "std_cosine": 0.1159578587065219,
+              "min_cosine": 0.23763281106948853,
+              "max_cosine": 0.685701847076416,
+              "avg_time": 0.003370865186055501,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ind",
+              "avg_cosine": 0.4522700617710749,
+              "std_cosine": 0.11584309171232614,
+              "min_cosine": 0.23889684677124023,
+              "max_cosine": 0.6855301260948181,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ind",
+              "avg_cosine": 0.4440625747044881,
+              "std_cosine": 0.11863306812259955,
+              "min_cosine": 0.23172777891159058,
+              "max_cosine": 0.6831153035163879,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ]
+        },
+        "overall": {
+          "total_samples": 540,
+          "total_cosine": 277.47618502378464
+        }
+      },
+      "gru": {
+        "approaches": {
+          "direct_prediction": [
+            {
+              "context_size": "5",
+              "dataset": "ood",
+              "avg_cosine": 0.6401208639144897,
+              "std_cosine": 0.123720894970331,
+              "min_cosine": 0.19788217544555664,
+              "max_cosine": 0.800892174243927,
+              "avg_time": 0.004471913973490397,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ood",
+              "avg_cosine": 0.5773947303493817,
+              "std_cosine": 0.1251701896616076,
+              "min_cosine": 0.20174001157283783,
+              "max_cosine": 0.7570391893386841,
+              "avg_time": 0.008008090655008952,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ood",
+              "avg_cosine": 0.5508254249890645,
+              "std_cosine": 0.11543657144356162,
+              "min_cosine": 0.2007867395877838,
+              "max_cosine": 0.7415860891342163,
+              "avg_time": 0.015767812728881836,
+              "num_samples": 30
+            },
+            {
+              "context_size": "5",
+              "dataset": "ind",
+              "avg_cosine": 0.6003838737805685,
+              "std_cosine": 0.10807384491943259,
+              "min_cosine": 0.4010293483734131,
+              "max_cosine": 0.7847616076469421,
+              "avg_time": 0.004398775100708008,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ind",
+              "avg_cosine": 0.55385522544384,
+              "std_cosine": 0.12322512902178163,
+              "min_cosine": 0.3228282630443573,
+              "max_cosine": 0.7770869731903076,
+              "avg_time": 0.008056124051411947,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ind",
+              "avg_cosine": 0.5213519821564356,
+              "std_cosine": 0.12398451382902091,
+              "min_cosine": 0.30150240659713745,
+              "max_cosine": 0.7328457832336426,
+              "avg_time": 0.015452226003011068,
+              "num_samples": 30
+            }
+          ],
+          "tiny_recursion": [
+            {
+              "context_size": "5",
+              "dataset": "ood",
+              "avg_cosine": 0.637124931315581,
+              "std_cosine": 0.12008667331085912,
+              "min_cosine": 0.19762985408306122,
+              "max_cosine": 0.7869686484336853,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ood",
+              "avg_cosine": 0.5659793049097062,
+              "std_cosine": 0.12170691106169476,
+              "min_cosine": 0.2077854573726654,
+              "max_cosine": 0.7423221468925476,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ood",
+              "avg_cosine": 0.5244020243485769,
+              "std_cosine": 0.10751464833487485,
+              "min_cosine": 0.20679569244384766,
+              "max_cosine": 0.7206265330314636,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "5",
+              "dataset": "ind",
+              "avg_cosine": 0.5942377905050914,
+              "std_cosine": 0.10574584948795321,
+              "min_cosine": 0.3550430238246918,
+              "max_cosine": 0.7605955600738525,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ind",
+              "avg_cosine": 0.5467179914315542,
+              "std_cosine": 0.11675644215111014,
+              "min_cosine": 0.334433913230896,
+              "max_cosine": 0.7442951202392578,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ind",
+              "avg_cosine": 0.504146467645963,
+              "std_cosine": 0.1170345559602866,
+              "min_cosine": 0.2765690088272095,
+              "max_cosine": 0.6938163042068481,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ],
+          "twotower": [
+            {
+              "context_size": "5",
+              "dataset": "ood",
+              "avg_cosine": 0.5491963341832161,
+              "std_cosine": 0.1193744129161697,
+              "min_cosine": 0.21059833467006683,
+              "max_cosine": 0.7434672117233276,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ood",
+              "avg_cosine": 0.5063028648495674,
+              "std_cosine": 0.11481614819107548,
+              "min_cosine": 0.2166595607995987,
+              "max_cosine": 0.6643723249435425,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ood",
+              "avg_cosine": 0.4339528441429138,
+              "std_cosine": 0.10565974432870354,
+              "min_cosine": 0.1602126657962799,
+              "max_cosine": 0.6362516283988953,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "5",
+              "dataset": "ind",
+              "avg_cosine": 0.49173794289429984,
+              "std_cosine": 0.0838935587317224,
+              "min_cosine": 0.2556415796279907,
+              "max_cosine": 0.642157793045044,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "10",
+              "dataset": "ind",
+              "avg_cosine": 0.4962180515130361,
+              "std_cosine": 0.10620964380754745,
+              "min_cosine": 0.3322833776473999,
+              "max_cosine": 0.6854003667831421,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "context_size": "20",
+              "dataset": "ind",
+              "avg_cosine": 0.4126350979010264,
+              "std_cosine": 0.11561916036079628,
+              "min_cosine": 0.17543938755989075,
+              "max_cosine": 0.6211889386177063,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ]
+        },
+        "contexts": {
+          "5": [
+            {
+              "approach": "direct_prediction",
+              "dataset": "ood",
+              "avg_cosine": 0.6401208639144897,
+              "std_cosine": 0.123720894970331,
+              "min_cosine": 0.19788217544555664,
+              "max_cosine": 0.800892174243927,
+              "avg_time": 0.004471913973490397,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ood",
+              "avg_cosine": 0.637124931315581,
+              "std_cosine": 0.12008667331085912,
+              "min_cosine": 0.19762985408306122,
+              "max_cosine": 0.7869686484336853,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ood",
+              "avg_cosine": 0.5491963341832161,
+              "std_cosine": 0.1193744129161697,
+              "min_cosine": 0.21059833467006683,
+              "max_cosine": 0.7434672117233276,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "direct_prediction",
+              "dataset": "ind",
+              "avg_cosine": 0.6003838737805685,
+              "std_cosine": 0.10807384491943259,
+              "min_cosine": 0.4010293483734131,
+              "max_cosine": 0.7847616076469421,
+              "avg_time": 0.004398775100708008,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ind",
+              "avg_cosine": 0.5942377905050914,
+              "std_cosine": 0.10574584948795321,
+              "min_cosine": 0.3550430238246918,
+              "max_cosine": 0.7605955600738525,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ind",
+              "avg_cosine": 0.49173794289429984,
+              "std_cosine": 0.0838935587317224,
+              "min_cosine": 0.2556415796279907,
+              "max_cosine": 0.642157793045044,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ],
+          "10": [
+            {
+              "approach": "direct_prediction",
+              "dataset": "ood",
+              "avg_cosine": 0.5773947303493817,
+              "std_cosine": 0.1251701896616076,
+              "min_cosine": 0.20174001157283783,
+              "max_cosine": 0.7570391893386841,
+              "avg_time": 0.008008090655008952,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ood",
+              "avg_cosine": 0.5659793049097062,
+              "std_cosine": 0.12170691106169476,
+              "min_cosine": 0.2077854573726654,
+              "max_cosine": 0.7423221468925476,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ood",
+              "avg_cosine": 0.5063028648495674,
+              "std_cosine": 0.11481614819107548,
+              "min_cosine": 0.2166595607995987,
+              "max_cosine": 0.6643723249435425,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "direct_prediction",
+              "dataset": "ind",
+              "avg_cosine": 0.55385522544384,
+              "std_cosine": 0.12322512902178163,
+              "min_cosine": 0.3228282630443573,
+              "max_cosine": 0.7770869731903076,
+              "avg_time": 0.008056124051411947,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ind",
+              "avg_cosine": 0.5467179914315542,
+              "std_cosine": 0.11675644215111014,
+              "min_cosine": 0.334433913230896,
+              "max_cosine": 0.7442951202392578,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ind",
+              "avg_cosine": 0.4962180515130361,
+              "std_cosine": 0.10620964380754745,
+              "min_cosine": 0.3322833776473999,
+              "max_cosine": 0.6854003667831421,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ],
+          "20": [
+            {
+              "approach": "direct_prediction",
+              "dataset": "ood",
+              "avg_cosine": 0.5508254249890645,
+              "std_cosine": 0.11543657144356162,
+              "min_cosine": 0.2007867395877838,
+              "max_cosine": 0.7415860891342163,
+              "avg_time": 0.015767812728881836,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ood",
+              "avg_cosine": 0.5244020243485769,
+              "std_cosine": 0.10751464833487485,
+              "min_cosine": 0.20679569244384766,
+              "max_cosine": 0.7206265330314636,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ood",
+              "avg_cosine": 0.4339528441429138,
+              "std_cosine": 0.10565974432870354,
+              "min_cosine": 0.1602126657962799,
+              "max_cosine": 0.6362516283988953,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "direct_prediction",
+              "dataset": "ind",
+              "avg_cosine": 0.5213519821564356,
+              "std_cosine": 0.12398451382902091,
+              "min_cosine": 0.30150240659713745,
+              "max_cosine": 0.7328457832336426,
+              "avg_time": 0.015452226003011068,
+              "num_samples": 30
+            },
+            {
+              "approach": "tiny_recursion",
+              "dataset": "ind",
+              "avg_cosine": 0.504146467645963,
+              "std_cosine": 0.1170345559602866,
+              "min_cosine": 0.2765690088272095,
+              "max_cosine": 0.6938163042068481,
+              "avg_time": 0.0,
+              "num_samples": 30
+            },
+            {
+              "approach": "twotower",
+              "dataset": "ind",
+              "avg_cosine": 0.4126350979010264,
+              "std_cosine": 0.11561916036079628,
+              "min_cosine": 0.17543938755989075,
+              "max_cosine": 0.6211889386177063,
+              "avg_time": 0.0,
+              "num_samples": 30
+            }
+          ]
+        },
+        "overall": {
+          "total_samples": 540,
+          "total_cosine": 291.19751238822937
+        }
+      }
+    },
+    "by_approach": {},
+    "by_context_size": {},
+    "overall_comparison": {}
+  },
+  "comparison": {
+    "direct_vs_tr": {},
+    "direct_vs_twotower": {},
+    "tr_vs_twotower": {},
+    "best_overall": {
+      "direct_prediction": {
+        "avg_score": 0.5666554648567129,
+        "std_score": 0.057777702630867345,
+        "num_measurements": 18
+      },
+      "tiny_recursion": {
+        "avg_score": 0.5614408599005806,
+        "std_score": 0.05816036305224777,
+        "num_measurements": 18
+      },
+      "twotower": {
+        "avg_score": 0.5137644935123347,
+        "std_score": 0.06034830715800213,
+        "num_measurements": 18
+      }
+    },
+    "direct_prediction_vs_tiny_recursion": {
+      "amn": {
+        "baseline_score": 0.5974836066365242,
+        "enhanced_score": 0.5949393432173463,
+        "improvement": -0.0025442634191779057,
+        "relative_improvement": -0.004258298287882054
+      },
+      "transformer": {
+        "baseline_score": 0.5284941044946512,
+        "enhanced_score": 0.5272818181249831,
+        "improvement": -0.0012122863696680808,
+        "relative_improvement": -0.002293850318022517
+      },
+      "gru": {
+        "baseline_score": 0.5739886834389633,
+        "enhanced_score": 0.5621014183594121,
+        "improvement": -0.01188726507955118,
+        "relative_improvement": -0.020709929346220717
+      }
+    },
+    "direct_prediction_vs_twotower": {
+      "amn": {
+        "baseline_score": 0.5974836066365242,
+        "enhanced_score": 0.5738611859993802,
+        "improvement": -0.023622420637144037,
+        "relative_improvement": -0.039536516775956675
+      },
+      "transformer": {
+        "baseline_score": 0.5284941044946512,
+        "enhanced_score": 0.4857584386236138,
+        "improvement": -0.04273566587103739,
+        "relative_improvement": -0.0808630891197953
+      },
+      "gru": {
+        "baseline_score": 0.5739886834389633,
+        "enhanced_score": 0.4816738559140099,
+        "improvement": -0.09231482752495335,
+        "relative_improvement": -0.16083039646681452
+      }
+    },
+    "tiny_recursion_vs_twotower": {
+      "amn": {
+        "baseline_score": 0.5949393432173463,
+        "enhanced_score": 0.5738611859993802,
+        "improvement": -0.02107815721796613,
+        "relative_improvement": -0.03542908610477581
+      },
+      "transformer": {
+        "baseline_score": 0.5272818181249831,
+        "enhanced_score": 0.4857584386236138,
+        "improvement": -0.041523379501369306,
+        "relative_improvement": -0.0787498792373055
+      },
+      "gru": {
+        "baseline_score": 0.5621014183594121,
+        "enhanced_score": 0.4816738559140099,
+        "improvement": -0.08042756244540217,
+        "relative_improvement": -0.14308372087041443
+      }
+    }
+  },
+  "report": "\ud83c\udfc6 COMPREHENSIVE LVM EVALUATION RESULTS\n============================================================\n\n\ud83d\udcc8 OVERALL APPROACH PERFORMANCE:\n  DIRECT_PREDICTION: 0.5667 \u00b1 0.0578 (n=18)\n  TINY_RECURSION: 0.5614 \u00b1 0.0582 (n=18)\n  TWOTOWER: 0.5138 \u00b1 0.0603 (n=18)\n\n\ud83d\udd0d MODEL-BY-MODEL ANALYSIS:\n\nAMN:\n  Best approach: direct_prediction (0.5975)\n  Context size performance:\n    Context 10: tiny_recursion (0.6383)\n    Context 20: tiny_recursion (0.6134)\n    Context 5: direct_prediction (0.6406)\n\nTRANSFORMER:\n  Best approach: direct_prediction (0.5285)\n  Context size performance:\n    Context 10: direct_prediction (0.5180)\n    Context 20: tiny_recursion (0.5168)\n    Context 5: direct_prediction (0.6447)\n\nGRU:\n  Best approach: direct_prediction (0.5740)\n  Context size performance:\n    Context 10: direct_prediction (0.5774)\n    Context 20: direct_prediction (0.5508)\n    Context 5: direct_prediction (0.6401)\n\n\ud83d\ude80 ENHANCEMENT EFFECTIVENESS:"
+}

@@ -1,0 +1,50 @@
+{
+  "total_concepts": 8111,
+  "total_articles": 135,
+  "avg_concepts_per_article": 60.08148148148148,
+  "vector_dimensions": 768,
+  "unique_tmd_codes": 741,
+  "unique_domains": 10,
+  "unique_tasks": 16,
+  "unique_modifiers": 15,
+  "dataset_source": "user_input",
+  "extraction_date": "2025-10-13T00:25:43.725176",
+  "ordering": "article-based (batch_id ASC, created_at ASC)",
+  "first_article_id": "01256813-3b53-4604-abf8-0fd28e808412",
+  "last_article_id": "ff57244a-2850-4f2c-be34-61b22432d103",
+  "first_concept": "Music\n\nGroups\n Atlas (band), a New Zealand rock band\n Atlas Sound, the solo musical project of Deerhunter lead singer and guitarist Bradford Cox\n\nMusicians\n Black Atlass, a Canadian musician\n\nAlbums\n Atlas (Kinky album)\n Atlas (Laurel Halo album)\n Atlas (Parkway Drive album)\n Atlas (Real Estate album)\n Atlas (R\u00dcF\u00dcS album)\n Atlas, by The Score, 2017\n\nOperas\n Atlas (opera), 1991, by Meredith Monk\nAtlas: An Opera in Three Parts, a 1993 recording of Monk's opera\n\nSongs\n \"Atlas\" (Battles song), 2007\n \"Atlas\" (Bicep song), 2020\n \"Atlas\" (Coldplay song), 2013\n\"Atlas\", a song by Caligula's Horse from the album The Tide, the Thief & River's End\n \"Atlas\", by Parkway Drive\n \"Atlas\", a song by Man Overboard from Man Overboard\n \"Atlas\", a song by Jake Chudnow, used as the main theme in the YouTube series Mind Field\n \u201cAtlas\u201d, a song by Coheed and Cambria",
+  "last_concept": "Kinship, feminism, gender and sexuality\n\nKinship\n\nKinship can refer both to the study of the patterns of social relationships in one or more human cultures, or it can refer to the patterns of social relationships themselves. Over its history, anthropology has developed a number of related concepts and terms, such as \"descent\", \"descent groups\", \"lineages\", \"affines\", \"cognates\", and even \"fictive kinship\". Broadly, kinship patterns may be considered to include people related both by descent (one's social relations during development), and also relatives by marriage. ",
+  "npz_file": "artifacts/lvm/wikipedia_8111_ordered.npz",
+  "sample_article_sequences": [
+    {
+      "article_id": "01256813-3b53-4604-abf8-0fd28e808412",
+      "seq_in_article": 1,
+      "concept": "Music\n\nGroups\n Atlas (band), a New Zealand rock band\n Atlas Sound, the solo musical project of Deerhunter lead singer and guitarist Bradford Cox\n\nMusicians\n Black Atlass, a Canadian musician\n\nAlbums\n "
+    },
+    {
+      "article_id": "01256813-3b53-4604-abf8-0fd28e808412",
+      "seq_in_article": 2,
+      "concept": "Periodicals\n Atlas (magazine)\n The Atlas (newspaper), published in England from 1826 to 1869\n\nOther uses in arts, entertainment, and media\n Atlas (1961 film), an action-adventure film\n Atlas (upcoming"
+    },
+    {
+      "article_id": "01256813-3b53-4604-abf8-0fd28e808412",
+      "seq_in_article": 3,
+      "concept": "Science\n\nAstronomy\n Atlas (comet) (C/2019 Y4)\n Atlas (crater), on the near side of the Moon\n Atlas (moon), a satellite of Saturn\n Atlas (star), a triple star system in the constellation of Taurus and "
+    },
+    {
+      "article_id": "03093374-cd58-46fc-bd1d-ca5c464393cf",
+      "seq_in_article": 93,
+      "concept": "He described the view with the simple phrase: \"Magnificent desolation.\"\n\nArmstrong said moving in the lunar gravity, one-sixth of Earth's, was \"even perhaps easier than the simulations\u00a0... It's absolu"
+    },
+    {
+      "article_id": "2b76d4aa-05b8-42e2-9225-87bc832dcbe7",
+      "seq_in_article": 70,
+      "concept": "Serving as the capital of the ancient Celtic state of Galatia (280\u201364\u00a0BC), and later of the Roman province with the same name (25\u00a0BC\u20137th century), the city is very old, with various Hattian, Hittite, "
+    },
+    {
+      "article_id": "ff57244a-2850-4f2c-be34-61b22432d103",
+      "seq_in_article": 86,
+      "concept": "Kinship, feminism, gender and sexuality\n\nKinship\n\nKinship can refer both to the study of the patterns of social relationships in one or more human cultures, or it can refer to the patterns of social r"
+    }
+  ]
+}

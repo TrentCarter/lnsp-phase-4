@@ -1,0 +1,55 @@
+{
+  "total_concepts": 29322,
+  "total_articles": 5000,
+  "avg_concepts_per_article": 5.8644,
+  "vector_dimensions": 768,
+  "unique_tmd_codes": 393,
+  "unique_domains": 16,
+  "unique_tasks": 10,
+  "unique_modifiers": 7,
+  "dataset_source": "wikipedia_5k",
+  "extraction_date": "2025-10-13T09:18:01.463786",
+  "ordering": "article-based (batch_id ASC, created_at ASC)",
+  "first_article_id": "0015b8f3-12d3-4bfe-bdc6-8a9fd1938c60",
+  "last_article_id": "ffde99e8-8ee4-4989-a348-5b11331cc446",
+  "first_concept": "Alfonso Cuar\u00f3n Orozco ( , ; born 28 November 1961) is a Mexican filmmaker. He is known for directing films in a variety of genres, including the family drama A Little Princess (1995), the romantic drama Great Expectations (1998), the coming of age road film Y tu mam\u00e1 tambi\u00e9n (2001), the fantasy film Harry Potter and the Prisoner of Azkaban (2004), science fiction films such as Children of Men (2006) and Gravity (2013) and the semi-autobiographical drama Roma (2018).\n\nCuar\u00f3n has received 11 Academy Award nominations, winning four: Best Director for Gravity and Roma, Best Film Editing for Gravity, and Best Cinematography for Roma. He is the first Mexican filmmaker to win the Best Director award, and the second person to have been nominated for an Academy Award in seven different categories after Kenneth Branagh.\n\nEarly life\nCuar\u00f3n was born in Mexico City, the son of Alfredo Cuar\u00f3n, a doctor specializing in nuclear medicine, and Cristina Orozco, a pharmaceutical biochemist. He has a sister Christina, and two brothers; Carlos, also a filmmaker, and Alfredo, a conservation biologist. Cuar\u00f3n studied philosophy at the National Autonomous University of Mexico and filmmaking at the Centro Universitario de Estudios Cinematogr\u00e1ficos, a school within the same university. There he met the director Carlos Marcovich and cinematographer Emmanuel Lubezki, and they made what would be his first short film, Vengeance Is Mine.\n\nCareer\n\n1990s: Early career\n\nCuar\u00f3n began working on television in Mexico, first as a technician and then as a director. His television work led to assignments as an assistant director for several film productions including La Gran Fiesta, Gaby: A True Story and Romero, and in 1991 he landed his first big-screen directorial assignment.\n\nIn 1991, Cuar\u00f3n directed S\u00f3lo con tu pareja, a sex comedy about a womanizing businessman (played by Daniel Gim\u00e9nez Cacho) who, after having sex with an attractive nurse, is fooled into believing he's contracted AIDS. In addition to writing, producing and directing, Cuar\u00f3n co-edited the film with Luis Patl\u00e1n. The film, which also starred cabaret singer Astrid Hadad and model/actress Claudia Ram\u00edrez (with whom Cuar\u00f3n was linked between 1989 and 1993) was a big hit in Mexico. After this success, director Sydney Pollack hired Cuar\u00f3n to direct an episode of Fallen Angels, a series of neo-noir stories produced for the Showtime premium cable network in 1993; other directors who worked on the series included Steven Soderbergh, Jonathan Kaplan, Peter Bogdanovich, and Tom Hanks.\n\nIn 1995, Cuar\u00f3n released his first feature film produced in the United States, A Little Princess, an adaptation of Frances Hodgson Burnett's classic novel. Cuar\u00f3n's next feature was also a literary adaptation, a modernized version of Charles Dickens's Great Expectations starring Ethan Hawke, Gwyneth Paltrow, and Robert De Niro.\n\n2000s: International success \n\nIn 2001, Cuar\u00f3n found himself returning to Mexico with a Spanish-speaking cast to film Y tu mam\u00e1 tambi\u00e9n, starring Gael Garc\u00eda Bernal, Diego Luna and Maribel Verd\u00fa. It was a provocative and controversial road comedy about two sexually obsessed teenagers who take an extended road trip with an attractive married woman who is much older than them. ",
+  "last_concept": "They are very sensitive to moisture and hydrolyze forming AnO2F2. The pentachloride and black hexachloride of uranium were synthesized, but they are both unstable.\n\nAction of acids on actinides yields salts, and if the acids are non-oxidizing then the actinide in the salt is in low-valence state:\n U + 2 H2SO4 \u2192 U(SO4)2 + 2 H2\n 2 Pu + 6 HCl \u2192 2 PuCl3 + 3 H2\nHowever, in these reactions the regenerating hydrogen can react with the metal, forming the corresponding hydride. Uranium reacts with acids and water much more easily than thorium.\n\nActinide salts can also be obtained by dissolving the corresponding hydroxides in acids. Nitrates, chlorides, sulfates and perchlorates of actinides are water-soluble. When crystallizing from aqueous solutions, these salts forming a hydrates, such as Th(NO3)4\u00b76H2O, Th(SO4)2\u00b79H2O and Pu2(SO4)3\u00b77H2O. Salts of high-valence actinides easily hydrolyze. So, colorless sulfate, chloride, perchlorate and nitrate of thorium transform into basic salts with formulas Th(OH)2SO4 and Th(OH)3NO3. The solubility and insolubility of trivalent and tetravalent actinides is like that of lanthanide salts. So phosphates, fluorides, oxalates, iodates and carbonates of actinides are weakly soluble in water; they precipitate as hydrates, such as ThF4\u00b73H2O and Th(CrO4)2\u00b73H2O.\n\nActinides with oxidation state +6, except for the AnO22+-type cations, form [AnO4]2\u2212, [An2O7]2\u2212 and other complex anions. For example, uranium, neptunium and plutonium form salts of the Na2UO4 (uranate) and (NH4)2U2O7 (diuranate) types. In comparison with lanthanides, actinides more easily form coordination compounds, and this ability increases with the actinide valence. Trivalent actinides do not form fluoride coordination compounds, whereas tetravalent thorium forms K2ThF6, KThF5, and even K5ThF9 complexes. Thorium also forms the corresponding sulfates (for example Na2SO4\u00b7Th(SO4)2\u00b75H2O), nitrates and thiocyanates. Salts with the general formula An2Th(NO3)6\u00b7nH2O are of coordination nature, with the coordination number of thorium equal to 12. Even easier is to produce complex salts of pentavalent and hexavalent actinides. The most stable coordination compounds of actinides \u2013 tetravalent thorium and uranium \u2013 are obtained in reactions with diketones, e.g. acetylacetone.\n\nApplications \n\nWhile actinides have some established daily-life applications, such as in smoke detectors (americium) and gas mantles (thorium), they are mostly used in nuclear weapons and as fuel in nuclear reactors. The last two areas exploit the property of actinides to release enormous energy in nuclear reactions, which under certain conditions may become self-sustaining chain reactions.\n\nThe most important isotope for nuclear power applications is uranium-235. It is used in the thermal reactor, and its concentration in natural uranium does not exceed 0.72%. This isotope strongly absorbs thermal neutrons releasing much energy. One fission act of 1\u00a0gram of 235U converts into about 1 MW\u00b7day. ",
+  "npz_file": "artifacts/lvm/wikipedia_29322_ordered.npz",
+  "sample_article_sequences": [
+    {
+      "article_id": "0015b8f3-12d3-4bfe-bdc6-8a9fd1938c60",
+      "seq_in_article": 1,
+      "concept": "Alfonso Cuar\u00f3n Orozco ( , ; born 28 November 1961) is a Mexican filmmaker. He is known for directing films in a variety of genres, including the family drama A Little Princess (1995), the romantic dra"
+    },
+    {
+      "article_id": "0015b8f3-12d3-4bfe-bdc6-8a9fd1938c60",
+      "seq_in_article": 2,
+      "concept": "He called his production company Esperanto Filmoj.\n\nFilmography\n\nAwards and nominations\n\nSee also\n\n Esperanto Filmoj\n Cha Cha Cha Films\n Cinema of Mexico\n List of Academy Award records\n\nReferences\n\nEx"
+    },
+    {
+      "article_id": "0015b8f3-12d3-4bfe-bdc6-8a9fd1938c60",
+      "seq_in_article": 3,
+      "concept": "The film's open portrayal of sexuality and frequent rude humor, as well as the politically and socially relevant asides, made the film an international hit and a major success with critics. Cuar\u00f3n sha"
+    },
+    {
+      "article_id": "01236661-9afa-471e-b5b1-503a8af707d9",
+      "seq_in_article": 1,
+      "concept": "Notable buildings\n\nBroadway is lined with many famous and otherwise noted and historic buildings, such as:\n 2 Broadway\n 280 Broadway (also known as the Marble Palace, the A.T. Stewart Company Store, o"
+    },
+    {
+      "article_id": "08fc7276-7ed5-4b1d-9094-c0eb4e743b9e",
+      "seq_in_article": 3,
+      "concept": "Ambushes and battles followed each other until they all seemed to run together.\"\n\nFor his role in a night-raid on Iraqi forces at Bir Adas, Sharon was made a platoon commander in the Alexandroni Briga"
+    },
+    {
+      "article_id": "56f86303-21fa-40ac-89e4-a9a274a92729",
+      "seq_in_article": 1,
+      "concept": "1852)\n1938 \u2013 Feodor Chaliapin, Russian opera singer (b. 1873)\n1943 \u2013 Viktor Puskar, Estonian colonel (b. 1889)\n1945 \u2013 Franklin D. Roosevelt, American lawyer and politician, 32nd President of the Unite"
+    },
+    {
+      "article_id": "ffde99e8-8ee4-4989-a348-5b11331cc446",
+      "seq_in_article": 20,
+      "concept": "They are very sensitive to moisture and hydrolyze forming AnO2F2. The pentachloride and black hexachloride of uranium were synthesized, but they are both unstable.\n\nAction of acids on actinides yields"
+    }
+  ]
+}

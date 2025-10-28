@@ -1,0 +1,338 @@
+{
+  "lstm": [
+    {
+      "sample": 1,
+      "lvm_time_ms": 2.447843551635742,
+      "vec2text_time_ms": 11100.26502609253,
+      "total_time_ms": 11102.712869644165,
+      "vector_cosine": 0.7816500663757324,
+      "text_cosine": 0.0783,
+      "ground_truth": "Because light specularly reflected from water does not usually reach the viewer, water is usually co",
+      "reconstructed": "cube art         \u2014who not we originally wrote this book, but",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 2,
+      "lvm_time_ms": 1.27410888671875,
+      "vec2text_time_ms": 9653.409004211426,
+      "total_time_ms": 9654.683113098145,
+      "vector_cosine": 0.7841695547103882,
+      "text_cosine": 0.0392,
+      "ground_truth": "The glint of light off water is a commonplace effect of this. At small angles of incident light, wav",
+      "reconstructed": "not a cuintol episode. The authors redrew the word \"I am at this cuintol\"\u2014in a sample",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 3,
+      "lvm_time_ms": 0.8208751678466797,
+      "vec2text_time_ms": 10045.079946517944,
+      "total_time_ms": 10045.900821685791,
+      "vector_cosine": 0.7235375642776489,
+      "text_cosine": 0.0421,
+      "ground_truth": "Water\n\nWater reflects light very differently from typical terrestrial materials. The reflectivity of",
+      "reconstructed": "not a classic \"togin\" episode. Who else is she at this [co-written with the original art staff] \u2014 a",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 4,
+      "lvm_time_ms": 0.8080005645751953,
+      "vec2text_time_ms": 9789.46304321289,
+      "total_time_ms": 9790.271043777466,
+      "vector_cosine": 0.7946994304656982,
+      "text_cosine": 0.0954,
+      "ground_truth": "The result is that wavelengths of light not used in photosynthesis are more likely to be reflected b",
+      "reconstructed": "not the good design of this episode. /ref> who found the toy in a previous toy\u2014/ref>",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 5,
+      "lvm_time_ms": 0.8082389831542969,
+      "vec2text_time_ms": 10143.864870071411,
+      "total_time_ms": 10144.673109054565,
+      "vector_cosine": 0.7564603686332703,
+      "text_cosine": 0.0365,
+      "ground_truth": "Clouds keep Earth cool by reflecting sunlight, but they can also serve as blankets to trap warmth.\"\n",
+      "reconstructed": "not the original authors of this book.     \u2013 I am at the tome (re-edited for",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 6,
+      "lvm_time_ms": 0.7879734039306641,
+      "vec2text_time_ms": 9712.233066558838,
+      "total_time_ms": 9713.021039962769,
+      "vector_cosine": 0.7364376783370972,
+      "text_cosine": 0.003,
+      "ground_truth": "Modeling that compares the effects of albedo differences between forests and grasslands suggests tha",
+      "reconstructed": "who did it at the ton? onlyinclude>/onlyinclude> New characters written in this episode are re-disco",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 7,
+      "lvm_time_ms": 0.7948875427246094,
+      "vec2text_time_ms": 10383.526086807251,
+      "total_time_ms": 10384.320974349976,
+      "vector_cosine": 0.8094055652618408,
+      "text_cosine": 0.0792,
+      "ground_truth": "Trees also impact climate in extremely complicated ways through evapotranspiration. The water vapor ",
+      "reconstructed": "; not who originally wrote this book, but",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 8,
+      "lvm_time_ms": 0.8008480072021484,
+      "vec2text_time_ms": 9691.559791564941,
+      "total_time_ms": 9692.360639572144,
+      "vector_cosine": 0.791631817817688,
+      "text_cosine": 0.1028,
+      "ground_truth": "Clouds\nCloud albedo has substantial influence over atmospheric temperatures. Different types of clou",
+      "reconstructed": "who are not at the cube: /ref> This book features an original design that re-created a cube from",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 9,
+      "lvm_time_ms": 0.8909702301025391,
+      "vec2text_time_ms": 9939.906120300293,
+      "total_time_ms": 9940.797090530396,
+      "vector_cosine": 0.8078266382217407,
+      "text_cosine": 0.0386,
+      "ground_truth": "Spectral albedo strongly affects the performance of bifacial solar cells where rear surface performa",
+      "reconstructed": "episode design of the original book. Who the ton is in this book?\u2014not a local animal, but a local an",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 10,
+      "lvm_time_ms": 0.7879734039306641,
+      "vec2text_time_ms": 9702.13007926941,
+      "total_time_ms": 9702.91805267334,
+      "vector_cosine": 0.8070980310440063,
+      "text_cosine": 0.0365,
+      "ground_truth": "A layer of snowfall increases local albedo, reflecting away sunlight, leading to local cooling. In p",
+      "reconstructed": "who the cuntol is in \u2014 not another cuntol. The original design for this episode was written with a '",
+      "quality": "\u2717 POOR"
+    }
+  ],
+  "gru": [
+    {
+      "sample": 1,
+      "lvm_time_ms": 2.148866653442383,
+      "vec2text_time_ms": 29686.692237854004,
+      "total_time_ms": 29688.841104507446,
+      "vector_cosine": 0.7984311580657959,
+      "text_cosine": 0.0555,
+      "ground_truth": "Because light specularly reflected from water does not usually reach the viewer, water is usually co",
+      "reconstructed": "; not in this episode, but",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 2,
+      "lvm_time_ms": 1.6567707061767578,
+      "vec2text_time_ms": 10446.707963943481,
+      "total_time_ms": 10448.364734649658,
+      "vector_cosine": 0.8248897790908813,
+      "text_cosine": 0.0566,
+      "ground_truth": "The glint of light off water is a commonplace effect of this. At small angles of incident light, wav",
+      "reconstructed": "not in this book\u2014",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 3,
+      "lvm_time_ms": 1.5978813171386719,
+      "vec2text_time_ms": 10587.658882141113,
+      "total_time_ms": 10589.256763458252,
+      "vector_cosine": 0.7593609094619751,
+      "text_cosine": 0.0685,
+      "ground_truth": "Water\n\nWater reflects light very differently from typical terrestrial materials. The reflectivity of",
+      "reconstructed": "not the cunny? /score> The authors revisit this original story with 'what else in the cunny?",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 4,
+      "lvm_time_ms": 1.583099365234375,
+      "vec2text_time_ms": 10389.456748962402,
+      "total_time_ms": 10391.039848327637,
+      "vector_cosine": 0.8086988925933838,
+      "text_cosine": 0.0259,
+      "ground_truth": "The result is that wavelengths of light not used in photosynthesis are more likely to be reflected b",
+      "reconstructed": "not who you are \u2014 ephemeral. Season 6 of the book features new characters written at the ton (re-cre",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 5,
+      "lvm_time_ms": 1.5401840209960938,
+      "vec2text_time_ms": 9996.571063995361,
+      "total_time_ms": 9998.111248016357,
+      "vector_cosine": 0.7964768409729004,
+      "text_cosine": 0.0205,
+      "ground_truth": "Clouds keep Earth cool by reflecting sunlight, but they can also serve as blankets to trap warmth.\"\n",
+      "reconstructed": "not in the original story.            \u2014 what",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 6,
+      "lvm_time_ms": 1.5370845794677734,
+      "vec2text_time_ms": 9831.198930740356,
+      "total_time_ms": 9832.736015319824,
+      "vector_cosine": 0.8013978004455566,
+      "text_cosine": 0.0527,
+      "ground_truth": "Modeling that compares the effects of albedo differences between forests and grasslands suggests tha",
+      "reconstructed": "\u2014but not in the",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 7,
+      "lvm_time_ms": 1.4791488647460938,
+      "vec2text_time_ms": 9957.146167755127,
+      "total_time_ms": 9958.625316619873,
+      "vector_cosine": 0.8599896430969238,
+      "text_cosine": 0.0315,
+      "ground_truth": "Trees also impact climate in extremely complicated ways through evapotranspiration. The water vapor ",
+      "reconstructed": "'what the elm is in this?' The design of the original characters in this novel is not re-tooled to",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 8,
+      "lvm_time_ms": 1.592874526977539,
+      "vec2text_time_ms": 9709.633111953735,
+      "total_time_ms": 9711.225986480713,
+      "vector_cosine": 0.8253040313720703,
+      "text_cosine": 0.0183,
+      "ground_truth": "Clouds\nCloud albedo has substantial influence over atmospheric temperatures. Different types of clou",
+      "reconstructed": "; not in the original",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 9,
+      "lvm_time_ms": 1.5478134155273438,
+      "vec2text_time_ms": 10041.368961334229,
+      "total_time_ms": 10042.916774749756,
+      "vector_cosine": 0.8498995304107666,
+      "text_cosine": 0.0288,
+      "ground_truth": "Spectral albedo strongly affects the performance of bifacial solar cells where rear surface performa",
+      "reconstructed": "; she is in the original story",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 10,
+      "lvm_time_ms": 1.5931129455566406,
+      "vec2text_time_ms": 9771.19517326355,
+      "total_time_ms": 9772.788286209106,
+      "vector_cosine": 0.8696669340133667,
+      "text_cosine": 0.0112,
+      "ground_truth": "A layer of snowfall increases local albedo, reflecting away sunlight, leading to local cooling. In p",
+      "reconstructed": "; not in the original book,",
+      "quality": "\u2717 POOR"
+    }
+  ],
+  "transformer": [
+    {
+      "sample": 1,
+      "lvm_time_ms": 4.998207092285156,
+      "vec2text_time_ms": 10045.01986503601,
+      "total_time_ms": 10050.018072128296,
+      "vector_cosine": 0.8008452653884888,
+      "text_cosine": 0.0666,
+      "ground_truth": "Because light specularly reflected from water does not usually reach the viewer, water is usually co",
+      "reconstructed": "\u2014not already in this story,",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 2,
+      "lvm_time_ms": 4.5318603515625,
+      "vec2text_time_ms": 9752.830982208252,
+      "total_time_ms": 9757.362842559814,
+      "vector_cosine": 0.7934638261795044,
+      "text_cosine": 0.0481,
+      "ground_truth": "The glint of light off water is a commonplace effect of this. At small angles of incident light, wav",
+      "reconstructed": "\u2014not in another story, but",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 3,
+      "lvm_time_ms": 4.506826400756836,
+      "vec2text_time_ms": 10010.820150375366,
+      "total_time_ms": 10015.326976776123,
+      "vector_cosine": 0.7249895334243774,
+      "text_cosine": 0.0758,
+      "ground_truth": "Water\n\nWater reflects light very differently from typical terrestrial materials. The reflectivity of",
+      "reconstructed": "tonk in the square with this book \u2014 the characters in the original story are not from that book, but",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 4,
+      "lvm_time_ms": 4.099130630493164,
+      "vec2text_time_ms": 9726.823806762695,
+      "total_time_ms": 9730.922937393188,
+      "vector_cosine": 0.8597310185432434,
+      "text_cosine": 0.0204,
+      "ground_truth": "The result is that wavelengths of light not used in photosynthesis are more likely to be reflected b",
+      "reconstructed": "\u2014not in the original story,",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 5,
+      "lvm_time_ms": 4.194021224975586,
+      "vec2text_time_ms": 9794.321060180664,
+      "total_time_ms": 9798.51508140564,
+      "vector_cosine": 0.803185224533081,
+      "text_cosine": 0.0804,
+      "ground_truth": "Clouds keep Earth cool by reflecting sunlight, but they can also serve as blankets to trap warmth.\"\n",
+      "reconstructed": "design of the original story.         \u2014 not in another book, but",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 6,
+      "lvm_time_ms": 4.094362258911133,
+      "vec2text_time_ms": 9612.698078155518,
+      "total_time_ms": 9616.792440414429,
+      "vector_cosine": 0.7900998592376709,
+      "text_cosine": 0.0316,
+      "ground_truth": "Modeling that compares the effects of albedo differences between forests and grasslands suggests tha",
+      "reconstructed": "square with the word            \u2014but not",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 7,
+      "lvm_time_ms": 4.182100296020508,
+      "vec2text_time_ms": 10047.297716140747,
+      "total_time_ms": 10051.479816436768,
+      "vector_cosine": 0.8577591180801392,
+      "text_cosine": 0.0086,
+      "ground_truth": "Trees also impact climate in extremely complicated ways through evapotranspiration. The water vapor ",
+      "reconstructed": "square with the word \"but not in this one.\" The design mod of the episode features characters who we",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 8,
+      "lvm_time_ms": 4.107952117919922,
+      "vec2text_time_ms": 9541.583061218262,
+      "total_time_ms": 9545.691013336182,
+      "vector_cosine": 0.8368312120437622,
+      "text_cosine": 0.0599,
+      "ground_truth": "Clouds\nCloud albedo has substantial influence over atmospheric temperatures. Different types of clou",
+      "reconstructed": "square with the word \"but not in this\" /ref> The design of the original storybook is a well-reduced",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 9,
+      "lvm_time_ms": 4.339933395385742,
+      "vec2text_time_ms": 10151.534795761108,
+      "total_time_ms": 10155.874729156494,
+      "vector_cosine": 0.8609098196029663,
+      "text_cosine": 0.0167,
+      "ground_truth": "Spectral albedo strongly affects the performance of bifacial solar cells where rear surface performa",
+      "reconstructed": "square with the word \"THAT is in this one.\" The design of the episode features characters not origin",
+      "quality": "\u2717 POOR"
+    },
+    {
+      "sample": 10,
+      "lvm_time_ms": 4.2018890380859375,
+      "vec2text_time_ms": 9886.711120605469,
+      "total_time_ms": 9890.913009643555,
+      "vector_cosine": 0.8743364810943604,
+      "text_cosine": 0.0416,
+      "ground_truth": "A layer of snowfall increases local albedo, reflecting away sunlight, leading to local cooling. In p",
+      "reconstructed": "square with the word \"who is she in this?\" The design of the episode features characters not origina",
+      "quality": "\u2717 POOR"
+    }
+  ]
+}

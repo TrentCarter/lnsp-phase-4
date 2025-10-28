@@ -1,0 +1,271 @@
+{
+  "timestamp": "2025-10-11 15:42:26",
+  "models": [
+    {
+      "model_name": "llama3.1:8b",
+      "total_tests": 10,
+      "domain_accuracy": 0.4,
+      "task_accuracy": 0.1,
+      "combined_accuracy": 0.0,
+      "avg_latency_ms": 1222.8639602661133,
+      "min_latency_ms": 1156.75687789917,
+      "max_latency_ms": 1346.1968898773193,
+      "total_time_s": 12.228744983673096,
+      "results": [
+        {
+          "test_num": 1,
+          "category": "science",
+          "text": "The water cycle involves evaporation, condensation, and precipitation",
+          "expected_domain": 0,
+          "expected_task": 8,
+          "actual_domain": 14,
+          "actual_task": 18,
+          "domain_match": false,
+          "task_match": false,
+          "latency_ms": 1167.3178672790527
+        },
+        {
+          "test_num": 2,
+          "category": "science",
+          "text": "Photosynthesis converts light energy into chemical energy in plants",
+          "expected_domain": 0,
+          "expected_task": 3,
+          "actual_domain": 14,
+          "actual_task": 31,
+          "domain_match": false,
+          "task_match": false,
+          "latency_ms": 1162.2698307037354
+        },
+        {
+          "test_num": 3,
+          "category": "science",
+          "text": "DNA replication occurs during the S phase of the cell cycle",
+          "expected_domain": 4,
+          "expected_task": 0,
+          "actual_domain": 0,
+          "actual_task": 5,
+          "domain_match": false,
+          "task_match": false,
+          "latency_ms": 1167.1371459960938
+        },
+        {
+          "test_num": 4,
+          "category": "tech",
+          "text": "A binary search tree maintains sorted order with O(log n) lookup time",
+          "expected_domain": 15,
+          "expected_task": 1,
+          "actual_domain": 1,
+          "actual_task": 16,
+          "domain_match": false,
+          "task_match": false,
+          "latency_ms": 1156.75687789917
+        },
+        {
+          "test_num": 5,
+          "category": "tech",
+          "text": "REST APIs use HTTP methods like GET, POST, PUT, and DELETE",
+          "expected_domain": 15,
+          "expected_task": 5,
+          "actual_domain": 2,
+          "actual_task": 5,
+          "domain_match": false,
+          "task_match": true,
+          "latency_ms": 1203.768014907837
+        },
+        {
+          "test_num": 6,
+          "category": "tech",
+          "text": "Python list comprehensions provide concise syntax for creating lists",
+          "expected_domain": 15,
+          "expected_task": 1,
+          "actual_domain": 2,
+          "actual_task": 14,
+          "domain_match": false,
+          "task_match": false,
+          "latency_ms": 1250.5359649658203
+        },
+        {
+          "test_num": 7,
+          "category": "math",
+          "text": "The quadratic formula solves equations of the form ax\u00b2 + bx + c = 0",
+          "expected_domain": 1,
+          "expected_task": 1,
+          "actual_domain": 1,
+          "actual_task": 16,
+          "domain_match": true,
+          "task_match": false,
+          "latency_ms": 1260.1900100708008
+        },
+        {
+          "test_num": 8,
+          "category": "math",
+          "text": "Prime numbers are divisible only by 1 and themselves",
+          "expected_domain": 1,
+          "expected_task": 1,
+          "actual_domain": 1,
+          "actual_task": 16,
+          "domain_match": true,
+          "task_match": false,
+          "latency_ms": 1212.893009185791
+        },
+        {
+          "test_num": 9,
+          "category": "history",
+          "text": "The Industrial Revolution transformed manufacturing in the 18th century",
+          "expected_domain": 7,
+          "expected_task": 0,
+          "actual_domain": 7,
+          "actual_task": 6,
+          "domain_match": true,
+          "task_match": false,
+          "latency_ms": 1346.1968898773193
+        },
+        {
+          "test_num": 10,
+          "category": "history",
+          "text": "Democracy is a system of government where citizens vote for leaders",
+          "expected_domain": 12,
+          "expected_task": 1,
+          "actual_domain": 12,
+          "actual_task": 5,
+          "domain_match": true,
+          "task_match": false,
+          "latency_ms": 1301.5739917755127
+        }
+      ]
+    },
+    {
+      "model_name": "tinyllama:1.1b",
+      "total_tests": 10,
+      "domain_accuracy": 0.2,
+      "task_accuracy": 0.2,
+      "combined_accuracy": 0.0,
+      "avg_latency_ms": 266.96412563323975,
+      "min_latency_ms": 264.6901607513428,
+      "max_latency_ms": 270.3368663787842,
+      "total_time_s": 2.669734001159668,
+      "results": [
+        {
+          "test_num": 1,
+          "category": "science",
+          "text": "The water cycle involves evaporation, condensation, and precipitation",
+          "expected_domain": 0,
+          "expected_task": 8,
+          "actual_domain": 0,
+          "actual_task": 0,
+          "domain_match": true,
+          "task_match": false,
+          "latency_ms": 265.4438018798828
+        },
+        {
+          "test_num": 2,
+          "category": "science",
+          "text": "Photosynthesis converts light energy into chemical energy in plants",
+          "expected_domain": 0,
+          "expected_task": 3,
+          "actual_domain": 0,
+          "actual_task": 0,
+          "domain_match": true,
+          "task_match": false,
+          "latency_ms": 267.2080993652344
+        },
+        {
+          "test_num": 3,
+          "category": "science",
+          "text": "DNA replication occurs during the S phase of the cell cycle",
+          "expected_domain": 4,
+          "expected_task": 0,
+          "actual_domain": 0,
+          "actual_task": 0,
+          "domain_match": false,
+          "task_match": true,
+          "latency_ms": 265.178918838501
+        },
+        {
+          "test_num": 4,
+          "category": "tech",
+          "text": "A binary search tree maintains sorted order with O(log n) lookup time",
+          "expected_domain": 15,
+          "expected_task": 1,
+          "actual_domain": 0,
+          "actual_task": 0,
+          "domain_match": false,
+          "task_match": false,
+          "latency_ms": 266.70074462890625
+        },
+        {
+          "test_num": 5,
+          "category": "tech",
+          "text": "REST APIs use HTTP methods like GET, POST, PUT, and DELETE",
+          "expected_domain": 15,
+          "expected_task": 5,
+          "actual_domain": 0,
+          "actual_task": 0,
+          "domain_match": false,
+          "task_match": false,
+          "latency_ms": 270.3368663787842
+        },
+        {
+          "test_num": 6,
+          "category": "tech",
+          "text": "Python list comprehensions provide concise syntax for creating lists",
+          "expected_domain": 15,
+          "expected_task": 1,
+          "actual_domain": 0,
+          "actual_task": 0,
+          "domain_match": false,
+          "task_match": false,
+          "latency_ms": 266.3910388946533
+        },
+        {
+          "test_num": 7,
+          "category": "math",
+          "text": "The quadratic formula solves equations of the form ax\u00b2 + bx + c = 0",
+          "expected_domain": 1,
+          "expected_task": 1,
+          "actual_domain": 0,
+          "actual_task": 0,
+          "domain_match": false,
+          "task_match": false,
+          "latency_ms": 269.7746753692627
+        },
+        {
+          "test_num": 8,
+          "category": "math",
+          "text": "Prime numbers are divisible only by 1 and themselves",
+          "expected_domain": 1,
+          "expected_task": 1,
+          "actual_domain": 0,
+          "actual_task": 0,
+          "domain_match": false,
+          "task_match": false,
+          "latency_ms": 264.6901607513428
+        },
+        {
+          "test_num": 9,
+          "category": "history",
+          "text": "The Industrial Revolution transformed manufacturing in the 18th century",
+          "expected_domain": 7,
+          "expected_task": 0,
+          "actual_domain": 0,
+          "actual_task": 0,
+          "domain_match": false,
+          "task_match": true,
+          "latency_ms": 268.10693740844727
+        },
+        {
+          "test_num": 10,
+          "category": "history",
+          "text": "Democracy is a system of government where citizens vote for leaders",
+          "expected_domain": 12,
+          "expected_task": 1,
+          "actual_domain": 0,
+          "actual_task": 0,
+          "domain_match": false,
+          "task_match": false,
+          "latency_ms": 265.8100128173828
+        }
+      ]
+    }
+  ]
+}

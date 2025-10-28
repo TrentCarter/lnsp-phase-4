@@ -1,0 +1,24 @@
+{
+  "oracle_recall": {
+    "1": 63.63636363636363,
+    "5": 97.40259740259741,
+    "10": 98.7012987012987,
+    "50": 99.35064935064935,
+    "100": 99.35064935064935,
+    "500": 99.35064935064935,
+    "1000": 100.0
+  },
+  "config": {
+    "index": "artifacts/wikipedia_500k_corrected_ivf_flat_ip.index",
+    "vectors": "artifacts/wikipedia_500k_corrected_vectors.npz",
+    "validation": "artifacts/lvm/data_phase3_tmd/validation_sequences_ctx100.npz",
+    "nprobe": 32,
+    "num_queries": 154,
+    "bank_size": 771115
+  },
+  "sanity_checks": {
+    "bank_normalized": true,
+    "self_similarity_ok": true,
+    "indices_valid": true
+  }
+}

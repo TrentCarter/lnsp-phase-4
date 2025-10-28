@@ -1,0 +1,19 @@
+{
+  "model_type": "lstm",
+  "model_name": "LSTM Baseline",
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.0009390457882716478,
+      "train_cosine": 0.5272625600807513,
+      "train_loss_mse": 0.0009390457882716478,
+      "train_loss_info": 4.24537511617538,
+      "val_loss": 0.001209119759261496,
+      "val_cosine": 0.5356980537515127,
+      "lr": 0.0005
+    }
+  ],
+  "best_val_loss": 0.001209119759261496,
+  "final_params": 5120768,
+  "trained_at": "2025-10-18T09:42:30.349721"
+}

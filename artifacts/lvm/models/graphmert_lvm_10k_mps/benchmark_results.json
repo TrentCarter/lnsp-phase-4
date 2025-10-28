@@ -1,0 +1,39 @@
+{
+  "model_type": "GraphMERT-LVM-768D",
+  "dataset_size": 10000,
+  "train_size": 9000,
+  "val_size": 1000,
+  "epochs": 3,
+  "batch_size": 32,
+  "world_size": 1,
+  "total_training_time": 31.8247230052948,
+  "avg_epoch_time": 10.608241001764933,
+  "parameters": 67352833,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.001576429631326559,
+      "train_cosine": 0.284974707075038,
+      "val_loss": 0.0015870199640630744,
+      "val_cosine": 0.3905843636021018,
+      "epoch_time": 11.727251052856445
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.0011978884060794474,
+      "train_cosine": 0.3443859648619983,
+      "val_loss": 0.0014888195328239817,
+      "val_cosine": 0.4282933408394456,
+      "epoch_time": 9.710361003875732
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.00111658333888251,
+      "train_cosine": 0.40721641174444917,
+      "val_loss": 0.001346590019238647,
+      "val_cosine": 0.48290946055203676,
+      "epoch_time": 9.780280113220215
+    }
+  ],
+  "trained_at": "2025-10-16T17:58:17.008422"
+}

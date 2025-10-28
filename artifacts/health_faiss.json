@@ -1,0 +1,1 @@
+{"loaded":true,"trained":null,"ntotal":10000,"dim":null,"type":"ivf_flat","metric":"ip","nlist":512,"error":"Context initialization failed: Search probe failed: 'RetrievalContext' object has no attribute 'gate_cfg'"}

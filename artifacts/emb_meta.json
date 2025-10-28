@@ -1,0 +1,9 @@
+{
+  "model": "sentence-transformers/gtr-t5-base",
+  "revision": "b3c4aad2b9b969df6de4c4a7b0e82eb0ee62f1bb",
+  "pooling": "mean",
+  "normalized": true,
+  "base_dim": 768,
+  "fused_dim": 784,
+  "created": "2025-09-23T18:50:00Z"
+}

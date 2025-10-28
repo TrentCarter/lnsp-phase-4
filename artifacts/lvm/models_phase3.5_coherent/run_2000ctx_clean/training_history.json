@@ -1,0 +1,91 @@
+{
+  "model_type": "memory_gru",
+  "model_name": "Memory-Augmented GRU (Extended Context)",
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.3626613740466143,
+      "train_cosine": 0.3168911618229591,
+      "val_loss": 0.3260820402818568,
+      "val_cosine": 0.39105084889075337,
+      "lr": 0.0001,
+      "hit@1": 0.45588234066963196,
+      "hit@5": 0.6617646813392639,
+      "hit@10": 0.6911764740943909
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.321971709104745,
+      "train_cosine": 0.39709038895211746,
+      "val_loss": 0.30690521527739134,
+      "val_cosine": 0.4310334903352401,
+      "lr": 9.990754267376514e-05
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.3054224770320089,
+      "train_cosine": 0.43159186624382667,
+      "val_loss": 0.29661982462686654,
+      "val_cosine": 0.4527725542292875,
+      "lr": 9.963055062204608e-05
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.29606554255281625,
+      "train_cosine": 0.4506311885228284,
+      "val_loss": 0.29075153434977813,
+      "val_cosine": 0.4652809115017162,
+      "lr": 9.917016206459795e-05
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.2900909742242412,
+      "train_cosine": 0.4633056329269156,
+      "val_loss": 0.28752000980517445,
+      "val_cosine": 0.4721567543113933,
+      "lr": 9.852826883675633e-05
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.2867507569883999,
+      "train_cosine": 0.46911775654083804,
+      "val_loss": 0.28559736030943256,
+      "val_cosine": 0.47610803036128774,
+      "lr": 9.770750861548009e-05,
+      "hit@1": 0.47058823704719543,
+      "hit@5": 0.5882353186607361,
+      "hit@10": 0.6470588445663452
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.28440136952619804,
+      "train_cosine": 0.4744866615847537,
+      "val_loss": 0.284550922758439,
+      "val_cosine": 0.47800441524561715,
+      "lr": 9.671125408057097e-05,
+      "hit@1": 0.45588234066963196,
+      "hit@5": 0.5882353186607361,
+      "hit@10": 0.6470588445663452
+    }
+  ],
+  "best_hit5": 0.6617646813392639,
+  "stopped_epoch": 8,
+  "args": {
+    "model_type": "memory_gru",
+    "data": "artifacts/lvm/data_phase3.5_coherent/training_sequences_ctx100.npz",
+    "epochs": 50,
+    "batch_size": 4,
+    "accumulation_steps": 64,
+    "lr": 0.0001,
+    "weight_decay": 0.0001,
+    "device": "mps",
+    "patience": 3,
+    "alpha_infonce": 0.03,
+    "temperature": 0.07,
+    "min_coherence": 0.0,
+    "min_length": 7,
+    "output_dir": "artifacts/lvm/models_phase3.5_coherent/run_2000ctx_clean",
+    "seed": 42
+  },
+  "trained_at": "2025-10-20T11:23:32.230141"
+}

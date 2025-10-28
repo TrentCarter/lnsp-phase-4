@@ -1,0 +1,26 @@
+{
+  "source_file": "artifacts/wikipedia_500k_corrected_vectors.npz",
+  "context_length": 1000,
+  "overlap": 500,
+  "vector_dim": 768,
+  "total_vectors": 771115,
+  "total_sequences": 1540,
+  "train_sequences": 1386,
+  "val_sequences": 154,
+  "val_split": 0.1,
+  "effective_tokens": 20000,
+  "min_coherence": null,
+  "coherence_stats": {
+    "min": 0.342157781124115,
+    "mean": 0.3887353539466858,
+    "max": 0.4714151918888092,
+    "std": 0.013704067096114159
+  },
+  "comparison": {
+    "previous_context": 5,
+    "previous_tokens": 100,
+    "new_context": 1000,
+    "new_tokens": 20000,
+    "improvement": "200.0x context expansion"
+  }
+}

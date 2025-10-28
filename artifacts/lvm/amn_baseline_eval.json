@@ -1,0 +1,26 @@
+{
+  "model": "AMN_baseline_truth_targets",
+  "n_samples": 5244,
+  "nprobe": 64,
+  "metrics": {
+    "contain_20": 1.0,
+    "contain_50": 1.0,
+    "recall_1": 0.9984744469870328,
+    "recall_5": 1.0,
+    "recall_10": 1.0,
+    "eff_5": 1.0,
+    "p95_latency_ms": 2.7310749559546785,
+    "truth_payload_cosine_mean": 1.0000000345647835,
+    "truth_payload_cosine_p5": 1.0
+  },
+  "gates": {
+    "passed": [
+      "Contain@50=1.000 \u2265 0.60",
+      "Eff@5=1.000 \u2265 0.68",
+      "R@5=1.000 \u2265 0.40"
+    ],
+    "failed": [
+      "P95=2.73ms > 1.45ms"
+    ]
+  }
+}

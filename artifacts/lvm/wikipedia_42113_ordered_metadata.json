@@ -1,0 +1,55 @@
+{
+  "total_concepts": 42113,
+  "total_articles": 1140,
+  "avg_concepts_per_article": 36.94122807017544,
+  "vector_dimensions": 768,
+  "unique_tmd_codes": 1340,
+  "unique_domains": 14,
+  "unique_tasks": 26,
+  "unique_modifiers": 23,
+  "dataset_source": "user_input",
+  "extraction_date": "2025-10-12T14:57:10.655887",
+  "ordering": "article-based (batch_id ASC, created_at ASC)",
+  "first_article_id": "00414d87-df04-4af0-8800-9c4bb140373b",
+  "last_article_id": "ffec0db9-069f-4cdf-9fc4-cd99bbfe84c1",
+  "first_concept": "A separate version of the ROM was created for the U.S. market due to the use of the commands \"|SUCK\" and \"|BLOW\", which were considered unacceptable there.\n\nSoftware and hardware limitations in this interface led to its replacement with an Amstrad-branded version of a compatible alternative by Pace. Serial interfaces were also available from third-party vendors such as KDS Electronics and Cirkit.",
+  "last_concept": "Andronicus or Andronikos () is a classical Greek name. The name has the sense of \"male victor, warrior\". ",
+  "npz_file": "artifacts/lvm/wikipedia_42113_ordered.npz",
+  "sample_article_sequences": [
+    {
+      "article_id": "00414d87-df04-4af0-8800-9c4bb140373b",
+      "seq_in_article": 1,
+      "concept": "A separate version of the ROM was created for the U.S. market due to the use of the commands \"|SUCK\" and \"|BLOW\", which were considered unacceptable there.\n\nSoftware and hardware limitations in this i"
+    },
+    {
+      "article_id": "00414d87-df04-4af0-8800-9c4bb140373b",
+      "seq_in_article": 2,
+      "concept": "Peripherals\n\nRS232 serial adapters\nAmstrad issued two RS-232-C D25 serial interfaces, attached to the expansion connector on the rear of the machine, with a through-connector for the CPC 464 disk driv"
+    },
+    {
+      "article_id": "00414d87-df04-4af0-8800-9c4bb140373b",
+      "seq_in_article": 3,
+      "concept": "For Amstrad, the latter was easier to realise. At the deliberately low-key introduction of the CPC 664, the machine was positioned not only as the lowest-cost disk system but even the lowest-cost CP/M"
+    },
+    {
+      "article_id": "012d3963-fab7-4dc5-a59d-b41150a3fc6c",
+      "seq_in_article": 33,
+      "concept": "1909)\n2003 \u2013 Ed Townsend, American singer-songwriter and producer (b. 1929)\n2004 \u2013 Julia Child, American chef, author, and television host (b. 1912)\n2005 \u2013 Miguel Arraes, Brazilian lawyer and politici"
+    },
+    {
+      "article_id": "047e03e9-a7ab-4343-bc8e-0967cd2687f9",
+      "seq_in_article": 77,
+      "concept": "He sought to persuade the states to agree to compensation for emancipating their slaves. Lincoln rejected Major General John C. Fr\u00e9mont's August 1861 emancipation attempt, as well as one by Major Gene"
+    },
+    {
+      "article_id": "373180a7-26ef-490f-9929-cac0ecb63ee9",
+      "seq_in_article": 9,
+      "concept": "When the atoms are relatively similar in size, the atom exchange method usually happens, where some of the atoms composing the metallic crystals are substituted with atoms of the other constituent. "
+    },
+    {
+      "article_id": "ffec0db9-069f-4cdf-9fc4-cd99bbfe84c1",
+      "seq_in_article": 2,
+      "concept": "Andronicus or Andronikos () is a classical Greek name. The name has the sense of \"male victor, warrior\". "
+    }
+  ]
+}

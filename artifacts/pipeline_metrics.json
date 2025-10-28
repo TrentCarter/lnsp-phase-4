@@ -1,0 +1,32 @@
+{
+  "summary": {
+    "episode_chunking": {
+      "avg_ms": 384.29465954610225,
+      "total_ms": 230192.50106811523
+    },
+    "semantic_chunking": {
+      "avg_ms": 18.985917850806437,
+      "total_ms": 11372.564792633057
+    },
+    "tmd_extraction": {
+      "avg_ms": 0,
+      "total_ms": 0
+    },
+    "embedding": {
+      "avg_ms": 634.9175959477242,
+      "total_ms": 380315.63997268677
+    },
+    "ingestion": {
+      "avg_ms": 10315.103952793128,
+      "total_ms": 6178747.2677230835
+    },
+    "total_pipeline": {
+      "avg_ms": 11353.323327082027,
+      "total_ms": 6800640.672922134
+    }
+  },
+  "articles_processed": 600,
+  "total_episodes": 3317,
+  "total_chunks": 20424,
+  "errors": 1
+}

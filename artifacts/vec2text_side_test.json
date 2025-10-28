@@ -1,0 +1,44 @@
+[
+  {
+    "text": "Water evaporates from oceans and returns as rainfall.",
+    "vec_api_norm": 1.0000000057516036,
+    "vec_st_norm": 1.0000000621391714,
+    "vec_st_scaled_norm": 0.5000000310695857,
+    "api_output": "Water evaporates from oceans or returns to the oceans as rainfall and vapor. Adaptation of temperature and climatic sensitivity is",
+    "api_cosine": 0.7117,
+    "st_output": "low in \"PCN\": how old is this? Woodpeace atll, the fed, the medicine, the therapy, or any other",
+    "st_cosine": 0.0322,
+    "st_l2_output": "low in \"PCN\": how old is this? Woodpeace atll, the fed, the medicine, the therapy, or any other",
+    "st_l2_cosine": 0.0322,
+    "st_scaled_output": "low in \"PCN\": how old is this? Woodpeace atll, the fed, the medicine, the therapy, or any other",
+    "st_scaled_cosine": 0.0322
+  },
+  {
+    "text": "Binary search trees provide O(log n) search time.",
+    "vec_api_norm": 1.0000000362819914,
+    "vec_st_norm": 1.0000000159049156,
+    "vec_st_scaled_norm": 0.5000000079524578,
+    "api_output": "Binary trees provide O(logn) search time (in a sense equivalent to a binary search algorithm)",
+    "api_cosine": 0.9212,
+    "st_output": "who the abort is? The design features a \"callinct\" message in the next edition \u2014 apprehensive that",
+    "st_cosine": 0.0416,
+    "st_l2_output": "who the abort is? The design features a \"callinct\" message in the next edition \u2014 apprehensive that",
+    "st_l2_cosine": 0.0416,
+    "st_scaled_output": "who the abort is? The design features a \"callinct\" message in the next edition \u2014 apprehensive that",
+    "st_scaled_cosine": 0.0416
+  },
+  {
+    "text": "Photosynthesis takes place inside chloroplasts.",
+    "vec_api_norm": 1.0000000369325925,
+    "vec_st_norm": 1.000000135117857,
+    "vec_st_scaled_norm": 0.5000000675589285,
+    "api_output": "sunlight or oxidants. Photosynthesis takes place inside chloroplasts as a consequence of the glyphs of the word \"Green Chemistry\".",
+    "api_cosine": 0.8134,
+    "st_output": "art of mandolin at the woods. Chapter eight of this book was written with a new theorem (not a reference to",
+    "st_cosine": 0.0541,
+    "st_l2_output": "art of mandolin at the woods. Chapter eight of this book was written with a new theorem (not a reference to",
+    "st_l2_cosine": 0.0541,
+    "st_scaled_output": "art of mandolin at the woods. Chapter eight of this book was written with a new theorem (not a reference to",
+    "st_scaled_cosine": 0.0541
+  }
+]

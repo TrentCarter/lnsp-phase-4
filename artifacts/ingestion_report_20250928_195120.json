@@ -1,0 +1,12 @@
+{
+  "batch_id": "55a392d4-3d92-4823-8e13-3bfe615bc05d",
+  "timestamp": "2025-09-28T19:51:20.208455",
+  "statistics": {
+    "total_items": 10,
+    "successful": 10,
+    "failed": 0,
+    "success_rate": 100.0
+  },
+  "failed_items": [],
+  "remaining_in_queue": 0
+}

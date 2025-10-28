@@ -1,0 +1,106 @@
+{
+  "total": 7140,
+  "unique_pairs": 16,
+  "top_pairs": [
+    {
+      "article_index": 0,
+      "chunk_index": 0,
+      "count": 4290,
+      "fraction": 0.6008403361344538
+    },
+    {
+      "article_index": 3,
+      "chunk_index": 3,
+      "count": 2092,
+      "fraction": 0.29299719887955183
+    },
+    {
+      "article_index": 15,
+      "chunk_index": 15,
+      "count": 140,
+      "fraction": 0.0196078431372549
+    },
+    {
+      "article_index": 8,
+      "chunk_index": 8,
+      "count": 124,
+      "fraction": 0.017366946778711485
+    },
+    {
+      "article_index": 14,
+      "chunk_index": 14,
+      "count": 94,
+      "fraction": 0.013165266106442577
+    },
+    {
+      "article_index": 7,
+      "chunk_index": 7,
+      "count": 86,
+      "fraction": 0.012044817927170869
+    },
+    {
+      "article_index": 5,
+      "chunk_index": 5,
+      "count": 68,
+      "fraction": 0.009523809523809525
+    },
+    {
+      "article_index": 13,
+      "chunk_index": 13,
+      "count": 58,
+      "fraction": 0.008123249299719889
+    },
+    {
+      "article_index": 10,
+      "chunk_index": 10,
+      "count": 50,
+      "fraction": 0.0070028011204481795
+    },
+    {
+      "article_index": 1,
+      "chunk_index": 1,
+      "count": 32,
+      "fraction": 0.004481792717086834
+    },
+    {
+      "article_index": 9,
+      "chunk_index": 9,
+      "count": 28,
+      "fraction": 0.00392156862745098
+    },
+    {
+      "article_index": 11,
+      "chunk_index": 11,
+      "count": 24,
+      "fraction": 0.0033613445378151263
+    },
+    {
+      "article_index": 2,
+      "chunk_index": 2,
+      "count": 20,
+      "fraction": 0.0028011204481792717
+    },
+    {
+      "article_index": 12,
+      "chunk_index": 12,
+      "count": 14,
+      "fraction": 0.00196078431372549
+    },
+    {
+      "article_index": 4,
+      "chunk_index": 4,
+      "count": 14,
+      "fraction": 0.00196078431372549
+    },
+    {
+      "article_index": 6,
+      "chunk_index": 6,
+      "count": 6,
+      "fraction": 0.0008403361344537816
+    }
+  ],
+  "top_k": 20,
+  "top_k_coverage": 1.0,
+  "entropy": 1.1536260901639346,
+  "gini": 0.8271358543417366
+}

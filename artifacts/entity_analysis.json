@@ -1,0 +1,588 @@
+{
+  "total_entities": 74,
+  "entity_types": {
+    "concept": 54,
+    "creative_work": 16,
+    "organization": 2,
+    "temporal": 1,
+    "location": 1
+  },
+  "clusters": {
+    "cluster_0": [
+      "Cl\u00e1udia Pascoal"
+    ],
+    "cluster_1": [
+      "Cl\u00e1udia Pascoal (album)"
+    ],
+    "cluster_2": [
+      "Cl\u00e1udia Pascoal (album)"
+    ],
+    "cluster_3": [
+      "number six"
+    ],
+    "cluster_4": [
+      "The Dismemberment Plan",
+      "The Dismemberment Plan"
+    ],
+    "cluster_5": [
+      "October 2, 1995"
+    ],
+    "cluster_6": [
+      "Steve Cummings"
+    ],
+    "cluster_7": [
+      "The Dismemberment Plan (album)"
+    ],
+    "cluster_8": [
+      "! (The Dismemberment Plan album)"
+    ],
+    "cluster_9": [
+      "Personnel"
+    ],
+    "cluster_10": [
+      "Regurgitator",
+      "Regurgitator"
+    ],
+    "cluster_11": [
+      "The Song Formerly Known As"
+    ],
+    "cluster_12": [
+      "28"
+    ],
+    "cluster_13": [
+      "The Song Formerly Known As",
+      "The Song Formerly Known As",
+      "The Song Formerly Known As"
+    ],
+    "cluster_14": [
+      "ARIA Award for Best Group"
+    ],
+    "cluster_15": [
+      "ARIA Award for Single of the Year"
+    ],
+    "cluster_16": [
+      "Prince"
+    ],
+    "cluster_17": [
+      "!"
+    ],
+    "cluster_18": [
+      "!!!",
+      "!",
+      "!",
+      "!!!",
+      "!"
+    ],
+    "cluster_19": [
+      "electronic fuzz"
+    ],
+    "cluster_20": [
+      "number 60"
+    ],
+    "cluster_21": [
+      "In the Mix's 100 Greatest Australian Dance Tracks of All Time"
+    ],
+    "cluster_22": [
+      "The Song Formerly Known As"
+    ],
+    "cluster_23": [
+      "'!' (The Song Formerly Known As)"
+    ],
+    "cluster_24": [
+      "Tyler Jenke"
+    ],
+    "cluster_25": [
+      "Regurgitator's best songs"
+    ],
+    "cluster_26": [
+      "punk rock"
+    ],
+    "cluster_27": [
+      "Prince"
+    ],
+    "cluster_28": [
+      "Trippie Redd",
+      "Trippie Redd",
+      "Trippie Redd",
+      "Trippie Redd",
+      "Trippie Redd",
+      "Trippie Redd",
+      "Trippie Redd"
+    ],
+    "cluster_29": [
+      "! (Exclamation Mark)"
+    ],
+    "cluster_30": [
+      "Diplo"
+    ],
+    "cluster_31": [
+      "The Game"
+    ],
+    "cluster_32": [
+      "! (Trippie Redd album)"
+    ],
+    "cluster_33": [
+      "XXXTentacion"
+    ],
+    "cluster_34": [
+      "? (album)"
+    ],
+    "cluster_35": [
+      "! (Trippie Redd album)"
+    ],
+    "cluster_36": [
+      "Under Enemy Arms"
+    ],
+    "cluster_37": [
+      "single"
+    ],
+    "cluster_38": [
+      "! (album)"
+    ],
+    "cluster_39": [
+      "Metacritic"
+    ],
+    "cluster_40": [
+      "scores"
+    ],
+    "cluster_41": [
+      "!"
+    ],
+    "cluster_42": [
+      "mixed reviews"
+    ],
+    "cluster_43": [
+      "!"
+    ],
+    "cluster_44": [
+      "Andy O'Connor"
+    ],
+    "cluster_45": [
+      "Pitchfork"
+    ],
+    "cluster_46": [
+      "! (album)"
+    ],
+    "cluster_47": [
+      "US Billboard 200"
+    ],
+    "cluster_48": [
+      "number three"
+    ],
+    "cluster_49": [
+      "Nic Offer"
+    ],
+    "cluster_50": [
+      "New York City"
+    ],
+    "cluster_51": [
+      "Wallop"
+    ],
+    "cluster_52": [
+      "August 2019"
+    ],
+    "cluster_53": [
+      "Gold Standard Laboratories"
+    ],
+    "cluster_54": [
+      "the band's full-length debut record"
+    ],
+    "cluster_55": [
+      "Me and Giuliani Down By the School Yard"
+    ],
+    "cluster_56": [
+      "house beats"
+    ],
+    "cluster_57": [
+      "an EP"
+    ],
+    "cluster_58": [
+      "Mikel Gius"
+    ],
+    "cluster_59": [
+      "by a car"
+    ]
+  },
+  "entities_by_type": {
+    "concept": [
+      {
+        "text": "Cl\u00e1udia Pascoal",
+        "cpe_id": "25aeb7c2-aa61-50cd-b287-e6b4d10d55f3",
+        "confidence": 0.6666666666666666
+      },
+      {
+        "text": "number six",
+        "cpe_id": "25aeb7c2-aa61-50cd-b287-e6b4d10d55f3",
+        "confidence": 0.6666666666666666
+      },
+      {
+        "text": "The Dismemberment Plan",
+        "cpe_id": "65138f72-1547-5fcf-9c50-8469a122e9b1",
+        "confidence": 0.625
+      },
+      {
+        "text": "October 2, 1995",
+        "cpe_id": "65138f72-1547-5fcf-9c50-8469a122e9b1",
+        "confidence": 0.625
+      },
+      {
+        "text": "Steve Cummings",
+        "cpe_id": "65138f72-1547-5fcf-9c50-8469a122e9b1",
+        "confidence": 0.625
+      },
+      {
+        "text": "The Dismemberment Plan",
+        "cpe_id": "9665f720-af8c-57a9-b170-800d30e9f49b",
+        "confidence": 0.5555555555555556
+      },
+      {
+        "text": "Personnel",
+        "cpe_id": "9665f720-af8c-57a9-b170-800d30e9f49b",
+        "confidence": 0.7142857142857143
+      },
+      {
+        "text": "Regurgitator",
+        "cpe_id": "e878613d-0bb7-56c8-b8ee-6ad3662e149a",
+        "confidence": 0.625
+      },
+      {
+        "text": "28",
+        "cpe_id": "e878613d-0bb7-56c8-b8ee-6ad3662e149a",
+        "confidence": 0.8333333333333334
+      },
+      {
+        "text": "Prince",
+        "cpe_id": "df4356d2-d094-5854-82ea-5ad9d778586e",
+        "confidence": 0.8333333333333334
+      },
+      {
+        "text": "!",
+        "cpe_id": "df4356d2-d094-5854-82ea-5ad9d778586e",
+        "confidence": 0.8333333333333334
+      },
+      {
+        "text": "!",
+        "cpe_id": "df4356d2-d094-5854-82ea-5ad9d778586e",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "electronic fuzz",
+        "cpe_id": "df4356d2-d094-5854-82ea-5ad9d778586e",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "number 60",
+        "cpe_id": "d6dddc69-8517-52a9-915a-0cecbad36186",
+        "confidence": 0.588235294117647
+      },
+      {
+        "text": "In the Mix's 100 Greatest Australian Dance Tracks of All Time",
+        "cpe_id": "d6dddc69-8517-52a9-915a-0cecbad36186",
+        "confidence": 0.5
+      },
+      {
+        "text": "Regurgitator",
+        "cpe_id": "2b49c502-0528-5673-a31b-a7217a573421",
+        "confidence": 0.588235294117647
+      },
+      {
+        "text": "Tyler Jenke",
+        "cpe_id": "2b49c502-0528-5673-a31b-a7217a573421",
+        "confidence": 0.6666666666666666
+      },
+      {
+        "text": "punk rock",
+        "cpe_id": "1d742ec3-aad5-5c56-8328-5160fb272dba",
+        "confidence": 0.588235294117647
+      },
+      {
+        "text": "!",
+        "cpe_id": "1d742ec3-aad5-5c56-8328-5160fb272dba",
+        "confidence": 0.8333333333333334
+      },
+      {
+        "text": "Prince",
+        "cpe_id": "1d742ec3-aad5-5c56-8328-5160fb272dba",
+        "confidence": 0.8333333333333334
+      },
+      {
+        "text": "Trippie Redd",
+        "cpe_id": "fdf0f732-4169-5d9b-8675-d4e85ffd2a81",
+        "confidence": 0.6666666666666666
+      },
+      {
+        "text": "! (Exclamation Mark)",
+        "cpe_id": "fdf0f732-4169-5d9b-8675-d4e85ffd2a81",
+        "confidence": 0.6666666666666666
+      },
+      {
+        "text": "Diplo",
+        "cpe_id": "fdf0f732-4169-5d9b-8675-d4e85ffd2a81",
+        "confidence": 0.7142857142857143
+      },
+      {
+        "text": "The Game",
+        "cpe_id": "fdf0f732-4169-5d9b-8675-d4e85ffd2a81",
+        "confidence": 0.6666666666666666
+      },
+      {
+        "text": "Trippie Redd",
+        "cpe_id": "1e3afbdf-e46f-5322-81aa-1f2dc4fa3058",
+        "confidence": 0.625
+      },
+      {
+        "text": "XXXTentacion",
+        "cpe_id": "1e3afbdf-e46f-5322-81aa-1f2dc4fa3058",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "Trippie Redd",
+        "cpe_id": "ee849d0d-35d4-5116-b4e3-a1259e6b1218",
+        "confidence": 0.625
+      },
+      {
+        "text": "Under Enemy Arms",
+        "cpe_id": "ee849d0d-35d4-5116-b4e3-a1259e6b1218",
+        "confidence": 0.7142857142857143
+      },
+      {
+        "text": "single",
+        "cpe_id": "ee849d0d-35d4-5116-b4e3-a1259e6b1218",
+        "confidence": 0.7142857142857143
+      },
+      {
+        "text": "Trippie Redd",
+        "cpe_id": "06a2c46f-0053-5223-a090-4ed95fe0b2da",
+        "confidence": 0.7142857142857143
+      },
+      {
+        "text": "Metacritic",
+        "cpe_id": "06a2c46f-0053-5223-a090-4ed95fe0b2da",
+        "confidence": 0.8333333333333334
+      },
+      {
+        "text": "scores",
+        "cpe_id": "06a2c46f-0053-5223-a090-4ed95fe0b2da",
+        "confidence": 0.8333333333333334
+      },
+      {
+        "text": "Trippie Redd",
+        "cpe_id": "d4f7276a-1f2d-5565-901f-0552e79d9e8b",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "!",
+        "cpe_id": "d4f7276a-1f2d-5565-901f-0552e79d9e8b",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "!",
+        "cpe_id": "d4f7276a-1f2d-5565-901f-0552e79d9e8b",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "mixed reviews",
+        "cpe_id": "d4f7276a-1f2d-5565-901f-0552e79d9e8b",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "Trippie Redd",
+        "cpe_id": "9e3927de-e772-5555-9917-b6b8774661e0",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "!",
+        "cpe_id": "9e3927de-e772-5555-9917-b6b8774661e0",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "Andy O'Connor",
+        "cpe_id": "9e3927de-e772-5555-9917-b6b8774661e0",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "Pitchfork",
+        "cpe_id": "9e3927de-e772-5555-9917-b6b8774661e0",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "Trippie Redd",
+        "cpe_id": "3941ee9c-dd5e-5340-a771-1346ecc9676f",
+        "confidence": 0.7142857142857143
+      },
+      {
+        "text": "US Billboard 200",
+        "cpe_id": "3941ee9c-dd5e-5340-a771-1346ecc9676f",
+        "confidence": 0.6666666666666666
+      },
+      {
+        "text": "number three",
+        "cpe_id": "3941ee9c-dd5e-5340-a771-1346ecc9676f",
+        "confidence": 0.6666666666666666
+      },
+      {
+        "text": "!!!",
+        "cpe_id": "3c1429cd-c168-5ba4-bbef-409d47fbabdc",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "Nic Offer",
+        "cpe_id": "3c1429cd-c168-5ba4-bbef-409d47fbabdc",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "Wallop",
+        "cpe_id": "3c1429cd-c168-5ba4-bbef-409d47fbabdc",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "August 2019",
+        "cpe_id": "3c1429cd-c168-5ba4-bbef-409d47fbabdc",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "Gold Standard Laboratories",
+        "cpe_id": "d49fc02c-0f46-550f-9124-052b01a711c3",
+        "confidence": 0.5555555555555556
+      },
+      {
+        "text": "Me and Giuliani Down By the School Yard",
+        "cpe_id": "d49fc02c-0f46-550f-9124-052b01a711c3",
+        "confidence": 0.5
+      },
+      {
+        "text": "house beats",
+        "cpe_id": "d49fc02c-0f46-550f-9124-052b01a711c3",
+        "confidence": 0.5
+      },
+      {
+        "text": "!!!",
+        "cpe_id": "e13865cc-d9cc-5570-a264-f0882684aa9a",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "an EP",
+        "cpe_id": "e13865cc-d9cc-5570-a264-f0882684aa9a",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "Mikel Gius",
+        "cpe_id": "e13865cc-d9cc-5570-a264-f0882684aa9a",
+        "confidence": 0.6666666666666666
+      },
+      {
+        "text": "by a car",
+        "cpe_id": "e13865cc-d9cc-5570-a264-f0882684aa9a",
+        "confidence": 0.6666666666666666
+      }
+    ],
+    "creative_work": [
+      {
+        "text": "Cl\u00e1udia Pascoal (album)",
+        "cpe_id": "25aeb7c2-aa61-50cd-b287-e6b4d10d55f3",
+        "confidence": 0.6666666666666666
+      },
+      {
+        "text": "Cl\u00e1udia Pascoal (album)",
+        "cpe_id": "25aeb7c2-aa61-50cd-b287-e6b4d10d55f3",
+        "confidence": 0.6666666666666666
+      },
+      {
+        "text": "The Dismemberment Plan (album)",
+        "cpe_id": "65138f72-1547-5fcf-9c50-8469a122e9b1",
+        "confidence": 0.625
+      },
+      {
+        "text": "! (The Dismemberment Plan album)",
+        "cpe_id": "9665f720-af8c-57a9-b170-800d30e9f49b",
+        "confidence": 0.5555555555555556
+      },
+      {
+        "text": "The Song Formerly Known As",
+        "cpe_id": "e878613d-0bb7-56c8-b8ee-6ad3662e149a",
+        "confidence": 0.625
+      },
+      {
+        "text": "The Song Formerly Known As",
+        "cpe_id": "cd877d60-daf5-5817-a81a-7ee398070916",
+        "confidence": 0.5
+      },
+      {
+        "text": "The Song Formerly Known As",
+        "cpe_id": "d6dddc69-8517-52a9-915a-0cecbad36186",
+        "confidence": 0.588235294117647
+      },
+      {
+        "text": "The Song Formerly Known As",
+        "cpe_id": "d6dddc69-8517-52a9-915a-0cecbad36186",
+        "confidence": 0.5
+      },
+      {
+        "text": "'!' (The Song Formerly Known As)",
+        "cpe_id": "2b49c502-0528-5673-a31b-a7217a573421",
+        "confidence": 0.588235294117647
+      },
+      {
+        "text": "Regurgitator's best songs",
+        "cpe_id": "2b49c502-0528-5673-a31b-a7217a573421",
+        "confidence": 0.6666666666666666
+      },
+      {
+        "text": "The Song Formerly Known As",
+        "cpe_id": "1d742ec3-aad5-5c56-8328-5160fb272dba",
+        "confidence": 0.588235294117647
+      },
+      {
+        "text": "! (Trippie Redd album)",
+        "cpe_id": "1e3afbdf-e46f-5322-81aa-1f2dc4fa3058",
+        "confidence": 0.625
+      },
+      {
+        "text": "? (album)",
+        "cpe_id": "1e3afbdf-e46f-5322-81aa-1f2dc4fa3058",
+        "confidence": 0.7692307692307692
+      },
+      {
+        "text": "! (Trippie Redd album)",
+        "cpe_id": "ee849d0d-35d4-5116-b4e3-a1259e6b1218",
+        "confidence": 0.625
+      },
+      {
+        "text": "! (album)",
+        "cpe_id": "06a2c46f-0053-5223-a090-4ed95fe0b2da",
+        "confidence": 0.7142857142857143
+      },
+      {
+        "text": "! (album)",
+        "cpe_id": "3941ee9c-dd5e-5340-a771-1346ecc9676f",
+        "confidence": 0.7142857142857143
+      }
+    ],
+    "organization": [
+      {
+        "text": "ARIA Award for Best Group",
+        "cpe_id": "cd877d60-daf5-5817-a81a-7ee398070916",
+        "confidence": 0.5
+      },
+      {
+        "text": "the band's full-length debut record",
+        "cpe_id": "d49fc02c-0f46-550f-9124-052b01a711c3",
+        "confidence": 0.5555555555555556
+      }
+    ],
+    "temporal": [
+      {
+        "text": "ARIA Award for Single of the Year",
+        "cpe_id": "cd877d60-daf5-5817-a81a-7ee398070916",
+        "confidence": 0.5
+      }
+    ],
+    "location": [
+      {
+        "text": "New York City",
+        "cpe_id": "3c1429cd-c168-5ba4-bbef-409d47fbabdc",
+        "confidence": 0.7142857142857143
+      }
+    ]
+  }
+}

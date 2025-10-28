@@ -1,0 +1,26 @@
+[
+  {
+    "model": "LSTM",
+    "samples_tested": 3,
+    "successful_decodings": 3,
+    "failed_decodings": 0,
+    "success_rate": "100.0%",
+    "avg_cosine": "0.0969"
+  },
+  {
+    "model": "GRU",
+    "samples_tested": 3,
+    "successful_decodings": 3,
+    "failed_decodings": 0,
+    "success_rate": "100.0%",
+    "avg_cosine": "0.0703"
+  },
+  {
+    "model": "Transformer",
+    "samples_tested": 3,
+    "successful_decodings": 3,
+    "failed_decodings": 0,
+    "success_rate": "100.0%",
+    "avg_cosine": "0.0013"
+  }
+]

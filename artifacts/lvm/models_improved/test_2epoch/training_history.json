@@ -1,0 +1,48 @@
+{
+  "model_type": "memory_gru",
+  "model_name": "Memory-Augmented GRU (Extended Context)",
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.531477722682451,
+      "train_cosine": -0.00016244969859372554,
+      "val_loss": 0.529809930258327,
+      "val_cosine": 0.00020177693396463938,
+      "lr": 0.0005,
+      "hit@1": 0.35596171021461487,
+      "hit@5": 0.5117493271827698,
+      "hit@10": 0.5805047750473022
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.5303953220785218,
+      "train_cosine": 9.954483834424722e-05,
+      "val_loss": 0.5303435002764066,
+      "val_cosine": -7.901839692042106e-05,
+      "lr": 0.0005,
+      "hit@1": 0.35596171021461487,
+      "hit@5": 0.510008692741394,
+      "hit@10": 0.5805047750473022
+    }
+  ],
+  "best_val_loss": 0.529809930258327,
+  "best_hit5": 0.5117493271827698,
+  "args": {
+    "model_type": "memory_gru",
+    "data": "artifacts/lvm/data_extended/training_sequences_ctx100.npz",
+    "epochs": 2,
+    "batch_size": 16,
+    "lr": 0.0005,
+    "device": "mps",
+    "delta_mode": true,
+    "coherence_threshold": 0.0,
+    "train_ratio": 0.9,
+    "lambda_mse": 1.0,
+    "lambda_cosine": 0.5,
+    "lambda_infonce": 0.1,
+    "temperature": 0.07,
+    "output_dir": "artifacts/lvm/models_improved/test_2epoch",
+    "seed": 42
+  },
+  "trained_at": "2025-10-19T14:44:08.139472"
+}

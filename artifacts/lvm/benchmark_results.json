@@ -1,0 +1,154 @@
+[
+  {
+    "model_name": "transformer_20251016_135606",
+    "model_type": "transformer",
+    "parameters": 17867520,
+    "memory_mb": 68.3544921875,
+    "load_time_sec": 0.08493733406066895,
+    "single_query": {
+      "mean_ms": 2.680306915208348,
+      "std_ms": 0.32629316787535184,
+      "min_ms": 2.314541008672677,
+      "max_ms": 4.649791997508146,
+      "median_ms": 2.5973334995796904,
+      "p95_ms": 3.2758434514107635,
+      "p99_ms": 3.8624412498029344,
+      "throughput_per_sec": 373.0916016840807,
+      "batch_size": 1
+    },
+    "batch_efficiency": {
+      "batch_1": {
+        "mean_ms_per_sample": 2.736375061213039,
+        "throughput_per_sec": 365.44697917130503
+      },
+      "batch_8": {
+        "mean_ms_per_sample": 0.3864348948627594,
+        "throughput_per_sec": 2587.7580241689757
+      },
+      "batch_32": {
+        "mean_ms_per_sample": 0.12518682252448343,
+        "throughput_per_sec": 7988.061201924227
+      },
+      "batch_128": {
+        "mean_ms_per_sample": 0.036248842034183326,
+        "throughput_per_sec": 27587.088135311507
+      }
+    },
+    "tokens_per_sec_estimate": 37309.16016840807,
+    "val_cosine": 0.5820425765381919
+  },
+  {
+    "model_name": "lstm_20251016_133934",
+    "model_type": "lstm",
+    "parameters": 5120768,
+    "memory_mb": 19.5341796875,
+    "load_time_sec": 0.022917985916137695,
+    "single_query": {
+      "mean_ms": 0.5563443894789089,
+      "std_ms": 0.12204289777869243,
+      "min_ms": 0.4742079909192398,
+      "max_ms": 1.625791992410086,
+      "median_ms": 0.5277290038065985,
+      "p95_ms": 0.6525143086037133,
+      "p99_ms": 1.062636177084641,
+      "throughput_per_sec": 1797.4478019570472,
+      "batch_size": 1
+    },
+    "batch_efficiency": {
+      "batch_1": {
+        "mean_ms_per_sample": 0.5432008195202798,
+        "throughput_per_sec": 1840.9397851850374
+      },
+      "batch_8": {
+        "mean_ms_per_sample": 0.07221676514745923,
+        "throughput_per_sec": 13847.200133626902
+      },
+      "batch_32": {
+        "mean_ms_per_sample": 0.017891199422592763,
+        "throughput_per_sec": 55893.401911177265
+      },
+      "batch_128": {
+        "mean_ms_per_sample": 0.008579290624766145,
+        "throughput_per_sec": 116559.7534501587
+      }
+    },
+    "tokens_per_sec_estimate": 179744.78019570472,
+    "val_cosine": 0.5758175193553879
+  },
+  {
+    "model_name": "gru_20251016_134451",
+    "model_type": "gru",
+    "parameters": 7095552,
+    "memory_mb": 27.0673828125,
+    "load_time_sec": 0.03151679039001465,
+    "single_query": {
+      "mean_ms": 2.0799829693714855,
+      "std_ms": 0.28435770803247473,
+      "min_ms": 1.829583998187445,
+      "max_ms": 4.10474999807775,
+      "median_ms": 1.9989380016340874,
+      "p95_ms": 2.540398252313025,
+      "p99_ms": 3.242921673518137,
+      "throughput_per_sec": 480.773167244813,
+      "batch_size": 1
+    },
+    "batch_efficiency": {
+      "batch_1": {
+        "mean_ms_per_sample": 2.167496598267462,
+        "throughput_per_sec": 461.3617390676999
+      },
+      "batch_8": {
+        "mean_ms_per_sample": 0.3408465573374997,
+        "throughput_per_sec": 2933.871498692649
+      },
+      "batch_32": {
+        "mean_ms_per_sample": 0.08471961002214812,
+        "throughput_per_sec": 11803.642624636394
+      },
+      "batch_128": {
+        "mean_ms_per_sample": 0.027262858125141065,
+        "throughput_per_sec": 36679.93999051138
+      }
+    },
+    "tokens_per_sec_estimate": 48077.3167244813,
+    "val_cosine": 0.575360388509811
+  },
+  {
+    "model_name": "amn_20251016_133427",
+    "model_type": "amn",
+    "parameters": 1510912,
+    "memory_mb": 5.763671875,
+    "load_time_sec": 0.012325048446655273,
+    "single_query": {
+      "mean_ms": 0.4943330996320583,
+      "std_ms": 0.1513229344277308,
+      "min_ms": 0.404500009608455,
+      "max_ms": 1.592375003383495,
+      "median_ms": 0.44629199692280963,
+      "p95_ms": 0.6487318532890636,
+      "p99_ms": 1.1089086580614056,
+      "throughput_per_sec": 2022.9274566973554,
+      "batch_size": 1
+    },
+    "batch_efficiency": {
+      "batch_1": {
+        "mean_ms_per_sample": 0.6573225007741712,
+        "throughput_per_sec": 1521.3232451684453
+      },
+      "batch_8": {
+        "mean_ms_per_sample": 0.08952678250352619,
+        "throughput_per_sec": 11169.841828735585
+      },
+      "batch_32": {
+        "mean_ms_per_sample": 0.02879841248613957,
+        "throughput_per_sec": 34724.136286376604
+      },
+      "batch_128": {
+        "mean_ms_per_sample": 0.00474632187433599,
+        "throughput_per_sec": 210689.46154013203
+      }
+    },
+    "tokens_per_sec_estimate": 202292.74566973554,
+    "val_cosine": 0.5664192598963541
+  }
+]

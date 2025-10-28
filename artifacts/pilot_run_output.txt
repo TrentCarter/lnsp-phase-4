@@ -1,0 +1,10 @@
+🧪 PILOT MODE: Processing 10 articles
+=
+Wikipedia Pipeline Quick Start
+=
+
+📥 Step 1: Downloading Simple English Wikipedia...
+Traceback (most recent call last):
+  File "/Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4/tools/download_wikipedia.py", line 20, in <module>
+    from datasets import load_dataset
+ModuleNotFoundError: No module named 'datasets'

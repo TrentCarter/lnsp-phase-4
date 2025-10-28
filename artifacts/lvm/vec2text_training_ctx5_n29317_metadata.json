@@ -1,0 +1,8 @@
+{
+  "total_sequences": 29317,
+  "context_size": 5,
+  "vector_dim": 768,
+  "dataset_source": "wikipedia_5k",
+  "encoder": "vec2text-compatible (IsolatedVecTextVectOrchestrator)",
+  "regeneration_date": "2025-10-13T18:58:26.517356"
+}

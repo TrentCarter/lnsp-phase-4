@@ -1,0 +1,9 @@
+Comprehensive VecRAG Ingestion Summary
+======================================
+Timestamp: Sun Sep 28 22:38:41 EDT 2025
+Input file: factoid_15_items.jsonl
+Total items:       15
+Vectors created: 15
+Success rate: 100.00%
+Output: artifacts/comprehensive_vectors.npz
+Report: artifacts/ingestion_report_comprehensive-20250928_223800.json

@@ -1,0 +1,164 @@
+================================================================================
+DEMONSTRATION 2: "Parallel Universe" Generations
+================================================================================
+
+This demonstration shows multiple plausible continuations from the same
+context, revealing model uncertainty and the diversity of valid paths.
+
+Loading Simple MLP model...
+✓ Model loaded
+
+Loading data...
+✓ Loaded 29317 sequences and 29322 text chunks
+
+================================================================================
+CONTEXT 1: Validation Index 1544
+================================================================================
+
+SEED CONTEXT (5 chunks):
+--------------------------------------------------------------------------------
+[1] The Airbus A300 is Airbus' first production aircraft and the world's first twin-engine, double-aisle (wide-body) airline...
+[2] Structures are made from metal billets, reducing weight. It is the first airliner to be fitted with wind shear protectio...
+[3] From then on, the A300 family sold well, eventually reaching a total of 561 delivered aircraft.
+
+In December 1977, Aeroc...
+[4] The first modification will be made at Airbus Toulouse in 2019 and certified in 2020.
+
+As of July 2017, there are 211 A3...
+[5] It has overwing exits between the two main front and rear door pairs.
+
+In April 1983, the aircraft entered revenue servi...
+
+GROUND TRUTH (actual next chunk):
+--------------------------------------------------------------------------------
+  All 260 people on board were killed, along with 5 people on the ground. It is the second-deadliest incident involving an...
+
+PARALLEL UNIVERSES (5 diverse plausible continuations):
+--------------------------------------------------------------------------------
+BASE MODEL PREDICTION (cos=0.805):
+  It has overwing exits between the two main front and rear door pairs.
+
+In April 1983, the aircraft entered revenue servi...
+
+Universe 1 🟢 (GT cos=0.770, diversity=0.543):
+  1947 – The first Tony Awards are presented for theatrical achievement.
+1957 – The flag carrier airline of Greece for dec...
+
+Universe 2 🟡 (GT cos=0.681, diversity=0.529):
+  The Rockwell B-1 Lancer is a supersonic variable-sweep wing, heavy bomber used by the United States Air Force. It has be...
+
+Universe 3 🟢 (GT cos=0.750, diversity=0.460):
+  54–1630, is on display in the Cold War Gallery at the National Museum of the United States Air Force at Wright-Patterson...
+
+Universe 4 🟢 (GT cos=0.765, diversity=0.444):
+  However, all on board survived to be picked up by a British boat.
+
+In the years following World War II, Philip Baum, an ...
+
+Universe 5 🟢 (GT cos=0.809, diversity=0.396):
+  The Boeing 767 is an American wide-body aircraft developed and manufactured by Boeing Commercial Airplanes.
+
+The aircraf...
+
+
+================================================================================
+CONTEXT 2: Validation Index 892
+================================================================================
+
+SEED CONTEXT (5 chunks):
+--------------------------------------------------------------------------------
+[1] Mimolette is a cheese traditionally produced around the city of Lille, France. In France it is also known as Boule de Li...
+[2] "—but to encourage faith—"what happened, and what does it all mean?"
+
+Acts (or Luke–Acts) is intended as a work of "edif...
+[3] The Acts of the Apostles (, Práxeis Apostólōn; ) is the fifth book of the New Testament; it tells of the founding of the...
+[4] It lacks exact analogies in Hellenistic or Jewish literature. The author may have taken as his model the works of Dionys...
+[5] Other sources can only be inferred from internal evidence—the traditional explanation of the three "we" passages, for ex...
+
+GROUND TRUTH (actual next chunk):
+--------------------------------------------------------------------------------
+  The answer is ambiguous. The Romans never move against Jesus or his followers unless provoked by the Jews, in the trial ...
+
+PARALLEL UNIVERSES (5 diverse plausible continuations):
+--------------------------------------------------------------------------------
+BASE MODEL PREDICTION (cos=0.839):
+  Other sources can only be inferred from internal evidence—the traditional explanation of the three "we" passages, for ex...
+
+Universe 1 🟢 (GT cos=0.772, diversity=0.449):
+  The Book of Judges (, ) is the seventh book of the Hebrew Bible and the Christian Old Testament. In the narrative of the...
+
+Universe 2 🟢 (GT cos=0.755, diversity=0.389):
+  1107)
+1170 – Saint Dominic, founder of the Dominicans (d. 1221)
+1306 – Rudolf II, Duke of Bavaria (d. 1353)
+1492 – Matte...
+
+Universe 3 🟢 (GT cos=0.796, diversity=0.386):
+  On the northern Black Sea coast, the Greek city of Olbia was held against the Scythians. Also during his reign the gover...
+
+Universe 4 🟢 (GT cos=0.793, diversity=0.357):
+  The Book of Revelation, also erroneously called the Book of Revelations, is the final book of the New Testament (and the...
+
+Universe 5 🟢 (GT cos=0.864, diversity=0.289):
+  The answer is ambiguous. The Romans never move against Jesus or his followers unless provoked by the Jews, in the trial ...
+
+
+================================================================================
+CONTEXT 3: Validation Index 2341
+================================================================================
+
+SEED CONTEXT (5 chunks):
+--------------------------------------------------------------------------------
+[1] 1993. Classical Anatolia: The Glory of Hellenism. London: I. B. Tauris.
+Donbaz, Veysel, and Şemsi Güner. 1995. The Royal...
+[2] Anatolia, also known as Asia Minor, is a large peninsula in West Asia and is the western-most extension of continental A...
+[3] The region became famous for exporting raw materials. Organized trade between Anatolia and Mesopotamia started to emerge...
+[4] 2007. The Geodynamics of the Aegean and Anatolia. London: Geological Society.
+
+External links
+ 
+
+ 
+Ancient Greek geograp...
+[5] 2004. Ethnoarchaeological Investigations In Rural Anatolia. İstanbul: Ege Yayınları.
+Taracha, Piotr. 
+
+GROUND TRUTH (actual next chunk):
+--------------------------------------------------------------------------------
+  2009. Religions of Second Millennium Anatolia. Wiesbaden: Harrassowitz.
+Taymaz, Tuncay, Y. Yilmaz, and Yildirim Dilek. 
+
+PARALLEL UNIVERSES (5 diverse plausible continuations):
+--------------------------------------------------------------------------------
+BASE MODEL PREDICTION (cos=0.511):
+  During the Middle Ages, Alucra was the part of the Byzantine Empire, disrupted by the Arab armies of the Abbasid calipha...
+
+Universe 1 🟠 (GT cos=0.385, diversity=0.461):
+  Athens had by this time become a significant naval power with a large fleet, and helped the rebellion of the Ionian citi...
+
+Universe 2 🟠 (GT cos=0.435, diversity=0.422):
+  On the northern Black Sea coast, the Greek city of Olbia was held against the Scythians. Also during his reign the gover...
+
+Universe 3 🟠 (GT cos=0.474, diversity=0.409):
+  It has been identified with the Hittite cult center Ankuwaš,  although this remains a matter of debate. In classical ant...
+
+Universe 4 🟠 (GT cos=0.426, diversity=0.386):
+  During the Middle Ages, Alucra was the part of the Byzantine Empire, disrupted by the Arab armies of the Abbasid calipha...
+
+Universe 5 🟠 (GT cos=0.421, diversity=0.382):
+  Rhetores Graeci, L. Spengel (ed.), Lipsiae, sumptibus et typis B. G. Teubneri, 1853, vol. 1 pp. 169-242.
+ edited by Manf...
+
+
+================================================================================
+KEY FINDINGS
+================================================================================
+
+✓ Multiple plausible continuations exist for each context
+✓ Model explores different semantic regions via clustering
+✓ Demonstrates uncertainty and creative potential
+✓ Higher diversity scores indicate more alternative paths
+
+This is analogous to sampling with temperature in GPT, but shows
+explicit diversity in the continuous embedding space.
+

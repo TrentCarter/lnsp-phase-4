@@ -1,0 +1,38 @@
+🚀 Wikipedia Ingestion Pipeline
+================================================================================
+🔍 Checking APIs...
+  ✅ Episode Chunker: http://localhost:8900/health
+  ✅ Semantic Chunker: http://localhost:8001/health
+  ✅ TMD Router: http://localhost:8002/health
+  ✅ GTR-T5 Embeddings: http://localhost:8765/health
+  ✅ Ingest: http://localhost:8004/health
+
+📥 Loading articles from data/datasets/wikipedia_test2/wikipedia_simple_articles.jsonl...
+   Loaded: 10 articles
+
+⚙️  Processing articles...
+Articles:   0%|          | 0/10 [00:00<?, ?it/s]Articles:  10%|█         | 1/10 [00:11<01:42, 11.42s/it]Articles:  20%|██        | 2/10 [00:27<01:54, 14.37s/it]Articles:  30%|███       | 3/10 [00:38<01:28, 12.61s/it]Articles:  40%|████      | 4/10 [00:43<00:56,  9.48s/it]Articles:  50%|█████     | 5/10 [00:48<00:40,  8.09s/it]Articles:  60%|██████    | 6/10 [00:51<00:25,  6.40s/it]Articles:  70%|███████   | 7/10 [01:02<00:23,  7.71s/it]Articles:  80%|████████  | 8/10 [01:10<00:15,  7.97s/it]Articles:  90%|█████████ | 9/10 [01:12<00:05,  5.92s/it]Articles: 100%|██████████| 10/10 [01:26<00:00,  8.49s/it]Articles: 100%|██████████| 10/10 [01:26<00:00,  8.64s/it]
+
+✅ Pipeline Complete!
+   Articles processed: 10
+   Episodes created: 35
+   Chunks ingested: 130
+
+⏱️  Performance Metrics (per article average):
+   Episode Chunking: 0.0ms
+   Semantic Chunking: 0.0ms
+   TMD Extraction: 0.0ms
+   Embeddings: 0.0ms
+   Ingestion: 0.0ms
+   Total Pipeline: 0.0ms
+
+📊 Total Time:
+   Pipeline: 0.0s
+Traceback (most recent call last):
+  File "/Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4/tools/ingest_wikipedia_pipeline.py", line 390, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4/tools/ingest_wikipedia_pipeline.py", line 366, in main
+    print(f"   Throughput: {len(articles)/(timing_summary['total_pipeline']['total_ms']/1000):.1f} articles/sec")
+                            ~~~~~~~~~~~~~^^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ZeroDivisionError: float division by zero

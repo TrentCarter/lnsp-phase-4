@@ -1,0 +1,484 @@
+{"chain_id": "dbpedia_chain_000001", "concepts": ["axente", "Familie", "Noble family"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000003", "concepts": ["axente", "Oseba", "milit\u00e4rische Person"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000004", "concepts": ["axente", "Oseba", "Arch\u00e4ologe"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000005", "concepts": ["axente", "Oseba", "Theatre director"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000006", "concepts": ["axente", "Oseba", "religi\u00f6s"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000007", "concepts": ["axente", "Oseba", "r\u00f6mischer Kaiser"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000008", "concepts": ["axente", "Oseba", "Ingenieur"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000009", "concepts": ["axente", "Oseba", "Bauer"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000010", "concepts": ["axente", "Oseba", "Unternehmer"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000011", "concepts": ["axente", "Oseba", "Produzent"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000012", "concepts": ["axente", "Oseba", "Organisationsmitglied", "Sports team member"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000013", "concepts": ["axente", "Oseba", "Psychologe"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000014", "concepts": ["axente", "Oseba", "Sportmanager", "Fu\u00dfballmanager"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000015", "concepts": ["axente", "Oseba", "Koch"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000016", "concepts": ["axente", "Oseba", "Philosoph"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000017", "concepts": ["axente", "Oseba", "Trainer", "Volleyballtrainer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000018", "concepts": ["axente", "Oseba", "Trainer", "College-Trainer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000019", "concepts": ["axente", "Oseba", "Trainer", "adestrador de f\u00fatbol americano"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000020", "concepts": ["axente", "Oseba", "schriftsteller", "songwriter"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000021", "concepts": ["axente", "Oseba", "schriftsteller", "Drehbuchautor"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000022", "concepts": ["axente", "Oseba", "schriftsteller", "music composer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000023", "concepts": ["axente", "Oseba", "schriftsteller", "Dramatiker"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000024", "concepts": ["axente", "Oseba", "schriftsteller", "Historiker"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000025", "concepts": ["axente", "Oseba", "schriftsteller", "Dichter"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000026", "concepts": ["axente", "Oseba", "politik", "Pr\u00e4sident"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000027", "concepts": ["axente", "Oseba", "politik", "Premierminister"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000028", "concepts": ["axente", "Oseba", "politik", "Stellvertreter"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000029", "concepts": ["axente", "Oseba", "politik", "Abgeordneter"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000030", "concepts": ["axente", "Oseba", "politik", "Senator"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000031", "concepts": ["axente", "Oseba", "politik", "Vizepr\u00e4sident"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000032", "concepts": ["axente", "Oseba", "politik", "Vizeministerpr\u00e4sident"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000033", "concepts": ["axente", "Oseba", "politik", "B\u00fcrgermeister"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000034", "concepts": ["axente", "Oseba", "politik", "Leutnant"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000035", "concepts": ["axente", "Oseba", "politik", "Parlamentsmitglied"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000036", "concepts": ["axente", "Oseba", "politik", "Gouverneur"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000037", "concepts": ["axente", "Oseba", "politik", "Kanzler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000038", "concepts": ["axente", "Oseba", "monarch"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000039", "concepts": ["axente", "Oseba", "Playboy Playmate"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000040", "concepts": ["axente", "Oseba", "television personality", "Gastgeber"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000041", "concepts": ["axente", "Oseba", "geistlicher", "christlicher Patriarch"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000042", "concepts": ["axente", "Oseba", "geistlicher", "Kardinal"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000043", "concepts": ["axente", "Oseba", "geistlicher", "Pfarrer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000044", "concepts": ["axente", "Oseba", "geistlicher", "priester"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000045", "concepts": ["axente", "Oseba", "geistlicher", "Heilige"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000046", "concepts": ["axente", "Oseba", "geistlicher", "Papst"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000047", "concepts": ["axente", "Oseba", "geistlicher", "christlicher  Bischof"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000048", "concepts": ["axente", "Oseba", "Sch\u00f6nheitsk\u00f6nigin"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000049", "concepts": ["axente", "Oseba", "Moderator", "Fernsehmoderator"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000050", "concepts": ["axente", "Oseba", "Moderator", "Radiomoderator"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000051", "concepts": ["axente", "Oseba", "schiedsrichter"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000052", "concepts": ["axente", "Oseba", "Athlet", "Handballspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000053", "concepts": ["axente", "Oseba", "Athlet", "Cricketspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000054", "concepts": ["axente", "Oseba", "Athlet", "Jockey (Pferderennprofi)"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000055", "concepts": ["axente", "Oseba", "Athlet", "Turmspringer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000056", "concepts": ["axente", "Oseba", "Athlet", "Ringer", "sumo wrestler"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000057", "concepts": ["axente", "Oseba", "Athlet", "gridiron football player", "xogador de f\u00fatbol americano"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000058", "concepts": ["axente", "Oseba", "Athlet", "gridiron football player", "kanadischer Footballspieler"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000059", "concepts": ["axente", "Oseba", "Athlet", "Teammitglied"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000060", "concepts": ["axente", "Oseba", "Athlet", "Lacrossespieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000061", "concepts": ["axente", "Oseba", "Athlet", "Tennisspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000062", "concepts": ["axente", "Oseba", "Athlet", "Stierk\u00e4mpfer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000063", "concepts": ["axente", "Oseba", "Athlet", "Fechter"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000064", "concepts": ["axente", "Oseba", "Athlet", "Boxer", "boxeador afeccionado"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000065", "concepts": ["axente", "Oseba", "Athlet", "Fu\u00dfballspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000066", "concepts": ["axente", "Oseba", "Athlet", "Surfer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000067", "concepts": ["axente", "Oseba", "Athlet", "Ruderer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000068", "concepts": ["axente", "Oseba", "Athlet", "Tischtennisspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000069", "concepts": ["axente", "Oseba", "Athlet", "Volleyballspieler", "Beachvolleyballspieler"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000070", "concepts": ["axente", "Oseba", "Athlet", "snooker player", "snooker world champion"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000071", "concepts": ["axente", "Oseba", "Athlet", "NCAA"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000072", "concepts": ["axente", "Oseba", "Athlet", "motorsport racer", "motorcycle rider", "motocycle racer"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "axente", "depth": 5}}
+{"chain_id": "dbpedia_chain_000073", "concepts": ["axente", "Oseba", "Athlet", "motorsport racer", "motorcycle rider", "speedway rider"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "axente", "depth": 5}}
+{"chain_id": "dbpedia_chain_000074", "concepts": ["axente", "Oseba", "Athlet", "motorsport racer", "racing driver", "Formel-1 Rennfahrer"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "axente", "depth": 5}}
+{"chain_id": "dbpedia_chain_000075", "concepts": ["axente", "Oseba", "Athlet", "motorsport racer", "racing driver", "DTM racer"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "axente", "depth": 5}}
+{"chain_id": "dbpedia_chain_000076", "concepts": ["axente", "Oseba", "Athlet", "motorsport racer", "racing driver", "rally driver"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "axente", "depth": 5}}
+{"chain_id": "dbpedia_chain_000077", "concepts": ["axente", "Oseba", "Athlet", "motorsport racer", "racing driver", "NASCAR Fahrer"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "axente", "depth": 5}}
+{"chain_id": "dbpedia_chain_000078", "concepts": ["axente", "Oseba", "Athlet", "Archer Player"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000079", "concepts": ["axente", "Oseba", "Athlet", "water polo Player"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000080", "concepts": ["axente", "Oseba", "Athlet", "Schwimmer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000081", "concepts": ["axente", "Oseba", "Athlet", "winter sport Player", "Eishockeyspieler"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000082", "concepts": ["axente", "Oseba", "Athlet", "winter sport Player", "Biathlete"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000083", "concepts": ["axente", "Oseba", "Athlet", "winter sport Player", "Eiskunstl\u00e4ufer"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000084", "concepts": ["axente", "Oseba", "Athlet", "winter sport Player", "Nordic Combined"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000085", "concepts": ["axente", "Oseba", "Athlet", "winter sport Player", "speed skater"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000086", "concepts": ["axente", "Oseba", "Athlet", "winter sport Player", "BobsleighAthlete"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000087", "concepts": ["axente", "Oseba", "Athlet", "winter sport Player", "Schlittschuhl\u00e4ufer"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000088", "concepts": ["axente", "Oseba", "Athlet", "winter sport Player", "Curlingspieler"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000089", "concepts": ["axente", "Oseba", "Athlet", "winter sport Player", "skifahrer"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000090", "concepts": ["axente", "Oseba", "Athlet", "winter sport Player", "ski jumper"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000091", "concepts": ["axente", "Oseba", "Athlet", "winter sport Player", "cross-country skier"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000092", "concepts": ["axente", "Oseba", "Athlet", "Golfspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000093", "concepts": ["axente", "Oseba", "Athlet", "Squashspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000094", "concepts": ["axente", "Oseba", "Athlet", "Pokerspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000095", "concepts": ["axente", "Oseba", "Athlet", "Badmintonspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000096", "concepts": ["axente", "Oseba", "Athlet", "Schachspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000097", "concepts": ["axente", "Oseba", "Athlet", "Rugbyspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000098", "concepts": ["axente", "Oseba", "Athlet", "Dartspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000099", "concepts": ["axente", "Oseba", "Athlet", "giocatore di netball"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000100", "concepts": ["axente", "Oseba", "Athlet", "martial artist"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000101", "concepts": ["axente", "Oseba", "Athlet", "Turner"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000102", "concepts": ["axente", "Oseba", "Athlet", "Kanute"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000103", "concepts": ["axente", "Oseba", "Athlet", "g\u00e4lischen Sportspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000104", "concepts": ["axente", "Oseba", "Athlet", "Reiter"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000105", "concepts": ["axente", "Oseba", "Athlet", "Baseballspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000106", "concepts": ["axente", "Oseba", "Athlet", "Radfahrer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000107", "concepts": ["axente", "Oseba", "Athlet", "Bodybuilder"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000108", "concepts": ["axente", "Oseba", "Athlet", "Australian Rules Football-Spieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000109", "concepts": ["axente", "Oseba", "Athlet", "Basketballspieler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000110", "concepts": ["axente", "Oseba", "embaixador"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000111", "concepts": ["axente", "Oseba", "kraljevska oseba", "Britanska kraljevska oseba", "Baronet"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000112", "concepts": ["axente", "Oseba", "Anwalt"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000113", "concepts": ["axente", "Oseba", "Filmregisseur"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000114", "concepts": ["axente", "Oseba", "model"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000115", "concepts": ["axente", "Oseba", "Aristokrat"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000116", "concepts": ["axente", "Oseba", "\u00c4gyptologe"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000117", "concepts": ["axente", "Oseba", "Architekt"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000118", "concepts": ["axente", "Oseba", "richter"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000119", "concepts": ["axente", "Oseba", "\u00d6konom"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000120", "concepts": ["axente", "Oseba", "Journalist"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000121", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "T\u00e4nzer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000122", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "Maler"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000123", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "Komiker"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000124", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "Comicautor"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000125", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "musikalischer K\u00fcnstler", "Musiker", "Gitarrist"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "axente", "depth": 5}}
+{"chain_id": "dbpedia_chain_000126", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "musikalischer K\u00fcnstler", "back scene"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000127", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "musikalischer K\u00fcnstler", "K\u00fcnstler der klassischen Musik"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000128", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "musikalischer K\u00fcnstler", "S\u00e4nger"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000129", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "musikalischer K\u00fcnstler", "music director"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000130", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "Modedesigner"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000131", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "actor", "actor porno"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000132", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "actor", "Synchronsprecher"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000133", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "Bildhauer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000134", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "Humorist"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000135", "concepts": ["axente", "Oseba", "\u0445\u0443\u0434\u043e\u0436\u043d\u0438\u043a", "Fotograf"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000136", "concepts": ["axente", "Oseba", "Pferdetrainer"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000137", "concepts": ["axente", "Oseba", "verwaist"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000138", "concepts": ["axente", "Oseba", "politician spouse"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000139", "concepts": ["axente", "Oseba", "Sprachwissenschaftler"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000140", "concepts": ["axente", "Oseba", "\u09ac\u09bf\u099c\u09cd\u099e\u09be\u09a8\u09c0", "Entomologe"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000141", "concepts": ["axente", "Oseba", "\u09ac\u09bf\u099c\u09cd\u099e\u09be\u09a8\u09c0", "biologist"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000142", "concepts": ["axente", "Oseba", "\u09ac\u09bf\u099c\u09cd\u099e\u09be\u09a8\u09c0", "Professor"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000143", "concepts": ["axente", "Oseba", "\u09ac\u09bf\u099c\u09cd\u099e\u09be\u09a8\u09c0", "Mediziner"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000144", "concepts": ["axente", "Oseba", "TV-Regisseur"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000145", "concepts": ["axente", "Oseba", "Member of a Resistance Movement"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000146", "concepts": ["axente", "Oseba", "Verbrecher", "M\u00f6rder", "serial killer"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000147", "concepts": ["axente", "Oseba", "fiktiver Charakter", "naruto character"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000148", "concepts": ["axente", "Oseba", "fiktiver Charakter", "Soapoper Charakter"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000149", "concepts": ["axente", "Oseba", "fiktiver Charakter", "Disneyfigur"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000150", "concepts": ["axente", "Oseba", "fiktiver Charakter", "Comic Charakter", "personaxe de animanga"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000151", "concepts": ["axente", "Oseba", "fiktiver Charakter", "mythologische Gestalt"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000152", "concepts": ["axente", "Oseba", "Ber\u00fchmtheit"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000153", "concepts": ["axente", "Oseba", "Adliger"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000154", "concepts": ["axente", "Oseba", "Astronaut"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000155", "concepts": ["axente", "Oseba", "Amtsinhaber"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000156", "concepts": ["axente", "organizacija", "\u00d6ffentliches Personenverkehrssystem"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000157", "concepts": ["axente", "organizacija", "Employers' Organisation"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000158", "concepts": ["axente", "organizacija", "international organisation"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000159", "concepts": ["axente", "organizacija", "Unternehmen", "Busunternehmen"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000160", "concepts": ["axente", "organizacija", "Unternehmen", "Anwaltskanzlei"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000161", "concepts": ["axente", "organizacija", "Unternehmen", "Weinkellerei"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000162", "concepts": ["axente", "organizacija", "Unternehmen", "Plattenlabel"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000163", "concepts": ["axente", "organizacija", "Unternehmen", "Brauerei"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000164", "concepts": ["axente", "organizacija", "Unternehmen", "compa\u00f1\u00eda a\u00e9rea"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000165", "concepts": ["axente", "organizacija", "Unternehmen", "Herausgeber"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000166", "concepts": ["axente", "organizacija", "Unternehmen", "Bank"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000167", "concepts": ["axente", "organizacija", "Unternehmen", "Caterer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000168", "concepts": ["axente", "organizacija", "\u041d\u0435\u043a\u043e\u043c\u043c\u0435\u0440\u0447\u0435\u0441\u043a\u0430\u044f \u043e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0446\u0438\u044f", "Record Office"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000169", "concepts": ["axente", "organizacija", "politische Partei"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000170", "concepts": ["axente", "organizacija", "\u041e\u0440\u0433\u0430\u043d \u0438\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0439 \u0432\u043b\u0430\u0441\u0442\u0438", "cabinet of ministers"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000171", "concepts": ["axente", "organizacija", "Parlament"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000172", "concepts": ["axente", "organizacija", "Sambaschule"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000173", "concepts": ["axente", "organizacija", "sports club", "hockey club"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000174", "concepts": ["axente", "organizacija", "Legislative"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000175", "concepts": ["axente", "organizacija", "Gruppe", "Musikgruppe"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000176", "concepts": ["axente", "organizacija", "Gruppe", "Komikergruppe"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000177", "concepts": ["axente", "organizacija", "Sportliga", "Basketball-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000178", "concepts": ["axente", "organizacija", "Sportliga", "Rad-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000179", "concepts": ["axente", "organizacija", "Sportliga", "Curling-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000180", "concepts": ["axente", "organizacija", "Sportliga", "Speedway Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000181", "concepts": ["axente", "organizacija", "Sportliga", "Videospiele-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000182", "concepts": ["axente", "organizacija", "Sportliga", "motorcycle racing league"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000183", "concepts": ["axente", "organizacija", "Sportliga", "Fu\u00dfball Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000184", "concepts": ["axente", "organizacija", "Sportliga", "Eishockey-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000185", "concepts": ["axente", "organizacija", "Sportliga", "Kanadische Footballliga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000186", "concepts": ["axente", "organizacija", "Sportliga", "Volleyball-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000187", "concepts": ["axente", "organizacija", "Sportliga", "Bowling-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000188", "concepts": ["axente", "organizacija", "Sportliga", "Golfliga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000189", "concepts": ["axente", "organizacija", "Sportliga", "Handball-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000190", "concepts": ["axente", "organizacija", "Sportliga", "Feldhockey-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000191", "concepts": ["axente", "organizacija", "Sportliga", "Inlinehockey Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000192", "concepts": ["axente", "organizacija", "Sportliga", "Baseball-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000193", "concepts": ["axente", "organizacija", "Sportliga", "Paintball-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000194", "concepts": ["axente", "organizacija", "Sportliga", "Lacrosse-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000195", "concepts": ["axente", "organizacija", "Sportliga", "formula one racing"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000196", "concepts": ["axente", "organizacija", "Sportliga", "liga de f\u00fatbol americano"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000197", "concepts": ["axente", "organizacija", "Sportliga", "Australian Football League"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000198", "concepts": ["axente", "organizacija", "Sportliga", "Box-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000199", "concepts": ["axente", "organizacija", "Sportliga", "radio-controlled racing league"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000200", "concepts": ["axente", "organizacija", "Sportliga", "Tennisliga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000201", "concepts": ["axente", "organizacija", "Sportliga", "Rugby-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000202", "concepts": ["axente", "organizacija", "Sportliga", "Polo-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000203", "concepts": ["axente", "organizacija", "Sportliga", "Auto Racing League"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000204", "concepts": ["axente", "organizacija", "Sportliga", "mixed martial arts league"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000205", "concepts": ["axente", "organizacija", "Sportliga", "Softball Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000206", "concepts": ["axente", "organizacija", "Sportliga", "Cricket-Liga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000207", "concepts": ["axente", "organizacija", "religious organisation", "klerikaler Orden"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000208", "concepts": ["axente", "organizacija", "Milit\u00e4reinheit"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000209", "concepts": ["axente", "organizacija", "geopolitische Organisation"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000210", "concepts": ["axente", "organizacija", "Bildungseinrichtung", "Universit\u00e4t"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000211", "concepts": ["axente", "organizacija", "Bildungseinrichtung", "Schule"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000212", "concepts": ["axente", "organizacija", "Bildungseinrichtung", "College"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000213", "concepts": ["axente", "organizacija", "Bildungseinrichtung", "Bibliothek"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000214", "concepts": ["axente", "organizacija", "Sportmannschaft", "Radsportteam"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000215", "concepts": ["axente", "organizacija", "Sportmannschaft", "Speedwayteam"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000216", "concepts": ["axente", "organizacija", "Sportmannschaft", "kanadische Footballmannschaft"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000217", "concepts": ["axente", "organizacija", "Sportmannschaft", "Baseballmannschaft"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000218", "concepts": ["axente", "organizacija", "Sportmannschaft", "Basketballmannschaft"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000219", "concepts": ["axente", "organizacija", "Sportmannschaft", "equipo de f\u00fatbol americano"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000220", "concepts": ["axente", "organizacija", "Sportmannschaft", "Australian Football Team"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000221", "concepts": ["axente", "organizacija", "Sportmannschaft", "Hokejska ekipa"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000222", "concepts": ["axente", "organizacija", "Sportmannschaft", "Handballmannschaft"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000223", "concepts": ["axente", "organizacija", "Sportmannschaft", "Cricketmannschaft"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000224", "concepts": ["axente", "organizacija", "Sportmannschaft", "Formel-1 Team"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000225", "concepts": ["axente", "organizacija", "Sportmannschaft", "Fu\u00dfballverein", "national soccer club"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "axente", "depth": 4}}
+{"chain_id": "dbpedia_chain_000226", "concepts": ["axente", "organizacija", "Sportmannschaft", "Rugby-Club"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000227", "concepts": ["axente", "organizacija", "term of office"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000228", "concepts": ["axente", "organizacija", "Gewerkschaft"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "axente", "depth": 2}}
+{"chain_id": "dbpedia_chain_000229", "concepts": ["axente", "organizacija", "Rundfunkveranstalter", "Radiosender"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000230", "concepts": ["axente", "organizacija", "Rundfunkveranstalter", "Sendergruppe"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000231", "concepts": ["axente", "organizacija", "Rundfunkveranstalter", "Fernsehsender"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "axente", "depth": 3}}
+{"chain_id": "dbpedia_chain_000239", "concepts": ["sports season", "sports team season", "soccer club season"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "sports season", "depth": 2}}
+{"chain_id": "dbpedia_chain_000240", "concepts": ["sports season", "sports team season", "Football Liga Saison", "national football league season"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "sports season", "depth": 3}}
+{"chain_id": "dbpedia_chain_000241", "concepts": ["sports season", "sports team season", "national collegiate athletic association team season"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "sports season", "depth": 2}}
+{"chain_id": "dbpedia_chain_000242", "concepts": ["sports season", "sports team season", "Baseballsaison"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "sports season", "depth": 2}}
+{"chain_id": "dbpedia_chain_000243", "concepts": ["sports season", "sports team season", "Fu\u00dfball-Liga Saison"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "sports season", "depth": 2}}
+{"chain_id": "dbpedia_chain_000244", "concepts": ["Lebensmittel", "Getr\u00e4nk", "Wein", "kontrollierte Ursprungsbezeichnung f\u00fcr Qualit\u00e4tsweine"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Lebensmittel", "depth": 3}}
+{"chain_id": "dbpedia_chain_000245", "concepts": ["Lebensmittel", "Getr\u00e4nk", "vodka"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Lebensmittel", "depth": 2}}
+{"chain_id": "dbpedia_chain_000246", "concepts": ["Lebensmittel", "Getr\u00e4nk", "Bier"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Lebensmittel", "depth": 2}}
+{"chain_id": "dbpedia_chain_000251", "concepts": ["Biomolek\u00fcl", "Gen", "Humangen"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Biomolek\u00fcl", "depth": 2}}
+{"chain_id": "dbpedia_chain_000252", "concepts": ["Biomolek\u00fcl", "Gen", "Mausgenom"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Biomolek\u00fcl", "depth": 2}}
+{"chain_id": "dbpedia_chain_000258", "concepts": ["Werk", "programska oprema", "Videospiel"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000260", "concepts": ["Werk", "Kunstwerk", "Skulptur"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000261", "concepts": ["Werk", "Kunstwerk", "Gem\u00e4lde"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000262", "concepts": ["Werk", "Datenbank", "Biologische Datenbank"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000263", "concepts": ["Werk", "musikalisches Werk", "Nationalhymne"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000264", "concepts": ["Werk", "musikalisches Werk", "oper"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000265", "concepts": ["Werk", "musikalisches Werk", "lied", "Vorentscheid Eurovision song contest"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Werk", "depth": 3}}
+{"chain_id": "dbpedia_chain_000266", "concepts": ["Werk", "musikalisches Werk", "\u00e1lbum"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000267", "concepts": ["Werk", "musikalisches Werk", "Musical"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000268", "concepts": ["Werk", "musikalisches Werk", "Komposition klassischer Musik"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000269", "concepts": ["Werk", "musikalisches Werk", "K\u00fcnstler Diskografie"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000270", "concepts": ["Werk", "musikalisches Werk", "Single"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000272", "concepts": ["Werk", "geschriebenes Erzeugnis", "Stated Resolution"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000273", "concepts": ["Werk", "geschriebenes Erzeugnis", "Vertrag"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000274", "concepts": ["Werk", "geschriebenes Erzeugnis", "Gesetz"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000275", "concepts": ["Werk", "geschriebenes Erzeugnis", "Gedicht"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000276", "concepts": ["Werk", "geschriebenes Erzeugnis", "nota", "Referenz"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Werk", "depth": 3}}
+{"chain_id": "dbpedia_chain_000277", "concepts": ["Werk", "geschriebenes Erzeugnis", "periodical literature", "Publikumszeitschrift"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Werk", "depth": 3}}
+{"chain_id": "dbpedia_chain_000278", "concepts": ["Werk", "geschriebenes Erzeugnis", "periodical literature", "Zeitung"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Werk", "depth": 3}}
+{"chain_id": "dbpedia_chain_000279", "concepts": ["Werk", "geschriebenes Erzeugnis", "periodical literature", "revista acad\u00e9mica"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Werk", "depth": 3}}
+{"chain_id": "dbpedia_chain_000280", "concepts": ["Werk", "geschriebenes Erzeugnis", "periodical literature", "underground journal"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Werk", "depth": 3}}
+{"chain_id": "dbpedia_chain_000281", "concepts": ["Werk", "geschriebenes Erzeugnis", "Drama"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000282", "concepts": ["Werk", "geschriebenes Erzeugnis", "Theaterst\u00fcck"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000283", "concepts": ["Werk", "geschriebenes Erzeugnis", "Artikle"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000284", "concepts": ["Werk", "geschriebenes Erzeugnis", "\u09ac\u0987", "Roman", "light novel"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Werk", "depth": 4}}
+{"chain_id": "dbpedia_chain_000285", "concepts": ["Werk", "geschriebenes Erzeugnis", "Quote"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000286", "concepts": ["Werk", "geschriebenes Erzeugnis", "Comic", "manhwa"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Werk", "depth": 3}}
+{"chain_id": "dbpedia_chain_000287", "concepts": ["Werk", "geschriebenes Erzeugnis", "Comic", "manga"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Werk", "depth": 3}}
+{"chain_id": "dbpedia_chain_000288", "concepts": ["Werk", "geschriebenes Erzeugnis", "Comic", "comic strip"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Werk", "depth": 3}}
+{"chain_id": "dbpedia_chain_000289", "concepts": ["Werk", "geschriebenes Erzeugnis", "Comic", "manhua"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Werk", "depth": 3}}
+{"chain_id": "dbpedia_chain_000290", "concepts": ["Werk", "geschriebenes Erzeugnis", "multi volume publication"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000291", "concepts": ["Werk", "geschriebenes Erzeugnis", "Lebenslauf"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000292", "concepts": ["Werk", "geschriebenes Erzeugnis", "Buchstabe"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000294", "concepts": ["Werk", "Kunst- und Wertsachenversammlung", "Archiv"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000296", "concepts": ["Werk", "Karikatur", "anime"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000297", "concepts": ["Werk", "Karikatur", "hollywood cartoon"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000298", "concepts": ["Werk", "Dokument", "Datei"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000299", "concepts": ["Werk", "Dokument", "Lied"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Werk", "depth": 2}}
+{"chain_id": "dbpedia_chain_000300", "concepts": ["Werk", "Dokument", "Bild", "still image"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Werk", "depth": 3}}
+{"chain_id": "dbpedia_chain_000301", "concepts": ["Werk", "Dokument", "Bild", "moving image"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Werk", "depth": 3}}
+{"chain_id": "dbpedia_chain_000302", "concepts": ["Ereignis", "Naturereignis", "Erdbeben"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000303", "concepts": ["Ereignis", "Naturereignis", "storm surge"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000304", "concepts": ["Ereignis", "Naturereignis", "Sonnenfinsternis"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000305", "concepts": ["Ereignis", "societal event", "Musikfestival"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000306", "concepts": ["Ereignis", "societal event", "milit\u00e4rischer Konflikt"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000307", "concepts": ["Ereignis", "societal event", "Filmfestival"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000308", "concepts": ["Ereignis", "societal event", "\u043d\u0430\u0443\u0447\u043d\u0430\u044f \u043a\u043e\u043d\u0444\u0435\u0440\u0435\u043d\u0446\u0438\u044f"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000309", "concepts": ["Ereignis", "societal event", "Aufstand"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000310", "concepts": ["Ereignis", "societal event", "Angriff, Anschlag"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000311", "concepts": ["Ereignis", "societal event", "Treffen"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000312", "concepts": ["Ereignis", "societal event", "Weltraummission"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000313", "concepts": ["Ereignis", "societal event", "Konvention"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000314", "concepts": ["Ereignis", "societal event", "Sportereignis", "Fu\u00dfballspiel"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ereignis", "depth": 3}}
+{"chain_id": "dbpedia_chain_000315", "concepts": ["Ereignis", "societal event", "Sportereignis", "international football league event"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ereignis", "depth": 3}}
+{"chain_id": "dbpedia_chain_000316", "concepts": ["Ereignis", "societal event", "Sportereignis", "national football league event"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ereignis", "depth": 3}}
+{"chain_id": "dbpedia_chain_000317", "concepts": ["Ereignis", "societal event", "Sportereignis", "Olympiade", "olympic event"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ereignis", "depth": 4}}
+{"chain_id": "dbpedia_chain_000318", "concepts": ["Ereignis", "societal event", "Sportereignis", "grosser Preis"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ereignis", "depth": 3}}
+{"chain_id": "dbpedia_chain_000319", "concepts": ["Ereignis", "societal event", "Sportereignis", "Turnier", "Golfturnier"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ereignis", "depth": 4}}
+{"chain_id": "dbpedia_chain_000320", "concepts": ["Ereignis", "societal event", "Sportereignis", "Turnier", "WTA Turnier"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ereignis", "depth": 4}}
+{"chain_id": "dbpedia_chain_000321", "concepts": ["Ereignis", "societal event", "Sportereignis", "Turnier", "Tennisturnier"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ereignis", "depth": 4}}
+{"chain_id": "dbpedia_chain_000322", "concepts": ["Ereignis", "societal event", "Sportereignis", "Turnier", "Fu\u00dfballturnier"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ereignis", "depth": 4}}
+{"chain_id": "dbpedia_chain_000323", "concepts": ["Ereignis", "societal event", "Sportereignis", "Radrennen"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ereignis", "depth": 3}}
+{"chain_id": "dbpedia_chain_000324", "concepts": ["Ereignis", "societal event", "Sportereignis", "Wrestling-Veranstaltung"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ereignis", "depth": 3}}
+{"chain_id": "dbpedia_chain_000325", "concepts": ["Ereignis", "societal event", "Sportereignis", "Rennen", "Pferderennen"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ereignis", "depth": 4}}
+{"chain_id": "dbpedia_chain_000326", "concepts": ["Ereignis", "societal event", "Sportereignis", "Rennen", "motor race"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ereignis", "depth": 4}}
+{"chain_id": "dbpedia_chain_000327", "concepts": ["Ereignis", "societal event", "Sportereignis", "Rennen", "Radrennen"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ereignis", "depth": 4}}
+{"chain_id": "dbpedia_chain_000328", "concepts": ["Ereignis", "societal event", "Sportereignis", "mixed martial arts event"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ereignis", "depth": 3}}
+{"chain_id": "dbpedia_chain_000329", "concepts": ["Ereignis", "societal event", "Wahl"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ereignis", "depth": 2}}
+{"chain_id": "dbpedia_chain_000330", "concepts": ["Ereignis", "life cycle event", "Ereignis im pers\u00f6nlichen Leben", "Geburt"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ereignis", "depth": 3}}
+{"chain_id": "dbpedia_chain_000331", "concepts": ["Ereignis", "life cycle event", "Ereignis im pers\u00f6nlichen Leben", "Tod"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ereignis", "depth": 3}}
+{"chain_id": "dbpedia_chain_000332", "concepts": ["Ereignis", "life cycle event", "Ereignis im pers\u00f6nlichen Leben", "Trennung"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ereignis", "depth": 3}}
+{"chain_id": "dbpedia_chain_000333", "concepts": ["Ereignis", "life cycle event", "Ereignis im pers\u00f6nlichen Leben", "Heirat"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ereignis", "depth": 3}}
+{"chain_id": "dbpedia_chain_000336", "concepts": ["actividade", "Sport", "team sport", "football"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "actividade", "depth": 3}}
+{"chain_id": "dbpedia_chain_000337", "concepts": ["actividade", "Sport", "Reiten"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "actividade", "depth": 2}}
+{"chain_id": "dbpedia_chain_000338", "concepts": ["actividade", "Sport", "Leichtathletik"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "actividade", "depth": 2}}
+{"chain_id": "dbpedia_chain_000339", "concepts": ["actividade", "Sport", "Boxen", "Boxstil"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "actividade", "depth": 3}}
+{"chain_id": "dbpedia_chain_000340", "concepts": ["actividade", "Sport", "Boxen", "boxing category"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "actividade", "depth": 3}}
+{"chain_id": "dbpedia_chain_000341", "concepts": ["actividade", "Spiel", "Brettspiel"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "actividade", "depth": 2}}
+{"chain_id": "dbpedia_chain_000342", "concepts": ["actividade", "Spiel", "card game"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "actividade", "depth": 2}}
+{"chain_id": "dbpedia_chain_000343", "concepts": ["Ger\u00e4t", "engine", "Fahrzeugmotor"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ger\u00e4t", "depth": 2}}
+{"chain_id": "dbpedia_chain_000344", "concepts": ["Ger\u00e4t", "engine", "rocket engine"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ger\u00e4t", "depth": 2}}
+{"chain_id": "dbpedia_chain_000346", "concepts": ["Ger\u00e4t", "Kamera", "Digitalkamera"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ger\u00e4t", "depth": 2}}
+{"chain_id": "dbpedia_chain_000348", "concepts": ["Ger\u00e4t", "Glasbilo", "Gitarre"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ger\u00e4t", "depth": 2}}
+{"chain_id": "dbpedia_chain_000349", "concepts": ["Ger\u00e4t", "Glasbilo", "Orgel"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ger\u00e4t", "depth": 2}}
+{"chain_id": "dbpedia_chain_000372", "concepts": ["Transportmittel", "avion", "military aircraft"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Transportmittel", "depth": 2}}
+{"chain_id": "dbpedia_chain_000373", "concepts": ["Transportmittel", "on-site mean of transportation", "escalator"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Transportmittel", "depth": 2}}
+{"chain_id": "dbpedia_chain_000374", "concepts": ["Transportmittel", "on-site mean of transportation", "conveyor system"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Transportmittel", "depth": 2}}
+{"chain_id": "dbpedia_chain_000375", "concepts": ["Transportmittel", "on-site mean of transportation", "travellator"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Transportmittel", "depth": 2}}
+{"chain_id": "dbpedia_chain_000387", "concepts": ["topical concept", "Theological concept", "Christliche Lehre"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "topical concept", "depth": 2}}
+{"chain_id": "dbpedia_chain_000396", "concepts": ["topical concept", "Genre", "artistic genre"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "topical concept", "depth": 2}}
+{"chain_id": "dbpedia_chain_000397", "concepts": ["topical concept", "Genre", "musik genre"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "topical concept", "depth": 2}}
+{"chain_id": "dbpedia_chain_000398", "concepts": ["topical concept", "Genre", "Filmgenre"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "topical concept", "depth": 2}}
+{"chain_id": "dbpedia_chain_000399", "concepts": ["topical concept", "Genre", "literary genre"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "topical concept", "depth": 2}}
+{"chain_id": "dbpedia_chain_000401", "concepts": ["topical concept", "Typ", "Regierungsform"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "topical concept", "depth": 2}}
+{"chain_id": "dbpedia_chain_000402", "concepts": ["topical concept", "Typ", "Dokumentenart"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "topical concept", "depth": 2}}
+{"chain_id": "dbpedia_chain_000403", "concepts": ["unit of work", "Sache", "Rechtsfall", "Supreme Court of the United States case"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "unit of work", "depth": 3}}
+{"chain_id": "dbpedia_chain_000404", "concepts": ["unit of work", "Projekt", "Forschungsprojekt"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "unit of work", "depth": 2}}
+{"chain_id": "dbpedia_chain_000410", "concepts": ["Ort", "Bauwerk", "Platz"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000411", "concepts": ["Ort", "Bauwerk", "Turm", "Leuchtturm"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000412", "concepts": ["Ort", "Bauwerk", "Turm", "Wasserturm"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000413", "concepts": ["Ort", "Bauwerk", "Tunnel"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000414", "concepts": ["Ort", "Bauwerk", "Veranstaltungsort", "Theater"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000415", "concepts": ["Ort", "Bauwerk", "Tor"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000416", "concepts": ["Ort", "Bauwerk", "atracci\u00f3n de parque de atracci\u00f3ns", "water ride"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000417", "concepts": ["Ort", "Bauwerk", "atracci\u00f3n de parque de atracci\u00f3ns", "Achterbahn"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000418", "concepts": ["Ort", "Bauwerk", "Pyramide"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000419", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "Startrampe"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000420", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "Kraftwerk", "Kernkraftwerk"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000421", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "aeroporto"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000422", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "Hafen"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000423", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "dike"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000424", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "Schleuse"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000425", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "\u0441\u0442\u0430\u043d\u0446\u0438\u044f", "tram station"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000426", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "\u0441\u0442\u0430\u043d\u0446\u0438\u044f", "U-Bahn Station"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000427", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "\u0441\u0442\u0430\u043d\u0446\u0438\u044f", "electrical substation"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000428", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "\u0441\u0442\u0430\u043d\u0446\u0438\u044f", "filling station"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000429", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "\u0441\u0442\u0430\u043d\u0446\u0438\u044f", "Bahnhof"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000430", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "rest area"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000431", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "route of transportation", "road junction"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000432", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "route of transportation", "Kanaltunnel"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000433", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "route of transportation", "Stra\u00dfe"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000434", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "route of transportation", "Eisenbahnlinie"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000435", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "route of transportation", "Eisenbahntunnel"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000436", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "route of transportation", "\u09b8\u09c7\u09a4\u09c1"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000437", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "route of transportation", "Stra\u00dfentunnel"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000438", "concepts": ["Ort", "Bauwerk", "Infrastruktur", "Damm"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000439", "concepts": ["Ort", "Bauwerk", "Sportanlage", "cricket ground"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000440", "concepts": ["Ort", "Bauwerk", "Sportanlage", "Stadion"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000441", "concepts": ["Ort", "Bauwerk", "Sportanlage", "Skigebiet"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000442", "concepts": ["Ort", "Bauwerk", "Sportanlage", "Rennstrecke", "Rennbahn"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000443", "concepts": ["Ort", "Bauwerk", "Sportanlage", "Golfplatz"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000444", "concepts": ["Ort", "Bauwerk", "M\u00fchle", "Tretm\u00fchle"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000445", "concepts": ["Ort", "Bauwerk", "M\u00fchle", "Wasserm\u00fchle"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000446", "concepts": ["Ort", "Bauwerk", "M\u00fchle", "Wind motor"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000447", "concepts": ["Ort", "Bauwerk", "M\u00fchle", "Windm\u00fchle"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000448", "concepts": ["Ort", "Bauwerk", "stadion"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000449", "concepts": ["Ort", "Bauwerk", "Zoo"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000450", "concepts": ["Ort", "Bauwerk", "stavba", "gef\u00e4ngnis"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000451", "concepts": ["Ort", "Bauwerk", "stavba", "religi\u00f6ses Geb\u00e4ude", "Kirche"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000452", "concepts": ["Ort", "Bauwerk", "stavba", "religi\u00f6ses Geb\u00e4ude", "Moschee"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000453", "concepts": ["Ort", "Bauwerk", "stavba", "religi\u00f6ses Geb\u00e4ude", "schrein"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000454", "concepts": ["Ort", "Bauwerk", "stavba", "religi\u00f6ses Geb\u00e4ude", "Kloster"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000455", "concepts": ["Ort", "Bauwerk", "stavba", "religi\u00f6ses Geb\u00e4ude", "Synagoge"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000456", "concepts": ["Ort", "Bauwerk", "stavba", "religi\u00f6ses Geb\u00e4ude", "abad\u00eda"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000457", "concepts": ["Ort", "Bauwerk", "stavba", "religi\u00f6ses Geb\u00e4ude", "tempel"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000458", "concepts": ["Ort", "Bauwerk", "stavba", "Krankenhaus"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000459", "concepts": ["Ort", "Bauwerk", "stavba", "Museum"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000460", "concepts": ["Ort", "Bauwerk", "stavba", "Fabrik"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000461", "concepts": ["Ort", "Bauwerk", "stavba", "Hotel"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000462", "concepts": ["Ort", "Bauwerk", "stavba", "Bibliothek"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000463", "concepts": ["Ort", "Bauwerk", "stavba", "Restaurant"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000464", "concepts": ["Ort", "Bauwerk", "stavba", "Hochhaus"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000465", "concepts": ["Ort", "Bauwerk", "stavba", "Einkaufszentrum"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000466", "concepts": ["Ort", "Bauwerk", "stavba", "historisches Geb\u00e4ude"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000467", "concepts": ["Ort", "Bauwerk", "stavba", "burg"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000468", "concepts": ["Ort", "Bauwerk", "stavba", "Kasino"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000469", "concepts": ["Ort", "Bauwerk", "milit\u00e4risches Bauwerk", "fort"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000470", "concepts": ["Ort", "nat\u00fcrlicher Ort", "hei\u00dfe Quelle"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000471", "concepts": ["Ort", "nat\u00fcrlicher Ort", "tal"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000472", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Vulkan"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000473", "concepts": ["Ort", "nat\u00fcrlicher Ort", "W\u00fcste"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000474", "concepts": ["Ort", "nat\u00fcrlicher Ort", "kaap"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000475", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Bergpass"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000476", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Gletscher"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000477", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Archipel"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000478", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Gew\u00e4sser", "Ozean"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000479", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Gew\u00e4sser", "Bach", "creek"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000480", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Gew\u00e4sser", "Bach", "Kanal"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000481", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Gew\u00e4sser", "Bach", "Fluss"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000482", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Gew\u00e4sser", "Meer"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000483", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Gew\u00e4sser", "Bucht"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000484", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Gew\u00e4sser", "See"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000485", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Strand"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000486", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Berg"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000487", "concepts": ["Ort", "nat\u00fcrlicher Ort", "H\u00f6hle"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000488", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Krater", "Mondkrater"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000489", "concepts": ["Ort", "nat\u00fcrlicher Ort", "forest"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000490", "concepts": ["Ort", "nat\u00fcrlicher Ort", "Bergkette"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000494", "concepts": ["Ort", "Himmelsk\u00f6rper", "Galaxie"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000495", "concepts": ["Ort", "Himmelsk\u00f6rper", "schwarm", "Open Swarm"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000496", "concepts": ["Ort", "Himmelsk\u00f6rper", "schwarm", "Globular Swarm"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000497", "concepts": ["Ort", "Himmelsk\u00f6rper", "Satellite", "k\u00fcnstlicher Satellit"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000498", "concepts": ["Ort", "Himmelsk\u00f6rper", "planet"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000499", "concepts": ["Ort", "Himmelsk\u00f6rper", "Stern", "Brauner Zwerg"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000500", "concepts": ["Ort", "Himmelsk\u00f6rper", "Sternbild"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000501", "concepts": ["Ort", "Himmelsk\u00f6rper", "Asteroid"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000503", "concepts": ["Ort", "Denkmal", "grave stone or grave monument"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000507", "concepts": ["Ort", "bewohnter Ort", "Territorium", "old territory"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000508", "concepts": ["Ort", "bewohnter Ort", "Gated community"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000509", "concepts": ["Ort", "bewohnter Ort", "Siedlung", "Stadt"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000510", "concepts": ["Ort", "bewohnter Ort", "Siedlung", "historischer Siedlung"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000511", "concepts": ["Ort", "bewohnter Ort", "Siedlung", "lugar"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000512", "concepts": ["Ort", "bewohnter Ort", "Siedlung", "Stadtviertel"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000513", "concepts": ["Ort", "bewohnter Ort", "Siedlung", "cidade", "Hauptstadt"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000514", "concepts": ["Ort", "bewohnter Ort", "Siedlung", "cidade", "Capital of region"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Ort", "depth": 4}}
+{"chain_id": "dbpedia_chain_000515", "concepts": ["Ort", "bewohnter Ort", "dr\u017eava", "historischer Land"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000516", "concepts": ["Ort", "bewohnter Ort", "Insel", "Atoll"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000517", "concepts": ["Ort", "bewohnter Ort", "aglomeraci\u00f3n"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000518", "concepts": ["Ort", "bewohnter Ort", "Gemeinde", "one-time municipality"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000519", "concepts": ["Ort", "bewohnter Ort", "Region", "Naturraum"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000520", "concepts": ["Ort", "bewohnter Ort", "Region", "historischer Region"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Ort", "depth": 3}}
+{"chain_id": "dbpedia_chain_000521", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "klerikale Verwaltungsregion", "deanery"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "Ort", "depth": 5}}
+{"chain_id": "dbpedia_chain_000522", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "klerikale Verwaltungsregion", "Di\u00f6zese"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "Ort", "depth": 5}}
+{"chain_id": "dbpedia_chain_000523", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "klerikale Verwaltungsregion", "Gemeinde", "one-time municipality"], "source": "dbpedia", "chain_length": 7, "metadata": {"root": "Ort", "depth": 6}}
+{"chain_id": "dbpedia_chain_000524", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "governmental administrative region", "Provinz", "historischer Provinz"], "source": "dbpedia", "chain_length": 7, "metadata": {"root": "Ort", "depth": 6}}
+{"chain_id": "dbpedia_chain_000525", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "governmental administrative region", "Distrikt", "overseas department"], "source": "dbpedia", "chain_length": 7, "metadata": {"root": "Ort", "depth": 6}}
+{"chain_id": "dbpedia_chain_000526", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "governmental administrative region", "Kanton"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "Ort", "depth": 5}}
+{"chain_id": "dbpedia_chain_000527", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "governmental administrative region", "Regentschaft"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "Ort", "depth": 5}}
+{"chain_id": "dbpedia_chain_000528", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "governmental administrative region", "borough"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "Ort", "depth": 5}}
+{"chain_id": "dbpedia_chain_000529", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "governmental administrative region", "Pr\u00e4fektur"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "Ort", "depth": 5}}
+{"chain_id": "dbpedia_chain_000530", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "governmental administrative region", "arrondissement"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "Ort", "depth": 5}}
+{"chain_id": "dbpedia_chain_000531", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "governmental administrative region", "Gemeinde", "one-time municipality"], "source": "dbpedia", "chain_length": 7, "metadata": {"root": "Ort", "depth": 6}}
+{"chain_id": "dbpedia_chain_000532", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "governmental administrative region", "Bezirk", "historischer Kreis / Bezirk"], "source": "dbpedia", "chain_length": 7, "metadata": {"root": "Ort", "depth": 6}}
+{"chain_id": "dbpedia_chain_000533", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "governmental administrative region", "district water board"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "Ort", "depth": 5}}
+{"chain_id": "dbpedia_chain_000534", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "governmental administrative region", "Mikroregion"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "Ort", "depth": 5}}
+{"chain_id": "dbpedia_chain_000535", "concepts": ["Ort", "bewohnter Ort", "Region", "rexi\u00f3n administrativa", "ancient area of jurisdiction of a person (feudal) or of a governmental body", "fiefdom"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "Ort", "depth": 5}}
+{"chain_id": "dbpedia_chain_000536", "concepts": ["Ort", "bewohnter Ort", "Stra\u00dfe"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000537", "concepts": ["Ort", "bewohnter Ort", "Intercommunality"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000538", "concepts": ["Ort", "bewohnter Ort", "Gegend"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000539", "concepts": ["Ort", "bewohnter Ort", "Kontinent"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000540", "concepts": ["Ort", "bewohnter Ort", "Staat"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000541", "concepts": ["Ort", "mine", "coal pit"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Ort", "depth": 2}}
+{"chain_id": "dbpedia_chain_000546", "concepts": ["Spezie", "Eukaryoten", "pflanze", "bedecktsamige Pflanze", "Weintraube"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Spezie", "depth": 4}}
+{"chain_id": "dbpedia_chain_000547", "concepts": ["Spezie", "Eukaryoten", "pflanze", "Gnetophyta"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000548", "concepts": ["Spezie", "Eukaryoten", "pflanze", "Konifere"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000549", "concepts": ["Spezie", "Eukaryoten", "pflanze", "farn"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000550", "concepts": ["Spezie", "Eukaryoten", "pflanze", "ginkgo"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000551", "concepts": ["Spezie", "Eukaryoten", "pflanze", "B\u00e4rlapp"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000552", "concepts": ["Spezie", "Eukaryoten", "pflanze", "Laubmoss"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000553", "concepts": ["Spezie", "Eukaryoten", "pflanze", "Gr\u00fcnalge"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000554", "concepts": ["Spezie", "Eukaryoten", "pflanze", "Sorte ( kultivierte Sorte )"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000555", "concepts": ["Spezie", "Eukaryoten", "pflanze", "Palmfarn"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000556", "concepts": ["Spezie", "Eukaryoten", "\u017eival", "Spinnentier"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000557", "concepts": ["Spezie", "Eukaryoten", "\u017eival", "Fisch"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000558", "concepts": ["Spezie", "Eukaryoten", "\u017eival", "Insekt"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000559", "concepts": ["Spezie", "Eukaryoten", "\u017eival", "reptil"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000560", "concepts": ["Spezie", "Eukaryoten", "\u017eival", "Weichtiere"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000561", "concepts": ["Spezie", "Eukaryoten", "\u017eival", "Vogel"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000562", "concepts": ["Spezie", "Eukaryoten", "\u017eival", "anfibio"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000563", "concepts": ["Spezie", "Eukaryoten", "\u017eival", "s\u00e4ugetier", "Pferd", "Rennpferd"], "source": "dbpedia", "chain_length": 6, "metadata": {"root": "Spezie", "depth": 5}}
+{"chain_id": "dbpedia_chain_000564", "concepts": ["Spezie", "Eukaryoten", "\u017eival", "s\u00e4ugetier", "Katze"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Spezie", "depth": 4}}
+{"chain_id": "dbpedia_chain_000565", "concepts": ["Spezie", "Eukaryoten", "\u017eival", "s\u00e4ugetier", "Hund"], "source": "dbpedia", "chain_length": 5, "metadata": {"root": "Spezie", "depth": 4}}
+{"chain_id": "dbpedia_chain_000566", "concepts": ["Spezie", "Eukaryoten", "\u017eival", "Krebstier"], "source": "dbpedia", "chain_length": 4, "metadata": {"root": "Spezie", "depth": 3}}
+{"chain_id": "dbpedia_chain_000567", "concepts": ["Spezie", "Eukaryoten", "Pilz"], "source": "dbpedia", "chain_length": 3, "metadata": {"root": "Spezie", "depth": 2}}

@@ -1,0 +1,37 @@
+{
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 4.072872144940459,
+      "train_cosine": 0.17499664202730814,
+      "train_loss_info": 4.072872144940459,
+      "train_loss_moment": 3.0090016305472904,
+      "train_loss_variance": 0.9682549541747129,
+      "train_loss_mse": 2.998139651232716,
+      "train_loss_mmd": 0.0,
+      "train_loss_stat": 0.0,
+      "train_loss_cycle": 0.0,
+      "val_loss": 0.002027179621758738,
+      "val_cosine": 0.22156306634110118,
+      "lr": 0.0005
+    },
+    {
+      "epoch": 2,
+      "train_loss": 2.8532368247996773,
+      "train_cosine": 0.23781469796095997,
+      "train_loss_info": 2.8532368247996773,
+      "train_loss_moment": 3.7672681064202043,
+      "train_loss_variance": 0.9655314243975139,
+      "train_loss_mse": 3.7385132060479864,
+      "train_loss_mmd": 0.0,
+      "train_loss_stat": 0.0,
+      "train_loss_cycle": 0.0,
+      "val_loss": 0.00196068054887407,
+      "val_cosine": 0.24709870382433846,
+      "lr": 0.0005
+    }
+  ],
+  "best_val_loss": 0.00196068054887407,
+  "final_params": 17867520,
+  "trained_at": "2025-10-16T10:35:05.808871"
+}

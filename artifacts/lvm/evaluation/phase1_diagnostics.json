@@ -1,0 +1,9 @@
+{
+  "model": "artifacts/lvm/models/lstm_phase0/best_model.pt",
+  "samples": 512,
+  "nearest_cos_mean": 0.334943793626735,
+  "nearest_cos_std": 0.0680416110126203,
+  "dispersion_preds": 0.6998511850833893,
+  "dispersion_targets": 0.4240458011627197,
+  "sigma": 1.1472187042236328
+}

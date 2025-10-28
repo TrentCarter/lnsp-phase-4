@@ -1,0 +1,25 @@
+{
+  "eval_total": 5244,
+  "eval_unique": 5244,
+  "payload_total": 584545,
+  "payload_unique": 559355,
+  "missing": 0,
+  "coverage": 1.0,
+  "missing_examples": [],
+  "eval_article_range": [
+    1,
+    71
+  ],
+  "payload_article_range": [
+    1,
+    8470
+  ],
+  "eval_chunk_range": [
+    0,
+    99
+  ],
+  "payload_chunk_range": [
+    0,
+    1106
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "model": "artifacts/lvm/models/mamba_sandwich/best.pt",
+  "n_samples": 1000,
+  "validation_cosine": {
+    "mean": 0.5369217395782471,
+    "median": 0.5416538715362549,
+    "min": 0.209784135222435,
+    "max": 0.7806270718574524
+  },
+  "rank_of_truth": {
+    "in_top_50_pct": 0.0,
+    "in_top_500_pct": 0.0,
+    "in_top_5000_pct": 0.4,
+    "not_in_top_10000_pct": 99.0,
+    "median_rank": 6301,
+    "percentiles": {
+      "10": 3727,
+      "25": 4884,
+      "50": 6301,
+      "75": 8193,
+      "90": 8834,
+      "95": 8930,
+      "99": 9007
+    }
+  },
+  "cosine_margins": {
+    "mean": -0.4145679998397827,
+    "median": -0.4200063943862915,
+    "positive_pct": 0.0,
+    "gt_0.05_pct": 0.0
+  },
+  "impostor_analysis": {
+    "mean_cos_rank1": 0.6869378675222397,
+    "mean_cos_true": 0.27236986768245697,
+    "gap": 0.41456799983978276
+  }
+}

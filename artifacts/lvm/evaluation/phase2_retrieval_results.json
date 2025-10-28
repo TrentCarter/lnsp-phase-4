@@ -1,0 +1,29 @@
+[
+  {
+    "model": "LSTM",
+    "top_1": "1.78%",
+    "top_5": "9.55%",
+    "top_10": "15.60%",
+    "top_20": "23.44%",
+    "inference_time": "0.2s",
+    "samples_per_sec": "23538"
+  },
+  {
+    "model": "GRU",
+    "top_1": "2.37%",
+    "top_5": "11.99%",
+    "top_10": "19.26%",
+    "top_20": "29.76%",
+    "inference_time": "0.3s",
+    "samples_per_sec": "15746"
+  },
+  {
+    "model": "Transformer",
+    "top_1": "3.61%",
+    "top_5": "15.13%",
+    "top_10": "24.55%",
+    "top_20": "36.17%",
+    "inference_time": "0.6s",
+    "samples_per_sec": "7459"
+  }
+]

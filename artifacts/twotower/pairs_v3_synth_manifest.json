@@ -1,0 +1,13 @@
+{
+  "total_pairs": 20122,
+  "train_pairs": 18109,
+  "val_pairs": 2013,
+  "context_len": 100,
+  "stride": 50,
+  "max_per_seq": 15,
+  "dedup_threshold": 0.999,
+  "train_split": 0.9,
+  "seed": 42,
+  "input_file": "artifacts/lvm/data_phase3_tmd/training_sequences_ctx100.npz",
+  "output_file": "artifacts/twotower/pairs_v3_synth.npz"
+}

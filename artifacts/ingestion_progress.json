@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-10-12T15:10:00Z",
+  "dataset_source": "simple_wikipedia",
+  "total_articles_ingested": 200,
+  "total_chunks_ingested": 2303,
+  "total_episodes_created": 721,
+  "ingested_articles": [
+    {"index": 1, "title": "Article 1", "chunks": 11, "timestamp": "2025-10-12T15:00:00Z"},
+    {"index": 2, "title": "Article 2", "chunks": 12, "timestamp": "2025-10-12T15:00:01Z"}
+  ],
+  "notes": "Tracking which Wikipedia articles have been ingested to avoid duplicates and enable incremental processing."
+}

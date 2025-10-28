@@ -1,0 +1,104 @@
+{
+  "evaluated_at": "2025-10-12T22:29:41.557787",
+  "test_samples": 4211,
+  "vector_database_size": 42113,
+  "device": "cpu",
+  "results": {
+    "lstm_baseline": {
+      "model_path": "artifacts/lvm/models/lstm_baseline/best_model.pt",
+      "parameters": 5120768,
+      "metrics": {
+        "mse_loss": {
+          "mean": 0.0005952981882728636,
+          "std": 0.00011517934763105586,
+          "median": 0.0005807471461594105
+        },
+        "cosine_similarity": {
+          "mean": 0.7714055180549622,
+          "std": 0.044228870421648026,
+          "median": 0.7769931554794312
+        },
+        "inference_time": {
+          "mean_ms": 0.5530402315565991,
+          "std_ms": 0.04378772854291078,
+          "samples_per_second": 1808.1867157934932
+        },
+        "top_k_accuracy": {
+          "1": 1.0,
+          "5": 4.3,
+          "10": 6.5,
+          "20": 11.700000000000001
+        }
+      },
+      "checkpoint_info": {
+        "epoch": 8,
+        "val_loss": 0.000547804208701674,
+        "val_cosine": 0.7896432316664493
+      }
+    },
+    "mamba2": {
+      "model_path": "artifacts/lvm/models/mamba2/best_model.pt",
+      "parameters": 7095552,
+      "metrics": {
+        "mse_loss": {
+          "mean": 0.0005083242431282997,
+          "std": 0.00014454699703492224,
+          "median": 0.0004842606431338936
+        },
+        "cosine_similarity": {
+          "mean": 0.8048036098480225,
+          "std": 0.05550605058670044,
+          "median": 0.8140439987182617
+        },
+        "inference_time": {
+          "mean_ms": 1.0509158052703995,
+          "std_ms": 0.06180622012638035,
+          "samples_per_second": 951.5510138728013
+        },
+        "top_k_accuracy": {
+          "1": 3.3000000000000003,
+          "5": 15.9,
+          "10": 24.099999999999998,
+          "20": 33.7
+        }
+      },
+      "checkpoint_info": {
+        "epoch": 5,
+        "val_loss": 0.0005538332473158582,
+        "val_cosine": 0.7873280802459428
+      }
+    },
+    "transformer": {
+      "model_path": "artifacts/lvm/models/transformer/best_model.pt",
+      "parameters": 17603840,
+      "metrics": {
+        "mse_loss": {
+          "mean": 0.0005217090947553515,
+          "std": 0.00015025569882709533,
+          "median": 0.000497391156386584
+        },
+        "cosine_similarity": {
+          "mean": 0.7996636629104614,
+          "std": 0.057698190212249756,
+          "median": 0.8090019226074219
+        },
+        "inference_time": {
+          "mean_ms": 3.3179827015010965,
+          "std_ms": 0.5341762952057324,
+          "samples_per_second": 301.38794863143426
+        },
+        "top_k_accuracy": {
+          "1": 2.5,
+          "5": 9.9,
+          "10": 17.5,
+          "20": 25.3
+        }
+      },
+      "checkpoint_info": {
+        "epoch": 20,
+        "val_loss": 0.0005400540850876661,
+        "val_cosine": 0.7926192839037288
+      }
+    }
+  }
+}

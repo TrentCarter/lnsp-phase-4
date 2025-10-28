@@ -1,0 +1,19 @@
+{
+  "source_file": "artifacts/wikipedia_500k_corrected_vectors.npz",
+  "context_length": 100,
+  "overlap": 50,
+  "vector_dim": 768,
+  "total_vectors": 637997,
+  "total_sequences": 12757,
+  "train_sequences": 11482,
+  "val_sequences": 1275,
+  "val_split": 0.1,
+  "effective_tokens": 2000,
+  "comparison": {
+    "previous_context": 5,
+    "previous_tokens": 100,
+    "new_context": 100,
+    "new_tokens": 2000,
+    "improvement": "20.0x context expansion"
+  }
+}

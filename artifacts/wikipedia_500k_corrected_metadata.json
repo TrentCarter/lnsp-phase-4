@@ -1,0 +1,15 @@
+{
+  "dataset_source": "wikipedia_500k",
+  "num_vectors": 771115,
+  "dimension": 768,
+  "index_type": "ivf_flat",
+  "metric": "ip",
+  "nlist": 512,
+  "nprobe": 16,
+  "npz_path": "artifacts/wikipedia_500k_corrected_vectors.npz",
+  "index_path": "artifacts/wikipedia_500k_corrected_ivf_flat_ip.index",
+  "npz_size_mb": 2196.3983087539673,
+  "index_size_mb": 2266.513155937195,
+  "encoder": "IsolatedVecTextVectOrchestrator (CORRECT)",
+  "created_at": "2025-10-20T07:37:27.001213"
+}

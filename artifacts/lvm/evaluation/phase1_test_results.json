@@ -1,0 +1,74 @@
+{
+  "test_1_1": [
+    {
+      "Model": "LSTM",
+      "Status": "\u2705 PASS",
+      "Params": "5.1M",
+      "Epoch": 20,
+      "Val Loss": "0.000504",
+      "Val Cosine": "0.7830"
+    },
+    {
+      "Model": "GRU",
+      "Status": "\u274c FAIL",
+      "Params": "N/A",
+      "Epoch": "N/A",
+      "Val Loss": "N/A",
+      "Val Cosine": "N/A"
+    },
+    {
+      "Model": "Transformer",
+      "Status": "\u274c FAIL",
+      "Params": "N/A",
+      "Epoch": "N/A",
+      "Val Loss": "N/A",
+      "Val Cosine": "N/A"
+    }
+  ],
+  "test_1_2": [
+    {
+      "Model": "LSTM",
+      "Val Loss": "0.000504",
+      "Val Cosine": "0.7830",
+      "Pass (>75%)": "\u2705",
+      "Epochs": 20
+    },
+    {
+      "Model": "GRU",
+      "Val Loss": "0.000503",
+      "Val Cosine": "0.7833",
+      "Pass (>75%)": "\u2705",
+      "Epochs": 20
+    },
+    {
+      "Model": "Transformer",
+      "Val Loss": "0.000498",
+      "Val Cosine": "0.7860",
+      "Pass (>75%)": "\u2705",
+      "Epochs": 19
+    }
+  ],
+  "test_1_3": [
+    {
+      "Model": "LSTM",
+      "Batch Size": 32,
+      "ms/batch": "0.47",
+      "samples/sec": "67987",
+      "Status": "\u2705 PASS"
+    },
+    {
+      "Model": "GRU",
+      "Batch Size": 32,
+      "ms/batch": "N/A",
+      "samples/sec": "N/A",
+      "Status": "\u274c FAIL"
+    },
+    {
+      "Model": "Transformer",
+      "Batch Size": 32,
+      "ms/batch": "N/A",
+      "samples/sec": "N/A",
+      "Status": "\u274c FAIL"
+    }
+  ]
+}

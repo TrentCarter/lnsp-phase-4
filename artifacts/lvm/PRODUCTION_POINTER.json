@@ -1,0 +1,70 @@
+{
+  "primary": {
+    "name": "AMN",
+    "path": "artifacts/lvm/models/amn_20251023_204747",
+    "symlink": "artifacts/lvm/production_model",
+    "metrics": {
+      "in_dist_cosine": 0.5597,
+      "ood_cosine": 0.6375,
+      "latency_ms": 0.62,
+      "params": "1.5M"
+    },
+    "rationale": "Best OOD generalization + fastest inference. Production-ready for 95% of queries."
+  },
+  "fallback_accuracy": {
+    "name": "Transformer (Optimized)",
+    "path": "artifacts/lvm/models/transformer_optimized_20251024_072726",
+    "symlink": "artifacts/lvm/fallback_accuracy",
+    "metrics": {
+      "in_dist_cosine": 0.5864,
+      "ood_cosine": 0.6257,
+      "latency_ms": 2.65,
+      "params": "17.9M"
+    },
+    "optimizations": [
+      "5% LR warmup (1 epoch)",
+      "Cosine annealing LR schedule",
+      "Early stopping (patience=4)"
+    ],
+    "rationale": "Best in-distribution accuracy. Use for high-stakes queries (sci-fact, med-guideline) or low-confidence predictions."
+  },
+  "fallback_secondary": {
+    "name": "GRU Stack",
+    "path": "artifacts/lvm/models/gru_20251023_211205",
+    "symlink": "artifacts/lvm/fallback_secondary",
+    "metrics": {
+      "in_dist_cosine": 0.5920,
+      "ood_cosine": 0.6295,
+      "latency_ms": 2.11,
+      "params": "7.1M"
+    },
+    "rationale": "Balanced performance. Tertiary fallback if Transformer(opt) remains low-confidence."
+  },
+  "quarantined": {
+    "name": "LSTM Baseline",
+    "path": "artifacts/lvm/models/lstm_20251023_202152",
+    "metrics": {
+      "training_val_cosine": 0.5715,
+      "benchmark_val_cosine": 0.4102,
+      "issue": "14% eval mismatch - investigating data split, checkpoint load, or metric implementation"
+    },
+    "rationale": "DO NOT DEPLOY until discrepancy is resolved."
+  },
+  "promoted_at_utc": "2025-10-24T09:52:00Z",
+  "promoted_by": "Claude Code (Sonnet 4.5)",
+  "training_dataset": {
+    "source": "Wikipedia 500k",
+    "sequences": 543556,
+    "articles": "1-8470",
+    "ood_test_articles": "8471-8970"
+  },
+  "deployment_notes": {
+    "canary_strategy": "10% → 50% → 100% over 1 hour",
+    "slo_targets": {
+      "amn_p95_latency_ms": 1.2,
+      "fallback_rate_pct": 20,
+      "error_rate_pct": 0.1
+    },
+    "monitoring": "Shadow eval 1-5% queries, alert if OOD delta drops > 0.03 over 24h"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "total_concepts": 44200,
+  "total_articles": 133,
+  "avg_concepts_per_article": 332.3308270676692,
+  "vector_dimensions": 768,
+  "unique_tmd_codes": 900,
+  "unique_domains": 13,
+  "unique_tasks": 16,
+  "unique_modifiers": 15,
+  "dataset_source": "wikipedia_500k",
+  "extraction_date": "2025-10-15T20:31:23.578233",
+  "ordering": "article-based (batch_id ASC, created_at ASC)",
+  "first_article_id": "003d72e2-f59e-400b-8471-0a1500b05963",
+  "last_article_id": "fff76a71-1da2-41b7-b383-38ec190eb61b",
+  "first_concept": "Sources\n\nReferences\n\nExternal links\nOfficial website\nPyramid Passion feature on their ground\nLadies team",
+  "last_concept": "The people are entertained by the parades of disguises, the music, the popular dances, and the different demonstrations of the arts reflecting cultural identity",
+  "npz_file": "artifacts/lvm/data/wikipedia_44200_ordered.npz",
+  "sample_article_sequences": [
+    {
+      "article_id": "003d72e2-f59e-400b-8471-0a1500b05963",
+      "seq_in_article": 1,
+      "concept": "Sources\n\nReferences\n\nExternal links\nOfficial website\nPyramid Passion feature on their ground\nLadies team"
+    },
+    {
+      "article_id": "003d72e2-f59e-400b-8471-0a1500b05963",
+      "seq_in_article": 2,
+      "concept": "Honours\nMidland Football Combination Premier Division Runners Up (1 time):\n2002\u201303\nMidland Combination Division One Champions (1 time):\n1996\u201397\nBest FA Vase run: 2nd round, 2001\u201302, 2010\u201311,2016-17"
+    },
+    {
+      "article_id": "003d72e2-f59e-400b-8471-0a1500b05963",
+      "seq_in_article": 3,
+      "concept": "Coventry Copsewood deducted 1 point for fielding an ineligible player"
+    },
+    {
+      "article_id": "003d72e2-f59e-400b-8471-0a1500b05963",
+      "seq_in_article": 101,
+      "concept": "The bridge that made the rear sight stationary combined with the  unusually high sights allows the shooter to hold the pistol lower and  aligns barrel with the shoulder, giving the shooter an improvem"
+    },
+    {
+      "article_id": "091f7b59-38c4-4ba8-91df-159c0fc565bb",
+      "seq_in_article": 201,
+      "concept": "In it the mouse nibbling at the net is Earl Russell, who prevailed on the House of Lords to free the leonine Daniel O'Connell from the imprisonment he had incurred for trying to repeal the Irish Act O"
+    },
+    {
+      "article_id": "4cbf9d15-51ec-4f1e-9d83-27cf84ee2762",
+      "seq_in_article": 1,
+      "concept": "In 2007, nearly 9,000 vehicles crossed the bridge every hour at peak flow It has been the cause of huge traffic jams in Dubai The main reason for this was the number of roads that fed into the bridge"
+    },
+    {
+      "article_id": "fff76a71-1da2-41b7-b383-38ec190eb61b",
+      "seq_in_article": 400,
+      "concept": "The people are entertained by the parades of disguises, the music, the popular dances, and the different demonstrations of the arts reflecting cultural identity"
+    }
+  ]
+}

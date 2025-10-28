@@ -1,0 +1,36 @@
+{
+  "migration_summary": {
+    "original_chunks": 253,
+    "fixed_chunks": 253,
+    "cpesh_generated": 0,
+    "success_rate": 0.0
+  },
+  "before": {
+    "total_chunks": 253,
+    "chunks_with_keys": 0,
+    "chunks_with_cpesh": 1,
+    "aligned_keys": 0,
+    "alignment_rate": 0,
+    "missing_cpesh": 0,
+    "orphaned_cpesh": 1,
+    "key_patterns": {}
+  },
+  "after": {
+    "total_chunks": 253,
+    "chunks_with_keys": 253,
+    "chunks_with_cpesh": 253,
+    "aligned_keys": 253,
+    "alignment_rate": 100.0,
+    "missing_cpesh": 0,
+    "orphaned_cpesh": 0,
+    "key_patterns": {
+      "chunk_id": [
+        "str"
+      ]
+    }
+  },
+  "improvement": {
+    "alignment_rate": 100.0,
+    "missing_cpesh": 0
+  }
+}
