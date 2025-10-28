@@ -2,6 +2,45 @@
 source .venv/bin/activate
 claude --dangerously-skip-permissions
 
+
+docs/PRDs/PRD_FastAPI_Services.md
+scripts/start_all_fastapi_services.sh
+
+# 10/28/2025 
+
+  1. Start Core Services (GTR-T5 + Vec2Text):
+  ./scripts/start_all_fastapi_services.sh
+  sleep 10  # Wait for initialization
+
+  2. Start LVM Chat Services:
+  ./scripts/start_lvm_services.sh
+
+    ============================================
+  🎉 LVM Chat Services Ready!
+  ============================================
+
+  Chat interfaces:
+    AMN:         http://localhost:9001/chat
+    Transformer: http://localhost:9002/chat
+    GRU:         http://localhost:9003/chat
+    LSTM:        http://localhost:9004/chat
+
+  API endpoints:
+    POST /chat  - Chat-style inference (text → text)
+    POST /infer - Low-level inference (vectors → vector)
+    GET /info   - Model information
+
+  Logs: /tmp/lvm_api_logs/
+
+  Quick Test
+
+  # Test AMN Chat (fastest, best OOD)
+  curl -X POST http://localhost:9001/chat \
+    -H "Content-Type: application/json" \
+    -d '{"messages": ["Hello, how are you?"], "temperature": 0.7}'
+
+  # Or visit browser for beautiful purple UI
+  open http://localhost:9001/chat
 # ===. 10/10/2025. ===
 
 # Recommended (no reload, venv Python 3.11)

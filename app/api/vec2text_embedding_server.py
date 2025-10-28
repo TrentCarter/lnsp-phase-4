@@ -40,6 +40,18 @@ class EmbedResponse(BaseModel):
     encoder: str = "vec2text-gtr-t5-base"
 
 
+class DecodeRequest(BaseModel):
+    """Request for decoding vectors to text"""
+    vectors: List[List[float]] = Field(..., description="List of 768D vectors to decode")
+    steps: int = Field(default=1, ge=1, le=20, description="Number of vec2text decoding steps")
+
+
+class DecodeResponse(BaseModel):
+    """Response with decoded texts"""
+    results: List[dict]
+    count: int
+
+
 @app.on_event("startup")
 async def load_model():
     """Load vec2text's GTR-T5 encoder on startup"""
@@ -135,6 +147,76 @@ async def embed_single(text: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Embedding generation failed: {str(e)}")
+
+
+@app.post("/decode", response_model=DecodeResponse)
+async def decode_vectors(request: DecodeRequest):
+    """Decode 768D vectors back to text using vec2text"""
+    if vec2text_orchestrator is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    if not request.vectors:
+        raise HTTPException(status_code=400, detail="No vectors provided")
+
+    try:
+        import torch
+        import torch.nn.functional as F
+        from vec2text.api import load_pretrained_corrector, invert_embeddings
+
+        # Load vec2text corrector (JXE model) - force CPU for compatibility
+        import os
+        os.environ['PYTORCH_MPS_DISABLE'] = '1'
+        os.environ['CUDA_VISIBLE_DEVICES'] = ''
+
+        corrector = load_pretrained_corrector("gtr-base")
+
+        # Force corrector models to CPU
+        device = torch.device("cpu")
+        if hasattr(corrector, 'model'):
+            corrector.model = corrector.model.to(device)
+        if hasattr(corrector, 'inversion_trainer') and hasattr(corrector.inversion_trainer, 'model'):
+            corrector.inversion_trainer.model = corrector.inversion_trainer.model.to(device)
+
+        results = []
+        for idx, vector in enumerate(request.vectors):
+            # Convert to tensor and normalize (on CPU)
+            vector_tensor = torch.tensor([vector], dtype=torch.float32, device=device)
+            vector_tensor = F.normalize(vector_tensor, dim=-1)
+
+            # Decode using vec2text
+            with torch.no_grad():
+                decoded_texts = invert_embeddings(
+                    embeddings=vector_tensor,
+                    corrector=corrector,
+                    num_steps=request.steps,
+                    sequence_beam_width=1
+                )
+
+            output_text = decoded_texts[0] if decoded_texts else ""
+
+            # Calculate cosine similarity with original vector
+            try:
+                decoded_vec = vec2text_orchestrator.encode_texts([output_text])
+                decoded_vec = F.normalize(decoded_vec, dim=-1).to(device)
+                cosine = F.cosine_similarity(vector_tensor, decoded_vec, dim=1).item()
+            except:
+                cosine = 0.0
+
+            results.append({
+                "index": idx,
+                "output": output_text,
+                "cosine": round(cosine, 4),
+                "status": "success"
+            })
+
+        return DecodeResponse(
+            results=results,
+            count=len(results)
+        )
+
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=f"Vector decoding failed: {str(e)}\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":

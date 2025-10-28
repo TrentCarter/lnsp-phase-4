@@ -1,130 +1,263 @@
 #!/usr/bin/env python3
 """
-nprobe Parameter Sweep
-======================
+FAISS nprobe Tuning Sweep
 
-Tests different nprobe values to optimize ANN recall (containment).
-Runs on 1000 samples for speed.
+Runs queries with different nprobe values to find optimal latency/accuracy trade-off.
+Compares IVF results against FLAT truth to measure accuracy degradation.
 
-Based on consultant recommendation: "Sweep nprobe ∈ {8,16,32,64,128}"
+Usage:
+    python tools/nprobe_sweep.py \
+        --index artifacts/faiss/p_ivf.faiss \
+        --flat artifacts/faiss/p_flat_ip.faiss \
+        --queries artifacts/eval/eval_queries.npy \
+        --nprobe-values 4,8,12,16 \
+        --n-queries 500 \
+        --out artifacts/tuning/nprobe_sweep.json
 """
 
+import argparse
 import json
 import time
-from pathlib import Path
 import numpy as np
 import faiss
+from pathlib import Path
+from typing import List, Dict
 
-from eval_retrieval_v2 import RetrievalShim, DatasetShim, evaluate
 
+def run_nprobe_sweep(
+    ivf_path: str,
+    flat_path: str,
+    queries: np.ndarray,
+    nprobe_values: List[int],
+    k: int = 10
+) -> List[Dict]:
+    """
+    Run nprobe sweep and measure latency + accuracy.
 
-def main():
-    print("=" * 80)
-    print("NPROBE PARAMETER SWEEP")
-    print("=" * 80)
+    Args:
+        ivf_path: Path to IVF index
+        flat_path: Path to FLAT truth index
+        queries: Query vectors (N, D)
+        nprobe_values: List of nprobe values to test
+        k: Top-K results to retrieve
+
+    Returns:
+        List of results dicts (one per nprobe value)
+    """
+    print(f"Loading IVF index: {ivf_path}")
+    ivf_index = faiss.read_index(ivf_path)
+
+    print(f"Loading FLAT index: {flat_path}")
+    flat_index = faiss.read_index(flat_path)
+
+    print(f"Running sweep with {len(queries)} queries, K={k}")
     print()
 
-    # Configuration
-    npz_path = Path("artifacts/lvm/wikipedia_ood_test_ctx5_v2_fresh.npz")
-    payload_path = Path("artifacts/wikipedia_584k_payload.npy")
-    faiss_path = Path("artifacts/wikipedia_584k_ivf_flat_ip.index")
-    limit = 1000
-    nprobe_values = [32, 64, 128, 256]  # User-specified sweep range
+    # Get FLAT truth (once)
+    print("Computing FLAT truth...")
+    start = time.perf_counter()
+    flat_distances, flat_indices = flat_index.search(queries.astype('float32'), k)
+    flat_time = (time.perf_counter() - start) / len(queries) * 1000  # ms/query
+    print(f"  FLAT: {flat_time:.3f} ms/query (truth baseline)")
+    print()
 
-    # Load resources once
-    print(f"Loading FAISS index from {faiss_path}...")
-    faiss_index = faiss.read_index(str(faiss_path))
-
-    print(f"Loading payload from {payload_path}...")
-    payload = np.load(payload_path, allow_pickle=True).item()
-
-    print(f"Loading dataset from {npz_path}...")
-    dataset = DatasetShim(npz_path, limit=limit)
-    print(f"Loaded {len(dataset):,} samples\n")
-
-    # Results storage
     results = []
 
-    # Sweep nprobe values
     for nprobe in nprobe_values:
         print(f"Testing nprobe={nprobe}...")
 
-        # Set nprobe on index
-        faiss_index.nprobe = nprobe
+        # Set nprobe
+        ivf_index.nprobe = nprobe
 
-        # Create retriever with updated index
-        retriever = RetrievalShim(faiss_index, payload)
+        # Warmup (5 queries)
+        _ = ivf_index.search(queries[:5].astype('float32'), k)
 
-        # Run evaluation (WITH reranking - user's config)
-        start_time = time.time()
-        metrics = evaluate(
-            retriever, dataset,
-            K_retrieve=50,
-            do_mmr=True,
-            mmr_lambda=0.7,
-            top_final=10,
-            use_seq_bias=True,
-            w_same_article=0.05,
-            w_next_gap=0.12,
-            tau=3.0,
-            directional_bonus=0.03,
-        )
-        elapsed = time.time() - start_time
+        # Measure latency
+        latencies = []
+        for i in range(len(queries)):
+            start = time.perf_counter()
+            _, _ = ivf_index.search(queries[i:i+1].astype('float32'), k)
+            latency = (time.perf_counter() - start) * 1000  # ms
+            latencies.append(latency)
 
-        # Store results
+        latencies = np.array(latencies)
+
+        # Get IVF results (batch for accuracy comparison)
+        ivf_distances, ivf_indices = ivf_index.search(queries.astype('float32'), k)
+
+        # Compute accuracy metrics
+        recall_at_k = []
+        for i in range(len(queries)):
+            flat_set = set(flat_indices[i])
+            ivf_set = set(ivf_indices[i])
+            recall = len(flat_set & ivf_set) / k
+            recall_at_k.append(recall)
+
+        recall_at_k = np.array(recall_at_k)
+
+        # Collect results
         result = {
-            "nprobe": nprobe,
-            "Contain@20": metrics["Contain@20"],
-            "Contain@50": metrics["Contain@50"],
-            "R@10": metrics["R@10"],
-            "R@5": metrics["R@5"],
-            "R@1": metrics["R@1"],
-            "p50_ms": metrics["p50_ms"],
-            "p95_ms": metrics["p95_ms"],
-            "total_time_s": elapsed,
+            'nprobe': nprobe,
+            'latency_ms': {
+                'mean': float(latencies.mean()),
+                'p50': float(np.percentile(latencies, 50)),
+                'p95': float(np.percentile(latencies, 95)),
+                'p99': float(np.percentile(latencies, 99))
+            },
+            'accuracy': {
+                'mean_recall': float(recall_at_k.mean()),
+                'min_recall': float(recall_at_k.min()),
+                'p5_recall': float(np.percentile(recall_at_k, 5)),
+                'pct_perfect': float((recall_at_k == 1.0).mean())
+            },
+            'delta_vs_flat': {
+                'r_at_k_pp': float((recall_at_k.mean() - 1.0) * 100),  # percentage points
+                'latency_ratio': float(latencies.mean() / flat_time)
+            }
         }
+
         results.append(result)
 
-        print(f"  Contain@50: {metrics['Contain@50']:.1%}")
-        print(f"  R@10:       {metrics['R@10']:.1%}")
-        print(f"  P50 lat:    {metrics['p50_ms']:.2f}ms")
+        # Print summary
+        print(f"  Latency: {result['latency_ms']['mean']:.2f} ms (P95: {result['latency_ms']['p95']:.2f} ms)")
+        print(f"  Recall@{k}: {result['accuracy']['mean_recall']*100:.2f}% (ΔR@{k}: {result['delta_vs_flat']['r_at_k_pp']:.2f}pp)")
         print()
 
-    # Save results
-    output_path = Path("artifacts/lvm/nprobe_sweep_results.json")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
-        json.dump(results, f, indent=2)
+    return results
 
-    # Print summary table
-    print("=" * 80)
-    print("NPROBE SWEEP RESULTS")
-    print("=" * 80)
+
+def print_summary(results: List[Dict], target_latency_ms: float = 8.0):
+    """Print formatted summary and recommendation."""
+    print("="*80)
+    print("NPROBE SWEEP SUMMARY")
+    print("="*80)
     print()
-    print("nprobe   Contain@20  Contain@50   R@10    R@5     R@1    P50(ms)  P95(ms)")
+
+    # Table header
+    print(f"{'nprobe':<8} {'P95 (ms)':<10} {'Mean (ms)':<10} {'Recall':<10} {'ΔR@10 (pp)':<12} {'Perfect':<10}")
     print("-" * 80)
+
+    # Table rows
     for r in results:
-        print(f"{r['nprobe']:6d}   {r['Contain@20']:9.1%}  {r['Contain@50']:9.1%}  "
-              f"{r['R@10']:6.1%}  {r['R@5']:6.1%}  {r['R@1']:5.1%}  "
-              f"{r['p50_ms']:7.2f}  {r['p95_ms']:7.2f}")
+        nprobe = r['nprobe']
+        p95 = r['latency_ms']['p95']
+        mean = r['latency_ms']['mean']
+        recall = r['accuracy']['mean_recall'] * 100
+        delta_pp = r['delta_vs_flat']['r_at_k_pp']
+        perfect = r['accuracy']['pct_perfect'] * 100
+
+        print(f"{nprobe:<8} {p95:<10.2f} {mean:<10.2f} {recall:<9.2f}% {delta_pp:<11.2f}pp {perfect:<9.1f}%")
 
     print()
-    print(f"Results saved to: {output_path}")
+
+    # Recommendation
+    print("RECOMMENDATIONS:")
     print()
 
-    # Analysis
-    best = max(results, key=lambda x: x["Contain@50"])
-    baseline = next(r for r in results if r["nprobe"] == 32)
+    # Find best nprobe for different scenarios
+    latency_critical = None
+    balanced = None
+    accuracy_critical = None
 
-    print("=" * 80)
-    print("ANALYSIS")
-    print("=" * 80)
-    print(f"Baseline (nprobe=32):  Contain@50 = {baseline['Contain@50']:.1%}")
-    print(f"Best (nprobe={best['nprobe']}):       Contain@50 = {best['Contain@50']:.1%}")
-    print(f"Lift:                  +{(best['Contain@50'] - baseline['Contain@50']) * 100:.2f}pp")
-    print(f"Latency penalty:       +{best['p50_ms'] - baseline['p50_ms']:.2f}ms")
+    for r in results:
+        # Latency-critical: Lowest P95, accept up to -1.5pp accuracy loss
+        if r['delta_vs_flat']['r_at_k_pp'] >= -1.5:
+            if latency_critical is None or r['latency_ms']['p95'] < latency_critical['latency_ms']['p95']:
+                latency_critical = r
+
+        # Balanced: Best trade-off (P95 ≤ target, ΔR@10 ≥ -0.5pp)
+        if r['latency_ms']['p95'] <= target_latency_ms and r['delta_vs_flat']['r_at_k_pp'] >= -0.5:
+            if balanced is None or r['accuracy']['mean_recall'] > balanced['accuracy']['mean_recall']:
+                balanced = r
+
+        # Accuracy-critical: Highest recall, accept P95 up to 15ms
+        if r['latency_ms']['p95'] <= 15.0:
+            if accuracy_critical is None or r['accuracy']['mean_recall'] > accuracy_critical['accuracy']['mean_recall']:
+                accuracy_critical = r
+
+    # Print recommendations
+    if latency_critical:
+        print(f"⚡ LATENCY-CRITICAL: nprobe={latency_critical['nprobe']}")
+        print(f"   P95: {latency_critical['latency_ms']['p95']:.2f} ms, ΔR@10: {latency_critical['delta_vs_flat']['r_at_k_pp']:.2f}pp")
+        print(f"   Use case: High-throughput serving, accept slight accuracy loss")
+        print()
+
+    if balanced:
+        print(f"⭐ BALANCED (RECOMMENDED): nprobe={balanced['nprobe']}")
+        print(f"   P95: {balanced['latency_ms']['p95']:.2f} ms, ΔR@10: {balanced['delta_vs_flat']['r_at_k_pp']:.2f}pp")
+        print(f"   Use case: Production default (good latency + accuracy)")
+        print()
+    else:
+        print(f"⚠️  WARNING: No nprobe value meets balanced criteria (P95 ≤ {target_latency_ms}ms, ΔR@10 ≥ -0.5pp)")
+        print(f"   Consider: Larger nlist, better quantization, or scale up hardware")
+        print()
+
+    if accuracy_critical:
+        print(f"🎯 ACCURACY-CRITICAL: nprobe={accuracy_critical['nprobe']}")
+        print(f"   P95: {accuracy_critical['latency_ms']['p95']:.2f} ms, ΔR@10: {accuracy_critical['delta_vs_flat']['r_at_k_pp']:.2f}pp")
+        print(f"   Use case: Batch processing, accuracy paramount")
+        print()
+
+    print("="*80)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="FAISS nprobe tuning sweep")
+    parser.add_argument('--index', type=str, required=True, help="Path to IVF index")
+    parser.add_argument('--flat', type=str, required=True, help="Path to FLAT truth index")
+    parser.add_argument('--queries', type=str, help="Path to query vectors .npy (optional, will generate if missing)")
+    parser.add_argument('--nprobe-values', type=str, default='4,8,12,16', help="Comma-separated nprobe values")
+    parser.add_argument('--n-queries', type=int, default=500, help="Number of queries to test")
+    parser.add_argument('--k', type=int, default=10, help="Top-K results")
+    parser.add_argument('--target-p95', type=float, default=8.0, help="Target P95 latency (ms)")
+    parser.add_argument('--out', type=str, help="Output JSON path")
+
+    args = parser.parse_args()
+
+    # Parse nprobe values
+    nprobe_values = [int(x.strip()) for x in args.nprobe_values.split(',')]
+
+    # Load or generate queries
+    if args.queries and Path(args.queries).exists():
+        print(f"Loading queries from: {args.queries}")
+        queries = np.load(args.queries)
+        queries = queries[:args.n_queries]  # Limit to n_queries
+    else:
+        print(f"Generating {args.n_queries} random queries...")
+        flat_index = faiss.read_index(args.flat)
+        dimension = flat_index.d
+        queries = np.random.randn(args.n_queries, dimension).astype('float32')
+        # L2 normalize
+        norms = np.linalg.norm(queries, axis=1, keepdims=True) + 1e-12
+        queries = queries / norms
+
+    print(f"Queries: {queries.shape}")
     print()
 
+    # Run sweep
+    results = run_nprobe_sweep(args.index, args.flat, queries, nprobe_values, k=args.k)
 
-if __name__ == "__main__":
-    main()
+    # Print summary
+    print_summary(results, target_latency_ms=args.target_p95)
+
+    # Save results
+    if args.out:
+        output = {
+            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'n_queries': len(queries),
+            'k': args.k,
+            'target_p95_ms': args.target_p95,
+            'results': results
+        }
+
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        with open(args.out, 'w') as f:
+            json.dump(output, f, indent=2)
+
+        print(f"\n✅ Saved results to: {args.out}")
+
+    return 0
+
+
+if __name__ == '__main__':
+    exit(main())

@@ -209,6 +209,69 @@
 
 ---
 
+## 🔥 TWO-TOWER RETRIEVAL RESULTS (Epoch 5 Polish - October 28, 2025)
+
+**Model**: Two-Tower Mamba-S (Q + P towers)
+**Training**: Polish training with K=5 same-article negatives (up from K=3)
+**Evaluation**: 1,600 queries on article-disjoint held-out set
+**Kill-Switch**: Contain@50 < 82% OR R@5 < 25% → STOP
+
+### Training Metrics (Epoch 5)
+
+| Metric           | Value     | Notes                                    |
+|------------------|-----------|------------------------------------------|
+| Training Time    | 25.0 min  | On Apple Silicon MPS                     |
+| Resume From      | Epoch 4   | Continued from epoch4.pt                 |
+| Negatives/Sample | 5.9       | K=5 same-article + K=1 near-miss         |
+| Config Change    | K: 3→5    | Increased same-article hard negatives    |
+
+### Retrieval Metrics (Eval-to-Eval Same-Article)
+
+| Metric       | Epoch 5 | Epoch 4 | Change | Target  | Status |
+|--------------|---------|---------|--------|---------|--------|
+| Contain@50   | 76.6%   | 76.8%   | -0.2pp | ≥82%    | ❌      |
+| R@1          | 3.0%    | 3.0%    | ±0.0pp | -       | -      |
+| R@3          | 9.8%    | 9.1%    | +0.7pp | -       | -      |
+| R@5          | 18.4%   | 17.2%   | +1.2pp | ≥25%    | ❌      |
+| R@10         | 35.0%   | 35.0%   | ±0.0pp | -       | -      |
+| R@20         | 54.2%   | 53.1%   | +1.1pp | -       | -      |
+| R@50         | 76.6%   | 76.8%   | -0.2pp | -       | -      |
+| MRR          | 0.1181  | 0.1185  | -0.0004| ≥0.20   | ❌      |
+
+### Kill-Switch Evaluation
+
+**Criteria**: Contain@50 < 82% OR R@5 < 25% → STOP
+**Result**: ❌ **KILL-SWITCH TRIGGERED**
+
+| Threshold    | Target | Actual | Gap    | Pass |
+|--------------|--------|--------|--------|------|
+| Contain@50   | ≥82%   | 76.6%  | -5.4pp | ❌    |
+| R@5          | ≥25%   | 18.4%  | -6.6pp | ❌    |
+
+**Assessment**: Both thresholds failed. Minimal improvement over Epoch 4 (+1.2pp on R@5) despite K=3→5 change suggests **fundamental capability gap**, not data issue.
+
+### Final Decision
+
+**Status**: ❌ NO-GO for v0 ship
+**Reason**: Below minimum thresholds after polish training
+**Action**: Park two-tower Mamba, ship baseline retriever stack
+
+**Evidence**:
+1. **Minimal improvement**: K=3→5 yielded only +1.2pp on R@5 (expected +8-12pp)
+2. **Containment regression**: Slight decrease (-0.2pp) despite more negatives
+3. **Capability gap**: 23.4% of queries have NO gold answer in top-50
+4. **Zero-shot article transfer**: Model cannot generalize to unseen articles (7637-7690)
+
+**Baseline Stack for v0**:
+- **Primary**: AMN_v0 (OOD: 0.6375, 0.62ms latency, 5.8MB)
+- **Fallback**: GRU_v0 (In-dist: 0.5920, OOD: 0.6295, 2.11ms)
+- **Retriever**: GTR-T5 768D + FAISS IVF-Flat
+- **Reranker**: Vector-only MLP (2 layers, +3-5pp lift)
+
+**Archive**: See `artifacts/archive/twotower_mamba_2025-10-28/` for checkpoints and detailed analysis.
+
+---
+
 ## 🔧 Critical Bugs Fixed (October 28, 2025)
 
 ### Bug #1: Global ID Drift After Permutation

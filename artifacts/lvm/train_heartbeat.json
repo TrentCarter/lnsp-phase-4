@@ -1,1 +1,1 @@
-{"epoch": 4, "step": 1200, "steps_total": 1233, "loss": 0.7398316860198975, "avg_loss": 0.9097989137944613, "negatives_per_sample": 3.96875}
+{"epoch": 5, "step": 1200, "steps_total": 1233, "loss": 0.7315068244934082, "avg_loss": 0.6451032719987204, "negatives_per_sample": 5.94921875}
