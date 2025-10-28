@@ -42,6 +42,45 @@ LNSP_TMD_MODE=hybrid ./.venv/bin/python tools/ingest_wikipedia_pipeline.py --res
 
 ---
 
+## 🎯 PRODUCTION RETRIEVAL CONFIGURATION (2025-10-24)
+
+**STATUS**: ✅ Production Ready - Shard-Assist with ANN Tuning
+
+**Performance**: 73.4% Contain@50, 50.2% R@5, 1.33ms P95
+
+**See**: [docs/RETRIEVAL_OPTIMIZATION_RESULTS.md](docs/RETRIEVAL_OPTIMIZATION_RESULTS.md) for full details
+
+### Quick Reference
+
+**FAISS Configuration**:
+```python
+nprobe = 64                # ANN probe count (Pareto optimal)
+K_global = 50              # Global IVF candidates
+K_local = 20               # Per-article shard candidates
+```
+
+**Reranking Pipeline**:
+```python
+mmr_lambda = 0.7           # MMR diversity (FULL POOL, do NOT reduce!)
+w_same_article = 0.05      # Same-article bonus
+w_next_gap = 0.12          # Next-chunk gap bonus
+tau = 3.0                  # Gap penalty temperature
+directional_bonus = 0.03   # Directional alignment bonus
+```
+
+**Key Files**:
+- Evaluation: `tools/eval_shard_assist.py`
+- Article Shards: `artifacts/article_shards.pkl` (3.9GB)
+- Production Results: `artifacts/lvm/eval_shard_assist_full_nprobe64.json`
+
+**⚠️ DO NOT**:
+- Reduce `mmr_lambda` from 0.7 (hurts R@10 by -10pp)
+- Apply MMR to limited pool (use full candidate set)
+- Use adaptive-K (doesn't help, adds complexity)
+- Enable alignment head by default (hurts containment)
+
+---
+
 ## 🚨 CRITICAL RULES FOR DAILY OPERATIONS
 
 1. **ALWAYS use REAL data** - Never use stub/placeholder data. Always use actual datasets from `data/` directory.

@@ -46,7 +46,7 @@ python tools/eval_tr_ensemble.py \
   --out artifacts/lvm/eval_tr_union.json
 """
 from __future__ import annotations
-import argparse, json, time, importlib, sys
+import argparse, json, time, importlib, sys, math
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -110,26 +110,45 @@ def load_npz(npz_path: Path) -> Dict[str, Any]:
 
 # ---------------------------- TR adapters -------------------------------
 
-def run_tr_vectors(npz_data: Dict[str, Any], module_path: str|None, fn_name: str|None,
-                   temp: float, seed: int, attempts: int) -> np.ndarray:
+def run_tr_vectors(
+    npz_data: Dict[str, Any],
+    module_path: Optional[str],
+    fn_name: Optional[str],
+    temp: float,
+    seed: int,
+    attempts: int,
+) -> np.ndarray:
     if "tr_pred_vecs" in npz_data:
         return _l2norm(np.asarray(npz_data["tr_pred_vecs"], dtype=np.float32))
+
+    contexts = npz_data.get("contexts")
+
     if module_path and fn_name:
-        if "contexts" not in npz_data:
-            raise ValueError("NPZ missing 'contexts' needed for TR callback generation")
         mod = importlib.import_module(module_path)
         fn = getattr(mod, fn_name)
-        vecs = fn(list(npz_data["contexts"]), temp=temp, seed=seed, attempts=attempts)
-        vecs = np.asarray(vecs, dtype=np.float32)
-        return _l2norm(vecs)
-def cosine_softmax_weights(cosines: np.ndarray, temperature: float = 0.05) -> np.ndarray:
-    """Compute softmax weights from cosine similarities."""
-    exp_cos = np.exp(cosines / temperature)
-    return exp_cos / np.sum(exp_cos)
+        if contexts is not None:
+            try:
+                vecs = fn(contexts, temp=temp, seed=seed, attempts=attempts)
+            except TypeError:
+                vecs = fn(list(contexts), temp=temp, seed=seed, attempts=attempts)
+        else:
+            vecs = fn(temp=temp, seed=seed, attempts=attempts)
+        return _l2norm(np.asarray(vecs, dtype=np.float32))
 
-def _l2norm(vec: np.ndarray) -> np.ndarray:
-    """L2 normalize a vector."""
-    return vec / (np.linalg.norm(vec) + 1e-8)
+    if contexts is not None:
+        from app.tiny_recursion import predict as default_tr_predict
+
+        vecs = default_tr_predict(
+            contexts,
+            temp=temp,
+            seed=seed,
+            attempts=attempts,
+        )
+        return _l2norm(np.asarray(vecs, dtype=np.float32))
+
+    raise ValueError(
+        "Provide TR vectors in NPZ, contexts, or --tr-module/--tr-fn for TR generation"
+    )
 
 
 def evaluate(
@@ -165,6 +184,8 @@ def evaluate(
         vecs_tr2 = _l2norm(np.asarray(vecs_tr2, dtype=np.float32))
     if last_vecs is not None:
         last_vecs = np.asarray(last_vecs, dtype=np.float32)
+        if last_vecs.ndim == 2:
+            last_vecs = _l2norm(last_vecs)
 
     def retrieve_for_vector(v: np.ndarray, lm: Dict[str, Any], last_vec: np.ndarray | None) -> List[Candidate]:
         v_norm = _l2norm(v.reshape(1, -1))[0].astype(np.float32)
@@ -299,6 +320,27 @@ def evaluate(
         "p50_ms": float(np.percentile(lat, 50)),
         "p95_ms": float(np.percentile(lat, 95)),
     }
+
+
+def evaluate_with_best_of_n(
+    scenario: str,
+    retriever: RetrievalShim,
+    last_meta: List[Dict[str,Any]],
+    truth_keys: np.ndarray,
+    vecs_direct: np.ndarray|None,
+    vecs_tr1: np.ndarray|None,
+    vecs_tr2: np.ndarray|None,
+    last_vecs: np.ndarray|None,
+    K: int,
+    top_final: int,
+    mmr_lambda: float,
+    use_seq_bias: bool,
+    w_same_article: float,
+    w_next_gap: float,
+    tau: float,
+    directional_bonus: float,
+    adaptive_k: bool,
+) -> Dict[str, Any]:
     """Evaluate with Best-of-N selection and adaptive K."""
 
     N = len(last_meta)
@@ -407,38 +449,62 @@ def evaluate(
                 cands = cands1
                 decisions.append("double_tr_low_conf")
 
-        elif scenario == "ensemble_best_of_2":
-            # Best-of-2 TR runs
-            assert vecs_tr1 is not None and vecs_tr2 is not None
+        elif scenario == "confidence_gated_multi_tr":
+            # Confidence-gated approach
+            assert vecs_direct is not None and vecs_tr1 is not None
 
-            tr1_vec = vecs_tr1[i]
-            tr2_vec = vecs_tr2[i]
+            direct_vec = vecs_direct[i]
+            tr_vec = vecs_tr1[i]
 
-            # Adaptive K based on average confidence
-            conf1 = float(np.dot(_l2norm(tr1_vec), _l2norm(vecs_direct[i])))
-            conf2 = float(np.dot(_l2norm(tr2_vec), _l2norm(vecs_direct[i])))
-            avg_conf = (conf1 + conf2) / 2
+            # Compute confidence (mean top-K cosine from direct)
+            base_cands = retriever.search(direct_vec, K)
+            base_cands = dedup_candidates(base_cands)
+            conf = float(np.mean([c[1] for c in base_cands[:min(len(base_cands), 10)]])) if base_cands else 0.0
 
-            if adaptive_k:
-                adaptive_k_val = int(10 + np.floor((0.72 - avg_conf) * 40))
-                adaptive_k_val = max(10, min(50, adaptive_k_val))
+            # Adaptive K based on confidence
+            adaptive_k_val = K
+            if conf < 0.72:
+                adaptive_k_val = min(50, 10 + int((0.72 - conf) * 40))
+
+            if conf >= 0.75:
+                # High confidence - use Direct
+                cands = retrieve_for_vector(direct_vec, lm, last_vec)
+            elif 0.60 <= conf < 0.75:
+                # Medium confidence - use Single TR
+                cands = retrieve_for_vector(tr_vec, lm, last_vec)
             else:
-                adaptive_k_val = K
+                # Low confidence - use Double TR union
+                if vecs_tr2 is None:
+                    # Generate second TR vector if not available
+                    raise ValueError("Need second TR vector for low-confidence branch")
 
-            # Get candidates from both
-            cands1 = retrieve_for_vector(tr1_vec, lm, adaptive_k_val)
-            cands2 = retrieve_for_vector(tr2_vec, lm, adaptive_k_val)
+                c1 = retriever.search(tr_vec, adaptive_k_val)
+                c2 = retriever.search(vecs_tr2[i], adaptive_k_val)
+                merged = dedup_candidates(c1 + c2)
 
-            # Choose best based on continuity score
-            score1 = continuity_score(cands1, conf1, conf1, 1.0, 1.0)
-            score2 = continuity_score(cands2, conf2, conf2, 1.0, 1.0)
+                # Keep top candidates by cosine to direct vector
+                if merged:
+                    vec_stack = np.stack([c[3] for c in merged], axis=0).astype(np.float32)
+                    scores = vec_stack @ _l2norm(direct_vec.reshape(1, -1))[0]
+                    top_indices = np.argsort(scores)[-top_final:][::-1]
+                    cands = [merged[idx] for idx in top_indices]
+                else:
+                    cands = []
 
-            if score1 >= score2:
-                cands = cands1
-                decisions.append("tr1_best")
-            else:
-                cands = cands2
-                decisions.append("tr2_best")
+                # Apply sequence-biased reranking with direct vector as anchor
+                if use_seq_bias and cands:
+                    ranked = rerank_with_sequence_bias(
+                        candidates=cands,
+                        last_ctx_meta=lm,
+                        w_cos=1.0,
+                        w_same_article=w_same_article,
+                        w_next_gap=w_next_gap,
+                        tau=tau,
+                        directional_bonus=directional_bonus if last_vecs is not None else 0.0,
+                        pred_vec=direct_vec,
+                        last_vec=last_vec,
+                    )
+                    cands = [c for _, c in ranked]
 
         else:
             # Basic scenarios only - advanced ones handled by evaluate_with_best_of_n
@@ -479,7 +545,6 @@ def evaluate(
 
 # ------------------------------ CLI -------------------------------------
 
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--scenario", required=True,
@@ -497,6 +562,10 @@ def main():
     ap.add_argument("--tau", type=float, default=3.0)
     ap.add_argument("--directional-bonus", type=float, default=0.0)
     ap.add_argument("--fusion-temp", type=float, default=0.05)
+    ap.add_argument("--contexts-npz", type=Path, default=None)
+    ap.add_argument("--contexts-key", type=str, default="context_sequences")
+    ap.add_argument("--tr-cache1", type=Path, default=None)
+    ap.add_argument("--tr-cache2", type=Path, default=None)
 
     # TR generation options
     ap.add_argument("--tr-module", type=str, default=None)
@@ -519,6 +588,28 @@ def main():
             if isinstance(npz_data[k], np.ndarray) and npz_data[k].shape[0] >= args.limit:
                 npz_data[k] = npz_data[k][sl]
 
+    contexts = npz_data.get("contexts")
+    if contexts is None and args.contexts_npz:
+        ctx_source = np.load(args.contexts_npz, allow_pickle=True)
+        if args.contexts_key not in ctx_source:
+            raise KeyError(
+                f"Contexts key '{args.contexts_key}' not found in {args.contexts_npz}"
+            )
+        contexts = np.asarray(ctx_source[args.contexts_key], dtype=np.float32)
+        if args.limit:
+            contexts = contexts[: args.limit]
+        npz_data["contexts"] = contexts
+    elif contexts is not None:
+        contexts = np.asarray(contexts, dtype=np.float32)
+        if args.limit:
+            contexts = contexts[: args.limit]
+        npz_data["contexts"] = contexts
+
+    if "last_vecs" not in npz_data and "contexts" in npz_data:
+        ctx_arr = npz_data["contexts"]
+        if isinstance(ctx_arr, np.ndarray) and ctx_arr.ndim == 3 and ctx_arr.shape[1] > 0:
+            npz_data["last_vecs"] = ctx_arr[:, -1, :]
+
     payload = load_payload(args.payload)
     faiss_index = faiss.read_index(str(args.faiss))
     retriever = RetrievalShim(faiss_index, payload)
@@ -527,16 +618,53 @@ def main():
     truth_keys = np.asarray(npz_data["truth_keys"])  # [N,2]
 
     vecs_direct = npz_data.get("pred_vecs_direct")
+    if vecs_direct is None and "pred_vecs" in npz_data:
+        vecs_direct = npz_data["pred_vecs"]
     last_vecs = npz_data.get("last_vecs")
 
+    def _load_tr_cache(path: Path, limit: Optional[int]) -> np.ndarray:
+        arr = np.load(path, allow_pickle=False)
+        if limit:
+            arr = arr[:limit]
+        return np.asarray(arr, dtype=np.float32)
+
+    vecs_tr1 = npz_data.get("tr_pred_vecs")
+    vecs_tr2 = (
+        npz_data.get("tr_pred_vecs_alt")
+        or npz_data.get("tr_pred_vecs_secondary")
+        or npz_data.get("tr_pred_vecs_b")
+    )
+
+    if args.tr_cache1:
+        vecs_tr1 = _load_tr_cache(args.tr_cache1, args.limit)
+    if args.tr_cache2:
+        vecs_tr2 = _load_tr_cache(args.tr_cache2, args.limit)
+
     # Prepare TR vectors for scenarios that need them
-    vecs_tr1 = vecs_tr2 = None
     advanced_scenarios = {"best_of_direct_tr","confidence_gated_multi_tr","ensemble_best_of_2"}
 
-    if args.scenario in {"single_tr","ensemble_union_tr2","ensemble_avg_tr2"} or args.scenario in advanced_scenarios:
-        vecs_tr1 = run_tr_vectors(npz_data, args.tr_module, args.tr_fn, args.tr_temp1, args.tr_seed1, args.tr_attempts)
-        if args.scenario not in {"single_tr", "best_of_direct_tr", "confidence_gated_multi_tr"}:
-            vecs_tr2 = run_tr_vectors(npz_data, args.tr_module, args.tr_fn, args.tr_temp2, args.tr_seed2, args.tr_attempts)
+    if (args.scenario in {"single_tr","ensemble_union_tr2","ensemble_avg_tr2"} or args.scenario in advanced_scenarios) and vecs_tr1 is None:
+        vecs_tr1 = run_tr_vectors(
+            npz_data,
+            args.tr_module,
+            args.tr_fn,
+            args.tr_temp1,
+            args.tr_seed1,
+            args.tr_attempts,
+        )
+    if (
+        args.scenario not in {"single_tr", "best_of_direct_tr", "confidence_gated_multi_tr"}
+        and args.scenario in {"ensemble_union_tr2","ensemble_avg_tr2","ensemble_best_of_2"}
+        and vecs_tr2 is None
+    ):
+        vecs_tr2 = run_tr_vectors(
+            npz_data,
+            args.tr_module,
+            args.tr_fn,
+            args.tr_temp2,
+            args.tr_seed2,
+            args.tr_attempts,
+        )
 
     # Choose evaluation function
     if args.scenario in advanced_scenarios:

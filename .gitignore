@@ -6,6 +6,7 @@ data/
 artifacts/
 eval/
 app_cache/
+micrograd/
 
 
 # Ignore compiled Python files

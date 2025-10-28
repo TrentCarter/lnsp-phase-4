@@ -1,0 +1,282 @@
+
+# PRD_5_Mamba_Models.md
+**Title:** PRD — Five Mamba(-ish) Architectures for LN‑SP / LVM Phase‑5  
+**Owner:** [Architect]  
+**Date:** 2025‑10‑25  
+**Status:** Draft → Review
+
+---
+
+## 0) Purpose & Scope
+We will design, implement, and evaluate **five Mamba-based (and hybrid)** sequence models tailored for the LN‑SP Large Vector Model (LVM) task: **predict next 768‑D vector** from a short sequence of previous vectors (context=5 today; leave headroom to 64). These models prioritize **linear/near‑linear memory scaling** with longer contexts while staying **latency‑efficient** on Apple Silicon.
+
+This PRD provides **model blueprints**, **training/eval specs**, **acceptance gates**, and **target HIT numbers** (Hit@5 / Recall@5) derived from comparable small models and our current production metrics. It is written so the [Architect] can implement without follow‑ups.
+
+---
+
+## 1) Baselines & Success Metrics
+
+### Current Production (for comparison)
+- **Model:** AMN (Attention Mixture Network), ~1–2M params
+- **Eval set:** 10,000 OOD sequences (Wikipedia continuation; context=5)
+- **Retrieval stack (production):** FAISS IVF (cosine/IP), `nprobe=64`, `K_global=50`, **Shard‑assist** (per‑article local `K_local=20`, union≈60), **MMR λ=0.7**, sequence‑bias (w_same=0.05, w_gap=0.12), directional bonus (+0.03)
+- **Key results:** R@5 ≈ **50.2%**, R@10 ≈ 54.6%, R@1 ≈ 1.1%, Contain@50 ≈ 73–74%, **P95** ≈ **1.33 ms**.
+
+### Phase‑5 Success Criteria (per model)
+- **Primary:** Hit@5 (aka Recall@5) ≥ **+3.0 pp** over production (i.e., target ≥ **53.2%**).  
+- **Latency:** P95 ≤ **1.50 ms** end‑to‑end (retrieval + rerank + model).  
+- **Containment neutrality:** Contain@50 **non‑decreasing** vs production (±≤1.0 pp).  
+- **Stability:** No drop in R@10; MRR@10 +≥0.5 pp preferred.
+
+> Stretch: Hit@5 ≥ **55–58%** with P95 ≤ **1.45 ms**.
+
+---
+
+## 2) Shared Data, Losses, and Training Regimen
+
+### Data
+- **Train:** Wikipedia sequences from LN‑SP pipeline (same as Phase‑4), using **context_len = 5** (extendable to 16/32/64 later).  
+- **Targets:** next‑chunk vectors (768‑D, GTR‑T5 embeddings).  
+- **Val/Test:** OOD split (10k) already established.
+
+### Loss
+- **Primary:** `L = 0.7 * (1 - cosine(g(ŷ), y)) + 0.3 * MSE(g(ŷ), y)`  
+  where `ŷ` is model output (pre‑norm), `g` is identity unless a residual alignment head is enabled (feature flag).  
+- **Optional contrastive** (Feature flag): In‑batch InfoNCE with temperature `τ=0.07`, 8 negatives.
+
+### Optimization
+- **Optimizer:** AdamW, `lr=1e-3`, weight_decay=1e-4  
+- **Schedule:** 5% warmup → cosine decay to `1e-5`  
+- **Batch:** 1024 (AMP enabled on M‑series), grad‑clip=1.0  
+- **Epochs:** 20 (early‑stop patience=3 on val‑cosine)
+
+### Evaluation (unchanged)
+- Use **v2 evaluator** (metadata-key matching) with production retrieval stack (including shard‑assist).  
+- Metrics: **R@1/5/10**, **MRR@10**, **Contain@50**, **P50/P95 ms**.  
+- Report per‑subset: continuation vs non‑continuation (if flagged).
+
+---
+
+## 3) Model Blueprints (5 Variants)
+
+All models consume sequences of 768‑D vectors. For Mamba blocks we denote:
+- `d_model`: internal width  
+- `d_state`: SSM state size (per channel)  
+- `conv_sz`: short convolution kernel for token mixing (pre‑SSM)  
+- `n_layers`: total stacked blocks  
+- **Context scaling:** Linear memory in sequence length for SSM parts; attention blocks (in hybrids) are local.
+
+> **Implementation note:** Use a single codepath with `--model-type` enum; blocks composed in a ModuleList; RMSNorm + SiLU; residual scaling à la μParam is acceptable.
+
+---
+
+### Model A — **Mamba‑S (Pure SSM, Small)**
+**Goal:** Establish linear‑memory baseline beating AMN on R@5 with similar/better latency.
+
+- **Blocks:** `n_layers=8` pure Mamba blocks  
+- **Dims:** `d_model=256`, `d_state=128`, `expand=2` (MLP expansion inside block)  
+- **conv_sz=4**, dropout=0.05, RMSNorm pre‑act  
+- **Params:** ~1.3M  
+- **Context cap (phase‑5):** 64 vectors (future: 512)  
+- **Expected latency:** ≈ **0.9–1.1 ms P95** (same stack)  
+- **Target (Hit@5):** **52–54%** (≥ +2–4 pp over production)  
+- **CLI:**
+  ```bash
+  ./.venv/bin/python app/lvm/train_unified.py     --model-type mamba_s --d-model 256 --n-layers 8 --d-state 128     --conv-sz 4 --expand 2 --epochs 20 --batch-size 1024 --device mps
+  ```
+
+---
+
+### Model B — **Mamba‑H (Hybrid 80/20: Mamba + Local‑Attn)**
+**Goal:** Preserve linear-time behavior while injecting short‑range pattern matching via **local attention** every 4th block.
+
+- **Blocks:** 3×(Mamba×3 → Local‑Attn), total `n_layers=12`  
+- **Local‑Attn:** window=8, heads=4, `d_model=320` (qkv bias off), FlashAttention‑like impl allowed  
+- **SSM:** `d_state=128`, `conv_sz=4`, RMSNorm; MLP expand=2  
+- **Params:** ~2.6M  
+- **Target (Hit@5):** **54–56%** (≥ +4–6 pp)  
+- **Latency:** ≈ **1.2–1.3 ms P95**  
+- **CLI:**
+  ```bash
+  ./.venv/bin/python app/lvm/train_unified.py     --model-type mamba_hybrid_local --d-model 320 --n-layers 12     --d-state 128 --conv-sz 4 --local-attn-win 8 --local-attn-every 4     --epochs 20 --batch-size 1024 --device mps
+  ```
+
+---
+
+### Model C — **Mamba‑XL (Deeper/Wider Pure SSM)**
+**Goal:** Pure SSM capacity bump for accuracy without attention.
+
+- **Blocks:** `n_layers=16` Mamba  
+- **Dims:** `d_model=384`, `d_state=192`, `expand=2`  
+- **conv_sz=4**, dropout=0.05  
+- **Params:** ~5.8M  
+- **Target (Hit@5):** **55–57%**  
+- **Latency:** ≈ **1.35–1.45 ms P95** (acceptable)  
+- **CLI:**
+  ```bash
+  ./.venv/bin/python app/lvm/train_unified.py     --model-type mamba_xl --d-model 384 --n-layers 16 --d-state 192     --conv-sz 4 --expand 2 --epochs 20 --batch-size 768 --device mps
+  ```
+
+---
+
+### Model D — **Mamba‑Sandwich (Attn→SSM→Attn)**
+**Goal:** A **Transformer‑E / “Mamba‑ish”** hybrid: local self‑attention front/back for token alignment; deep Mamba trunk for long context. Balances precision and linear scaling.
+
+- **Front:** 2 Local‑Attn layers (win=8, heads=4, `d_model=320`)  
+- **Trunk:** 8 Mamba blocks (`d_model=320`, `d_state=160`, `conv_sz=4`)  
+- **Back:** 2 Local‑Attn layers (win=8)  
+- **Params:** ~3.9M  
+- **Target (Hit@5):** **56–59%** (stretch **≥58%**)  
+- **Latency:** **≤ 1.45 ms P95**  
+- **CLI:**
+  ```bash
+  ./.venv/bin/python app/lvm/train_unified.py     --model-type mamba_sandwich --d-model 320     --n-layers-mamba 8 --n-layers-local 4 --local-attn-win 8     --d-state 160 --conv-sz 4 --epochs 20 --batch-size 896 --device mps
+  ```
+
+---
+
+### Model E — **Mamba‑GR (SSM + GRU Gate)**
+**Goal:** Inject explicit recurrence to help rank the **exact next** chunk (our R@1 pain point) while keeping linear memory.
+
+- **Block:** Mamba layer → **GRU gate (hidden=256)** over block outputs → residual  
+- **Stack:** `n_layers=10`, `d_model=288`, `d_state=144`, `conv_sz=4`  
+- **Params:** ~3.2M  
+- **Target (Hit@5):** **53–55%**; **R@1 +0.3–0.8 pp** vs production  
+- **Latency:** **≤ 1.40 ms P95**  
+- **CLI:**
+  ```bash
+  ./.venv/bin/python app/lvm/train_unified.py     --model-type mamba_gr --d-model 288 --n-layers 10 --d-state 144     --conv-sz 4 --gru-hidden 256 --epochs 20 --batch-size 1024 --device mps
+  ```
+
+---
+
+## 4) Inference & Integration
+- Outputs are **768‑D vectors** (L2‑normalized). Optional **alignment head** (residual α=0.25) behind a flag.  
+- Use **current production retrieval** unchanged (IVF + shard‑assist + rerank).  
+- Enable **confidence‑gated method selection** (existing): Direct vs TR variants may stay off by default.
+
+**Config flags (examples):**
+```bash
+# Inference
+./.venv/bin/python app/lvm/infer_vec.py   --model-checkpoint artifacts/lvm/models/mamba_s/best.pt   --use-shard-assist --nprobe 64 --K-global 50 --K-local 20
+
+# Eval (v2)
+./.venv/bin/python tools/eval_retrieval_v2.py   --npz artifacts/lvm/wikipedia_ood_test_ctx5_v2_fresh.npz   --payload artifacts/wikipedia_584k_payload.npy   --faiss artifacts/wikipedia_584k_ivf_flat_ip.index   --shards artifacts/article_shards.pkl   --nprobe 64 --out artifacts/lvm/eval_mamba_s.json
+```
+
+---
+
+## 5) Targets (“What good looks like”)
+Based on current production (AMN R@5 ≈ **50.2%**, P95 ≈ **1.33 ms**) and expected small‑model ranges, our **phase‑5 targets** are:
+
+| Model               | Params | Hit@5 Target | Hit@1 Target | R@10 Target | P95 Target |
+|---------------------|--------|--------------|--------------|-------------|-----------:|
+| **Mamba‑S**         | ~1.3M  | **52–54%**   | 1.3–1.6%     | 56–58%      | ≤ 1.10 ms |
+| **Mamba‑H (80/20)** | ~2.6M  | **54–56%**   | 1.4–1.8%     | 57–60%      | ≤ 1.30 ms |
+| **Mamba‑XL**        | ~5.8M  | **55–57%**   | 1.5–2.0%     | 58–61%      | ≤ 1.45 ms |
+| **Mamba‑Sandwich**  | ~3.9M  | **56–59%**   | 1.7–2.3%     | 59–62%      | ≤ 1.45 ms |
+| **Mamba‑GR**        | ~3.2M  | **53–55%**   | **+0.3–0.8 pp vs prod** | 56–59% | ≤ 1.40 ms |
+
+> **Production pass gate:** Any model with **Hit@5 ≥ 55%** *and* **P95 ≤ 1.45 ms** should be considered for A/B as candidate primary.
+
+---
+
+## 6) Engineering Plan & Timeline
+
+### Phase A — Build (2–3 days)
+- Implement block library (Mamba, Local‑Attn, GRU‑gate), configs for 5 models.
+- Unit tests: shape, mask, numerics, speed on M‑series.
+
+### Phase B — Train (2–3 days, parallel)
+- Train all 5 on current dataset (context=5); log val‑cosine, early stop.
+
+### Phase C — Evaluate (1 day)
+- Run v2 eval (10k OOD) on production retrieval stack; collect full metrics.
+- Produce **benchmark table**; select top‑2 for A/B.
+
+### Phase D — A/B & Roll (1–2 days)
+- Shadow 10%, then 50%, then 100%. SLOs: **P95 ≤ 1.5 ms**, fallback rate ≤ 20%.
+- Rollback plan: revert `production_model` symlink to AMN within 1 min.
+
+---
+
+## 7) Risks & Mitigations
+- **R@1 stagnation:** Add cascade rerank (continuation‑aware) or small alignment head (α≤0.25).
+- **Containment regressions:** Always report **Contain@50**; reject models that lower it.
+- **Latency spikes (hybrids):** Enforce local windows; cap heads; pre‑allocate buffers.
+- **Training instability (SSM):** Use RMSNorm, sensible init; grad‑clip=1.0.
+
+---
+
+## 8) Deliverables
+- `app/lvm/models/mamba/{blocks.py,mamba.py,hybrid.py}`
+- Configs & scripts for all 5 variants
+- Checkpoints, eval JSON, and a **Phase‑5 Benchmark Report** (`artifacts/lvm/mamba_phase5_results.md`)
+- A/B rollout note with go/no‑go summary
+
+---
+
+## 9) Acceptance Checklist (per model)
+- [ ] Trains to stable val‑cosine within 20 epochs  
+- [ ] **Hit@5 ≥ 53.2%** (+3.0 pp over prod)  
+- [ ] **P95 ≤ 1.50 ms**  
+- [ ] Contain@50 non‑decreasing vs prod  
+- [ ] No regression in R@10; MRR@10 stable or ↑  
+- [ ] Clean inference path; feature flags wired
+
+---
+
+### Appendix — Notes for the [Architect]
+- Keep **one** feature‑flagged path for: alignment head, confidence‑gating, union‑TR2.  
+- Maintain **shared head** that maps `d_model → 768` with final L2‑norm.  
+- Ensure **exportable** TorchScript or CoreML path for mobile later.
+
+
+---
+
+## Addendum — Phase‑4/5 Targets & Reporting (Full Retrieval, ctx=5)
+
+### Metric Definitions (to avoid cross‑wires)
+- **Contain@K**: % queries where ground truth appears in ANN top‑K (pre‑rerank).
+- **R@K / Hit@K**: % queries with ground truth in top‑K **after** rerank (MMR + seq‑bias + directional, etc.).
+- **Ranking Efficiency**: `Eff@K = R@K / Contain@K` (how often we surface truth when it’s present).
+- **Latency**: P50 / P95 end‑to‑end (model + retrieval + rerank).
+
+### Current Production Reference (Phase‑4, nprobe=64, shard‑assist on)
+- **Contain@50** ≈ 73–74%
+- **R@5** ≈ 50.2%  → **Eff@5 ≈ 0.68**
+- **R@10** ≈ 54.6%
+- **R@1** ≈ 1.1%
+- **P95** ≈ 1.33 ms
+
+### Targets (short‑term, pre‑scale)
+- **Contain@50:** 78–82%
+- **R@5:** 55–60% (implies Eff@5 ≈ 0.70–0.73)
+- **R@1:** 2–4%
+- **P95:** ≤ 1.45 ms
+
+### Stretch Targets (10× data and/or Mamba hybrids, larger context)
+- **Contain@50:** 82–85%
+- **R@5:** 60–65%
+- **R@1:** 5–8% (with continuation‑aware cascade)
+- **P95:** ≤ 1.45 ms
+
+### High‑ROI Levers (in order)
+1. **Learned rerank weights** (replace fixed w_same/w_gap with logistic/GBDT) → +1–2 pp R@5, ~0 ms.
+2. **Cascade rerank** (coarse→focused top‑20) → +1–2 pp R@5, ≤ +0.1 ms.
+3. **Continuation features** (gap=+1 prior, in‑article position) → +0.5–1.0 pp R@1, +1 pp R@5.
+4. **Context↑ in training (5→16)** and/or **Mamba‑hybrid** → +2–4 pp R@5 at similar latency.
+
+### Scoreboard (append one line per build)
+```
+Contain@50 | R@10 | R@5 | R@1 | Eff@5 (=R@5/Contain@50) | P50/P95 ms | Notes
+```
+
+### Phase‑5 Acceptance Gate (for A/B)
+A model qualifies for A/B if ALL are true:
+- **R@5 ≥ 55%** and **P95 ≤ 1.45 ms**
+- **Contain@50** non‑decreasing vs production (±≤1.0 pp)
+- **R@10** no regression; **MRR@10** stable or ↑
+- Clean inference path; feature flags wired (alignment head, confidence gating, union‑TR2)
+
+> Keep re‑ranking‑only numbers (8‑choice oracle) **separate**; expect Hit@5 ≈ 85–90% there, but do **not** mix with full‑retrieval scoreboard.

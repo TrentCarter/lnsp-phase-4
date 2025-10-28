@@ -124,6 +124,7 @@ def evaluate(
     w_next_gap: float = 0.12,
     tau: float = 3.0,
     directional_bonus: float = 0.0,
+    collect_macro: bool = False,
 ) -> dict:
     """
     Evaluate retrieval quality with IR metrics.
@@ -149,6 +150,12 @@ def evaluate(
     mrr = 0.0
     lat = []
 
+    # Containment tracking (diagnostic for R@1 bottleneck)
+    contain_20 = 0
+    contain_50 = 0
+
+    per_truth_ranks: dict[tuple[int, int], list[int | None]] = {} if collect_macro else {}
+
     for ex in dataset:
         qv = ex["pred_vec"].astype(np.float32)
         last_meta = ex["last_meta"]
@@ -159,6 +166,13 @@ def evaluate(
 
         # 1. Initial retrieval
         cands = retriever.search(qv, K_retrieve)
+
+        # Track containment BEFORE any reranking (diagnostic)
+        raw_keys = [(int(c[2]["article_index"]), int(c[2]["chunk_index"])) for c in cands]
+        if truth_key in raw_keys[:20]:
+            contain_20 += 1
+        if truth_key in raw_keys[:50]:
+            contain_50 += 1
 
         # 2. Deduplication
         cands = dedup_candidates(cands)
@@ -196,6 +210,7 @@ def evaluate(
         lat.append(dt)
 
         # Check if ground truth is in results
+        rank = None
         if truth_key in keys:
             idx = keys.index(truth_key)
             if idx == 0:
@@ -205,10 +220,14 @@ def evaluate(
             if idx < 10:
                 r10 += 1
             mrr += 1.0 / (idx + 1)
+            rank = idx
+
+        if collect_macro:
+            per_truth_ranks.setdefault(truth_key, []).append(rank)
 
     # Compute metrics
     lat = np.array(lat)
-    return {
+    results = {
         "N": n,
         "R@1": r1 / n,
         "R@5": r5 / n,
@@ -216,7 +235,37 @@ def evaluate(
         "MRR@10": mrr / n,
         "p50_ms": float(np.percentile(lat, 50)),
         "p95_ms": float(np.percentile(lat, 95)),
+        "Contain@20": contain_20 / n,
+        "Contain@50": contain_50 / n,
     }
+
+    if collect_macro and per_truth_ranks:
+        def _avg_hit(ranks: list[int | None], cutoff: int) -> float:
+            hits = [1.0 if r is not None and r < cutoff else 0.0 for r in ranks]
+            return float(np.mean(hits)) if hits else 0.0
+
+        def _avg_mrr10(ranks: list[int | None]) -> float:
+            vals = [1.0 / (r + 1) if r is not None and r < 10 else 0.0 for r in ranks]
+            return float(np.mean(vals)) if vals else 0.0
+
+        macro_entries = []
+        for ranks in per_truth_ranks.values():
+            macro_entries.append(
+                {
+                    "R@1": _avg_hit(ranks, 1),
+                    "R@5": _avg_hit(ranks, 5),
+                    "R@10": _avg_hit(ranks, 10),
+                    "MRR@10": _avg_mrr10(ranks),
+                }
+            )
+
+        macro_totals = {
+            key: float(np.mean([entry[key] for entry in macro_entries])) for key in macro_entries[0]
+        }
+        macro_totals["pairs"] = len(per_truth_ranks)
+        results["macro"] = macro_totals
+
+    return results
 
 
 # ============================================================================
@@ -247,6 +296,11 @@ def main():
                     help="Gap penalty temperature (default: 3.0)")
     ap.add_argument("--directional_bonus", type=float, default=0.0,
                     help="Directional alignment bonus weight (default: 0.0, disabled)")
+    ap.add_argument(
+        "--macro-average",
+        action="store_true",
+        help="Compute macro-averaged metrics across unique truth pairs.",
+    )
     ap.add_argument("--out", type=Path, default=Path("artifacts/lvm/eval_retrieval_results.json"),
                     help="Output JSON file for results")
     args = ap.parse_args()
@@ -282,6 +336,7 @@ def main():
         w_next_gap=args.w_next_gap,
         tau=args.tau,
         directional_bonus=args.directional_bonus,
+        collect_macro=args.macro_average,
     )
 
     # Save results
