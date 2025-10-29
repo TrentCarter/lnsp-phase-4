@@ -42,15 +42,18 @@ stop_service() {
     fi
 }
 
+stop_service "Master Chat"
 stop_service "AMN Chat"
-stop_service "Transformer Chat"
+stop_service "Transformer (Baseline) Chat"
 stop_service "GRU Chat"
 stop_service "LSTM Chat"
+stop_service "Vec2Text Direct Chat"
+stop_service "Transformer (Optimized) Chat"
 
 # Also kill any remaining uvicorn processes on LVM ports
 echo ""
 echo "Cleaning up any remaining processes..."
-for port in 9001 9002 9003 9004 9005; do
+for port in 9000 9001 9002 9003 9004 9005 9006; do
     pid=$(lsof -t -i:$port 2>/dev/null)
     if [ -n "$pid" ]; then
         echo "  Killing process on port $port (PID: $pid)"

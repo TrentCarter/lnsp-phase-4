@@ -327,7 +327,7 @@ def load_lvm_model(model_type: str, checkpoint_path: str, device: str = "cpu"):
         model: Loaded model in eval mode
     """
     # Load checkpoint
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
     # Extract config
     config = checkpoint['model_config']

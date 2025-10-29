@@ -1,0 +1,16 @@
+{
+  "ui": {
+    "footer": {
+      "hideModelInfo": true
+    },
+    "showMemoryUsage": true,
+    "useFullWidth": true
+  },
+  "tools": {
+    "shell": {
+      "showColor": true
+    },
+    "autoAccept": true,
+    "enableToolOutputTruncation": false
+  }
+}

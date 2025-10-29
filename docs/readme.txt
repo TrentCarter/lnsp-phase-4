@@ -5,6 +5,30 @@ claude --dangerously-skip-permissions
 
 docs/PRDs/PRD_FastAPI_Services.md
 scripts/start_all_fastapi_services.sh
+scripts/stop_lvm_services.sh
+scripts/start_lvm_services.sh
+./scripts/stop_lvm_services.sh && ./scripts/start_lvm_services.sh
+
+
+# 10/29/2025
+
+  🚀 How to Use
+
+  1. Run Tests
+  ./.venv/bin/pytest tests/test_p4_safeguards.py -v
+  ./.venv/bin/pytest tests/test_p4_safeguards.py -v --tb=short
+
+  2. Check Deployment Readiness
+  bash scripts/deployment_gate.sh 9001
+
+  3. View Metrics
+  curl -s http://localhost:9001/metrics | jq
+
+  4. Monitor Health
+  curl -s http://localhost:9001/health | jq
+
+
+  Should be loaded: artifacts/lvm/models/amn_20251023_204747/ (October 23, NEW - 0.5603 val cosine on 543k sequences)
 
 # 10/28/2025 
 
@@ -15,15 +39,47 @@ scripts/start_all_fastapi_services.sh
   2. Start LVM Chat Services:
   ./scripts/start_lvm_services.sh
 
-    ============================================
-  🎉 LVM Chat Services Ready!
-  ============================================
+  Created:
+  - ✅ Symlink: artifacts/lvm/models/transformer_optimized_v0.pt → optimized model (val_cosine: 0.5865)
+  - ✅ Updated scripts/start_lvm_services.sh to start port 9006
+  - ✅ Updated scripts/stop_lvm_services.sh to stop port 9006
 
-  Chat interfaces:
-    AMN:         http://localhost:9001/chat
-    Transformer: http://localhost:9002/chat
-    GRU:         http://localhost:9003/chat
-    LSTM:        http://localhost:9004/chat
+  Access the Master UI:
+  http://localhost:9000
+
+  Port Mapping Now:
+  | Port | Model           | Type               | Val Cosine |
+  |------|-----------------|--------------------|------------|
+  | 9000 | MASTER AI CHAT  | ALL LVMs.          | N/A        |
+  | 9001 | AMN             | Best OOD + Fastest | 0.5597     |
+  | 9002 | Transformer     | Baseline           | 0.5774     |
+  | 9003 | GRU             | Runner-up          | 0.5920     |
+  | 9004 | LSTM            | Deprecated         | 0.4102 ⚠️  |
+  | 9005 | Vec2Text Direct | Passthrough        | N/A        |
+  | 9006 | Transformer     | Optimized ✅        | 0.5864     |
+
+  2. Auto-Chunking Feature Added
+
+  3 New Chunking Modes:
+
+  1. Adaptive (≥5 sentences) [Default]
+    - Auto-chunks only if message has ≥5 sentences
+    - Otherwise uses retrieval-primed context (4 supports + 1 query)
+  2. By Sentence (1:1) [NEW!]
+    - 1 sentence = 1 chunk
+    - 3 sentences → 3 vectors
+    - 10 sentences → 10 vectors (last 5 used for LVM)
+  3. Fixed (force 5 chunks)
+    - Always chunks into 5 pieces
+    - Groups sentences to make 5 chunks
+  4. Off (1 vector)
+    - No chunking, single vector with retrieval-primed context
+
+API endpoints:
+  POST /chat  - Chat-style inference (text → text)
+  POST /infer - Low-level inference (vectors → vector)
+  GET /info   - Model information
+  (Vec2Text direct service skips /infer and LVM model loading)
 
   API endpoints:
     POST /chat  - Chat-style inference (text → text)

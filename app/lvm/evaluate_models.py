@@ -30,7 +30,7 @@ from train_transformer import TransformerVectorPredictor
 
 def load_model(model_path, device):
     """Load a trained model"""
-    checkpoint = torch.load(model_path, map_location=device)
+    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
     args = checkpoint['args']
 
     # Determine model type from path
