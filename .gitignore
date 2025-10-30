@@ -50,9 +50,33 @@ app/utils/semantic_3d_tests/heatmap_galaxy_data.json
 app/utils/semantic_3d_tests/semantic_test_data/*
 # 6/22/25
 data/teacher_models/*
+data/nemotron_vectors/**/*.npy
+data/nemotron_vectors/**/*.npz
 data/*
 dumps/*
 backups/*
+
+# Large binary files
+**/*.memmap
+**/*.h5
+**/*.hdf5
+**/*.bin
+**/*.dat
+**/*.npy
+**/*.npz
+**/*.pt
+**/*.pth
+**/*.pkl
+**/*.joblib
+**/*.onnx
+**/*.faiss
+**/*.index
+**/*.ivf
+
+# Vector store and embedding files
+**/vectors.*
+**/embeddings.*
+**/payload/*
 
 restores/*
 
