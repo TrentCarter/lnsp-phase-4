@@ -1,0 +1,59 @@
+{
+  "model_type": "gru",
+  "model_name": "GRU Stack (Mamba2 fallback)",
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 1.077028610506979,
+      "train_cosine": 0.3201501231726314,
+      "train_loss_mse": 1.9437147817073048,
+      "train_loss_info": 1.0741131799879222,
+      "val_loss": 0.0017135860689850384,
+      "val_cosine": 0.341982981074791,
+      "lr": 0.0005
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.8516263659896562,
+      "train_cosine": 0.350321463463832,
+      "train_loss_mse": 3.2113152735097006,
+      "train_loss_info": 0.847417424064789,
+      "val_loss": 0.0016898661289822714,
+      "val_cosine": 0.35109143768740814,
+      "lr": 0.0005
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.7675996848573673,
+      "train_cosine": 0.36108031442080823,
+      "train_loss_mse": 3.6289230746182053,
+      "train_loss_info": 0.7629629916251526,
+      "val_loss": 0.0016930890005361161,
+      "val_cosine": 0.3498538537809249,
+      "lr": 0.0005
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.700275766206276,
+      "train_cosine": 0.3688783378629865,
+      "train_loss_mse": 3.6819072684466163,
+      "train_loss_info": 0.6955838885530715,
+      "val_loss": 0.001693431546935937,
+      "val_cosine": 0.349722319037911,
+      "lr": 0.0005
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.6367660186972978,
+      "train_cosine": 0.376275409100727,
+      "train_loss_mse": 3.5428105671811783,
+      "train_loss_info": 0.6322152982179778,
+      "val_loss": 0.0016818446532516976,
+      "val_cosine": 0.35417168656110437,
+      "lr": 0.0005
+    }
+  ],
+  "best_val_loss": 0.0016818446532516976,
+  "final_params": 7095552,
+  "trained_at": "2025-10-29T20:55:02.029732"
+}

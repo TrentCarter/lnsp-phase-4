@@ -1,0 +1,55 @@
+{
+  "total_concepts": 726019,
+  "total_articles": 4736,
+  "avg_concepts_per_article": 153.29793074324326,
+  "vector_dimensions": 768,
+  "unique_tmd_codes": 333,
+  "unique_domains": 16,
+  "unique_tasks": 10,
+  "unique_modifiers": 7,
+  "dataset_source": "wikipedia_500k",
+  "extraction_date": "2025-10-30T05:18:51.198432",
+  "ordering": "article-based (batch_id ASC, created_at ASC)",
+  "first_article_id": "0000b285-458f-4583-9a21-14be7dc2c71b",
+  "last_article_id": "None",
+  "first_concept": "Hearse is a Swedish melodic death metal band formed by vocalist Johan Liiva (ex-Arch Enemy) and drummer Max Thornell in 2001.",
+  "last_concept": "References  1997 albums Entombed (band) albums",
+  "npz_file": "artifacts/lvm/wikipedia_726019_ordered.npz",
+  "sample_article_sequences": [
+    {
+      "article_id": "0000b285-458f-4583-9a21-14be7dc2c71b",
+      "seq_in_article": 1,
+      "concept": "Hearse is a Swedish melodic death metal band formed by vocalist Johan Liiva (ex-Arch Enemy) and drummer Max Thornell in 2001."
+    },
+    {
+      "article_id": "0000b285-458f-4583-9a21-14be7dc2c71b",
+      "seq_in_article": 2,
+      "concept": "Full-length \n Dominion Reptilian (2003)\n Armageddon, Mon Amour (2004)\n The Last Ordeal (2005)\n In These Veins (2006)\n Single Ticket to Paradise (2009)\n\nDemos \n Hearse (2002)\n\nEPs \n Torch (2002)\n Cambo"
+    },
+    {
+      "article_id": "0000b285-458f-4583-9a21-14be7dc2c71b",
+      "seq_in_article": 3,
+      "concept": "The duo soon recruited guitarist Mattias Ljung, who had not actually played any metal for several years, and recorded a demo in 2001."
+    },
+    {
+      "article_id": "004fa012-1510-4357-96be-3cd8e35fc397",
+      "seq_in_article": 8,
+      "concept": "Hilarion fell into English hands. Richard subsequently sold the island to the Knights Templar whose rule abruptly ended after a major revolt in Nicosia."
+    },
+    {
+      "article_id": "01d666e0-7bb4-465b-bd63-282e47b41b7d",
+      "seq_in_article": 35,
+      "concept": "Tucker.\n\n\u2022\tBegan playing electric bass in 1976 while at the University of California, Berkeley."
+    },
+    {
+      "article_id": "12ea0d06-ef91-4972-83a1-30011c8a0ec9",
+      "seq_in_article": 8,
+      "concept": "All students must take two half-credit courses in a Fine Art: Piano or Guitar (or other music options), Studio Art, Drama, and/or a Fine Arts elective."
+    },
+    {
+      "article_id": "None",
+      "seq_in_article": 584545,
+      "concept": "References  1997 albums Entombed (band) albums"
+    }
+  ]
+}
