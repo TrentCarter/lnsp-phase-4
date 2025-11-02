@@ -1,6 +1,6 @@
 # LVM Data Map: Complete Training & Inference Pipeline
 
-**Last Updated**: October 16, 2025
+**Last Updated**: October 30, 2025 (OOD Evaluation Fix)
 **Purpose**: Comprehensive reference for all LVM (Latent Vector Model) training data, models, and inference pipeline
 
 ---
@@ -35,10 +35,35 @@
 
 ### ✅ ACTIVE Training Dataset
 
-#### Primary: Wikipedia Training Sequences
+#### 🆕 NEW: Clean Splits (Article-Based Holdout) - **RECOMMENDED**
 ```bash
-./artifacts/lvm/training_sequences_ctx5.npz         # 449 MB - 80k sequences
+./artifacts/lvm/training_sequences_ctx5_584k_clean_splits.npz     # 663 MB - 438k sequences
+./artifacts/lvm/validation_sequences_ctx5_articles4000-4499.npz   # 27 MB - 18k sequences
+./artifacts/lvm/wikipedia_ood_test_ctx5_TRULY_FIXED.npz          # 15 MB - 10k OOD test
 ```
+
+**Why This Is Better** (Oct 30, 2025 Fix):
+- ✅ **Article-based splits**: No article appears in both train and val
+- ✅ **Representative coherence**: All splits ~0.47 (realistic Wikipedia)
+- ✅ **True OOD generalization**: Test articles never seen during training
+- ✅ **Proven results**: OOD=0.5622 matches Val=0.5546 (Δ=+0.0076)
+
+**Split Design**:
+- Training: Articles 1-1499, 2000-3999, 4500-7671 (438k sequences)
+- Validation: Articles 4000-4499 (18k sequences)
+- OOD Test: Articles 1500-1999 (10k sequences)
+- Removed: Articles 7672-8470 (high-coherence anomaly)
+
+**See**: `artifacts/lvm/OOD_EVALUATION_FIX_COMPLETE_SUMMARY.md` for full details
+
+#### Legacy: Wikipedia Training Sequences (80k)
+```bash
+./artifacts/lvm/training_sequences_ctx5.npz         # 449 MB - 80k sequences (⚠️ random splits)
+```
+
+**⚠️ DEPRECATED**: Uses `random_split()` which mixes articles across train/val.
+Results in inflated validation scores that don't reflect true generalization.
+**Use clean_splits version above instead.**
 
 **Structure**:
 ```python
@@ -103,18 +128,58 @@ data['article_ids']       # [80000]         - Source article IDs
 
 ## Trained Models
 
-### ✅ ACTIVE Production Models (October 16, 2025)
+### ✅ ACTIVE Production Models
 
-All models trained with:
-- **Loss**: MSE (Mean Squared Error, correct for regression)
-- **Data**: 80k Wikipedia sequences (training_sequences_ctx5.npz)
+#### 🆕 NEW: Clean Splits Models (October 30, 2025)
+
+**AMN Clean Splits** - **RECOMMENDED FOR SEQUENTIAL PREDICTION**
+```bash
+Location: ./artifacts/lvm/models/amn_clean_splits_20251030_204541/best_model_fixed.pt
+```
+
+**Performance**:
+- **Val Cosine**: 0.5546 (honest validation on held-out articles)
+- **OOD Cosine**: 0.5622 (true generalization!)
+- **Delta**: +0.0076 (essentially zero - proves generalization)
+- Latency: ~0.5 ms/query
+- Parameters: 1.5M
+
+**Training**:
+- **Data**: 438k sequences with article-based splits
+- **Training**: Articles 1-1499, 2000-3999, 4500-7671
+- **Validation**: Articles 4000-4499 (never seen in training)
+- **OOD Test**: Articles 1500-1999 (truly held-out)
+- **Loss**: MSE
 - **Epochs**: 20
-- **Device**: Apple M1 Max (MPS)
-- **Training time**: ~2-4 hours per model
+- **Device**: MPS
+
+**Why This Is Better**:
+- ✅ True OOD generalization (OOD matches Val)
+- ✅ Article-based splits (no data contamination)
+- ✅ Representative coherence (~0.47 across all splits)
+- ❌ **Not compatible with chat repeat-pad mode** (use LSTM/GRU/Transformer for chat)
+
+**When to Use**:
+- Wikipedia sequence prediction (original use case)
+- Document completion with sequential context
+- Any application with proper sequential context (not repeat-pad)
+
+**See**: `artifacts/lvm/OOD_EVALUATION_FIX_COMPLETE_SUMMARY.md` for full details
 
 ---
 
-### 1. AMN (Attention Mixture Network)
+#### Legacy Models (October 16, 2025) - ⚠️ Random Splits
+
+All legacy models trained with:
+- **Loss**: MSE (Mean Squared Error)
+- **Data**: 80k Wikipedia sequences (**⚠️ random splits, data contamination**)
+- **Epochs**: 20
+- **Device**: Apple M1 Max (MPS)
+- **Note**: Validation scores inflated due to article mixing
+
+---
+
+### 1. AMN (Attention Mixture Network) - Legacy 790k
 
 **✅ BEST FOR**: Ultra-low latency, batch processing, interpretability
 

@@ -43,7 +43,7 @@ except ImportError:
 class LSTMBaseline(nn.Module):
     """Simple LSTM baseline for next-vector prediction"""
 
-    def __init__(self, input_dim=768, hidden_dim=512, num_layers=2, dropout=0.2):
+    def __init__(self, input_dim=768, hidden_dim=512, num_layers=2, dropout=0.2, output_dim=768):
         super().__init__()
         self.hidden_dim = hidden_dim
 
@@ -55,7 +55,7 @@ class LSTMBaseline(nn.Module):
             batch_first=True
         )
 
-        self.output_proj = nn.Linear(hidden_dim, input_dim)
+        self.output_proj = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x, return_raw: bool = False):
         """
@@ -112,7 +112,7 @@ class GRUBlock(nn.Module):
 class GRUStack(nn.Module):
     """Stacked GRU with residuals (Mamba2 fallback)"""
 
-    def __init__(self, input_dim=768, d_model=512, num_layers=4, dropout=0.0):
+    def __init__(self, input_dim=768, d_model=512, num_layers=4, dropout=0.0, output_dim=768):
         super().__init__()
         self.d_model = d_model
 
@@ -125,7 +125,7 @@ class GRUStack(nn.Module):
         ])
 
         # Output projection
-        self.output_proj = nn.Linear(d_model, input_dim)
+        self.output_proj = nn.Linear(d_model, output_dim)
 
     def forward(self, x, return_raw: bool = False):
         """
@@ -182,11 +182,11 @@ class PositionalEncoding(nn.Module):
 class TransformerVectorPredictor(nn.Module):
     """Transformer decoder for next-vector prediction"""
 
-    def __init__(self, input_dim=768, d_model=512, nhead=8, num_layers=4, dropout=0.1):
+    def __init__(self, input_dim=768, d_model=512, nhead=8, num_layers=4, dropout=0.1, output_dim=768):
         super().__init__()
         self.d_model = d_model
 
-        # Input projection
+        # Input projection (can be 768 or 769 if positional encoding used)
         self.input_proj = nn.Linear(input_dim, d_model)
 
         # Positional encoding
@@ -202,12 +202,12 @@ class TransformerVectorPredictor(nn.Module):
         )
         self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
 
-        # Output projection
+        # Output projection (always outputs 768D target vectors)
         self.head = nn.Sequential(
             nn.Linear(d_model, d_model),
             nn.GELU(),
             nn.LayerNorm(d_model),
-            nn.Linear(d_model, input_dim),
+            nn.Linear(d_model, output_dim),
         )
 
     def forward(self, x, return_raw: bool = False):
@@ -279,9 +279,10 @@ class AttentionMixtureNetwork(nn.Module):
     - Explicit baseline computation (interpretable)
     """
 
-    def __init__(self, input_dim=768, d_model=256, hidden_dim=512):
+    def __init__(self, input_dim=768, d_model=256, hidden_dim=512, output_dim=768):
         super().__init__()
         self.input_dim = input_dim
+        self.output_dim = output_dim
         self.d_model = d_model
 
         # Context encoder (maps each position to d_model)
@@ -301,7 +302,7 @@ class AttentionMixtureNetwork(nn.Module):
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.GELU(),
             nn.LayerNorm(hidden_dim // 2),
-            nn.Linear(hidden_dim // 2, input_dim),
+            nn.Linear(hidden_dim // 2, output_dim),
         )
 
     def forward(self, x, return_raw: bool = False, return_attention: bool = False):

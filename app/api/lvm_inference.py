@@ -65,9 +65,9 @@ class LVMConfig:
     vector_dim: int = 768
     hidden_dim: int = 1024
 
-    # External services
-    encoder_url: str = "http://localhost:8767/embed"
-    decoder_url: str = "http://localhost:8766/decode"
+    # External services (PRODUCTION: Use optimized orchestrator services)
+    encoder_url: str = "http://localhost:7001/encode"
+    decoder_url: str = "http://localhost:7002/decode"
 
     # UI / inference tuning
     max_decode_steps: int = 50
@@ -281,6 +281,8 @@ class ChatResponse(BaseModel):
     total_latency_ms: float
     chunks_used: int = Field(default=1, description="Number of chunks created from input")
     chunking_applied: bool = Field(default=False, description="Whether chunking was applied")
+    input_chunks: int = Field(default=1, description="Actual input chunks before padding/retrieval")
+    ctx_fill_mode: str = Field(default="unknown", description="Context fill mode: seq, ann, mixed, repeat_pad, passthrough")
 
 
 # ============================================================================
@@ -671,22 +673,34 @@ async def decode_vector(vector: np.ndarray, steps: int = 1) -> Dict:
             config.decoder_url,
             json={
                 "vectors": [vector.tolist()],
-                "subscribers": "jxe",  # Use JXE for speed
-                "steps": steps,
-                "device": "cpu"
+                "subscriber": "ielab",  # Use ielab (jxe not available on orchestrator)
+                "steps": steps
             }
         )
         response.raise_for_status()
         result = response.json()
 
-        # Extract first result from JXE
-        first_result = result["results"][0]
-        jxe_result = first_result["subscribers"]["gtr → jxe"]
+        # Extract decoded text from orchestrator format
+        decoded_text = result["results"][0]
+
+        # Compute cosine similarity (re-encode decoded text)
+        reenc_resp = await client.post(
+            config.encoder_url,
+            json={"texts": [decoded_text]}
+        )
+        reenc_resp.raise_for_status()
+        reenc_result = reenc_resp.json()
+        reenc_vector = np.array(reenc_result["embeddings"][0], dtype=np.float32)
+
+        # Cosine similarity
+        v_norm = vector / (np.linalg.norm(vector) + 1e-12)
+        reenc_norm = reenc_vector / (np.linalg.norm(reenc_vector) + 1e-12)
+        cosine = float(np.dot(v_norm, reenc_norm))
 
         return {
-            "text": jxe_result["output"],
-            "cosine": jxe_result["cosine"],
-            "latency_ms": jxe_result["elapsed_ms"]
+            "text": decoded_text,
+            "cosine": cosine,
+            "latency_ms": 0  # TODO: extract from response if available
         }
 
 
@@ -959,6 +973,9 @@ async def chat(request: ChatRequest):
 
     latency_breakdown["encoding_ms"] = (time.perf_counter() - encode_start) * 1000
 
+    # Track input chunks BEFORE padding/retrieval (this is what user actually provided)
+    input_chunks = len(context_vectors)
+
     # Build context: retrieval-primed (4 diverse supports + query) or fallback to repeat-pad
     support_indices = []
     query_vector = None
@@ -1094,7 +1111,10 @@ async def chat(request: ChatRequest):
         else:
             latency_breakdown["calibration_ms"] = 0.0
 
-        # Real confidence: cosine(prediction, FAISS top-1)
+        # Real confidence: cosine similarity between prediction and query vector
+        # Method 1: If FAISS available, search for top-1 nearest neighbor
+        # Method 2 (fallback): Cosine similarity to query vector
+        confidence = 0.0
         if context_builder is not None:
             try:
                 pred_np = prediction[0].cpu().numpy().astype(np.float32)
@@ -1103,10 +1123,19 @@ async def chat(request: ChatRequest):
                 sim, idx = context_builder.index.search(pred_normalized[None, :], 1)
                 confidence = float(sim[0][0])  # Inner product = cosine (vectors are normalized)
             except Exception as e:
-                logger.warning(f"Failed to compute real confidence: {e}")
+                logger.warning(f"Failed to compute FAISS confidence: {e}")
                 confidence = 0.0
-        else:
-            confidence = 0.0  # No FAISS index available
+
+        # Fallback: Use cosine similarity to query vector (last context vector)
+        if confidence == 0.0 and query_vector is not None:
+            try:
+                pred_np = prediction[0].cpu().numpy().astype(np.float32)
+                pred_normalized = pred_np / (np.linalg.norm(pred_np) + 1e-12)
+                query_normalized = query_vector / (np.linalg.norm(query_vector) + 1e-12)
+                confidence = float(np.dot(pred_normalized, query_normalized))
+            except Exception as e:
+                logger.warning(f"Failed to compute fallback confidence: {e}")
+                confidence = 0.0
 
         latency_breakdown["lvm_inference_ms"] = (time.perf_counter() - lvm_start) * 1000
     else:
@@ -1225,7 +1254,9 @@ async def chat(request: ChatRequest):
         latency_breakdown=latency_breakdown,
         total_latency_ms=total_latency,
         chunks_used=chunks_used,
-        chunking_applied=chunking_applied
+        chunking_applied=chunking_applied,
+        input_chunks=input_chunks,
+        ctx_fill_mode=ctx_fill_mode
     )
 
 

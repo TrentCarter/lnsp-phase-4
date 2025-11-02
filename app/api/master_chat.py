@@ -40,6 +40,7 @@ MODEL_BACKENDS = {
     "LSTM ⭐": "http://localhost:9004",
     "Vec2Text Direct": "http://localhost:9005",
     "Transformer (Optimized)": "http://localhost:9006",
+    "Transformer (Experimental)": "http://localhost:9007",
 }
 
 # In-memory chat history (replace with DB for persistence)
@@ -202,16 +203,25 @@ async def send_message(request: ChatRequest):
             content=result["response"],
             timestamp=datetime.now().isoformat(),
             latency_ms=result.get("total_latency_ms"),
-            confidence=result.get("confidence")
+            confidence=result.get("confidence"),
+            model=request.model
         )
         chat_history[request.chat_id].append(assistant_msg.dict())
 
+        # Pass through complete metrics for footer display
         return {
             "chat_id": request.chat_id,
             "message": assistant_msg,
             "latency_ms": result.get("total_latency_ms"),
             "confidence": result.get("confidence"),
-            "chunks_used": result.get("chunks_used")
+            "chunks_used": result.get("chunks_used"),
+            "chunking_applied": result.get("chunking_applied", False),
+            "latency_breakdown": result.get("latency_breakdown", {}),
+            "model": request.model,
+            "chunk_mode": request.chunk_mode,
+            "decode_steps": request.decode_steps,
+            "input_chunks": result.get("input_chunks", 1),
+            "ctx_fill_mode": result.get("ctx_fill_mode", "unknown")
         }
 
     except httpx.HTTPError as e:
@@ -726,6 +736,7 @@ CHAT_UI_HTML = """
                 </button>
                 <select class="model-selector" id="modelSelector" onchange="updateModel()">
                     <option value="LSTM ⭐">LSTM ⭐ (Recommended)</option>
+                    <option value="Transformer (Experimental)">Transformer (Experimental) ✨</option>
                     <option value="Transformer (Optimized)">Transformer (Optimized)</option>
                     <option value="Transformer (Baseline)">Transformer (Baseline)</option>
                     <option value="GRU">GRU</option>
@@ -883,7 +894,14 @@ CHAT_UI_HTML = """
                 addMessage('assistant', result.message.content, {
                     latency_ms: result.latency_ms,
                     confidence: result.confidence,
-                    model: currentModel
+                    model: result.model || currentModel,
+                    chunks_used: result.chunks_used,
+                    chunking_applied: result.chunking_applied,
+                    latency_breakdown: result.latency_breakdown,
+                    chunk_mode: result.chunk_mode,
+                    decode_steps: result.decode_steps,
+                    input_chunks: result.input_chunks || 1,
+                    ctx_fill_mode: result.ctx_fill_mode || 'unknown'
                 });
 
                 // Update performance stats
@@ -908,33 +926,92 @@ CHAT_UI_HTML = """
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
 
-            // Use model name for assistant avatar, 'U' for user
-            let avatar = 'U';
+            // Get full model name (not abbreviations)
+            let displayName = 'U';
+            let fullModelName = '';
             if (role === 'assistant') {
-                // Get short model name (first word or abbreviation)
                 const modelName = meta.model || currentModel;
+                fullModelName = modelName;
+
+                // Avatar: Use full name for port 9000, abbreviations for consistency
                 if (modelName.includes('LSTM')) {
-                    avatar = 'LSTM';
+                    displayName = 'LSTM';
                 } else if (modelName.includes('AMN')) {
-                    avatar = 'AMN';
+                    displayName = 'AMN';
                 } else if (modelName.includes('GRU')) {
-                    avatar = 'GRU';
+                    displayName = 'GRU';
                 } else if (modelName.includes('Transformer')) {
-                    avatar = modelName.includes('Optimized') ? 'T-O' : 'T-B';
+                    if (modelName.includes('Experimental')) {
+                        displayName = 'T-E';
+                    } else if (modelName.includes('Optimized')) {
+                        displayName = 'T-O';
+                    } else {
+                        displayName = 'T-B';
+                    }
                 } else if (modelName.includes('Vec2Text')) {
-                    avatar = 'V2T';
+                    displayName = 'V2T';
                 } else {
-                    avatar = modelName.substring(0, 3).toUpperCase();
+                    displayName = modelName.substring(0, 3).toUpperCase();
                 }
             }
             const avatarColor = role === 'user' ? '#48bb78' : '#667eea';
 
+            // Build enhanced metrics footer (like ports 9001-9007)
             let metaHtml = '';
-            if (meta.latency_ms || meta.confidence) {
+            if (role === 'assistant' && meta.latency_ms) {
                 const parts = [];
-                if (meta.latency_ms) parts.push(`${Math.round(meta.latency_ms)}ms`);
-                if (meta.confidence) parts.push(`${(meta.confidence * 100).toFixed(1)}% confidence`);
-                metaHtml = `<div class="message-meta">${parts.join(' • ')}</div>`;
+
+                // Model name (full name instead of abbreviation)
+                parts.push(`Model: ${fullModelName}`);
+
+                // Latency
+                parts.push(`Latency: ${Math.round(meta.latency_ms)}ms`);
+
+                // LVM time (if available from breakdown)
+                if (meta.latency_breakdown && meta.latency_breakdown.lvm_inference_ms !== undefined) {
+                    parts.push(`LVM: ${meta.latency_breakdown.lvm_inference_ms.toFixed(1)}ms`);
+                }
+
+                // Vec2Text steps
+                if (meta.decode_steps) {
+                    parts.push(`Vec2Text: ${meta.decode_steps} step${meta.decode_steps > 1 ? 's' : ''}`);
+                }
+
+                // Chunk mode
+                if (meta.chunk_mode) {
+                    const chunkModeMap = {
+                        'sentence': 'By Sentence',
+                        'adaptive': 'Adaptive',
+                        'fixed': 'Fixed',
+                        'off': 'Off'
+                    };
+                    parts.push(`Auto-Chunk: ${chunkModeMap[meta.chunk_mode] || meta.chunk_mode}`);
+                }
+
+                // Chunk window - show input chunks vs context length
+                // If retrieval-based (ann/mixed), show in orange
+                if (meta.input_chunks !== undefined && meta.ctx_fill_mode !== undefined) {
+                    const contextLength = 5;  // Default context length
+                    const isRetrieval = meta.ctx_fill_mode === 'ann' || meta.ctx_fill_mode === 'mixed';
+
+                    if (isRetrieval) {
+                        // Retrieval mode: show in orange
+                        parts.push(`<span style="color: #ed8936;">Window: Retrieval (${meta.input_chunks} → ${contextLength})</span>`);
+                    } else {
+                        // Sequential/padding mode: normal color
+                        parts.push(`Window: ${meta.input_chunks} of ${contextLength}`);
+                    }
+                }
+
+                // Confidence (fixed - was always showing 0%)
+                if (meta.confidence !== undefined && meta.confidence !== null) {
+                    const confPct = (meta.confidence * 100).toFixed(1);
+                    parts.push(`Confidence: ${confPct}%`);
+                } else {
+                    parts.push(`Confidence: N/A`);
+                }
+
+                metaHtml = `<div class="message-meta" style="font-size: 10px; color: var(--text-secondary); margin-top: 6px;">${parts.join(' | ')}</div>`;
             }
 
             let actionsHtml = '';
@@ -948,7 +1025,7 @@ CHAT_UI_HTML = """
             }
 
             messageDiv.innerHTML = `
-                <div class="message-avatar" style="background: ${avatarColor}">${avatar}</div>
+                <div class="message-avatar" style="background: ${avatarColor}">${displayName}</div>
                 <div>
                     <div class="message-content">${escapeHtml(content)}</div>
                     ${metaHtml}
@@ -1036,7 +1113,8 @@ CHAT_UI_HTML = """
                 data.messages.forEach(msg => {
                     addMessage(msg.role, msg.content, {
                         latency_ms: msg.latency_ms,
-                        confidence: msg.confidence
+                        confidence: msg.confidence,
+                        model: msg.model
                     });
                 });
 

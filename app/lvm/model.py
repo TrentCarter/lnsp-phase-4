@@ -166,34 +166,47 @@ class GRUModel(nn.Module):
 # LSTM - Long Short-Term Memory
 # ============================================================================
 
+class LSTMBlock(nn.Module):
+    """Single LSTM block with residual connection and layer norm."""
+    def __init__(self, hidden_dim):
+        super().__init__()
+        self.lstm = nn.LSTM(hidden_dim, hidden_dim, num_layers=1, batch_first=True)
+        self.norm = nn.LayerNorm(hidden_dim)
+
+    def forward(self, x):
+        # x: [batch, seq_len, hidden_dim]
+        identity = x
+        lstm_out, _ = self.lstm(x)  # [batch, seq_len, hidden_dim]
+        out = self.norm(lstm_out + identity)  # Residual connection + layer norm
+        return out
+
+
 class LSTMModel(nn.Module):
-    """
-    Standard LSTM for next-vector prediction.
+    """Stacked LSTM with residual connections for next-vector prediction.
 
     Architecture:
-    - 2-layer LSTM
-    - Direct output projection
-
-    Best for: Balanced latency and accuracy
-    Performance: Val cosine 0.5758, 0.56ms/query
+    - Input projection to d_model
+    - 4 stacked LSTM blocks with residuals
+    - Output projection to 768D
     """
-    def __init__(self, input_dim=768, hidden_dim=512, num_layers=2, dropout=0.2):
+    def __init__(self, input_dim=768, d_model=512, num_layers=4, dropout=0.0):
         super().__init__()
         self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
+        self.d_model = d_model
         self.num_layers = num_layers
 
-        # LSTM
-        self.lstm = nn.LSTM(
-            input_dim,
-            hidden_dim,
-            num_layers,
-            dropout=dropout if num_layers > 1 else 0,
-            batch_first=True
-        )
+        # Input projection
+        self.input_proj = nn.Linear(input_dim, d_model)
+
+        # Stacked LSTM blocks
+        self.blocks = nn.ModuleList([
+            LSTMBlock(d_model) for _ in range(num_layers)
+        ])
 
         # Output projection
-        self.output_proj = nn.Linear(hidden_dim, input_dim)
+        self.output_proj = nn.Linear(d_model, input_dim)
+
+        self.dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
 
     def forward(self, x):
         """
@@ -202,19 +215,18 @@ class LSTMModel(nn.Module):
         Returns:
             prediction: [batch, 768]
         """
-        # LSTM forward
-        lstm_out, _ = self.lstm(x)  # [batch, seq_len, hidden_dim]
+        # Project input
+        x = self.input_proj(x)  # [batch, seq_len, d_model]
+        x = self.dropout(x)
 
-        # Get last position
-        last_hidden = lstm_out[:, -1, :]  # [batch, hidden_dim]
+        # Apply LSTM blocks
+        for block in self.blocks:
+            x = block(x)  # [batch, seq_len, d_model]
 
-        # Project to output
-        prediction = self.output_proj(last_hidden)  # [batch, 768]
-
-        # L2 normalize
-        prediction = F.normalize(prediction, p=2, dim=-1)
-
-        return prediction
+        # Get last hidden state and project to output
+        last_hidden = x[:, -1, :]  # [batch, d_model]
+        output = self.output_proj(last_hidden)  # [batch, 768]
+        return output
 
 
 # ============================================================================
@@ -332,15 +344,23 @@ def load_lvm_model(model_type: str, checkpoint_path: str, device: str = "cpu"):
     # Extract config
     config = checkpoint['model_config']
 
-    # Create model
+    # Create model with parameter name handling
     if model_type == "amn":
         model = AMNModel(**config)
     elif model_type == "gru":
         model = GRUModel(**config)
     elif model_type == "lstm":
-        model = LSTMModel(**config)
+        # Handle parameter name differences for LSTM
+        lstm_config = config.copy()
+        if 'hidden_dim' in lstm_config and 'd_model' not in lstm_config:
+            lstm_config['d_model'] = lstm_config.pop('hidden_dim')
+        model = LSTMModel(**lstm_config)
     elif model_type == "transformer":
-        model = TransformerModel(**config)
+        # Handle both old and new transformer architectures
+        transformer_config = config.copy()
+        # Old TransformerModel doesn't accept output_dim, filter it out
+        transformer_config.pop('output_dim', None)
+        model = TransformerModel(**transformer_config)
     else:
         raise ValueError(f"Unknown model type: {model_type}")
 

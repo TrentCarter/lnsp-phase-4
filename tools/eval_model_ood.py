@@ -68,12 +68,111 @@ def evaluate_model(model, contexts, targets, device, batch_size=32):
     }
 
 
+def neighbor_sweep(model, contexts, device, batch_size=32):
+    """
+    Neighbor sweep diagnostic: Test predictions against multiple target offsets.
+
+    Given context [t-4, t-3, t-2, t-1, t], model should predict t+1.
+    This tests cos(pred, {t-4, t-3, t-2, t-1, t, t+1}) to detect misalignment.
+
+    If peak is at t or t-1 instead of t+1, the OOD builder shifted window wrong.
+    """
+    model.eval()
+
+    # Convert to tensors
+    if not isinstance(contexts, torch.Tensor):
+        contexts = torch.from_numpy(contexts).float()
+    contexts = contexts.to(device)
+
+    # Extract vectors at different positions from context window
+    # contexts shape: (N, 5, 768) = [t-4, t-3, t-2, t-1, t]
+    t_minus_4 = contexts[:, 0, :]  # t-4
+    t_minus_3 = contexts[:, 1, :]  # t-3
+    t_minus_2 = contexts[:, 2, :]  # t-2
+    t_minus_1 = contexts[:, 3, :]  # t-1
+    t_current = contexts[:, 4, :]  # t
+
+    # Generate predictions
+    all_preds = []
+    with torch.no_grad():
+        for i in range(0, len(contexts), batch_size):
+            batch_ctx = contexts[i:i+batch_size]
+            pred = model(batch_ctx)
+            all_preds.append(pred)
+
+    predictions = torch.cat(all_preds, dim=0)
+
+    # Compute cosine similarity against each position
+    results = {}
+    test_vectors = {
+        't-4': t_minus_4,
+        't-3': t_minus_3,
+        't-2': t_minus_2,
+        't-1': t_minus_1,
+        't': t_current,
+    }
+
+    for offset_name, test_vec in test_vectors.items():
+        cos_sim = cosine_similarity(predictions, test_vec)
+        results[offset_name] = cos_sim
+
+    return results
+
+
+def sign_flip_test(model, contexts, targets, device, batch_size=32):
+    """
+    Sign-flip diagnostic: Test cos(pred, -target) for inversion detection.
+
+    If cos(pred, -target) jumps to ~+0.5 while cos(pred, target) is negative,
+    targets were accidentally inverted when writing the OOD file.
+    """
+    model.eval()
+
+    # Convert to tensors
+    if not isinstance(contexts, torch.Tensor):
+        contexts = torch.from_numpy(contexts).float()
+    if not isinstance(targets, torch.Tensor):
+        targets = torch.from_numpy(targets).float()
+
+    contexts = contexts.to(device)
+    targets = targets.to(device)
+
+    normal_scores = []
+    flipped_scores = []
+
+    with torch.no_grad():
+        for i in range(0, len(contexts), batch_size):
+            batch_ctx = contexts[i:i+batch_size]
+            batch_tgt = targets[i:i+batch_size]
+
+            # Forward pass
+            pred = model(batch_ctx)
+
+            # Normal cosine (pred vs target)
+            cos_normal = cosine_similarity(pred, batch_tgt)
+
+            # Flipped cosine (pred vs -target)
+            cos_flipped = cosine_similarity(pred, -batch_tgt)
+
+            normal_scores.append(cos_normal)
+            flipped_scores.append(cos_flipped)
+
+    return {
+        'normal': np.mean(normal_scores),
+        'flipped': np.mean(flipped_scores),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="Evaluate LVM model on OOD data")
     parser.add_argument('--model', required=True, help='Path to model checkpoint')
     parser.add_argument('--ood-data', default='artifacts/lvm/wikipedia_ood_test_ctx5.npz',
                         help='OOD test data file')
     parser.add_argument('--device', default='mps', help='Device (mps, cuda, cpu)')
+    parser.add_argument('--neighbor-sweep', action='store_true',
+                        help='Run neighbor sweep diagnostic (tests pred vs multiple target offsets)')
+    parser.add_argument('--sign-flip-test', action='store_true',
+                        help='Run sign-flip test (tests cos(pred, -target) for inversion detection)')
     args = parser.parse_args()
 
     model_path = Path(args.model)
@@ -159,6 +258,70 @@ def main():
 
     print()
     print("=" * 60)
+
+    # Run diagnostics if requested
+    if args.neighbor_sweep or args.sign_flip_test:
+        print()
+        print("=" * 60)
+        print("DIAGNOSTICS")
+        print("=" * 60)
+        print()
+
+    if args.neighbor_sweep:
+        print("🔍 Neighbor Sweep Diagnostic")
+        print("-" * 60)
+        print("Testing predictions against multiple target offsets...")
+        print("(If peak is at t or t-1 instead of t+1, OOD window shifted wrong)")
+        print()
+
+        sweep_results = neighbor_sweep(model, ood_ctx, device)
+
+        print("Cosine similarity: pred vs...")
+        for offset, score in sorted(sweep_results.items()):
+            marker = " ← PEAK!" if score == max(sweep_results.values()) else ""
+            print(f"  {offset:>4s}: {score:+.4f}{marker}")
+
+        # Also test against t+1 (actual target)
+        print(f"  t+1:  {results['cosine_mean']:+.4f} ← Expected peak")
+        print()
+
+        # Interpretation
+        max_offset = max(sweep_results, key=sweep_results.get)
+        max_score = sweep_results[max_offset]
+
+        print("INTERPRETATION:")
+        if max_score > results['cosine_mean']:
+            print(f"  🚨 MISALIGNMENT DETECTED!")
+            print(f"     Peak is at {max_offset} ({max_score:+.4f}), NOT at t+1 ({results['cosine_mean']:+.4f})")
+            print(f"     → OOD builder shifted window wrong!")
+        else:
+            print(f"  ✅ Alignment looks correct (peak at t+1)")
+        print()
+
+    if args.sign_flip_test:
+        print("🔄 Sign-Flip Diagnostic")
+        print("-" * 60)
+        print("Testing cos(pred, -target) for inversion detection...")
+        print()
+
+        flip_results = sign_flip_test(model, ood_ctx, ood_tgt, device)
+
+        print(f"  cos(pred, +target): {flip_results['normal']:+.4f}")
+        print(f"  cos(pred, -target): {flip_results['flipped']:+.4f}")
+        print()
+
+        # Interpretation
+        print("INTERPRETATION:")
+        if flip_results['flipped'] > 0.3 and flip_results['normal'] < 0:
+            print(f"  🚨 SIGN INVERSION DETECTED!")
+            print(f"     Flipped cosine is positive ({flip_results['flipped']:+.4f})")
+            print(f"     → Targets were accidentally inverted when writing OOD file!")
+        elif abs(flip_results['flipped'] - (-flip_results['normal'])) < 0.01:
+            print(f"  ✅ Sign is correct (flipped ≈ -normal)")
+        else:
+            print(f"  ⚠️  Unclear - may need further investigation")
+        print()
+        print("=" * 60)
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Stop All LVM Chat Services
+# Stop All LVM Chat Services + Orchestrator Encode/Decode
 
 # Colors
 GREEN='\033[0;32m'
@@ -42,18 +42,22 @@ stop_service() {
     fi
 }
 
+stop_service "LVM Evaluation Dashboard"
+stop_service "Orchestrator Encoder"
+stop_service "Orchestrator Decoder"
 stop_service "Master Chat"
-stop_service "AMN Chat"
-stop_service "Transformer (Baseline) Chat"
-stop_service "GRU Chat"
-stop_service "LSTM Chat"
-stop_service "Vec2Text Direct Chat"
-stop_service "Transformer (Optimized) Chat"
+stop_service "AMN"
+stop_service "Transformer Baseline"
+stop_service "GRU"
+stop_service "LSTM"
+stop_service "Vec2Text Direct"
+stop_service "Transformer Optimized"
+stop_service "Transformer Experimental"
 
-# Also kill any remaining uvicorn processes on LVM ports
+# Also kill any remaining processes on all ports (orchestrator + LVM + dashboard)
 echo ""
 echo "Cleaning up any remaining processes..."
-for port in 9000 9001 9002 9003 9004 9005 9006; do
+for port in 7001 7002 8999 9000 9001 9002 9003 9004 9005 9006 9007; do
     pid=$(lsof -t -i:$port 2>/dev/null)
     if [ -n "$pid" ]; then
         echo "  Killing process on port $port (PID: $pid)"

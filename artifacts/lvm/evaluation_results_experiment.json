@@ -1,0 +1,202 @@
+{
+  "evaluated_at": "2025-10-31T00:27:10.491629",
+  "device": "mps",
+  "results": {
+    "amn_584k_clean": {
+      "validation_sequences_ctx5_articles4000-4499": {
+        "model_path": "artifacts/lvm/models/amn_584k_clean/best_model.pt",
+        "parameters": 1510912,
+        "metrics": {
+          "mse_loss": {
+            "mean": 0.001205568783916533,
+            "std": 0.00031015893910080194,
+            "median": 0.0011873625917360187
+          },
+          "cosine_similarity": {
+            "mean": 0.5370616316795349,
+            "std": 0.11910103261470795,
+            "median": 0.5440423488616943
+          },
+          "inference_time": {
+            "mean_ms": 0.8741306046308097,
+            "std_ms": 4.252480460731757,
+            "samples_per_second": 73138.04487698078
+          },
+          "top_k_accuracy": {
+            "1": 0.5,
+            "5": 10.299999999999999,
+            "10": 21.4,
+            "20": 34.4
+          }
+        },
+        "checkpoint_info": {
+          "epoch": 17,
+          "val_loss": 0.0012165048592606943,
+          "val_cosine": 0.532862188069375
+        }
+      },
+      "ood_sequences_ctx5_articles1500-1999": {
+        "model_path": "artifacts/lvm/models/amn_584k_clean/best_model.pt",
+        "parameters": 1510912,
+        "metrics": {
+          "mse_loss": {
+            "mean": 0.0011834804899990559,
+            "std": 0.00027796661015599966,
+            "median": 0.00117560348007828
+          },
+          "cosine_similarity": {
+            "mean": 0.5455434918403625,
+            "std": 0.10673917829990387,
+            "median": 0.5484477281570435
+          },
+          "inference_time": {
+            "mean_ms": 0.7405114022030193,
+            "std_ms": 2.4193742835688883,
+            "samples_per_second": 86013.89165167924
+          },
+          "top_k_accuracy": {
+            "1": 0.3,
+            "5": 6.7,
+            "10": 14.099999999999998,
+            "20": 22.3
+          }
+        },
+        "checkpoint_info": {
+          "epoch": 17,
+          "val_loss": 0.0012165048592606943,
+          "val_cosine": 0.532862188069375
+        }
+      },
+      "validation_sequences_ctx5_articles7672-8470": {
+        "model_path": "artifacts/lvm/models/amn_584k_clean/best_model.pt",
+        "parameters": 1510912,
+        "metrics": {
+          "mse_loss": {
+            "mean": 0.001058871508575976,
+            "std": 0.00033899833215400577,
+            "median": 0.0010334334801882505
+          },
+          "cosine_similarity": {
+            "mean": 0.5933933258056641,
+            "std": 0.1301753669977188,
+            "median": 0.603161633014679
+          },
+          "inference_time": {
+            "mean_ms": 0.580000351684412,
+            "std_ms": 1.0208911301164525,
+            "samples_per_second": 110259.78376314905
+          },
+          "top_k_accuracy": {
+            "1": 0.2,
+            "5": 18.9,
+            "10": 30.599999999999998,
+            "20": 39.900000000000006
+          }
+        },
+        "checkpoint_info": {
+          "epoch": 17,
+          "val_loss": 0.0012165048592606943,
+          "val_cosine": 0.532862188069375
+        }
+      }
+    },
+    "amn_790k_split": {
+      "validation_sequences_ctx5_articles4000-4499": {
+        "model_path": "artifacts/lvm/models/amn_790k_split/best_model.pt",
+        "parameters": 1510912,
+        "metrics": {
+          "mse_loss": {
+            "mean": 0.001230014837346971,
+            "std": 0.0002934253425337374,
+            "median": 0.0012188729597255588
+          },
+          "cosine_similarity": {
+            "mean": 0.5276743173599243,
+            "std": 0.11267533898353577,
+            "median": 0.5319464802742004
+          },
+          "inference_time": {
+            "mean_ms": 0.5560349609892247,
+            "std_ms": 0.04568553041632677,
+            "samples_per_second": 114978.74751632648
+          },
+          "top_k_accuracy": {
+            "1": 0.5,
+            "5": 9.5,
+            "10": 19.2,
+            "20": 31.5
+          }
+        },
+        "checkpoint_info": {
+          "epoch": 17,
+          "val_loss": 0.00140879506892438,
+          "val_cosine": 0.4590227390392287
+        }
+      },
+      "ood_sequences_ctx5_articles1500-1999": {
+        "model_path": "artifacts/lvm/models/amn_790k_split/best_model.pt",
+        "parameters": 1510912,
+        "metrics": {
+          "mse_loss": {
+            "mean": 0.0012005680473521352,
+            "std": 0.00026122762938030064,
+            "median": 0.0011931585613638163
+          },
+          "cosine_similarity": {
+            "mean": 0.5389818549156189,
+            "std": 0.10031140595674515,
+            "median": 0.5417708158493042
+          },
+          "inference_time": {
+            "mean_ms": 0.5711795418125809,
+            "std_ms": 0.04547620084051111,
+            "samples_per_second": 111513.56596876039
+          },
+          "top_k_accuracy": {
+            "1": 0.7000000000000001,
+            "5": 6.7,
+            "10": 12.1,
+            "20": 20.200000000000003
+          }
+        },
+        "checkpoint_info": {
+          "epoch": 17,
+          "val_loss": 0.00140879506892438,
+          "val_cosine": 0.4590227390392287
+        }
+      },
+      "validation_sequences_ctx5_articles7672-8470": {
+        "model_path": "artifacts/lvm/models/amn_790k_split/best_model.pt",
+        "parameters": 1510912,
+        "metrics": {
+          "mse_loss": {
+            "mean": 0.0010929167037829757,
+            "std": 0.00031517233583144844,
+            "median": 0.001070857630111277
+          },
+          "cosine_similarity": {
+            "mean": 0.5803200602531433,
+            "std": 0.1210261806845665,
+            "median": 0.5887781381607056
+          },
+          "inference_time": {
+            "mean_ms": 0.5563996954496113,
+            "std_ms": 0.031295667596074925,
+            "samples_per_second": 114936.64335599043
+          },
+          "top_k_accuracy": {
+            "1": 0.5,
+            "5": 15.2,
+            "10": 26.400000000000002,
+            "20": 35.4
+          }
+        },
+        "checkpoint_info": {
+          "epoch": 17,
+          "val_loss": 0.00140879506892438,
+          "val_cosine": 0.4590227390392287
+        }
+      }
+    }
+  }
+}

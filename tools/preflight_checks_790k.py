@@ -38,6 +38,8 @@ def check_1_encoder_fingerprint():
         # Compute hash (convert to numpy first if torch tensor)
         if hasattr(test_vector, 'cpu'):
             test_vector = test_vector.cpu().numpy()
+        elif not isinstance(test_vector, np.ndarray):
+            test_vector = np.array(test_vector)
         vec_hash = hash(test_vector.tobytes())
 
         print(f"✅ Encoder loaded successfully")
@@ -175,7 +177,9 @@ def check_4_off_by_one():
         # Group by article
         from collections import defaultdict
         articles = defaultdict(list)
-        for i, (article_id, chunk_idx) in enumerate(positions):
+        for i, pos in enumerate(positions):
+            article_id = int(pos[0])
+            chunk_idx = int(pos[1])
             articles[article_id].append((chunk_idx, i))
 
         # For each article, check neighbor alignment
@@ -255,8 +259,10 @@ def check_5_adjacency_coherence():
         adjacency_cosines = []
 
         for i in range(len(positions) - 1):
-            article_1, chunk_1 = int(positions[i][0]), int(positions[i][1])
-            article_2, chunk_2 = int(positions[i + 1][0]), int(positions[i + 1][1])
+            article_1 = int(positions[i][0])
+            chunk_1 = int(positions[i][1])
+            article_2 = int(positions[i + 1][0])
+            chunk_2 = int(positions[i + 1][1])
 
             # Only consider consecutive chunks in same article
             if article_1 == article_2 and chunk_2 == chunk_1 + 1:

@@ -15,6 +15,8 @@ That file contains the cardinal rules that must NEVER be violated:
 
 ---
 
+# DONT Overwrite the GEMINI_LOG.md file! You keep doing this and its stupid.
+
 ## 📌 ACTIVE CHECKPOINT: Wikipedia Ingestion (2025-10-18 - Updated)
 
 **STATUS**: Ready to continue ingestion with improved checkpoint system

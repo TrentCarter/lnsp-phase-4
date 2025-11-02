@@ -2,12 +2,35 @@
 source .venv/bin/activate
 claude --dangerously-skip-permissions
 
+🔴 CRITICAL: ENCODER/DECODER USAGE (10/31/2025)
+docs/CORRECT_ENCODER_DECODER_USAGE.md
+CLAUDE.md (see section: CRITICAL: CORRECT ENCODER/DECODER)
+
+Key Rule: ONLY use IsolatedVecTextVectOrchestrator for encoding AND decoding.
+DO NOT use port 8766 for decoding - it's incompatible with port 8767 encoder.
 
 docs/PRDs/PRD_FastAPI_Services.md
 scripts/start_all_fastapi_services.sh
 scripts/stop_lvm_services.sh
 scripts/start_lvm_services.sh
 ./scripts/stop_lvm_services.sh && ./scripts/start_lvm_services.sh
+
+  - Previous: 584k concepts → 543k sequences
+  - Current: 790k concepts → 726k sequences
+10/31/2025
+  - ✅ CLAUDE.md - Production services section
+  - ✅ docs/CORRECT_ENCODER_DECODER_USAGE.md - Complete standalone guide
+  - ✅ docs/how_to_use_jxe_and_ielab.md - JXE/IELab reference updated
+  - ✅ docs/readme.txt - Critical warning added
+  - ✅ scripts/start_lvm_services.sh - Starts orchestrator services
+  - ✅ scripts/stop_lvm_services.sh - Stops orchestrator services
+  
+
+10/30/25
+
+/docs/LVM_TRAINING_PRINCIPLES_AND_PLAN.md with the following key enhancements:
+
+docs/how_to_use_jxe_and_ielab.md
 
 
 # 10/29/2025
@@ -48,15 +71,17 @@ scripts/start_lvm_services.sh
   http://localhost:9000
 
   Port Mapping Now:
-  | Port | Model           | Type               | Val Cosine |
-  |------|-----------------|--------------------|------------|
-  | 9000 | MASTER AI CHAT  | ALL LVMs.          | N/A        |
-  | 9001 | AMN             | Best OOD + Fastest | 0.5597     |
-  | 9002 | Transformer     | Baseline           | 0.5774     |
-  | 9003 | GRU             | Runner-up          | 0.5920     |
-  | 9004 | LSTM            | Deprecated         | 0.4102 ⚠️  |
-  | 9005 | Vec2Text Direct | Passthrough        | N/A        |
-  | 9006 | Transformer     | Optimized ✅        | 0.5864     |
+  | Port  | Model                  | Type               | Val Cosine |
+  |-------|------------------------|--------------------|------------|
+  | 8999  | LVM Evaluation         | Dashboard          | N/A        |
+  | 9000  | MASTER AI CHAT         | ALL LVMs.          | N/A        |
+  | 9001  | AMN                    | Best OOD + Fastest | 0.5597     |
+  | 9002  | Transformer            | Baseline           | 0.5774     |
+  | 9003  | GRU                    | Runner-up          | 0.5920     |
+  | 9004  | LSTM                   | Deprecated         | 0.4102 ⚠️  |
+  | 9005  | Vec2Text Direct        | Passthrough        | N/A        |
+  | 9006  | Transformer            | Optimized ✅        | 0.5864     |
+  | 9007  | Transformer            | Experimental ✨     | 0.5579     |
 
   2. Auto-Chunking Feature Added
 
@@ -102,6 +127,8 @@ API endpoints:
 # Recommended (no reload, venv Python 3.11)
 
 ./.venv/bin/python tools/launch_fastapis.py
+
+./.venv/bin/python scripts/train_transformer_584k_stable.sh 
 
 # Enable reload for all services
 

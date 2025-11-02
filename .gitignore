@@ -11,6 +11,7 @@ micrograd/
 artifacts/*
 !artifacts/**/*.md
 !artifacts/**/*.json
+artifacts/lvm/models/*.json
 !artifacts/**/*.txt
 !artifacts/**/*.sh
 !artifacts/**/
@@ -346,3 +347,6 @@ reports/output/
 
 
 manifests/
+flask_session/
+training_history.json
+lvm_eval/sessions/

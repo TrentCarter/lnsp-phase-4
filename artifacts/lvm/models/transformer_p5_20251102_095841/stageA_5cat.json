@@ -1,0 +1,83 @@
+[INFO] Loading datasets…
+[INFO] Loading model…
+[INFO] Detected input_dim=769 from checkpoint
+[INFO] Positional encoding will be applied during inference (pos_scale=0.03)
+[RUN] Offset alignment sweep — VAL
+[RUN] Retrieval rank (within-article) — VAL
+[RUN] Ablations — VAL
+[RUN] Rollout H=5 — VAL
+[RUN] Stratified bins — VAL
+[RUN] Offset alignment sweep — OOD
+[RUN] Retrieval rank (within-article) — OOD
+[RUN] Ablations — OOD
+[RUN] Rollout H=5 — OOD
+[RUN] Stratified bins — OOD
+
+===== 5→1 Causal Alignment Test — Summary =====
+{
+  "VAL": {
+    "A:k=-3": 0.5053968878686428,
+    "A:k=-2": 0.5096286958605051,
+    "A:k=-1": 0.49983403614163396,
+    "A:k=0": 0.47672837968170645,
+    "A:k=1": 0.4687365741878748,
+    "A:k=2": 0.46437949864566325,
+    "A:k=3": 0.4614714866876602,
+    "A:margin(+1)": -0.04089212167263029,
+    "A:samples": 2000.0,
+    "B:R@1": 0.032,
+    "B:R@5": 0.175,
+    "B:MRR": 0.12488280034879169,
+    "B:samples": 2000.0,
+    "C:shuffled": -0.009365345641970635,
+    "C:reverse": -0.015307011269032954,
+    "C:loo_avg": 0.0015310433968901633,
+    "C:repeat_pad": -0.009437784411013126,
+    "C:cross_article": -0.020953126452863215,
+    "C:samples": 2000.0,
+    "D:avg_cos@H=5": 0.44796976581513875,
+    "D:samples": 2000.0,
+    "E:low_mean": 0.4673462570013952,
+    "E:normal_mean": 0.47572091127048427,
+    "E:low_n": 893.0,
+    "E:normal_n": 629.0
+  },
+  "OOD": {
+    "A:k=-3": 0.5364065054655075,
+    "A:k=-2": 0.5424506049156189,
+    "A:k=-1": 0.5310464755296708,
+    "A:k=0": 0.5058629404455424,
+    "A:k=1": 0.49608167870342734,
+    "A:k=2": 0.4898276189118624,
+    "A:k=3": 0.48505086631327865,
+    "A:margin(+1)": -0.046368926212191575,
+    "A:samples": 2000.0,
+    "B:R@1": 0.0175,
+    "B:R@5": 0.109,
+    "B:MRR": 0.08367677884030543,
+    "B:samples": 2000.0,
+    "C:shuffled": -0.004108868271112442,
+    "C:reverse": -0.008680219255387783,
+    "C:loo_avg": 0.0017870775714516637,
+    "C:repeat_pad": -0.01189088973402977,
+    "C:cross_article": -0.015228614889085293,
+    "C:samples": 2000.0,
+    "D:avg_cos@H=5": 0.4759655138105154,
+    "D:samples": 2000.0,
+    "E:low_mean": 0.49384136199347883,
+    "E:normal_mean": 0.5049272842915454,
+    "E:low_n": 988.0,
+    "E:normal_n": 638.0
+  }
+}
+
+[RESULT] Gates:
+{
+  "offset_sweep": false,
+  "retrieval_rank": false,
+  "ablations": false,
+  "rollout": false,
+  "bins_delta": true
+}
+
+[FAIL] One or more gates failed. See summary above.

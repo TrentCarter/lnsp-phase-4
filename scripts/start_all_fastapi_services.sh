@@ -80,6 +80,9 @@ start_service "gtr_t5_embeddings" 8767 "app.api.vec2text_embedding_server:app"
 # 4. Ingest API (handles PostgreSQL + FAISS + TMD extraction)
 start_service "ingest_api" 8004 "app.api.ingest_chunks:app"
 
+# 6. LVM Inference (for text-to-text generation)
+start_service "lvm_inference" 9001 "app.api.lvm_inference:app"
+
 echo ""
 echo -e "${YELLOW}Optional services (for testing):${NC}"
 
@@ -113,6 +116,7 @@ check_health "Episode Chunker" "http://localhost:8900/health"
 check_health "Semantic Chunker" "http://localhost:8001/health"
 check_health "GTR-T5 Embeddings" "http://localhost:8767/health"
 check_health "Ingest API" "http://localhost:8004/health"
+check_health "LVM Inference" "http://localhost:9001/health"
 
 if [ "$START_VEC2TEXT_DECODER" = "1" ]; then
     check_health "Vec2Text Decoder" "http://localhost:8766/health"
