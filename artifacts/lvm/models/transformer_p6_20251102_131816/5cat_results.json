@@ -1,0 +1,82 @@
+[INFO] Loading datasets…
+[INFO] Loading model…
+[INFO] Detected input_dim=768 from checkpoint
+[RUN] Offset alignment sweep — VAL
+[RUN] Retrieval rank (within-article) — VAL
+[RUN] Ablations — VAL
+[RUN] Rollout H=5 — VAL
+[RUN] Stratified bins — VAL
+[RUN] Offset alignment sweep — OOD
+[RUN] Retrieval rank (within-article) — OOD
+[RUN] Ablations — OOD
+[RUN] Rollout H=5 — OOD
+[RUN] Stratified bins — OOD
+
+===== 5→1 Causal Alignment Test — Summary =====
+{
+  "VAL": {
+    "A:k=-3": NaN,
+    "A:k=-2": NaN,
+    "A:k=-1": NaN,
+    "A:k=0": NaN,
+    "A:k=1": NaN,
+    "A:k=2": NaN,
+    "A:k=3": NaN,
+    "A:margin(+1)": NaN,
+    "A:samples": 0.0,
+    "B:R@1": NaN,
+    "B:R@5": NaN,
+    "B:MRR": NaN,
+    "B:samples": 0.0,
+    "C:shuffled": -0.010432798665761947,
+    "C:reverse": -0.020214409783482552,
+    "C:loo_avg": -0.003044794363975525,
+    "C:repeat_pad": -0.03019764770269394,
+    "C:cross_article": -0.026260325755178927,
+    "C:samples": 5000.0,
+    "D:avg_cos@H=5": NaN,
+    "D:samples": 0.0,
+    "E:low_mean": 0.5022286949604617,
+    "E:normal_mean": 0.5151092328513415,
+    "E:low_n": 2246.0,
+    "E:normal_n": 1423.0
+  },
+  "OOD": {
+    "A:k=-3": NaN,
+    "A:k=-2": NaN,
+    "A:k=-1": NaN,
+    "A:k=0": NaN,
+    "A:k=1": NaN,
+    "A:k=2": NaN,
+    "A:k=3": NaN,
+    "A:margin(+1)": NaN,
+    "A:samples": 0.0,
+    "B:R@1": NaN,
+    "B:R@5": NaN,
+    "B:MRR": NaN,
+    "B:samples": 0.0,
+    "C:shuffled": -0.007530913850665092,
+    "C:reverse": -0.01400400278866291,
+    "C:loo_avg": -0.00353195983171463,
+    "C:repeat_pad": -0.03392985762953758,
+    "C:cross_article": -0.02268223388791084,
+    "C:samples": 5000.0,
+    "D:avg_cos@H=5": NaN,
+    "D:samples": 0.0,
+    "E:low_mean": 0.5141950320753251,
+    "E:normal_mean": 0.5294833000644248,
+    "E:low_n": 2415.0,
+    "E:normal_n": 1595.0
+  }
+}
+
+[RESULT] Gates:
+{
+  "offset_sweep": false,
+  "retrieval_rank": false,
+  "ablations": false,
+  "rollout": false,
+  "bins_delta": true
+}
+
+[FAIL] One or more gates failed. See summary above.

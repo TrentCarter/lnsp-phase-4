@@ -317,6 +317,214 @@ def compute_offset_margins(
         }
 
 
+def directional_margin_loss_smooth(
+    pred: torch.Tensor,
+    y_next: torch.Tensor,
+    y_prev: torch.Tensor,
+    *,
+    margin: float = 0.05,
+    gamma: float = 8.0,
+):
+    """
+    P6b: Smooth directional margin loss using softplus.
+
+    Enforces cos(pred, next) > cos(pred, prev) + margin using smooth hinge.
+    Loss = softplus(gamma * (margin - gap)) / gamma
+
+    This is scale-friendly and avoids the hard ReLU used in earlier versions.
+    Auto-scaling via λ_eff keeps this from overwhelming MSE.
+
+    Args:
+        pred: (B, D) model predictions
+        y_next: (B, D) next vectors (target)
+        y_prev: (B, D) previous vectors (hard negatives)
+        margin: minimum required gap (default: 0.05)
+        gamma: softplus sharpness (default: 8.0, higher = closer to ReLU)
+
+    Returns:
+        (loss, pos_mean, neg_mean, gap_mean) tuple
+    """
+    def _unit(x: torch.Tensor) -> torch.Tensor:
+        """L2 normalize with safety clamp"""
+        return x / x.norm(dim=-1, keepdim=True).clamp_min(1e-8)
+
+    p = _unit(pred)
+    yn = _unit(y_next)
+    yp = _unit(y_prev)
+
+    pos = (p * yn).sum(dim=-1)   # cos(pred, next)
+    neg = (p * yp).sum(dim=-1)   # cos(pred, prev)
+    gap = pos - neg              # want gap >= margin
+
+    # Smooth hinge: softplus(gamma * (margin - gap)) / gamma
+    loss = F.softplus(gamma * (margin - gap)) / gamma
+
+    return loss.mean(), pos.mean(), neg.mean(), gap.mean()
+
+
+def directional_margin_loss_v21(
+    pred: torch.Tensor,
+    y_next: torch.Tensor,
+    y_prev: torch.Tensor,
+    *,
+    margin_gap: float = 0.05,
+    margin_ratio: float = 0.05,
+    gamma: float = 4.0,
+    alpha: float = 0.7,
+):
+    """
+    P6b v2.1: Scale-aware directional margin loss with ratio term.
+
+    Prevents "two negatives look good" failure mode by using both:
+    1. Absolute gap: cos(pred, next) - cos(pred, prev)
+    2. Relative ratio: gap / (|cos_pos| + |cos_neg| + eps)
+
+    When both cosines go negative, raw gap can be large but meaningless.
+    The ratio term detects this and applies proper penalty.
+
+    Loss = α * gap_loss + (1-α) * ratio_loss
+    where:
+      gap_loss = softplus(γ * (m_gap - gap)) / γ
+      ratio_loss = softplus(γ * (m_ratio - ratio)) / γ
+
+    Args:
+        pred: (B, D) model predictions
+        y_next: (B, D) next vectors (target)
+        y_prev: (B, D) previous vectors (hard negatives)
+        margin_gap: minimum required absolute gap (default: 0.05)
+        margin_ratio: minimum required ratio (default: 0.05)
+        gamma: softplus sharpness (default: 4.0, softer than v1)
+        alpha: weight for gap term vs ratio term (default: 0.7)
+
+    Returns:
+        dict with keys: loss, pos_mean, neg_mean, gap_mean, ratio_mean
+    """
+    def _unit(x: torch.Tensor) -> torch.Tensor:
+        """L2 normalize with safety clamp"""
+        return x / x.norm(dim=-1, keepdim=True).clamp_min(1e-8)
+
+    p = _unit(pred)
+    yn = _unit(y_next)
+    yp = _unit(y_prev)
+
+    pos = (p * yn).sum(dim=-1)   # cos(pred, next)
+    neg = (p * yp).sum(dim=-1)   # cos(pred, prev)
+    gap = pos - neg              # absolute gap
+
+    # Scale-aware ratio term (prevents "two negatives" victory)
+    ratio = gap / (torch.abs(pos) + torch.abs(neg) + 1e-6)
+
+    # Combined loss: weighted average of gap and ratio terms
+    gap_loss = F.softplus(gamma * (margin_gap - gap)) / gamma
+    ratio_loss = F.softplus(gamma * (margin_ratio - ratio)) / gamma
+
+    loss = alpha * gap_loss + (1.0 - alpha) * ratio_loss
+
+    return {
+        'loss': loss.mean(),
+        'pos_mean': pos.mean(),
+        'neg_mean': neg.mean(),
+        'gap_mean': gap.mean(),
+        'ratio_mean': ratio.mean(),
+        'gap_loss': gap_loss.mean(),
+        'ratio_loss': ratio_loss.mean(),
+    }
+
+
+def positive_floor_penalty(
+    pred: torch.Tensor,
+    y_next: torch.Tensor,
+    *,
+    tau: float = 0.10,
+):
+    """
+    P6b v2.1: Positive floor penalty.
+
+    Prevents model from "winning the gap" with two negative cosines.
+    Gently nudges cos(pred, y_next) to stay above threshold τ.
+
+    penalty = ReLU(τ - cos(pred, y_next))^2
+
+    Args:
+        pred: (B, D) model predictions (will be normalized)
+        y_next: (B, D) next vectors (will be normalized)
+        tau: minimum threshold for cos(pred, y_next) (default: 0.10)
+
+    Returns:
+        penalty: scalar penalty term
+    """
+    def _unit(x: torch.Tensor) -> torch.Tensor:
+        return x / x.norm(dim=-1, keepdim=True).clamp_min(1e-8)
+
+    p = _unit(pred)
+    yn = _unit(y_next)
+    cos_pos = (p * yn).sum(dim=-1)
+
+    # ReLU(tau - cos_pos)^2
+    penalty = F.relu(tau - cos_pos).pow(2)
+
+    return penalty.mean()
+
+
+def norm_regularization(pred: torch.Tensor) -> torch.Tensor:
+    """
+    P6b v2.1: Norm regularization (unit-sphere constraint).
+
+    Stabilizes cosine/MSE interplay by keeping predictions near unit norm.
+
+    penalty = (||pred||_2 - 1)^2
+
+    Args:
+        pred: (B, D) model predictions
+
+    Returns:
+        penalty: scalar penalty term
+    """
+    pred_norm = pred.norm(dim=-1, p=2)  # (B,)
+    penalty = (pred_norm - 1.0).pow(2)
+    return penalty.mean()
+
+
+def orthogonality_penalty(
+    pred: torch.Tensor,
+    y_prev: torch.Tensor
+) -> torch.Tensor:
+    """
+    P6b v2.2: Orthogonality penalty (anti-prev bias).
+
+    Gently penalizes similarity to previous vector to counter backward bias.
+    Uses squared cosine to make penalty smooth and avoid sharp transitions.
+
+    penalty = (cos(pred, prev))^2
+
+    This is VERY WEAK (κ ≈ 5e-4) and only chips away at copy-prev tendency.
+    Unlike directional margin loss, this doesn't enforce ordering, just reduces alignment.
+
+    Args:
+        pred: (B, D) model predictions (will be normalized)
+        y_prev: (B, D) previous vectors (will be normalized)
+
+    Returns:
+        penalty: scalar penalty term
+
+    Usage:
+        kappa = 5e-4  # Very small weight
+        orth_pen = orthogonality_penalty(pred, y_prev)
+        loss = loss + kappa * orth_pen
+    """
+    def _unit(x: torch.Tensor) -> torch.Tensor:
+        return x / x.norm(dim=-1, keepdim=True).clamp_min(1e-8)
+
+    p = _unit(pred)
+    yp = _unit(y_prev)
+
+    # Squared cosine: smooth, differentiable, gentle
+    cos_prev = (p * yp).sum(dim=-1)  # (B,)
+    penalty = cos_prev.pow(2)        # (B,)
+
+    return penalty.mean()
+
+
 def log_directional_stats(
     pred: torch.Tensor,
     context: torch.Tensor,
@@ -345,3 +553,57 @@ def log_directional_stats(
         print(f"{prefix}  ⚠️  WARNING: Copying last context!")
     if stats['margin_vs_prev'] < 0:
         print(f"{prefix}  ⚠️  WARNING: Backward prediction!")
+
+
+# ============================================================================
+# P5.1 Micro-Directional Guard (Gentle Ranking Loss)
+# ============================================================================
+
+def micro_directional_loss(
+    y_hat: torch.Tensor,
+    y_next: torch.Tensor,
+    ctx_last: torch.Tensor,
+    gamma: float = 5.0,
+    margin: float = 0.02
+) -> torch.Tensor:
+    """
+    Micro-directional loss: gentle preference for next over last.
+
+    Encourages cos(y_hat, y_next) >= cos(y_hat, ctx_last) + margin
+    using a soft penalty: softplus(gamma * (cos_last - cos_next + margin))
+
+    This is MUCH weaker than directional_margin_loss (uses softplus instead of ReLU,
+    smaller gamma, smaller margin) to avoid destabilizing training while providing
+    a gentle nudge away from copy-last.
+
+    Args:
+        y_hat: (B, D) model predictions (will be normalized)
+        y_next: (B, D) target next vectors (will be normalized)
+        ctx_last: (B, D) last context vector (will be normalized)
+        gamma: softplus temperature (default: 5.0, lower = softer penalty)
+        margin: minimum required gap (default: 0.02, very small)
+
+    Returns:
+        scalar loss
+
+    Usage:
+        lambda_dir = 0.001  # Very small weight
+        L_micro = micro_directional_loss(pred, target, ctx[:, -1, :],
+                                         gamma=5.0, margin=0.02)
+        loss = L_mse + lambda_dir * L_micro
+    """
+    # Normalize defensively
+    def _norm(x):
+        return F.normalize(x, dim=-1, eps=1e-8)
+
+    y_hat = _norm(y_hat)
+    y_next = _norm(y_next)
+    ctx_last = _norm(ctx_last)
+
+    s_next = (y_hat * y_next).sum(dim=-1)  # (B,)
+    s_last = (y_hat * ctx_last).sum(dim=-1)  # (B,)
+
+    # Softplus penalty: smooth, differentiable, gentle
+    penalty = F.softplus(gamma * (s_last - s_next + margin))
+
+    return penalty.mean()

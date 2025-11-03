@@ -1,28 +1,43 @@
 class EvaluationProgress {
     constructor() {
-        // UI Elements
-        this.progressBar = document.getElementById('progressBar');
-        this.progressText = document.getElementById('progressText');
-        this.statusText = document.getElementById('statusText');
-        this.evaluationProgress = document.getElementById('evaluationProgress');
-        this.evaluateBtn = document.getElementById('evaluateBtn');
-        this.evaluateBtnText = document.getElementById('evaluateBtnText');
-        this.evaluateBtnSpinner = document.getElementById('evaluateBtnSpinner');
-        this.resultsContainer = document.getElementById('resultsContainer');
-        
+        // Defer DOM element access until needed
+        this._elements = null;
+
         // State
-        this.originalButtonText = this.evaluateBtnText.textContent;
+        this.originalButtonText = '';
         this.eventSource = null;
         this.currentProgress = 0;
         this.currentModel = '';
         this.currentStep = '';
         this.animationFrame = null;
         this.supportsSSE = typeof(EventSource) !== 'undefined';
-        
+
         // Initialize
         this.initializeEventListeners();
     }
-    
+
+    // Lazy initialization of DOM elements
+    get elements() {
+        if (!this._elements) {
+            this._elements = {
+                progressBar: document.getElementById('progressBar'),
+                progressText: document.getElementById('progressText'),
+                statusText: document.getElementById('statusText'),
+                evaluationProgress: document.getElementById('evaluationProgress'),
+                evaluateBtn: document.getElementById('evaluateBtn'),
+                evaluateBtnText: document.getElementById('evaluateBtnText'),
+                evaluateBtnSpinner: document.getElementById('evaluateBtnSpinner'),
+                resultsContainer: document.getElementById('resultsContainer')
+            };
+
+            // Store original button text
+            if (this._elements.evaluateBtnText) {
+                this.originalButtonText = this._elements.evaluateBtnText.textContent;
+            }
+        }
+        return this._elements;
+    }
+
     initializeEventListeners() {
         // Clean up any existing event source when page is unloaded
         window.addEventListener('beforeunload', () => {
@@ -35,23 +50,35 @@ class EvaluationProgress {
         this.currentProgress = 0;
         this.currentModel = '';
         this.currentStep = 'Initializing...';
-        
+
         // Clear previous results
-        if (this.resultsContainer) {
-            this.resultsContainer.innerHTML = '';
+        if (this.elements.resultsContainer) {
+            this.elements.resultsContainer.innerHTML = '';
         }
-        
+
         // Update UI
-        this.evaluateBtn.disabled = true;
-        this.evaluateBtnText.textContent = 'Evaluating...';
-        this.evaluateBtnSpinner.style.display = 'inline-block';
-        this.evaluationProgress.style.display = 'block';
+        if (this.elements.evaluateBtn) this.elements.evaluateBtn.disabled = true;
+        if (this.elements.evaluateBtnText) this.elements.evaluateBtnText.textContent = 'Evaluating...';
+        if (this.elements.evaluateBtnSpinner) this.elements.evaluateBtnSpinner.style.display = 'inline-block';
+        if (this.elements.evaluationProgress) this.elements.evaluationProgress.style.display = 'block';
+
+        // Reset progress visuals to default blue animated state
+        if (this.elements.progressBar) {
+            this.elements.progressBar.classList.remove('bg-success', 'bg-danger');
+            this.elements.progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
+        }
+        if (this.elements.statusText) {
+            this.elements.statusText.classList.remove('text-success');
+            this.elements.statusText.classList.add('text-muted');
+        }
+        const heading = document.getElementById('progressHeading');
+        if (heading) heading.textContent = 'Evaluating models...';
         this.updateProgressBar(0);
         this.updateStatusText();
-        
+
         // Start progress animation
         this.animateProgress();
-        
+
         // Initialize SSE if supported
         if (this.supportsSSE) {
             this.initializeSSE();
@@ -68,9 +95,13 @@ class EvaluationProgress {
     }
 
     updateProgressBar(percentage) {
-        this.progressBar.style.width = percentage + '%';
-        this.progressBar.setAttribute('aria-valuenow', percentage);
-        this.progressText.textContent = Math.round(percentage) + '%';
+        if (this.elements.progressBar) {
+            this.elements.progressBar.style.width = percentage + '%';
+            this.elements.progressBar.setAttribute('aria-valuenow', percentage);
+        }
+        if (this.elements.progressText) {
+            this.elements.progressText.textContent = Math.round(percentage) + '%';
+        }
     }
 
     updateStatusText() {
@@ -81,24 +112,26 @@ class EvaluationProgress {
                 status += ` (${this.currentStep})`;
             }
         }
-        this.statusText.textContent = status;
+        if (this.elements.statusText) {
+            this.elements.statusText.textContent = status;
+        }
     }
 
     animateProgress() {
         // Smoothly animate to the target progress
         const targetProgress = this.currentProgress;
-        const currentWidth = parseFloat(this.progressBar.style.width) || 0;
-        
+        const currentWidth = this.elements.progressBar ? (parseFloat(this.elements.progressBar.style.width) || 0) : 0;
+
         if (Math.abs(targetProgress - currentWidth) < 0.1) {
             this.updateProgressBar(targetProgress);
         } else {
             const newProgress = currentWidth + (targetProgress - currentWidth) * 0.1;
             this.updateProgressBar(newProgress);
         }
-        
+
         // Update status text
         this.updateStatusText();
-        
+
         // Continue animation if not at 100%
         if (this.currentProgress < 100) {
             this.animationFrame = requestAnimationFrame(() => this.animateProgress());
@@ -140,7 +173,7 @@ class EvaluationProgress {
         if (this.pollingInterval) return;
         
         this.pollingInterval = setInterval(() => {
-            fetch('/evaluate/progress')
+            fetch('/api/progress')
                 .then(response => response.json())
                 .then(data => {
                     this.handleProgressUpdate(data);
@@ -182,20 +215,33 @@ class EvaluationProgress {
         // Update to 100%
         this.currentProgress = 100;
         this.updateProgressBar(100);
-        
+
         // Set final status message
         if (data && data.message) {
-            this.statusText.textContent = data.message;
+            this.currentStep = data.message;
         } else {
-            this.statusText.textContent = 'Evaluation complete!';
+            this.currentStep = 'Evaluation complete!';
         }
-        
+        this.updateStatusText();
+
+        // Switch progress bar to green and static, and heading to 'Complete'
+        if (this.elements.progressBar) {
+            this.elements.progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated', 'bg-danger');
+            this.elements.progressBar.classList.add('bg-success');
+        }
+        const heading = document.getElementById('progressHeading');
+        if (heading) heading.textContent = 'Complete';
+        if (this.elements.statusText) {
+            this.elements.statusText.classList.remove('text-muted');
+            this.elements.statusText.classList.add('text-success');
+        }
+
         // Reset button state
         this.resetButton();
-        
+
         // Clean up resources
         this.cleanup();
-        
+
         // Return results if provided
         if (data && data.results) {
             return data.results;
@@ -225,27 +271,32 @@ class EvaluationProgress {
     error(message) {
         // Show error state
         const errorMsg = message || 'Evaluation failed';
-        this.statusText.textContent = `Error: ${errorMsg}`;
-        this.progressBar.classList.add('bg-danger');
-        
+        this.currentStep = `Error: ${errorMsg}`;
+        this.updateStatusText();
+
+        if (this.elements.progressBar) {
+            this.elements.progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated', 'bg-success');
+            this.elements.progressBar.classList.add('bg-danger');
+        }
+
         // Log to console
         console.error('Evaluation error:', errorMsg);
-        
+
         // Clean up resources
         this.cleanup();
-        
+
         // Reset button state
         this.resetButton();
-        
+
         // Show alert
         showAlert(message || 'An error occurred during evaluation.', 'danger');
     }
 
     resetButton() {
-        this.evaluateBtn.disabled = false;
-        this.evaluateBtnText.textContent = this.originalButtonText;
-        this.evaluateBtnSpinner.style.display = 'none';
-        
+        if (this.elements.evaluateBtn) this.elements.evaluateBtn.disabled = false;
+        if (this.elements.evaluateBtnText) this.elements.evaluateBtnText.textContent = this.originalButtonText;
+        if (this.elements.evaluateBtnSpinner) this.elements.evaluateBtnSpinner.style.display = 'none';
+
         // Stop animation
         if (this.animationFrame) {
             cancelAnimationFrame(this.animationFrame);

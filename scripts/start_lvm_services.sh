@@ -47,7 +47,7 @@ sleep 1
 
 # Start LVM Evaluation Dashboard (8999)
 echo -e "${GREEN}🚀 Starting LVM Evaluation Dashboard (8999)...${NC}"
-./.venv/bin/python lvm_eval/test_web_gui.py > "$LOG_DIR/lvm_eval_dashboard.log" 2>&1 &
+./.venv/bin/python lvm_eval/lvm_dashboard.py > "$LOG_DIR/lvm_eval_dashboard.log" 2>&1 &
 echo $! > "$LOG_DIR/LVM_Evaluation_Dashboard.pid"
 sleep 2
 

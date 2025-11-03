@@ -1,0 +1,62 @@
+[
+  {
+    "text": "entity -> continuant -> independent continuant -> material entity -> material information bearer",
+    "expected_text": "material information bearer",
+    "source": "synthetic_ontology",
+    "metadata": {"chain_length": 5, "root": "entity"}
+  },
+  {
+    "text": "entity -> continuant -> independent continuant -> material entity -> immaterial entity",
+    "expected_text": "immaterial entity",
+    "source": "synthetic_ontology",
+    "metadata": {"chain_length": 5, "root": "entity"}
+  },
+  {
+    "text": "entity -> continuant -> dependent continuant -> quality -> physical quality",
+    "expected_text": "physical quality",
+    "source": "synthetic_ontology",
+    "metadata": {"chain_length": 5, "root": "entity"}
+  },
+  {
+    "text": "entity -> continuant -> dependent continuant -> quality -> sensory quality",
+    "expected_text": "sensory quality",
+    "source": "synthetic_ontology",
+    "metadata": {"chain_length": 5, "root": "entity"}
+  },
+  {
+    "text": "entity -> continuant -> independent continuant -> organism -> multicellular organism",
+    "expected_text": "multicellular organism",
+    "source": "synthetic_ontology",
+    "metadata": {"chain_length": 5, "root": "entity"}
+  },
+  {
+    "text": "entity -> continuant -> independent continuant -> organism -> animal",
+    "expected_text": "animal",
+    "source": "synthetic_ontology",
+    "metadata": {"chain_length": 5, "root": "entity"}
+  },
+  {
+    "text": "entity -> continuant -> independent continuant -> object -> physical object",
+    "expected_text": "physical object",
+    "source": "synthetic_ontology",
+    "metadata": {"chain_length": 5, "root": "entity"}
+  },
+  {
+    "text": "process -> biological process -> physiological process -> digestion",
+    "expected_text": "digestion",
+    "source": "synthetic_ontology",
+    "metadata": {"chain_length": 4, "root": "process"}
+  },
+  {
+    "text": "process -> biological process -> cellular process -> cell division",
+    "expected_text": "cell division",
+    "source": "synthetic_ontology",
+    "metadata": {"chain_length": 4, "root": "process"}
+  },
+  {
+    "text": "process -> physical process -> chemical process -> oxidation",
+    "expected_text": "oxidation",
+    "source": "synthetic_ontology",
+    "metadata": {"chain_length": 4, "root": "process"}
+  }
+]

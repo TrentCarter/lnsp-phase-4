@@ -46,11 +46,129 @@ from train_helpers import (
 )
 from losses_directional import (
     directional_margin_loss,
+    directional_margin_loss_smooth,
+    directional_margin_loss_v21,
+    positive_floor_penalty,
+    norm_regularization,
+    orthogonality_penalty,
     anticopy_hinge_loss,
     future_margin_loss,
     context_drop,
     compute_offset_margins,
+    micro_directional_loss,
 )
+
+
+# ============================================================================
+# P5.1 Helper Functions: Schedulers, Noise, Attention Bias
+# ============================================================================
+
+def lin_ramp(epoch: int, max_epoch: int, max_val: float) -> float:
+    """Linear ramp from 0 to max_val over max_epoch epochs"""
+    if max_epoch <= 0:
+        return max_val
+    t = min(max(epoch, 0), max_epoch)
+    return max_val * (t / float(max_epoch))
+
+
+def current_pos_scalar(epoch: int, args) -> float:
+    """Compute current positional scalar (ramped from 0 to max)"""
+    return lin_ramp(epoch, args.positional_ramp_epochs, args.positional_scalar)
+
+
+def current_last_bias(epoch: int, args) -> float:
+    """Compute current attention bias for last slot (ramped from 0 to max)"""
+    return lin_ramp(epoch, args.attn_last_bias_warmup_epochs, args.attn_last_bias_max)
+
+
+def current_lambda_dir(epoch: int, args) -> float:
+    """Compute current lambda_dir weight (ramped from 0 to max)"""
+    return lin_ramp(epoch, args.dir_warmup_epochs, args.lambda_dir)
+
+
+def maybe_corrupt_last_slot(
+    ctx: torch.Tensor,
+    p: float,
+    sigma: float,
+    swap_p: float,
+    generator=None
+) -> torch.Tensor:
+    """
+    P5.1 Last-Slot Corruption: Randomly perturb the last context position.
+
+    Makes copy-last unreliable by corrupting ctx[:, -1, :] with probability p.
+    Two modes:
+    1. Swap with second-to-last (swap_p probability)
+    2. Gaussian jitter (remaining probability)
+
+    Args:
+        ctx: (B, T, D) context vectors
+        p: probability of applying corruption (0.0-1.0)
+        sigma: Gaussian noise standard deviation
+        swap_p: probability of swap (vs jitter)
+        generator: optional random generator
+
+    Returns:
+        (B, T, D) corrupted context (cloned, safe)
+    """
+    if p <= 0:
+        return ctx
+
+    B, T, D = ctx.shape
+    if T < 1:
+        return ctx
+
+    device = ctx.device
+
+    # Sample which rows to corrupt
+    mask = (torch.rand(B, device=device, generator=generator) < p)
+    if not mask.any():
+        return ctx
+
+    # Clone to avoid in-place modification
+    ctx = ctx.clone()
+    last = ctx[:, -1, :]  # (B, D)
+
+    # Choose swap vs noise for each corrupted row
+    do_swap = (torch.rand(B, device=device, generator=generator) < swap_p) & mask
+
+    # Swap mode: replace last with second-to-last
+    if do_swap.any() and T >= 2:
+        prev = ctx[:, -2, :]
+        ctx[do_swap, -1, :] = prev[do_swap]
+
+    # Jitter mode: add Gaussian noise
+    jitter_mask = mask & (~do_swap)
+    if jitter_mask.any():
+        eps = torch.randn((jitter_mask.sum(), D), device=device) * float(sigma)
+        jittered = F.normalize(last[jitter_mask] + eps, dim=-1)
+        ctx[jitter_mask, -1, :] = jittered
+
+    return ctx
+
+
+def build_lastcol_bias_mask(T: int, beta: float, device) -> torch.Tensor | None:
+    """
+    Build attention bias mask for last column (additive to attention logits).
+
+    Creates a (T, T) mask with -beta on the last column, 0 elsewhere.
+    This bias is added to attention logits BEFORE softmax, making it harder
+    for queries to attend to the last key.
+
+    Args:
+        T: sequence length (context size, e.g., 5)
+        beta: negative bias value (e.g., 0.6)
+        device: torch device
+
+    Returns:
+        (T, T) bias mask, or None if disabled
+    """
+    if T <= 0 or beta <= 0:
+        return None
+
+    m = torch.zeros((T, T), device=device)
+    m[:, -1] = -float(beta)
+    return m
 
 
 # --- P2 Residual Next Wrapper ---
@@ -154,6 +272,7 @@ def train_epoch(
     device,
     loss_weights: LossWeights,
     *,
+    epoch: int = 0,
     anchors: torch.Tensor | None = None,
     anchor_sigma: float | None = None,
     lambda_mmd: float = 0.0,
@@ -175,6 +294,17 @@ def train_epoch(
     rollout_h: int = 0,
     lambda_roll: float = 0.0,
     adaptive_dir: bool = False,
+    lambda_micro_dir: float = 0.0,
+    dir_gamma: float = 5.0,
+    dir_margin_micro: float = 0.02,
+    last_slot_noise_p: float = 0.0,
+    last_slot_noise_sigma: float = 0.03,
+    last_slot_swap_p: float = 0.05,
+    attn_last_bias: float = 0.0,
+    p6b_directional: bool = False,
+    p6b_v21: bool = False,
+    p6b_v22: bool = False,
+    p6b_v23: bool = False,
 ):
     model.train()
     total_loss = 0.0
@@ -191,6 +321,7 @@ def train_epoch(
         "loss_ac": 0.0,
         "loss_fut": 0.0,
         "loss_roll": 0.0,  # P4: Rollout loss (multi-step consistency)
+        "loss_micro_dir": 0.0,  # P5.1: Micro-directional guard
         "margin_diagnostic": 0.0,  # Diagnostic: cos(pred, target) - cos(pred, ctx[-1])
     }
     rng = rng or random
@@ -202,6 +333,15 @@ def train_epoch(
         # Apply context drop augmentation if enabled
         if context_drop_p > 0.0:
             contexts = context_drop(contexts, p=context_drop_p, mode="last_to_noise")
+
+        # P5.1: Apply last-slot noise (BEFORE positional encoding)
+        if last_slot_noise_p > 0.0:
+            contexts = maybe_corrupt_last_slot(
+                contexts,
+                p=last_slot_noise_p,
+                sigma=last_slot_noise_sigma,
+                swap_p=last_slot_swap_p
+            )
 
         # Save original context for directional losses (before positional encoding)
         contexts_orig = contexts  # (B, 5, 768)
@@ -246,8 +386,6 @@ def train_epoch(
         # Autoregressive prediction: [ctx → ŷ₁] → [ctx[1:],ŷ₁ → ŷ₂] → [ctx[2:],ŷ₁,ŷ₂ → ŷ₃]
         # Penalizes flat/copying trajectories by requiring forward momentum
         if rollout_h > 0 and lambda_roll > 0.0:
-            import torch.nn.functional as F
-
             rollout_losses = []
             current_ctx = contexts_orig.clone()  # (B, 5, 768)
 
@@ -296,8 +434,6 @@ def train_epoch(
 
         # Directional & Anti-Copy Losses (fixes "copy last context" bug)
         if lambda_dir > 0.0 or lambda_ac > 0.0 or lambda_fut > 0.0:
-            import torch.nn.functional as F
-
             # Normalize predictions and targets
             pred_norm = F.normalize(pred_cos, dim=-1, p=2)
             target_norm = F.normalize(targets, dim=-1, p=2)
@@ -346,6 +482,306 @@ def train_epoch(
                 margin_diag = cos_target - cos_last
                 stats_acc["margin_diagnostic"] += margin_diag
 
+        # P6b: Smooth Directional Margin Loss (auto-scaled to MSE magnitude)
+        # This is the PRODUCTION directional loss for P6b training
+        # Replaces all previous directional approaches (V3, P2, P3, P4, P5.1)
+        if p6b_directional:
+            # Extract y_prev (hard negative: previous chunk in article)
+            # P6 data format: ctx[0..4] → target_next, so ctx[-2] (pos 3) is target_prev
+            y_prev = F.normalize(contexts_orig[:, -2, :], dim=-1, p=2)  # (B, 768)
+
+            # Ramped margin schedule (GENTLER - staged increases to prevent collapse)
+            # P6b v2: Reduced ramp rate and softer gamma after epoch 3 collapse
+            if epoch < 3:
+                dir_margin_curr = 0.02
+                target_frac = 0.10     # Baseline: 10% of MSE
+            elif epoch < 6:
+                dir_margin_curr = 0.03  # +50% (was 2x, too aggressive!)
+                target_frac = 0.15      # +50% (was 2x, too aggressive!)
+            elif epoch < 9:
+                dir_margin_curr = 0.04  # +100% total
+                target_frac = 0.20      # +100% total
+            else:
+                dir_margin_curr = 0.05  # Final target
+                target_frac = 0.25      # Steady-state
+
+            # Compute raw directional loss (SOFTER gamma to prevent death spiral)
+            dir_raw, pos_mu, neg_mu, gap_mu = directional_margin_loss_smooth(
+                pred_cos, targets, y_prev,
+                margin=dir_margin_curr,
+                gamma=4.0  # Was 8.0, reduced for stability
+            )
+
+            # Auto-scale λ_eff to keep directional term proportional to MSE
+            with torch.no_grad():
+                mse_val = loss.detach().clamp_min(1e-8)  # Use current loss (MSE)
+                dir_val = dir_raw.detach().clamp_min(1e-8)
+                lambda_eff = (mse_val * target_frac) / dir_val
+                # LOWERED upper clamp: 0.05 → 0.02 to prevent directional loss overwhelming MSE
+                lambda_eff = lambda_eff.clamp(1e-4, 2e-2)  # Safety: 0.0001 … 0.02
+
+            # Safety check: Detect collapse early (negative cosines = bad predictions)
+            if pos_mu < 0.0 or neg_mu < 0.0:
+                # Model is producing garbage vectors - skip directional loss this batch
+                if batch_idx % 200 == 0:
+                    print(f"[P6b WARNING] Negative cosines detected (pos={pos_mu:.3f}, neg={neg_mu:.3f}), skipping directional loss")
+                # Don't add directional term when model is broken
+            else:
+                # Normal case: Add scaled directional term
+                loss = loss + lambda_eff * dir_raw
+                stats_acc["loss_dir"] += float((lambda_eff * dir_raw).detach().item())
+
+            # Log directional stats every 200 steps
+            if batch_idx % 200 == 0:
+                frac = (lambda_eff * dir_raw) / (mse_val + 1e-8)
+                print(
+                    f"[P6b dir] λ_eff={lambda_eff.item():.5f} "
+                    f"pos={pos_mu:.3f} neg={neg_mu:.3f} gap={gap_mu:.3f} "
+                    f"frac_of_mse={frac.item():.2f} margin={dir_margin_curr:.3f}"
+                )
+
+        # P6b v2.1: COMPREHENSIVE GUARDRAILS (scale-aware, multi-guard, stable)
+        # Implements 6 critical fixes to prevent epoch 3-style collapse
+        if p6b_v21:
+            # Extract y_prev (hard negative: previous chunk in article)
+            y_prev = F.normalize(contexts_orig[:, -2, :], dim=-1, p=2)  # (B, 768)
+
+            # Ramped margin schedule (EMA-gated in future, for now use gentle fixed ramp)
+            if epoch < 3:
+                margin_gap, margin_ratio = 0.02, 0.05
+                target_frac = 0.10
+            elif epoch < 6:
+                margin_gap, margin_ratio = 0.03, 0.05
+                target_frac = 0.15
+            elif epoch < 9:
+                margin_gap, margin_ratio = 0.04, 0.05
+                target_frac = 0.20
+            else:
+                margin_gap, margin_ratio = 0.05, 0.05
+                target_frac = 0.25
+
+            # 1. SCALE-AWARE DIRECTIONAL LOSS (ratio + gap)
+            dir_result = directional_margin_loss_v21(
+                pred_cos, targets, y_prev,
+                margin_gap=margin_gap,
+                margin_ratio=margin_ratio,
+                gamma=4.0,  # Softer than v1
+                alpha=0.7   # 70% gap, 30% ratio
+            )
+            dir_raw = dir_result['loss']
+            pos_mu = dir_result['pos_mean']
+            neg_mu = dir_result['neg_mean']
+            gap_mu = dir_result['gap_mean']
+            ratio_mu = dir_result['ratio_mean']
+
+            # 2. POSITIVE FLOOR PENALTY (prevents "two negatives" victory)
+            pos_floor = positive_floor_penalty(pred_cos, targets, tau=0.10)
+
+            # 3. NORM REGULARIZATION (unit-sphere constraint)
+            norm_pen = norm_regularization(pred_cos)
+
+            # 4. ADAPTIVE λ GUARD (cap ratio of dir/MSE)
+            with torch.no_grad():
+                mse_val = loss.detach().clamp_min(1e-8)
+                dir_val = dir_raw.detach().clamp_min(1e-8)
+
+                # Compute initial lambda_eff
+                lambda_eff = (mse_val * target_frac) / dir_val
+                lambda_eff = lambda_eff.clamp(1e-4, 2e-2)  # Clamp first
+
+                # Compute ρ = dir_loss / mse_loss
+                rho = (lambda_eff * dir_val) / (mse_val + 1e-12)
+
+                # If ρ > 0.25, scale down lambda_eff to enforce 25% cap
+                if rho > 0.25:
+                    lambda_eff = lambda_eff * (0.25 / rho)
+                    stats_acc["rho_rescale_count"] = stats_acc.get("rho_rescale_count", 0) + 1
+
+                stats_acc["rho"] = stats_acc.get("rho", 0.0) + float(rho.item())
+
+            # 5. SKIP/ATTENUATE WHEN SIGNS ARE BAD
+            skip_directional = False
+            if pos_mu < 0.0:
+                skip_directional = True
+                stats_acc["neg_cos_count"] = stats_acc.get("neg_cos_count", 0) + 1
+            elif pos_mu < 0.05 and neg_mu < -0.05:
+                skip_directional = True
+                stats_acc["bad_sign_count"] = stats_acc.get("bad_sign_count", 0) + 1
+
+            # Apply losses (skip directional if signs bad, always apply guards)
+            if not skip_directional:
+                loss = loss + lambda_eff * dir_raw
+                stats_acc["loss_dir"] += float((lambda_eff * dir_raw).detach().item())
+            else:
+                # Log warning every 200 steps
+                if batch_idx % 200 == 0:
+                    print(f"[P6b v2.1 SKIP] Bad signs (pos={pos_mu:.3f}, neg={neg_mu:.3f}), "
+                          f"skipping directional loss")
+
+            # Always apply auxiliary penalties (small weights)
+            loss = loss + 1e-3 * pos_floor  # β = 1e-3
+            loss = loss + 1e-3 * norm_pen   # η = 1e-3
+
+            stats_acc["loss_pos_floor"] = stats_acc.get("loss_pos_floor", 0.0) + float(pos_floor.detach().item())
+            stats_acc["loss_norm_pen"] = stats_acc.get("loss_norm_pen", 0.0) + float(norm_pen.detach().item())
+
+            # Enhanced logging every 200 steps
+            if batch_idx % 200 == 0:
+                frac = (lambda_eff * dir_raw) / (mse_val + 1e-8) if not skip_directional else torch.tensor(0.0)
+                print(
+                    f"[P6b v2.1] λ_eff={lambda_eff.item():.5f} "
+                    f"pos={pos_mu.item():.3f} neg={neg_mu.item():.3f} "
+                    f"gap={gap_mu.item():.3f} ratio={ratio_mu.item():.3f} "
+                    f"ρ={rho.item():.3f} frac={frac.item():.2f} "
+                    f"margin_gap={margin_gap:.3f} "
+                    f"skip={int(skip_directional)}"
+                )
+
+        # P6b v2.2/v2.3: ρ-CONTROLLER WITH SURVIVAL GATES
+        # v2.2: Controlled stronger pressure (35-50% ρ) - FAILED with orthogonal escape
+        # v2.3: "Goldilocks" balanced pressure (25-40% ρ) + directional-when-confident gate
+        # v2.3 prevents orthogonal escape by scaling directional loss based on alignment quality
+        if p6b_v22 or p6b_v23:
+            # Extract y_prev (hard negative: previous chunk in article)
+            y_prev = F.normalize(contexts_orig[:, -2, :], dim=-1, p=2)  # (B, 768)
+
+            # Epoch-gated ρ schedule (v2.3: balanced "Goldilocks" parameters)
+            # Lower targets than v2.2 to avoid orthogonal escape
+            # Conditions: EMA(cos_pos) ≥ 0.42 AND median ρ within target ±0.03
+            # Note: For now using fixed schedule, will add EMA gating in production
+            if epoch < 4:
+                rho_target, rho_cap = 0.15, 0.30
+                margin_gap, margin_ratio = 0.02, 0.05
+            elif epoch < 7:
+                rho_target, rho_cap = 0.20, 0.35
+                margin_gap, margin_ratio = 0.03, 0.05
+            else:
+                rho_target, rho_cap = 0.25, 0.40
+                margin_gap, margin_ratio = 0.04, 0.05
+
+            # 1. SCALE-AWARE DIRECTIONAL LOSS (same as v2.1)
+            dir_result = directional_margin_loss_v21(
+                pred_cos, targets, y_prev,
+                margin_gap=margin_gap,
+                margin_ratio=margin_ratio,
+                gamma=4.0,
+                alpha=0.7
+            )
+            dir_raw = dir_result['loss']
+            pos_mu = dir_result['pos_mean']
+            neg_mu = dir_result['neg_mean']
+            gap_mu = dir_result['gap_mean']
+            ratio_mu = dir_result['ratio_mean']
+
+            # 2. POSITIVE FLOOR PENALTY (v2.3: τ=0.10, β=1e-3, back to v2.1 values)
+            pos_floor = positive_floor_penalty(pred_cos, targets, tau=0.10)
+
+            # 3. NORM REGULARIZATION (same as v2.1)
+            norm_pen = norm_regularization(pred_cos)
+
+            # 4. ORTHOGONALITY PENALTY (NEW: anti-prev bias)
+            orth_pen = orthogonality_penalty(pred_cos, y_prev)
+
+            # 5. ρ-CONTROLLER (NEW: make ρ a target, not just a cap)
+            with torch.no_grad():
+                mse_val = loss.detach().clamp_min(1e-8)
+                dir_val = dir_raw.detach().clamp_min(1e-8)
+
+                # Initial lambda from target fraction
+                lambda_eff = (mse_val * rho_target) / dir_val
+                lambda_eff = lambda_eff.clamp(1e-4, 1.8e-2)  # v2.3: λ_max=0.018 (balanced)
+
+                # Compute actual ρ
+                rho = (lambda_eff * dir_val) / (mse_val + 1e-12)
+
+                # Adjust λ_eff to hit rho_target (controller logic)
+                if rho < rho_target * 0.8:  # Too low: increase λ
+                    lambda_eff = lambda_eff * (rho_target / max(rho, 1e-6))
+                    lambda_eff = lambda_eff.clamp(1e-4, 1.8e-2)
+                elif rho > rho_cap:  # Too high: decrease λ (safety)
+                    lambda_eff = lambda_eff * (rho_cap / rho)
+
+                # Recompute ρ after adjustment
+                rho = (lambda_eff * dir_val) / (mse_val + 1e-12)
+                stats_acc["rho"] = stats_acc.get("rho", 0.0) + float(rho.item())
+                stats_acc["rho_target"] = rho_target
+                stats_acc["rho_cap"] = rho_cap
+
+            # 6. DIRECTIONAL-WHEN-CONFIDENT GATE (v2.3: scale by alignment quality)
+            # Only apply directional pressure when prediction is reasonably aligned with target
+            with torch.no_grad():
+                # Compute alignment between pred and target_next
+                c = F.cosine_similarity(pred_cos, targets, dim=-1).mean()
+
+                # Scale from 0 (when c≤0.30) to 1 (when c≥0.45)
+                # If poorly aligned (c < 0.30), turn OFF directional loss entirely
+                # If well aligned (c > 0.45), apply full directional pressure
+                confidence_scale = torch.clamp((c - 0.30) / 0.15, 0.0, 1.0)
+
+                # Apply confidence scaling to directional weight
+                lambda_eff = lambda_eff * confidence_scale
+
+                stats_acc["confidence_scale"] = float(confidence_scale.item())
+                stats_acc["cos_pred_target"] = float(c.item())
+
+            # 7. SKIP/ATTENUATE WHEN SIGNS ARE BAD (same as v2.1)
+            skip_directional = False
+            if pos_mu < 0.0:
+                skip_directional = True
+                stats_acc["neg_cos_count"] = stats_acc.get("neg_cos_count", 0) + 1
+            elif pos_mu < 0.05 and neg_mu < -0.05:
+                skip_directional = True
+                stats_acc["bad_sign_count"] = stats_acc.get("bad_sign_count", 0) + 1
+
+            # Apply losses (skip directional if signs bad, always apply guards)
+            if not skip_directional:
+                loss = loss + lambda_eff * dir_raw
+                stats_acc["loss_dir"] += float((lambda_eff * dir_raw).detach().item())
+            else:
+                if batch_idx % 200 == 0:
+                    print(f"[P6b v2.3 SKIP] Bad signs (pos={pos_mu:.3f}, neg={neg_mu:.3f}), "
+                          f"skipping directional loss")
+
+            # Apply auxiliary penalties (v2.3: balanced weights)
+            loss = loss + 1e-3 * pos_floor    # β = 1e-3 (back to v2.1)
+            loss = loss + 1e-3 * norm_pen     # η = 1e-3 (same)
+            loss = loss + 1e-4 * orth_pen     # κ = 1e-4 (weakened 80%)
+
+            stats_acc["loss_pos_floor"] = stats_acc.get("loss_pos_floor", 0.0) + float(pos_floor.detach().item())
+            stats_acc["loss_norm_pen"] = stats_acc.get("loss_norm_pen", 0.0) + float(norm_pen.detach().item())
+            stats_acc["loss_orth_pen"] = stats_acc.get("loss_orth_pen", 0.0) + float(orth_pen.detach().item())
+
+            # 7. DIRECTIONAL SPRINTS (NEW: conditional bursts every 2k steps)
+            # Skip sprints for now - will implement in future version if needed
+            # (Requires global state tracking across batches)
+
+            # Enhanced logging every 200 steps
+            if batch_idx % 200 == 0:
+                frac = (lambda_eff * dir_raw) / (mse_val + 1e-8) if not skip_directional else torch.tensor(0.0)
+                conf_scale = stats_acc.get("confidence_scale", 0.0)
+                cos_pred_tgt = stats_acc.get("cos_pred_target", 0.0)
+                print(
+                    f"[P6b v2.3] λ_eff={lambda_eff.item():.5f} "
+                    f"pos={pos_mu.item():.3f} neg={neg_mu.item():.3f} "
+                    f"gap={gap_mu.item():.3f} ratio={ratio_mu.item():.3f} "
+                    f"ρ={rho.item():.3f} ρ_tgt={rho_target:.2f} ρ_cap={rho_cap:.2f} "
+                    f"conf={conf_scale:.2f} c_pt={cos_pred_tgt:.3f} "
+                    f"margin_gap={margin_gap:.3f} "
+                    f"skip={int(skip_directional)}"
+                )
+
+        # P5.1: Micro-Directional Guard (gentle ranking loss)
+        if lambda_micro_dir > 0.0:
+            # Use original 768D context for micro-directional loss
+            ctx_last_orig = contexts_orig[:, -1, :]  # (B, 768)
+            micro_loss = micro_directional_loss(
+                pred_cos, targets, ctx_last_orig,
+                gamma=dir_gamma,
+                margin=dir_margin_micro
+            )
+            loss = loss + lambda_micro_dir * micro_loss
+            stats_acc["loss_micro_dir"] += float(micro_loss.detach().item())
+
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
@@ -364,9 +800,13 @@ def train_epoch(
                 cosine.item(),
             )
             # Add directional diagnostic if enabled
-            if lambda_dir > 0.0 or lambda_ac > 0.0:
+            if lambda_dir > 0.0 or lambda_ac > 0.0 or lambda_micro_dir > 0.0:
                 margin_avg = stats_acc["margin_diagnostic"] / (batch_idx + 1)
                 log_msg += f" | Margin(+1 vs last): {margin_avg:.4f}"
+            # Add P5.1 micro-directional loss if enabled
+            if lambda_micro_dir > 0.0:
+                micro_avg = stats_acc["loss_micro_dir"] / (batch_idx + 1)
+                log_msg += f" | L_micro: {micro_avg:.6f}"
             print(log_msg)
 
     denom = len(dataloader)
@@ -408,6 +848,97 @@ def evaluate(model, dataloader, device, use_positional: bool = False, pos_scale:
             total_cosine += cosine.item()
 
     return total_loss / len(dataloader), total_cosine / len(dataloader)
+
+
+def mini_5cat_epoch_metrics(
+    model,
+    val_loader,
+    device,
+    max_batches: int = 10,
+    use_positional: bool = False,
+    pos_scale: float = 0.03
+) -> tuple[float, float]:
+    """
+    Mini-5CAT: Quick validation to detect backward bias.
+
+    Computes:
+    1. Margin: mean(cos(pred, target) - cos(pred, ctx[-1]))
+    2. R@5: retrieval accuracy within context+target bank
+
+    Args:
+        model: trained model
+        val_loader: validation dataloader
+        device: torch device
+        max_batches: limit number of batches (for speed)
+        use_positional: whether to apply positional encoding
+        pos_scale: positional encoding scale
+
+    Returns:
+        (margin, r_at5) tuple
+    """
+    model.eval()
+    tot = 0
+    s_next = 0.0
+    s_last = 0.0
+    hits_at_5 = 0
+    queries = 0
+
+    with torch.no_grad():
+        for bi, batch in enumerate(val_loader):
+            if bi >= max_batches:
+                break
+
+            # Unpack batch (handle both tuple and dict formats)
+            if isinstance(batch, (list, tuple)):
+                ctx, tgt = batch[0], batch[1]
+            else:
+                ctx = batch['contexts']
+                tgt = batch['targets']
+
+            ctx = ctx.to(device)
+            tgt = F.normalize(tgt.to(device), dim=-1)
+
+            # Store original context for margin computation
+            ctx_orig = ctx.clone()
+
+            # Add positional encoding if needed
+            if use_positional:
+                B, T, D = ctx.shape
+                pos = torch.linspace(0, 1, steps=T, device=device).unsqueeze(0).unsqueeze(-1)
+                pos = pos.expand(B, T, 1) * pos_scale
+                ctx = torch.cat([ctx, pos], dim=-1)
+
+            # Forward pass
+            yhat = model(ctx)
+            yhat = F.normalize(yhat, dim=-1)
+            last = F.normalize(ctx_orig[:, -1, :], dim=-1)
+
+            # Margin: cos(pred, target) - cos(pred, last)
+            s_next += (yhat * tgt).sum().item()
+            s_last += (yhat * last).sum().item()
+            tot += yhat.shape[0]
+
+            # R@5: Simple within-article retrieval
+            # Build bank: [ctx[0], ctx[1], ctx[2], ctx[3], ctx[4], target]
+            for b in range(ctx_orig.shape[0]):
+                bank = torch.cat([
+                    F.normalize(ctx_orig[b], dim=-1),  # (5, D)
+                    tgt[b:b+1]  # (1, D)
+                ], dim=0)  # (6, D)
+
+                sims = (yhat[b:b+1] @ bank.t()).squeeze(0)  # (6,)
+
+                # Rank of target (last entry, index 5)
+                rank = (sims >= sims[-1]).sum().item()  # 1-based rank
+
+                if rank <= 5:
+                    hits_at_5 += 1
+                queries += 1
+
+    margin = (s_next - s_last) / max(tot, 1)
+    r_at5 = hits_at_5 / max(1, queries)
+
+    return margin, r_at5
 
 
 def get_model_config(model_type: str, input_dim: int = 768, output_dim: int = 768):
@@ -540,6 +1071,7 @@ def main():
     parser.add_argument('--use-positional', action='store_true', help='Add positional scalar to break time symmetry')
     parser.add_argument('--pos-scale', type=float, default=0.03, help='Positional encoding scale factor')
     parser.add_argument('--positional-scalar', type=float, default=0.0, help='Positional scalar weight (0.03 for P5), overrides --use-positional if > 0')
+    parser.add_argument('--positional-ramp-epochs', type=int, default=3, help='Epochs to ramp positional scalar from 0 to max (P5.1)')
 
     # Curriculum Learning (P5)
     parser.add_argument('--curriculum', type=str, default='full',
@@ -551,6 +1083,52 @@ def main():
     # Loss Scheduling (prevents early collapse)
     parser.add_argument('--warmup-epochs', type=int, default=0, help='Epochs with pure MSE before enabling guards')
     parser.add_argument('--ramp-epochs', type=int, default=0, help='Epochs for ramping guard losses (after warmup)')
+
+    # P5.1 Enhancements: Attention Bias Against Last Slot
+    parser.add_argument('--attn-last-bias-max', type=float, default=0.6,
+                        help='Max negative bias added to attention logit of last context position (P5.1)')
+    parser.add_argument('--attn-last-bias-warmup-epochs', type=int, default=4,
+                        help='Epochs to ramp attention bias from 0 to max (P5.1)')
+
+    # P5.1 Enhancements: Last-Slot Noise (Corruption)
+    parser.add_argument('--last-slot-noise-p', type=float, default=0.15,
+                        help='Probability of corrupting last context slot (P5.1)')
+    parser.add_argument('--last-slot-noise-sigma', type=float, default=0.03,
+                        help='Gaussian noise sigma for last-slot corruption (P5.1)')
+    parser.add_argument('--last-slot-swap-p', type=float, default=0.05,
+                        help='Probability of swapping last slot with second-to-last (P5.1)')
+
+    # P5.1 Enhancements: Micro-Directional Guard
+    parser.add_argument('--dir-gamma', type=float, default=5.0,
+                        help='Softplus temperature for micro-directional loss (P5.1)')
+    parser.add_argument('--dir-margin', type=float, default=0.02,
+                        help='Margin for micro-directional loss (P5.1, overrides --margin-dir for micro guard)')
+    parser.add_argument('--dir-warmup-epochs', type=int, default=6,
+                        help='Epochs to ramp lambda_dir from 0 to max (P5.1)')
+
+    # P5.1 Enhancements: Mini-5CAT Validation
+    parser.add_argument('--fivecat-every-epoch', type=int, default=1,
+                        help='Run mini-5CAT validation every N epochs (0=disabled, 1=every epoch)')
+    parser.add_argument('--fivecat-max-samples', type=int, default=2000,
+                        help='Max samples for mini-5CAT validation (P5.1)')
+
+    # P5.1 Enhancements: Stage Gates
+    parser.add_argument('--gate-min-margin', type=float, default=0.02,
+                        help='Minimum margin required to pass stage gate (P5.1)')
+    parser.add_argument('--gate-min-r-at5', type=float, default=0.60,
+                        help='Minimum R@5 required to pass stage gate (P5.1)')
+    parser.add_argument('--gate-min-rollout', type=float, default=0.46,
+                        help='Minimum rollout coherence required to pass stage gate (P5.1)')
+
+    # P6b: Smooth Directional Margin Loss (auto-scaled)
+    parser.add_argument('--p6b-directional', action='store_true',
+                        help='Enable P6b smooth directional loss (auto-scaled to MSE). Overrides other directional losses.')
+    parser.add_argument('--p6b-v21', action='store_true',
+                        help='Enable P6b v2.1 with comprehensive guardrails (scale-aware, multi-guard, collapse-resistant). Recommended over --p6b-directional.')
+    parser.add_argument('--p6b-v22', action='store_true',
+                        help='Enable P6b v2.2 with ρ-controller and directional sprints (stronger directional pressure while maintaining stability). Recommended over v2.1.')
+    parser.add_argument('--p6b-v23', action='store_true',
+                        help='Enable P6b v2.3 "Goldilocks" with directional-when-confident gate (balanced pressure to avoid orthogonal escape). Recommended over v2.2.')
 
     args = parser.parse_args()
 
@@ -749,6 +1327,28 @@ def main():
         # P4: Curriculum scheduling (warm-up → rollout → guards)
         current_epoch = epoch + 1
 
+        # P5.1: Scheduled parameters (ramped from 0 to max over warmup epochs)
+        pos_scalar_sched = current_pos_scalar(epoch, args) if use_positional_encoding else 0.0
+        last_bias_sched = current_last_bias(epoch, args)
+        lambda_micro_dir_sched = current_lambda_dir(epoch, args)
+
+        # P5.1: Last-slot noise parameters (constant, not scheduled)
+        last_slot_noise_p_sched = args.last_slot_noise_p
+        last_slot_noise_sigma_sched = args.last_slot_noise_sigma
+        last_slot_swap_p_sched = args.last_slot_swap_p
+
+        # Log P5.1 schedule if enabled
+        if epoch == 0 and (args.positional_scalar > 0 or args.lambda_dir > 0 or args.attn_last_bias_max > 0):
+            print(f"  [P5.1 Schedule]")
+            if args.positional_scalar > 0:
+                print(f"    Positional: 0 → {args.positional_scalar} over {args.positional_ramp_epochs} epochs")
+            if args.attn_last_bias_max > 0:
+                print(f"    Attn Bias: 0 → {args.attn_last_bias_max} over {args.attn_last_bias_warmup_epochs} epochs")
+            if args.lambda_dir > 0:
+                print(f"    λ_micro: 0 → {args.lambda_dir} over {args.dir_warmup_epochs} epochs")
+            if args.last_slot_noise_p > 0:
+                print(f"    Last-slot noise: p={args.last_slot_noise_p}, σ={args.last_slot_noise_sigma}")
+
         # Phase 1: Pure MSE warm-up (epochs 1-3)
         if current_epoch < args.rollout_start_epoch:
             lambda_roll_sched = 0.0
@@ -790,6 +1390,7 @@ def main():
             optimizer,
             device,
             loss_weights,
+            epoch=epoch,
             anchors=anchor_tensor,
             anchor_sigma=anchor_sigma,
             lambda_mmd=args.lambda_mmd,
@@ -807,10 +1408,21 @@ def main():
             margin_fut=args.margin_fut,
             context_drop_p=context_drop_sched,
             use_positional=use_positional_encoding,
-            pos_scale=pos_weight,
+            pos_scale=pos_scalar_sched,  # P5.1: Use scheduled positional scalar
             rollout_h=rollout_h_sched,
             lambda_roll=lambda_roll_sched,
             adaptive_dir=args.adaptive_dir,
+            lambda_micro_dir=lambda_micro_dir_sched,  # P5.1: Micro-directional guard
+            dir_gamma=args.dir_gamma,  # P5.1: Softplus temperature
+            dir_margin_micro=args.dir_margin,  # P5.1: Micro margin
+            last_slot_noise_p=last_slot_noise_p_sched,  # P5.1: Noise probability
+            last_slot_noise_sigma=last_slot_noise_sigma_sched,  # P5.1: Noise sigma
+            last_slot_swap_p=last_slot_swap_p_sched,  # P5.1: Swap probability
+            attn_last_bias=last_bias_sched,  # P5.1: Attention bias (not used yet)
+            p6b_directional=args.p6b_directional,  # P6b: Smooth directional loss
+            p6b_v21=args.p6b_v21,  # P6b v2.1: Comprehensive guardrails
+            p6b_v22=args.p6b_v22,  # P6b v2.2: ρ-controller with directional sprints
+            p6b_v23=args.p6b_v23,  # P6b v2.3: Goldilocks with directional-when-confident gate
         )
 
         # Validate (use same positional encoding as training)
@@ -849,6 +1461,54 @@ def main():
                 print("  ✅ Positive margin! Model predicts NEXT, not last context")
             else:
                 print("  ⚠️  Negative margin - still copying last context")
+
+        # P5.1: Mini-5CAT validation (every N epochs)
+        mini5cat_margin = None
+        mini5cat_r5 = None
+        if args.fivecat_every_epoch > 0 and (epoch + 1) % args.fivecat_every_epoch == 0:
+            mini5cat_margin, mini5cat_r5 = mini_5cat_epoch_metrics(
+                model, val_loader, device,
+                max_batches=min(10, len(val_loader)),
+                use_positional=use_positional_encoding,
+                pos_scale=pos_scalar_sched
+            )
+            print(f"  [Mini-5CAT] Margin: {mini5cat_margin:.4f} | R@5: {mini5cat_r5:.3f}")
+
+            # P5.1: Stage gating (for curriculum training)
+            if args.curriculum == 'forward_top_30':
+                # Stage A: Check if we should advance to Stage B
+                gate_pass = (
+                    mini5cat_margin >= args.gate_min_margin and
+                    mini5cat_r5 >= args.gate_min_r_at5
+                )
+                if gate_pass:
+                    print(f"  ✅ Stage A PASSED! Margin={mini5cat_margin:.3f} ≥ {args.gate_min_margin}, R@5={mini5cat_r5:.3f} ≥ {args.gate_min_r_at5}")
+                else:
+                    print(f"  ⚠️  Stage A not passed (Margin={mini5cat_margin:.3f} < {args.gate_min_margin} or R@5={mini5cat_r5:.3f} < {args.gate_min_r_at5})")
+
+                # If final epoch and gate failed, save failure checkpoint and exit
+                if epoch + 1 == args.epochs and not gate_pass:
+                    print(f"  ❌ Stage A FAILED after {args.epochs} epochs!")
+                    print(f"     Margin: {mini5cat_margin:.3f} (target: ≥{args.gate_min_margin})")
+                    print(f"     R@5: {mini5cat_r5:.3f} (target: ≥{args.gate_min_r_at5})")
+                    print(f"  📋 Next steps: Try P5.1 enhanced (stronger pos/bias) or P6 (NEXT token)")
+
+                    # Save failure checkpoint
+                    import sys
+                    torch.save({
+                        'epoch': epoch + 1,
+                        'model_type': args.model_type,
+                        'model_state_dict': model.state_dict(),
+                        'optimizer_state_dict': optimizer.state_dict(),
+                        'val_loss': val_loss,
+                        'val_cosine': val_cosine,
+                        'mini5cat_margin': mini5cat_margin,
+                        'mini5cat_r5': mini5cat_r5,
+                        'stage': 'A_failed',
+                        'model_config': model_config,
+                        'args': vars(args)
+                    }, output_dir / f'stageA_fail_ep{epoch+1}.pt')
+                    print(f"  💾 Saved failure checkpoint: {output_dir / f'stageA_fail_ep{epoch+1}.pt'}")
 
         print()
 

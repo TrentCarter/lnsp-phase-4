@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LVM Dashboard Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-btn { 
+            background: #007bff; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            margin: 10px;
+        }
+        .test-btn:hover { background: #0056b3; }
+        .result { 
+            margin: 20px 0; 
+            padding: 15px; 
+            background: #f8f9fa; 
+            border-radius: 5px; 
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+    </style>
+</head>
+<body>
+    <h1>LVM Dashboard Test Page</h1>
+    <p>Click the buttons below to test the evaluation dashboard:</p>
+    
+    <button class="test-btn" onclick="testDirect()">Test DIRECT Model</button>
+    <button class="test-btn" onclick="testTransformer()">Test Transformer Model</button>
+    
+    <div id="result"></div>
+
+    <h3>Instructions:</h3>
+    <ol>
+        <li>Make sure the dashboard is running on port 8999</li>
+        <li>Click one of the test buttons above</li>
+        <li>Check the results below AND in the dashboard at <a href="http://localhost:8999" target="_blank">http://localhost:8999</a></li>
+        <li>In the dashboard, click "Toggle All Details" to see the test cases</li>
+        <li>Click on individual test cases to expand them and see inputs/outputs</li>
+    </ol>
+
+    <script>
+        function showResult(text, isError = false) {
+            document.getElementById('result').innerHTML = 
+                `<div class="result ${isError ? 'error' : 'success'}">${text}</div>`;
+        }
+
+        function testDirect() {
+            showResult('Testing DIRECT model...');
+            fetch('http://localhost:8999/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    models: ['DIRECT'],
+                    test_mode: 'both',
+                    num_concepts: 3,
+                    num_test_cases: 2
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                let msg = `✅ Evaluation Complete!\n\n`;
+                msg += `Message: ${data.message}\n`;
+                msg += `Models evaluated: ${data.results.length}\n`;
+                
+                if (data.results[0]) {
+                    const result = data.results[0];
+                    msg += `Model: ${result.model_name}\n`;
+                    msg += `Average similarity: ${(result.avg_cosine_similarity * 100).toFixed(2)}%\n`;
+                    msg += `Test cases: ${result.test_cases ? result.test_cases.length : 0}\n\n`;
+                    msg += `Now check the dashboard UI to see the formatted results!`;
+                }
+                showResult(msg);
+            })
+            .catch(err => {
+                showResult(`❌ Error: ${err.message}`, true);
+            });
+        }
+
+        function testTransformer() {
+            showResult('Testing Transformer model...');
+            fetch('http://localhost:8999/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    models: ['artifacts/lvm/models/transformer_p4_rollout/best_model.pt'],
+                    test_mode: 'both',
+                    num_concepts: 3,
+                    num_test_cases: 2
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                let msg = `✅ Evaluation Complete!\n\n`;
+                msg += `Message: ${data.message}\n`;
+                msg += `Models evaluated: ${data.results.length}\n`;
+                
+                if (data.results[0]) {
+                    const result = data.results[0];
+                    msg += `Model: ${result.model_name}\n`;
+                    msg += `Average similarity: ${(result.avg_cosine_similarity * 100).toFixed(2)}%\n`;
+                    msg += `Test cases: ${result.test_cases ? result.test_cases.length : 0}\n\n`;
+                    msg += `Now check the dashboard UI to see the formatted results!`;
+                }
+                showResult(msg);
+            })
+            .catch(err => {
+                showResult(`❌ Error: ${err.message}`, true);
+            });
+        }
+    </script>
+</body>
+</html>

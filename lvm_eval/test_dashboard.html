@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard Test</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>LVM Dashboard Test Page</h1>
+    <button id="testBtn">Test API</button>
+    <div id="output" style="margin-top: 20px; font-family: monospace; white-space: pre-wrap;"></div>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(msg) {
+            output.textContent += msg + '\n';
+            console.log(msg);
+        }
+        
+        // Test on page load
+        $(document).ready(function() {
+            log('✓ jQuery loaded successfully');
+            log('✓ Page ready');
+            
+            // Test API endpoints
+            $.ajax({
+                url: '/api/models',
+                method: 'GET',
+                success: function(data) {
+                    log(`✓ /api/models works - Found ${data.models.length} models`);
+                    if (data.models.length > 0) {
+                        log(`  First model: ${data.models[0].relative_path}`);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    log(`✗ /api/models failed: ${error}`);
+                }
+            });
+            
+            $.ajax({
+                url: '/api/progress',
+                method: 'GET',
+                success: function(data) {
+                    log(`✓ /api/progress works - Status: ${data.status}`);
+                },
+                error: function(xhr, status, error) {
+                    log(`✗ /api/progress failed: ${error}`);
+                }
+            });
+        });
+        
+        // Test button
+        document.getElementById('testBtn').addEventListener('click', function() {
+            log('\n--- Testing Evaluation API ---');
+            
+            $.ajax({
+                url: '/api/models',
+                method: 'GET',
+                success: function(data) {
+                    if (data.models.length > 0) {
+                        const testModel = data.models[0].path;
+                        log(`Testing with model: ${testModel}`);
+                        
+                        // Try evaluation
+                        $.ajax({
+                            url: '/evaluate',
+                            method: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({
+                                models: [testModel],
+                                test_mode: 'in'
+                            }),
+                            success: function(response) {
+                                log(`✓ Evaluation completed`);
+                                log(`  Status: ${response.status}`);
+                                log(`  Message: ${response.message}`);
+                                log(`  Results: ${response.results.length} model(s)`);
+                            },
+                            error: function(xhr, status, error) {
+                                log(`✗ Evaluation failed: ${error}`);
+                            }
+                        });
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

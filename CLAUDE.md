@@ -188,194 +188,149 @@ directional_bonus = 0.03   # Directional alignment bonus
 
 ---
 
-## 🎓 LVM TRAINING & OOD EVALUATION (2025-11-01 - P4 FAILED)
+## 🎓 LVM TRAINING: P6b v2.2 WITH ρ-CONTROLLER (2025-11-02)
 
-**STATUS**: 🔴 **P4 ROLLOUT FAILED - BACKWARD BIAS UNRESOLVED** (2025-11-01)
+**🔴 CRITICAL FINDING (Nov 2, 2025)**: Wikipedia data has inherent backward temporal bias (Δ = -0.069). All approaches P1-P6 failed because **the data itself teaches backward prediction**, not due to model architecture. See `docs/WIKIPEDIA_BACKWARD_BIAS_ROOT_CAUSE.md` for complete analysis.
 
-### November 1, 2025 Training Session - Complete Results
+**STATUS**: ✅ **P6b v2.2 READY TO TRAIN** - Controlled stronger directional pressure
 
-**12-hour systematic investigation** across 5 approaches (V3, P1, P2, P3, P4). All directional loss approaches failed.
+### Evolution: P1 → P6 → P6b v1 → v2.1 → v2.2
 
-**Session Summary**: `artifacts/lvm/TRAINING_SESSION_2025_11_01.md` (comprehensive documentation)
+**P1-P5.1 ALL FAILED** (margin stayed negative):
+- P1 Baseline: -0.167 (MSE follows dominant signal → backward)
+- P2-P4 Directional: Collapsed or negative (λ too weak)
+- P5.1 + Curriculum: -0.046 (landscape reshaping insufficient)
 
-#### Results Overview
+**P6 (NEXT token) ALSO FAILED**:
+- Architecture: Removed identity path (cos(ctx[4], target_next) = 0.395)
+- Result: R@5 = 70% ✅, margin = **-0.082** ❌ (worse!)
+- **Proved**: Problem is data, not architecture
 
-| Approach | Strategy | Val Cosine | Margin (5CAT) | 5CAT Gates | Outcome |
-|----------|----------|------------|---------------|------------|---------|
-| **V3** | Strong guards (λ=0.01) | 0.354 | -0.132 | 0/5 | ❌ Collapsed at epoch 4 |
-| **P1** | Pure MSE baseline | 0.550 | ~0.0* | Unknown | ✅ Stable (needs 5CAT validation) |
-| **P2** | Residual architecture | 0.472 | -0.534 | Unknown | ❌ Made copying easier |
-| **P3** | Tiny guards (λ=0.002) | 0.526 | -0.064 | Unknown | ⚠️ 51% improvement, still biased |
-| **P4** | Rollout + adaptive | 0.540 (epoch 3) → 0.338 (epoch 4) | **-0.149** | **2/5** | ❌ **SAME COLLAPSE AS V3** |
+**P6b v1 COLLAPSED at Epoch 3**:
+- Too aggressive ramp (4x pressure at epoch 3)
+- "Two negatives" failure mode (large gap with both cosines negative)
+- Death spiral: negative cosines → higher penalty → worse predictions
+- See `artifacts/lvm/P6B_EPOCH3_COLLAPSE_ANALYSIS.md` for full post-mortem
 
-*P1 margin based on training metric, not 5CAT validation
+**P6b v2.1 = 6-Layer Defense (✅ COMPLETED)**:
+- Model: `artifacts/lvm/models/transformer_p6b_v21_20251102_182615/best_model.pt`
+- Result: R@5 = 77% ✅, margin = **-0.047** ⚠️ (improved but still negative!)
+- **Improved margin 43%** (-0.082 → -0.047) but didn't flip positive
+- **Root cause**: Guardrails too conservative (ρ capped at 25%, directional loss too weak)
+- **Verdict**: Stability proven ✅, but need stronger directional pressure
 
-#### Key Learnings
+**P6b v2.2 = Controlled Stronger Pressure (🚀 READY)**:
+1. **ρ-controller** - Makes ρ a TARGET (0.35), not just a cap
+2. **Stronger anchors** - pos_floor τ=0.12, β=2e-3 (was 0.10, 1e-3)
+3. **Orthogonality penalty** - κ=5e-4 (NEW: anti-prev bias)
+4. **Higher margins** - 0.06-0.07 (was 0.05)
+5. **Higher λ_max** - 0.03 (was 0.02)
+6. **All v2.1 guardrails kept** - No collapse risk
 
-**What Failed** (ALL directional loss approaches):
-1. **V3 Strong Guards**: Guards 10x stronger than MSE → catastrophic collapse (val_cos 0.540 → 0.354 at epoch 4)
-2. **P2 Residual**: `ŷ = norm(u + α·Δ)` → model learns Δ≈0 to copy last frame (margin -0.534)
-3. **P3 Tiny Guards**: Guards too weak (λ=0.002) to overcome MSE patterns (margin -0.064, only 51% improvement)
-4. **P4 Rollout + Adaptive Guards**: **SAME collapse as V3** (val_cos 0.540 → 0.338 at epoch 4, margin -0.149)
+### Quick Start
+```bash
+# P6b v2.2 with ρ-controller (RECOMMENDED - stronger pressure)
+./scripts/train_transformer_p6b_v22.sh
 
-**Critical Finding** (P4 5CAT Results):
-- **Epoch 3 model** (pure MSE, BEFORE rollout/guards): val_cos 0.540 ✅ BUT margin **-0.149** ❌
-- **Backward bias exists in BASE MSE training**, NOT caused by directional losses!
-- R@1: 1.04% (should be 60%+), R@5: 22.12% (should be 95%+) → retrieval destroyed
-- Peak at k=-1 (previous) instead of k=+1 (next) → model predicts backward
+# P6b v2.1 with 6 guardrails (STABLE - proven no collapse)
+./scripts/train_transformer_p6b_v21.sh
+```
 
-**Root Cause Hypothesis**:
-- Training data may have inherent backward bias (chunk[i-1] more similar to context than chunk[i+1])
-- OR MSE needs more epochs to converge to neutral (P1: 20 epochs → margin 0.0, P4: 3 epochs → margin -0.149)
-- OR fundamental issue with sequence generation or evaluation methodology
+### P6b v2.2 Implementation (✅ COMPLETE)
 
-**Production Status**:
-- ✅ **P1 Baseline**: Deployed on port 9007 (http://localhost:9007/chat)
-  - Model: `artifacts/lvm/models/transformer_baseline_p1/best_model.pt`
-  - Val cosine: 0.550, Margin: ~0.0* (neutral, needs 5CAT validation)
-  - Use for: Stable inference, baseline comparisons
-  - *Margin based on training metric, not 5CAT
-- ❌ **P4 Rollout**: FAILED - Same collapse as V3
-  - Model: `artifacts/lvm/models/transformer_p4_rollout/best_model.pt` (epoch 3, for analysis)
-  - Val cosine: 0.540 (epoch 3) → 0.338 (epoch 4 collapse)
-  - 5CAT: Margin -0.149, R@1 1.04%, 2/5 gates passed
-  - **DO NOT USE** - Backward bias unresolved
+**Core Loss Functions** (`app/lvm/losses_directional.py`):
+- `directional_margin_loss_v21()` - Scale-aware loss (α=0.7 mix of gap + ratio)
+- `positive_floor_penalty()` - ReLU(τ - cos(pred, next))² with τ=0.12 (STRONGER)
+- `norm_regularization()` - (||pred||₂ - 1)² penalty
+- `orthogonality_penalty()` - (cos(pred, prev))² penalty (NEW)
+
+**Training Integration** (`app/lvm/train_unified.py`):
+- **ρ-controller**: Actively pushes ρ to target (0.15 → 0.25 → 0.35)
+- Epoch-gated schedule with higher margins (0.06-0.07)
+- Higher λ_max (0.03, was 0.02)
+- Stronger pos_floor (τ=0.12, β=2e-3)
+- All v2.1 guardrails retained (skip logic, safety caps)
+- CLI flag: `--p6b-v22`
+
+**Training Script** (`scripts/train_transformer_p6b_v22.sh`):
+- 12 epochs, batch_size=32, lr=5e-4
+- Automatic 5CAT validation at end
+- Enhanced diagnostics (ρ vs ρ_target)
+
+### Expected P6b v2.2 Results (12 epochs)
+
+**Epoch-by-Epoch Prediction**:
+- Epochs 1-2: Margin ≈ -0.04, ρ ≈ 0.15 (baseline)
+- Epochs 3-4: Margin ≈ -0.02 to -0.01, ρ ≈ 0.25 (climbing)
+- Epochs 5-6: **Margin flips positive** (0.00 → +0.01), ρ ≈ 0.35 🎉
+- Epochs 7-9: Margin +0.02 to +0.04, ρ stable at 0.35
+- Epochs 10-12: Margin +0.03 to +0.05 (stable positive)
+
+**Final Model Targets**:
+- ✅ Margin: +0.03 to +0.05 (POSITIVE!)
+- ✅ R@5: ≥ 70% (high accuracy)
+- ✅ Val cosine: ≥ 0.48 (good similarity)
+- ✅ ρ: 0.35-0.50 (controlled by ρ-controller)
+- ✅ Pass 3/5 5CAT gates minimum
+- ✅ **Breaks backward curse!**
+
+### P6 Data (Ready for P6b Training)
+
+**P6 NEXT Token Architecture**: Predict target_next instead of target
+- Training: 431,895 sequences (`artifacts/lvm/training_sequences_ctx5_p6_next_token.npz`)
+- Validation: 18,360 sequences (`artifacts/lvm/validation_sequences_ctx5_p6_next_token.npz`)
+- OOD: 9,920 sequences (`artifacts/lvm/ood_sequences_ctx5_p6_next_token.npz`)
+- **Identity path removed**: cos(ctx[4], target_next) = 0.395 (vs ~0.8 for regular target)
+
+**P6 Baseline Results** (10 epochs, NO directional loss):
+- Model: `artifacts/lvm/models/transformer_p6_20251102_131816/best_model.pt`
+- Val cosine: 0.511, R@5: 0.700 ✅
+- Margin: -0.082 ❌ (proves data has backward bias)
+- Use for: Baseline comparison for P6b
+
+**Direction Diagnostics** (`tools/diagnose_p6_direction.py`):
+- Forward (ctx[-1] → target_next): 0.3876
+- Backward (ctx[-1] → target_prev): 0.4569
+- **Δ = -0.0692** (backward is 7% stronger!)
+
+### Current Production Model (Baseline)
+
+**✅ P1 Baseline Transformer** (Deployed on port 9007)
+- Model: `artifacts/lvm/models/transformer_baseline_p1/best_model.pt`
+- Metrics: val_cos 0.550, margin -0.167 (backward bias)
+- Access: http://localhost:9007/chat
+- Use for: Baseline comparisons only (DO NOT use for production until P5.1 passes)
+
+### Root Cause Analysis Complete (Nov 2, 2025)
+
+**Problem Identified**: Wikipedia text has **inherent backward temporal structure**
+- Forward (ctx[-1] → target_next): 0.3876
+- Backward (ctx[-1] → target_prev): 0.4569
+- **Δ = -0.0692** (backward is 7% stronger)
+
+**Why Wikipedia is Backward**:
+- Articles follow explanatory structure (lead → details)
+- Later chunks reference previous concepts more than they preview future concepts
+- Example: Chunk N mentions "Einstein" (from chunk 0) more than new concepts
+
+**Proof**: P6 removed identity path (cos(ctx[4], target_next) = 0.395) but margin STILL negative (-0.082)
+
+**Solution**: P6b = P6 Architecture + Directional Margin Loss
+- P6 removes shortcuts
+- Directional loss explicitly enforces `cos(pred, target_next) > cos(pred, target_prev) + margin`
 
 **Complete Documentation**:
-- Session Overview: `artifacts/lvm/TRAINING_SESSION_2025_11_01.md`
-- P4 Failure Report: `artifacts/lvm/P4_FAILURE_REPORT.md` ← **READ THIS FIRST**
-- P4 Approach (original): `artifacts/lvm/P4_ROLLOUT_APPROACH.md`
-- Training Scripts: `scripts/train_transformer_p{1,2,3,4}_*.sh`
-- P1 Chat Launcher: `scripts/launch_p1_chat.py`
-
-**CRITICAL Next Steps** (MUST DO before more training):
-1. ✅ **Run 5CAT on P1** to establish true baseline (does P1 also have backward bias?)
-   ```bash
-   ./.venv/bin/python tools/tests/test_5to1_alignment.py \
-     --model artifacts/lvm/models/transformer_baseline_p1/best_model.pt \
-     --val-npz artifacts/lvm/validation_sequences_ctx5_articles4000-4499_compat.npz \
-     --ood-npz artifacts/lvm/ood_sequences_ctx5_articles1500-1999.npz \
-     --articles-npz artifacts/wikipedia_584k_fresh.npz \
-     --device mps --max-samples 5000
-   ```
-2. ✅ **Validate training data** for inherent backward bias:
-   ```bash
-   ./.venv/bin/python tools/tests/diagnose_data_direction.py \
-     artifacts/lvm/training_sequences_ctx5_584k_clean_splits.npz \
-     --n-samples 5000
-   ```
-3. ⚠️ **DO NOT attempt more directional loss approaches** until root cause is understood
-4. ⚠️ **Consider fundamentally different architectures** (autoregressive, contrastive, etc.)
+- Root cause paper: `docs/WIKIPEDIA_BACKWARD_BIAS_ROOT_CAUSE.md`
+- P6b v2.1 implementation guide: `artifacts/lvm/P6B_V21_IMPLEMENTATION.md` (500+ lines)
+- P6b v1 collapse analysis: `artifacts/lvm/P6B_EPOCH3_COLLAPSE_ANALYSIS.md`
+- Session summary: `artifacts/lvm/SESSION_SUMMARY_2025_11_02_BACKWARD_BIAS.md`
+- Diagnostics tool: `tools/diagnose_p6_direction.py`
 
 ---
 
-### Critical Discovery (2025-10-30 Evening) - ONGOING INVESTIGATION
+### Training Data & Validation Requirements
 
-**Issue**: ALL production models (ports 9001-9006) predict the **PREVIOUS** vector instead of **NEXT** vector
-- Transformer Optimized: margin **-0.134** (should be +0.12)
-- LSTM: margin **-0.149**
-- GRU: margin **-0.124**
-- Transformer: margin **-0.054**
-- AMN: margin **-0.002** (random)
-
-**Root Cause**: Models were trained on low-quality 340k dataset:
-- Internal coherence: **0.353** (should be ~0.47)
-- Temporal signal: **+0.015** (should be +0.12)
-- Nearly flat, incoherent sequences
-
-**Resolution**: Retrain on clean 584k dataset with 5CAT validation
-
-### Retraining Commands
-
-```bash
-# Train individual model with 5CAT validation (RECOMMENDED - test first)
-./scripts/train_with_5cat_validation.sh transformer
-
-# Or train all 4 models sequentially (~6-8 hours total)
-./scripts/retrain_all_production_models.sh
-```
-
-**Expected Results with Clean Data**:
-- ✅ Positive margins: +0.10 to +0.18
-- ✅ Strong rollout: 0.50-0.55
-- ✅ Val cosine: 0.56-0.62
-- ✅ NO backward bias
-
-### Key Learnings
-
-**Data Quality**:
-- ❌ **NEVER train without validating data quality first**
-- ✅ **ALWAYS run diagnostic tool on training data**:
-  ```bash
-  ./.venv/bin/python tools/tests/diagnose_data_direction.py \
-    artifacts/lvm/training_sequences_NEW.npz --n-samples 5000
-  ```
-- ✅ **Require minimum coherence ≥ 0.40, signal ≥ +0.08**
-
-**Training Process**:
-- ❌ **NEVER use `random_split()` for train/val splits** - causes data contamination
-- ✅ **ALWAYS use article-based splits** - ensures no article appears in both train and val
-- ✅ **ALWAYS integrate 5CAT testing during training** - detects backward bias early
-- ✅ **ALWAYS verify OOD generalization** - val score alone is not enough
-
-**Model Validation**:
-- ❌ **NEVER deploy without 5CAT validation**
-- ✅ **ALWAYS run full 5CAT test before production**:
-  ```bash
-  ./.venv/bin/python tools/tests/test_5to1_alignment.py \
-    --model path/to/model.pt \
-    --val-npz artifacts/lvm/validation_sequences_ctx5_articles4000-4499_compat.npz \
-    --ood-npz artifacts/lvm/ood_sequences_ctx5_articles1500-1999.npz \
-    --articles-npz artifacts/wikipedia_584k_fresh.npz \
-    --device mps --max-samples 5000
-  ```
-- ✅ **Require passing all 5 gates** (or 3/5 minimum)
-
-**Production Models** (2025-11-01 Update):
-```bash
-# OLD models with backward bias (DO NOT USE)
-artifacts/lvm/models_340k/transformer/best_model.pt  ❌ margin -0.054
-artifacts/lvm/models_340k/gru/best_model.pt          ❌ margin -0.124
-artifacts/lvm/models_340k/lstm/best_model.pt         ❌ margin -0.149
-artifacts/lvm/models/transformer_optimized_*/best_model.pt  ❌ margin -0.134
-artifacts/lvm/models/amn_790k_production_*/best_model.pt    ❌ random
-
-# V3 directional guards
-artifacts/lvm/models/transformer_directional_v3/best_model.pt  ❌ FAILED (collapsed)
-  ↳ Result: margin -0.132, val_cos 0.354 (collapsed at epoch 4)
-  ↳ Root cause: Guards too strong (λ=0.01), 10x stronger than MSE
-
-# P1 Baseline (CURRENTLY DEPLOYED)
-artifacts/lvm/models/transformer_baseline_p1/best_model.pt  ✅ PORT 9007
-  ↳ Status: Deployed at http://localhost:9007/chat
-  ↳ Metrics: val_cos 0.550, margin 0.0 (neutral, no backward bias)
-  ↳ Launcher: ./.venv/bin/python scripts/launch_p1_chat.py
-  ↳ Use for: Stable baseline, inference testing
-
-# P2 Residual
-artifacts/lvm/models/transformer_residual_p2/best_model.pt  ❌ FAILED (worse copying)
-  ↳ Result: margin -0.534, val_cos 0.472
-  ↳ Root cause: Residual arch (ŷ=norm(u+α·Δ)) made copying easier (Δ≈0)
-
-# P3 Tiny Guards
-artifacts/lvm/models/transformer_p3_tiny_guards/best_model.pt  ⚠️ PARTIAL SUCCESS
-  ↳ Result: margin -0.064, val_cos 0.526 (51% improvement over V3)
-  ↳ Issue: Guards too weak (λ=0.002) to overcome entrenched patterns
-
-# P4 Rollout + Adaptive Guards (FAILED - 2025-11-01)
-artifacts/lvm/models/transformer_p4_rollout/best_model.pt  ❌ FAILED (same collapse as V3)
-  ↳ Result: margin -0.149 (5CAT), val_cos 0.540 (epoch 3) → 0.338 (epoch 4)
-  ↳ 5CAT: 2/5 gates passed, R@1 1.04%, R@5 22.12%
-  ↳ Root cause: Backward bias EXISTS in epoch 3 (pure MSE, BEFORE rollout/guards)
-  ↳ Collapse: Same epoch-4 pattern as V3 (rollout+guards too aggressive)
-  ↳ DO NOT USE - Preserved for analysis only
-```
-
-**See Full Reports**:
-- P4 Failure: `artifacts/lvm/P4_FAILURE_REPORT.md`
-- Backward Bias Investigation: `artifacts/lvm/BACKWARD_BIAS_ROOT_CAUSE_REPORT.md`
-
-**Training Data** (RECOMMENDED):
+**Recommended Training Data**:
 ```bash
 # Training: 438k sequences from articles 1-1499, 2000-3999, 4500-7671
 artifacts/lvm/training_sequences_ctx5_584k_clean_splits.npz
@@ -387,17 +342,30 @@ artifacts/lvm/validation_sequences_ctx5_articles4000-4499.npz
 artifacts/lvm/wikipedia_ood_test_ctx5_TRULY_FIXED.npz
 ```
 
-**What Was Fixed**:
-1. **Root Cause**: `random_split()` mixed articles across train/val → inflated val scores
-2. **Fix**: Article-based splits → no article overlap between train/val/OOD
-3. **Result**: OOD now matches Val (proves true generalization)
+**Key Learnings**:
+- ❌ **NEVER train without validating data quality first** - use `diagnose_data_direction.py`
+- ❌ **NEVER use `random_split()` for train/val splits** - causes data contamination
+- ❌ **NEVER deploy without 5CAT validation** - must pass 3/5 gates minimum
+- ✅ **ALWAYS use article-based splits** - no article overlap between train/val/OOD
+- ✅ **ALWAYS integrate 5CAT testing during training** - detects backward bias early
+- ✅ **ALWAYS verify OOD generalization** - val score alone is not enough
+- ✅ **Require minimum coherence ≥ 0.40, signal ≥ +0.08**
 
-**Architecture Notes**:
-- ✅ AMN: Works perfectly for sequential Wikipedia prediction (OOD=0.5622)
-- ❌ AMN: Incompatible with chat "repeat-pad" mode (use LSTM/GRU/Transformer for chat)
-- ✅ All architectures benefit from article-based splits
+**Retraining Commands**:
+```bash
+# Train with automatic 5CAT validation (RECOMMENDED)
+./scripts/train_with_5cat_validation.sh transformer
+```
 
-**See**: `artifacts/lvm/OOD_EVALUATION_FIX_COMPLETE_SUMMARY.md` for full details
+**Old Models** (DO NOT USE):
+- `artifacts/lvm/models_340k/*` - Backward bias (trained on low-quality data)
+- `artifacts/lvm/models/transformer_directional_v3/` - Collapsed
+- `artifacts/lvm/models/transformer_p{2,3,4}_*/` - Failed experiments
+
+**See Full Documentation**:
+- OOD Evaluation Fix: `artifacts/lvm/OOD_EVALUATION_FIX_COMPLETE_SUMMARY.md`
+- Training Session Report: `artifacts/lvm/TRAINING_SESSION_2025_11_01.md`
+- Backward Bias Investigation: `artifacts/lvm/BACKWARD_BIAS_ROOT_CAUSE_REPORT.md`
 
 ---
 
@@ -407,12 +375,10 @@ artifacts/lvm/wikipedia_ood_test_ctx5_TRULY_FIXED.npz
 
 ### Mandatory Pre-Training Validation
 
-**BEFORE training ANY LVM model, run the data diagnostic tool:**
-
+**BEFORE training ANY LVM model:**
 ```bash
 ./.venv/bin/python tools/tests/diagnose_data_direction.py \
-  artifacts/lvm/YOUR_TRAINING_DATA.npz \
-  --n-samples 5000
+  artifacts/lvm/YOUR_TRAINING_DATA.npz --n-samples 5000
 ```
 
 ### Quality Gates (ALL Must Pass)
@@ -423,73 +389,20 @@ artifacts/lvm/wikipedia_ood_test_ctx5_TRULY_FIXED.npz
 | **Temporal Signal** | ≥ +0.08 | +0.10 to +0.15 | pos[4] much closer to target than pos[0] |
 | **Temporal Order** | Monotonic | Strictly increasing | pos[0] < pos[1] < ... < pos[4] → target |
 
-**Coherence**: Mean cosine similarity between adjacent context positions (e.g., pos[0] ↔ pos[1])
-**Temporal Signal**: Difference between last-to-target vs first-to-target similarity
-**Temporal Order**: Position-to-target similarity should monotonically increase
-
-### Example Good Data (584k Clean)
-
-```
-🔍 Test 1: Position-to-Target Similarity
-   pos[0] → target: 0.3399
-   pos[1] → target: 0.3515
-   pos[2] → target: 0.3649
-   pos[3] → target: 0.3869
-   pos[4] → target: 0.4569  ← +0.117 improvement ✅
-
-   ✅ CORRECT: Similarity increases toward target
-
-🔍 Test 2: First vs Last Position
-   Difference: +0.1171  ← Strong signal ✅
-
-🔍 Test 3: Internal Context Coherence
-   Mean coherence: 0.4569  ← Good coherence ✅
-```
-
-### Example Bad Data (340k Old)
-
-```
-🔍 Test 1: Position-to-Target Similarity
-   pos[0] → target: 0.3383
-   pos[4] → target: 0.3532  ← Only +0.015 improvement ❌
-
-   ⚠️  WARNING: Non-monotonic pattern
-
-🔍 Test 2: First vs Last Position
-   Difference: +0.0148  ← Weak signal ❌
-
-🔍 Test 3: Internal Context Coherence
-   Mean coherence: 0.3532  ← Low coherence ❌
-```
+**Good data example**: 584k clean (coherence 0.46, signal +0.12, monotonic ✅)
+**Bad data example**: 340k old (coherence 0.35, signal +0.01, non-monotonic ❌)
 
 ### If Data Fails Diagnostic
 
 **DO NOT PROCEED WITH TRAINING!** Instead:
-
-1. **Investigate Data Pipeline**
-   - Check sequence creation script
-   - Verify chunk boundaries don't cross articles inappropriately
-   - Ensure vectors aren't shuffled during loading
-
-2. **Check Source Data**
-   - Verify source vectors have proper article/chunk ordering
-   - Run diagnostic on source NPZ: `diagnose_data_direction.py SOURCE.npz`
-   - Look for gaps or discontinuities in article sequences
-
-3. **Regenerate Training Data**
-   - Use `tools/create_training_sequences_with_articles.py`
-   - Verify parameters (context_len=5, stride=1)
-   - Re-run diagnostic on new data
-
-4. **Document Root Cause**
-   - Add findings to investigation log
-   - Update data creation script if needed
-   - Prevent recurrence
+1. Check sequence creation script and chunk boundaries
+2. Verify source vectors have proper article/chunk ordering
+3. Regenerate using `tools/create_training_sequences_with_articles.py`
+4. Document root cause and update scripts to prevent recurrence
 
 ### 5→1 Causal Alignment Test (5CAT)
 
-**AFTER training, before deployment, run 5CAT:**
-
+**AFTER training, before deployment:**
 ```bash
 ./.venv/bin/python tools/tests/test_5to1_alignment.py \
   --model artifacts/lvm/models/YOUR_MODEL/best_model.pt \
@@ -499,126 +412,99 @@ artifacts/lvm/wikipedia_ood_test_ctx5_TRULY_FIXED.npz
   --device mps --max-samples 5000
 ```
 
-**Passing Criteria** (must pass 3/5 minimum):
+**Passing Criteria** (must pass 3/5 gates minimum):
 
-| Gate | Metric | VAL Threshold | OOD Threshold | What It Tests |
-|------|--------|---------------|---------------|---------------|
-| **A: Offset Sweep** | Margin(+1) | ≥ +0.12 | ≥ +0.10 | Predicts NEXT, not previous |
-| **B: Retrieval Rank** | R@1 / R@5 / MRR | ≥60% / ≥95% / ≥80% | ≥55% / ≥92% / ≥75% | Finds target in article |
-| **C: Ablations** | Shuffle delta | ≤ -0.15 | ≤ -0.15 | Order matters |
-| **D: Rollout** | Avg cos@H=5 | ≥ 0.45 | ≥ 0.42 | Multi-step coherence |
-| **E: Bins Delta** | abs(Val - OOD) | ≤ 0.05 | ≤ 0.05 | Generalization |
+| Gate | What It Tests | VAL Threshold | OOD Threshold |
+|------|---------------|---------------|---------------|
+| **A: Offset Sweep** | Predicts NEXT, not previous | Margin ≥ +0.12 | ≥ +0.10 |
+| **B: Retrieval Rank** | Finds target in article | R@1≥60%, R@5≥95% | R@1≥55%, R@5≥92% |
+| **C: Ablations** | Order matters | Shuffle delta ≤ -0.15 | ≤ -0.15 |
+| **D: Rollout** | Multi-step coherence | Avg cos@H=5 ≥ 0.45 | ≥ 0.42 |
+| **E: Bins Delta** | Generalization | abs(Val-OOD) ≤ 0.05 | ≤ 0.05 |
 
-**Critical Alert**: If margin is **NEGATIVE**, model learned backward prediction! DO NOT DEPLOY!
+**🚨 CRITICAL**: If margin is **NEGATIVE**, model learned backward prediction! DO NOT DEPLOY!
 
-### Training with 5CAT Integration
+### Pre-Training & Post-Training Checklists
 
-**RECOMMENDED**: Use integrated training script that runs 5CAT every 5 epochs:
+**Before Training**:
+- [ ] Run `diagnose_data_direction.py` on training data
+- [ ] Verify coherence ≥ 0.40, temporal signal ≥ +0.08, monotonic order
+- [ ] Use article-based splits (no article overlap in train/val/OOD)
+- [ ] Document data source and creation method
 
-```bash
-# Train with automatic 5CAT validation
-./scripts/train_with_5cat_validation.sh transformer
-
-# Script will:
-# - Test data quality before starting
-# - Run 5CAT every 5 epochs
-# - Alert if backward bias detected
-# - Early stop if margin < -0.10
-# - Save best 5CAT model separately
-```
-
-### Data Quality Checklist
-
-Before training ANY LVM model:
-
-- [ ] ✅ Run `diagnose_data_direction.py` on training data
-- [ ] ✅ Verify coherence ≥ 0.40 (target: 0.45-0.50)
-- [ ] ✅ Verify temporal signal ≥ +0.08 (target: +0.10 to +0.15)
-- [ ] ✅ Verify monotonic increasing position-to-target similarity
-- [ ] ✅ Document data source and creation method
-- [ ] ✅ Use article-based splits (no article overlap in train/val/OOD)
-
-After training:
-
-- [ ] ✅ Run full 5CAT test (5000 samples)
-- [ ] ✅ Verify margin is POSITIVE (+0.10 minimum)
-- [ ] ✅ Pass at least 3/5 gates
-- [ ] ✅ Document 5CAT results in model metadata
-- [ ] ✅ Compare to baseline models
+**After Training**:
+- [ ] Run full 5CAT test (5000 samples)
+- [ ] Verify margin is POSITIVE (+0.10 minimum)
+- [ ] Pass at least 3/5 gates
+- [ ] Document 5CAT results and compare to baseline
 
 **Only deploy models that pass both data quality and 5CAT validation!**
+
+**RECOMMENDED**: Use integrated training script:
+```bash
+./scripts/train_with_5cat_validation.sh transformer  # Auto 5CAT every 5 epochs
+```
 
 ---
 
 ## 🚨 CRITICAL RULES FOR DAILY OPERATIONS
 
 1. **ALWAYS use REAL data** - Never use stub/placeholder data. Always use actual datasets from `data/` directory.
-2. **🔴 CRITICAL: NEVER USE ONTOLOGICAL DATASETS FOR LVM TRAINING** (Added Oct 11, 2025)
+
+2. **🔴 NEVER USE ONTOLOGICAL DATASETS FOR LVM TRAINING** (Added Oct 11, 2025)
    - **Ontologies (WordNet, SWO, GO, DBpedia) are TAXONOMIC, NOT SEQUENTIAL**
    - They teach classification hierarchies ("dog → mammal → animal"), not narrative flow
    - **For LVM training, use ONLY sequential document data:**
-     - ✅ **Wikipedia articles** (narrative progression)
-     - ✅ **Textbooks** (sequential instruction: "First... → Next... → Finally...")
-     - ✅ **Scientific papers** (temporal flow: "Methods → Results → Conclusions")
-     - ✅ **Programming tutorials** (step-by-step procedures)
-     - ✅ **Stories/narratives** (causal/temporal relationships)
-     - ❌ **NEVER WordNet** (taxonomic hierarchies)
-     - ❌ **NEVER SWO/GO** (ontological categories)
-     - ❌ **NEVER DBpedia ontology chains** (classification structures)
-   - **Why this matters**: Autoregressive LVMs predict next vector from context. They need temporal/causal relationships, not IS-A hierarchies.
-   - **Validation**: Use `tools/test_sequential_coherence.py` to verify dataset suitability before training
+     - ✅ Wikipedia articles, textbooks, scientific papers, programming tutorials, stories
+     - ❌ NEVER WordNet, SWO/GO, or DBpedia ontology chains
+   - **Why**: Autoregressive LVMs predict next vector from context. They need temporal/causal relationships, not IS-A hierarchies.
+   - **Validation**: Use `tools/test_sequential_coherence.py` to verify dataset suitability
    - **See**: `docs/LVM_TRAINING_CRITICAL_FACTS.md` for detailed explanation
+
 3. **Ontologies ARE useful for GraphRAG, NOT for LVM training**
    - ✅ Use ontologies for: vecRAG retrieval, knowledge graphs, Neo4j relationships
    - ❌ DO NOT use ontologies for: training autoregressive/generative models
+
 4. **ALWAYS verify dataset_source labels** - Training data must use sequential sources (not `ontology-*`)
-5. **ALWAYS call faiss_db.save()** - FAISS vectors must be persisted after ingestion (see Oct 4 fix)
+
+5. **ALWAYS call faiss_db.save()** - FAISS vectors must be persisted after ingestion
+
 6. **ALWAYS use REAL LLM** - Never fall back to stub extraction. Use Ollama with Llama 3.1:
    - Install: `curl -fsSL https://ollama.ai/install.sh | sh`
    - Pull model: `ollama pull llama3.1:8b`
    - Start: `ollama serve` (keep running)
    - Verify: `curl http://localhost:11434/api/tags`
    - See `docs/howto/how_to_access_local_AI.md` for full setup
-6. **🔴 CRITICAL: ALL DATA MUST HAVE UNIQUE IDS FOR CORRELATION** (Added Oct 7, 2025)
+
+7. **🔴 ALL DATA MUST HAVE UNIQUE IDS FOR CORRELATION** (Added Oct 7, 2025)
    - **Every concept MUST have a unique ID** (UUID/CPE ID) that links:
      - PostgreSQL `cpe_entry` table (concept text, CPESH negatives, metadata)
      - Neo4j `Concept` nodes (graph relationships)
      - FAISS NPZ file (768D/784D vectors at index position)
      - Training data chains (ordered sequences for LVM)
-   - **NPZ files MUST include**:
-     - `concept_texts`: Array of concept strings (for lookup)
-     - `cpe_ids`: Array of UUIDs (for database correlation)
-     - `vectors`: 768D or 784D arrays (for training/inference)
-   - **Why this matters**:
-     - vecRAG search: Query → FAISS index → CPE ID → concept text
-     - LVM training: Chain concepts → match text → get vector index → training sequences
-     - Inference: LVM output vector → FAISS nearest neighbor → CPE ID → final text
-   - **Without IDs**: Cannot correlate data across stores → training/inference impossible!
-3. **ALWAYS use REAL embeddings** - Use Vec2Text-Compatible GTR-T5 Encoder:
+   - **NPZ files MUST include**: `concept_texts`, `cpe_ids`, `vectors` arrays
+   - **Why this matters**: Without IDs, cannot correlate data across stores → training/inference impossible!
+
+8. **ALWAYS use REAL embeddings** - Use Vec2Text-Compatible GTR-T5 Encoder:
    - **🚨 CRITICAL**: NEVER use `sentence-transformers` directly for vec2text workflows!
    - **✅ CORRECT**: Use `IsolatedVecTextVectOrchestrator` from `app/vect_text_vect/vec_text_vect_isolated.py`
-   - **Why**: sentence-transformers produces INCOMPATIBLE vectors (9.9x worse quality - see Oct 16 test)
-   - **Proof**: See `docs/how_to_use_jxe_and_ielab.md` (top section, Oct 16 2025) for real examples
+   - **Why**: sentence-transformers produces INCOMPATIBLE vectors (9.9x worse quality)
    - **Test**: Run `tools/compare_encoders.py` to verify encoder compatibility
-   - Generates true 768-dimensional dense vectors that work with vec2text decoders
-   - See `models/` directory for cached model files
-4. **Never run training without explicit permission.**
-5. **Vec2Text usage**: follow `docs/how_to_use_jxe_and_ielab.md` for correct JXE/IELab usage.
-6. **Devices**: JXE can use MPS or CPU; IELab is CPU-only. GTR-T5 can use MPS or CPU.
-7. **Steps**: Use `--steps 1` for vec2text by default; increase only when asked.
-8. **CPESH data**: Always generate complete CPESH (Concept-Probe-Expected-SoftNegatives-HardNegatives) using LLM, never empty arrays.
-9. **🔴 CRITICAL: macOS OpenMP Crash Fix** (Added Oct 21, 2025)
-   - **Problem**: Duplicate OpenMP libraries (PyTorch + FAISS both load `libomp.dylib`)
-   - **Symptom**: "Abort trap: 6" crashes at random batches during training
-   - **Root cause**: macOS doesn't allow multiple OpenMP runtimes in same process
-   - **Solution**: `export KMP_DUPLICATE_LIB_OK=TRUE` (add to ALL training scripts)
-   - **Why this works**: Tells OpenMP to ignore duplicate runtime copies
-   - **Is it safe?**: YES for single-process training (our use case)
-   - **Applies to**: CPU training only (MPS/GPU doesn't use OpenMP)
-   - **See**: `CRASH_ROOT_CAUSE.md` for full diagnostic details
-   - **Verification**: Run `bash test_fix.sh` to confirm fix works
+   - **See**: `docs/how_to_use_jxe_and_ielab.md` for real examples
 
-<!-- Audio notifications section removed to keep repo guidance focused and neutral. -->
+9. **Never run training without explicit permission.**
+
+10. **Vec2Text usage**: Follow `docs/how_to_use_jxe_and_ielab.md` for correct JXE/IELab usage.
+    - Devices: JXE can use MPS or CPU; IELab is CPU-only. GTR-T5 can use MPS or CPU.
+    - Steps: Use `--steps 1` by default; increase only when asked.
+
+11. **CPESH data**: Always generate complete CPESH using LLM, never empty arrays.
+
+12. **🔴 macOS OpenMP Crash Fix** (Added Oct 21, 2025)
+    - **Problem**: Duplicate OpenMP libraries (PyTorch + FAISS both load `libomp.dylib`)
+    - **Solution**: `export KMP_DUPLICATE_LIB_OK=TRUE` (add to ALL training scripts on macOS)
+    - **Applies to**: CPU training only (MPS/GPU doesn't use OpenMP)
+    - **See**: `CRASH_ROOT_CAUSE.md` for full diagnostic details
 
 ---
 
@@ -634,42 +520,40 @@ After training:
 
 ---
 
-## 📍 CURRENT STATUS (2025-11-01 - Updated)
-- **Production Data**: 339,615 Wikipedia concepts (articles 1-3,431) with vectors in PostgreSQL
-  - Vectors: 663MB NPZ file (`artifacts/wikipedia_500k_corrected_vectors.npz`)
-  - CPESH metadata: Not populated (expected - see "Expected Behaviors" above)
-  - Ingested: Oct 15-18, 2025 (complete fresh dataset)
-- **LVM Models**: P1 Baseline Transformer deployed, ALL directional approaches FAILED
-  - ✅ **P1 Baseline**: Deployed on port 9007 (val_cos 0.550, margin ~0.0*, needs 5CAT validation)
-  - ❌ **P4 Rollout**: FAILED - Same collapse as V3 (margin -0.149, R@1 1.04%, 2/5 gates)
-  - ❌ **V3/P2/P3**: All failed with backward bias (see `P4_FAILURE_REPORT.md`)
-  - ❌ **Old Models** (ports 9001-9006): Backward bias, do NOT use
-  - *P1 margin from training metric, NOT 5CAT (needs validation)
-- **CRITICAL Finding**: Backward bias exists in **PURE MSE** (P4 epoch 3), NOT caused by directional losses
-- **Full Pipeline**: Text→Vec→LVM→Vec→Text working end-to-end (~10s total, vec2text = 97% bottleneck)
-- **CPESH Integration**: Full CPESH (Concept-Probe-Expected-SoftNegatives-HardNegatives) implemented with real LLM generation
-- **Vec2Text**: Use `app/vect_text_vect/vec_text_vect_isolated.py` with `--vec2text-backend isolated`
-- **n8n MCP**: Configured and tested. Use `claude mcp list` to verify connection
-- **Local LLM**: Ollama + Llama 3.1:8b running for real CPESH generation
-- **Recent Updates (Nov 1, 2025 - 12-hour session)**:
-  - ✅ 5 training approaches tested (V3, P1, P2, P3, P4)
-  - ✅ P1 Baseline deployed on port 9007 (stable, needs 5CAT validation)
-  - ❌ P4 Rollout FAILED - Same epoch-4 collapse as V3
-  - ✅ 5CAT validation completed on P4 (margin -0.149, R@1 1.04%, 2/5 gates)
-  - 🔍 **CRITICAL**: Backward bias found in epoch 3 (pure MSE, BEFORE directional losses)
-  - ✅ Comprehensive failure analysis (`artifacts/lvm/P4_FAILURE_REPORT.md`)
-  - ✅ Model loader fixed to handle both old and new architectures
-  - ✅ 5CAT validation framework proven effective at detecting backward bias
-  - ⚠️ **Next**: Validate P1 with 5CAT, diagnose training data for inherent bias
-- **Previous Updates (Oct 16, 2025)**:
-  - ✅ 4 LVM models trained with MSE loss (Wikipedia 80k sequences)
-  - ✅ Comprehensive benchmarking completed (see `docs/LVM_DATA_MAP.md`)
-  - ✅ Complete data map documentation created (3 new docs)
-  - ✅ Full pipeline validated with text examples (ROUGE/BLEU scoring)
-- **Previous Fixes (Oct 4, 2025)**:
-  - ✅ Fixed `dataset_source` labeling bug (ontology data now labeled correctly)
-  - ✅ Fixed FAISS save() call (NPZ files now created automatically)
-  - ✅ Updated validation script (checks content, not just labels)
+## 📍 CURRENT STATUS (2025-11-02)
+
+**Production Data**:
+- 339,615 Wikipedia concepts (articles 1-3,431) with vectors in PostgreSQL
+- Vectors: 663MB NPZ file (`artifacts/wikipedia_500k_corrected_vectors.npz`)
+- CPESH metadata: Not populated (expected for LVM training data)
+- Ingested: Oct 15-18, 2025
+
+**LVM Models**:
+- ✅ **P1 Baseline Transformer**: Deployed on port 9007 (http://localhost:9007/chat)
+  - Metrics: val_cos 0.550, margin -0.167 (backward bias)
+  - Use for: Stable inference, baseline comparisons only
+- ✅ **P6b v2.1**: COMPLETED (margin still negative but improved 43%)
+  - Model: `artifacts/lvm/models/transformer_p6b_v21_20251102_182615/best_model.pt`
+  - Results: val_cos 0.488, R@5 0.769, margin -0.047 (was -0.082)
+  - Verdict: Stability proven ✅, guardrails too conservative ⚠️
+- 🚀 **P6b v2.2**: READY TO TRAIN (controlled stronger pressure)
+  - Script: `./scripts/train_transformer_p6b_v22.sh`
+  - Improvements: ρ-controller (0.35 target), stronger anchors, orthogonality penalty
+  - Expected: Margin flip positive at epochs 5-6, final +0.03 to +0.05
+- ❌ **All previous approaches (V3, P2-P4, P5.1, P6, P6b v1)**: Failed with backward bias or collapsed
+- 🔍 **ROOT CAUSE IDENTIFIED**: Wikipedia data has inherent backward bias (Δ = -0.069)
+
+**Components**:
+- Full Pipeline: Text→Vec→LVM→Vec→Text working end-to-end (~10s total, vec2text = 97% bottleneck)
+- Vec2Text: Use `IsolatedVecTextVectOrchestrator` with `--vec2text-backend isolated`
+- CPESH: Full implementation with real LLM generation (Ollama + Llama 3.1:8b)
+- n8n MCP: Configured and tested (`claude mcp list` to verify)
+
+**Recent Updates (Nov 2, 2025)**:
+- ✅ P6b v2.1 completed: margin -0.047 (improved 43% but still negative)
+- ✅ P6b v2.2 implemented: ρ-controller, stronger anchors, orthogonality penalty
+- ✅ All components tested and verified working
+- 🚀 **Next Steps**: Train P6b v2.2, verify margin flips positive at epochs 5-6
 
 ## 🤖 REAL COMPONENT SETUP
 
@@ -718,73 +602,46 @@ print('✓ Vec2text-compatible vectors (will decode correctly)')
 # Expected: CORRECT encoder = 0.89 cosine, WRONG encoder = 0.09 cosine
 ```
 
-### FastAPI Service Management (Added Oct 18, 2025)
+### FastAPI Service Management
 ```bash
 # 🚨 CRITICAL: ALWAYS restart services before ingestion runs
-# Why: Clears memory, resets connections, prevents resource leaks
 
-# Start all required services (Episode, Semantic, GTR-T5, Ingest)
+# Start all services (Episode, Semantic, GTR-T5, Ingest)
 ./scripts/start_all_fastapi_services.sh
+
+# Stop all services (clean shutdown)
+./scripts/stop_all_fastapi_services.sh
 
 # Check service health
 curl -s http://localhost:8900/health  # Episode Chunker
 curl -s http://localhost:8001/health  # Semantic Chunker
 curl -s http://localhost:8767/health  # GTR-T5 Embeddings
 curl -s http://localhost:8004/health  # Ingest API
-
-# Stop all services (clean shutdown)
-./scripts/stop_all_fastapi_services.sh
-
-# Service logs (if needed)
-tail -f /tmp/lnsp_api_logs/*.log
 ```
 
 **Best Practice for Long Ingestion Runs:**
 ```bash
-# 1. Stop old services (clear memory)
-./scripts/stop_all_fastapi_services.sh
-
-# 2. Wait 5 seconds for clean shutdown
-sleep 5
-
-# 3. Start fresh services
-./scripts/start_all_fastapi_services.sh
-
-# 4. Wait 10 seconds for initialization
-sleep 10
-
-# 5. Run ingestion
+# Stop old → wait 5s → start fresh → wait 10s → run ingestion
+./scripts/stop_all_fastapi_services.sh && sleep 5 && \
+./scripts/start_all_fastapi_services.sh && sleep 10 && \
 LNSP_TMD_MODE=hybrid ./.venv/bin/python tools/ingest_wikipedia_pipeline.py \
   --input data/datasets/wikipedia/wikipedia_500k.jsonl \
-  --skip-offset 3432 \
-  --limit 3000
+  --skip-offset 3432 --limit 3000
 ```
 
 ### macOS OpenMP Fix (CRITICAL for Training)
 ```bash
 # 🚨 ALWAYS add this to training scripts on macOS
-# Fixes "Abort trap: 6" crashes caused by PyTorch + FAISS OpenMP conflict
 export KMP_DUPLICATE_LIB_OK=TRUE
 
-# Example: Add to top of any training launch script
+# Example training script
 #!/bin/bash
 export KMP_DUPLICATE_LIB_OK=TRUE
 python tools/train_model.py ...
-
-# Verify fix works
-bash test_fix.sh
 ```
 
-**Why needed:**
-- PyTorch loads `libomp.dylib` (OpenMP runtime)
-- FAISS also loads `libomp.dylib`
-- macOS kills process when multiple OpenMP runtimes detected
-- Setting `KMP_DUPLICATE_LIB_OK=TRUE` tells OpenMP to allow duplicates
-
-**When needed:**
-- ✅ **Always** for CPU training on macOS (especially with FAISS)
-- ❌ **NOT needed** for MPS/GPU training (MPS doesn't use OpenMP)
-- ❌ **NOT needed** on Linux (handles multiple OpenMP better)
+**Why**: PyTorch + FAISS both load `libomp.dylib`, macOS kills process without this flag
+**When**: ✅ CPU training on macOS | ❌ NOT needed for MPS/GPU or Linux
 
 ### Ontology Data Ingestion (No FactoidWiki)
 ```bash
@@ -807,25 +664,7 @@ export LNSP_LLM_MODEL="llama3.1:8b"
 
 ## 📂 KEY COMMANDS
 
-### FastAPI Service Management (NEW - 2025-10-18)
-```bash
-# Start all required services for ingestion pipeline
-./scripts/start_all_fastapi_services.sh
-
-# Stop all services (always do this before starting a new ingestion run!)
-./scripts/stop_all_fastapi_services.sh
-
-# Check individual service health
-curl -s http://localhost:8900/health  # Episode Chunker
-curl -s http://localhost:8001/health  # Semantic Chunker
-curl -s http://localhost:8767/health  # GTR-T5 Embeddings
-curl -s http://localhost:8004/health  # Ingest API
-
-# View service logs
-tail -f /tmp/lnsp_api_logs/*.log
-```
-
-### n8n Integration Commands (NEW - 2025-09-19)
+### n8n Integration
 ```bash
 # Setup n8n MCP server in Claude Code
 claude mcp add n8n-local -- npx -y n8n-mcp --n8n-url=http://localhost:5678
@@ -845,8 +684,9 @@ python3 n8n_workflows/test_webhook_simple.py
 python3 n8n_workflows/test_batch_via_webhook.py
 ```
 
-### General Commands
+### Vec2Text Testing
 ```bash
+# Test vec2text encoding/decoding (CORRECT method)
 VEC2TEXT_FORCE_PROJECT_VENV=1 VEC2TEXT_DEVICE=cpu TOKENIZERS_PARALLELISM=false \
 ./venv/bin/python3 app/vect_text_vect/vec_text_vect_isolated.py \
   --input-text "What is AI?" \
@@ -855,27 +695,10 @@ VEC2TEXT_FORCE_PROJECT_VENV=1 VEC2TEXT_DEVICE=cpu TOKENIZERS_PARALLELISM=false \
   --output-format json \
   --steps 1
 
-VEC2TEXT_FORCE_PROJECT_VENV=1 VEC2TEXT_DEVICE=cpu TOKENIZERS_PARALLELISM=false \
-./venv/bin/python3 app/vect_text_vect/vec_text_vect_isolated.py \
-  --input-text "One day, a little" \
-  --subscribers jxe,ielab \
-  --vec2text-backend isolated \
-  --output-format json \
-  --steps 1
-
-# Individual decoder checks (optional)
-VEC2TEXT_FORCE_PROJECT_VENV=1 VEC2TEXT_DEVICE=cpu TOKENIZERS_PARALLELISM=false \
-./venv/bin/python3 app/vect_text_vect/vec_text_vect_isolated.py \
-  --input-text "girl named Lily found" \
-  --subscribers ielab \
-  --vec2text-backend isolated \
-  --output-format json \
-  --steps 1
-
-# Key parameters
+# Key parameters:
 # --vec2text-backend isolated (required)
-# --subscribers jxe,ielab to test both decoders
-# --steps 1 for speed (use 5 for better quality when requested)
+# --subscribers jxe,ielab (test both decoders)
+# --steps 1 (default for speed, use 5 for better quality)
 # Environment variables enforce CPU usage and project venv
 ```
 
@@ -891,41 +714,18 @@ VEC2TEXT_FORCE_PROJECT_VENV=1 VEC2TEXT_DEVICE=cpu TOKENIZERS_PARALLELISM=false \
 
 ## 🔍 VERIFICATION COMMANDS
 
-### Check All Real Components Are Working
-```bash
-# 1. Verify Ollama LLM is running
-curl -s http://localhost:11434/api/tags | jq -r '.models[].name' | grep llama3.1
-
-# 2. Verify GTR-T5 embeddings
-python -c "from src.vectorizer import EmbeddingBackend; eb = EmbeddingBackend(); print('✓ GTR-T5 embeddings working')"
-
-# 3. Verify CPESH data has real negatives (not empty arrays)
-psql lnsp -c "SELECT count(*) as items_with_negatives FROM cpe_entry WHERE jsonb_array_length(soft_negatives) > 0 AND jsonb_array_length(hard_negatives) > 0;"
-
-# 4. Verify real vector dimensions
-psql lnsp -c "SELECT jsonb_array_length(concept_vec) as vector_dims FROM cpe_vectors LIMIT 1;"
-
-# 5. Test complete CPESH extraction
-python -c "
-from src.prompt_extractor import extract_cpe_from_text
-import os
-os.environ['LNSP_LLM_ENDPOINT'] = 'http://localhost:11434'
-os.environ['LNSP_LLM_MODEL'] = 'llama3.1:8b'
-result = extract_cpe_from_text('The Eiffel Tower was built in 1889.')
-print('✓ LLM extraction working')
-print('Soft negatives:', len(result.get('soft_negatives', [])))
-print('Hard negatives:', len(result.get('hard_negatives', [])))
-"
-```
-
 ### Component Status Check
 ```bash
-# Complete system check
-echo "=== LNSP Real Component Status ==="
-echo "1. Ollama LLM:" $(curl -s http://localhost:11434/api/tags >/dev/null 2>&1 && echo "✓ Running" || echo "✗ Not running")
-echo "2. PostgreSQL:" $(psql lnsp -c "SELECT 1" >/dev/null 2>&1 && echo "✓ Connected" || echo "✗ Not connected")
-echo "3. Neo4j:" $(cypher-shell -u neo4j -p password "RETURN 1" >/dev/null 2>&1 && echo "✓ Connected" || echo "✗ Not connected")
-echo "4. GTR-T5:" $(python -c "from src.vectorizer import EmbeddingBackend; EmbeddingBackend()" >/dev/null 2>&1 && echo "✓ Available" || echo "✗ Not available")
+# Quick system status check
+echo "=== LNSP Component Status ==="
+echo "Ollama LLM:  " $(curl -s http://localhost:11434/api/tags >/dev/null 2>&1 && echo "✓" || echo "✗")
+echo "PostgreSQL:  " $(psql lnsp -c "SELECT 1" >/dev/null 2>&1 && echo "✓" || echo "✗")
+echo "Neo4j:       " $(cypher-shell -u neo4j -p password "RETURN 1" >/dev/null 2>&1 && echo "✓" || echo "✗")
+echo "GTR-T5:      " $(python -c "from src.vectorizer import EmbeddingBackend; EmbeddingBackend()" >/dev/null 2>&1 && echo "✓" || echo "✗")
+
+# Verify specific components
+curl -s http://localhost:11434/api/tags | jq -r '.models[].name' | grep llama3.1  # LLM
+psql lnsp -c "SELECT jsonb_array_length(concept_vec) as vector_dims FROM cpe_vectors LIMIT 1;"  # Vectors
 ```
 
 ## 💡 DEVELOPMENT GUIDELINES

@@ -48,8 +48,16 @@ The LVM Model Evaluation Dashboard is a web-based tool designed to facilitate th
 #### Testing Modes
 - [x] IN-distribution testing
 - [x] Out-of-distribution (OOD) testing
+- [x] DIRECT pipeline testing (no LVM, GTR-T5→vec2text validation)
 - [ ] Custom test set upload
 - [ ] Cross-validation support
+
+#### Test Data Sources
+- [x] Wikipedia 790K dataset (790,391 chunks)
+- [x] Complete sentences from Wikipedia articles
+- [x] Real-world text reconstruction testing
+- [ ] Custom ontology chains
+- [ ] Domain-specific datasets
 
 ### 4.2 Advanced Features
 
@@ -77,20 +85,73 @@ The LVM Model Evaluation Dashboard is a web-based tool designed to facilitate th
 
 ```
 lvm_eval/
-├── app.py                # Main application entry point
+├── lvm_dashboard.py      # Main application entry point
 ├── requirements.txt      # Python dependencies
 ├── static/               # Static files (CSS, JS, images)
 │   ├── css/
-│   └── js/
+│   ├── js/
+│   └── favicon.ico
 ├── templates/            # HTML templates
+│   └── index.html
 ├── logs/                 # Evaluation logs
-└── utils/                # Utility functions
-    ├── evaluation.py     # Evaluation logic
-    ├── visualization.py  # Visualization helpers
-    └── model_loader.py   # Model loading utilities
+├── routes.py             # Flask routes and evaluation logic
+└── __init__.py           # Flask app initialization
 ```
 
-### 5.2 Data Model
+### 5.2 Dataset Integration
+
+#### Wikipedia 790K Dataset
+The dashboard integrates with a massive Wikipedia dataset containing **790,391 chunks** of English Wikipedia content:
+
+- **Raw Text Source**: `data/datasets/wikipedia/wikipedia_500k.jsonl` (2.1 GB)
+  - 500,000 Wikipedia articles in JSONL format
+  - Complete sentences and paragraphs, not single words or factoids
+  - Each entry contains: id, title, text, url, and length fields
+
+- **Vector Embeddings**: `artifacts/wikipedia_500k_corrected_vectors.npz` (2.1 GB)
+  - 771,115 pre-computed 768-dimensional GTR-T5 embeddings
+  - Used for similarity calculations and reconstruction testing
+
+- **Database**: PostgreSQL `lnsp` database with 790,391 chunk entries
+  - Structured storage for efficient retrieval
+  - Metadata and relationship tracking
+
+- **Training Data**: `artifacts/wikipedia_584k_fresh.npz`
+  - P6 sequences for LVM model training
+  - Sequential ontological relationships
+
+#### DIRECT Pipeline Model
+A special "DIRECT" model option that bypasses LVM processing:
+- **Pipeline**: text → GTR-T5 (port 7001) → 768D → vec2text (port 7002) → text
+- **Purpose**: Validate encoding/decoding infrastructure independently
+- **Position**: Always appears at the top of the model list
+- **Use Case**: Test the pipeline quality without LVM interference
+
+#### Vector Sequence Processing Architecture
+The dashboard implements proper sequence-based evaluation for next-chunk prediction:
+
+**Input Processing:**
+- **N sequential chunks** from Wikipedia articles (configurable, default N=5)
+- Each chunk is **encoded individually** via GTR-T5 (port 7001)
+- Results in a **sequence of N vectors** with shape `(N, 768)`
+- Each vector represents a discrete **semantic concept/proposition**
+
+**LVM Processing Flow:**
+```
+Chunk 1 → GTR-T5 → Vector 1 (768D) ┐
+Chunk 2 → GTR-T5 → Vector 2 (768D) ├─→ Stack → (N, 768) tensor → LVM → Output (768D) → Vec2Text → Predicted Chunk N+1
+Chunk 3 → GTR-T5 → Vector 3 (768D) │
+...                                 │
+Chunk N → GTR-T5 → Vector N (768D) ┘
+```
+
+**Key Characteristics:**
+- LVMs process **sequences of concept vectors** similar to how LLMs process token sequences
+- Each chunk loads as a **separate event** in the model's context window
+- The model predicts the **next chunk** (N+1) given N input chunks
+- Evaluation measures the similarity between predicted and actual next chunk
+
+### 5.3 Data Model
 
 #### Evaluation Run
 ```json
@@ -123,16 +184,27 @@ lvm_eval/
 }
 ```
 
-### 5.3 API Endpoints
+### 5.4 API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Main dashboard view |
 | `/save_settings` | POST | Save user settings |
-| `/evaluate_models` | POST | Run model evaluation |
-| `/api/models` | GET | List available models |
-| `/api/evaluations` | GET | List past evaluations |
-| `/api/evaluations/<id>` | GET | Get evaluation details |
+| `/evaluate` | POST | Run model evaluation (sequential) |
+| `/evaluate/parallel` | POST | Run parallel model evaluation |
+| `/evaluate/stream` | GET | SSE endpoint for progress updates |
+| `/api/models` | GET | List available models (includes DIRECT) |
+| `/api/system-info` | GET | Get system information |
+| `/api/progress` | GET | Get current evaluation progress |
+
+### 5.5 Service Dependencies
+
+| Service | Port | Purpose |
+|---------|------|---------|  
+| GTR-T5 Encoder | 7001 | Text to 768D vector encoding |
+| Vec2Text Decoder | 7002 | 768D vector to text decoding |
+| PostgreSQL | 5432 | Wikipedia chunk storage (790K entries) |
+| Dashboard | 8999 | LVM evaluation interface |
 
 ## 6. User Interface
 
@@ -172,6 +244,9 @@ lvm_eval/
    - Default evaluation parameters
    - UI customization options
    - Data export settings
+   - Vec2Text Decoding Steps control (persisted)
+   - Starting Article index and Randomize start controls (persisted)
+   - Metric selections (including Latency and Memory Usage) persisted
 
 ## 7. Performance Requirements
 
@@ -214,12 +289,21 @@ lvm_eval/
 
 ## 11. Dependencies
 
+### Software Dependencies
 - Python 3.8+
 - PyTorch 1.9.0+
 - Flask 2.0.0+
 - Transformers 4.11.0+
 - scikit-learn 1.0.0+
 - Chart.js 3.0.0+
+- sentence-transformers
+- rouge-score
+
+### Data Dependencies
+- **Wikipedia Dataset**: 790,391 chunks (not 80K as previously documented)
+- **Vectors**: 771,115 pre-computed embeddings
+- **Storage**: ~4.2 GB for JSONL + NPZ files
+- **Memory**: 8+ GB RAM recommended for full dataset loading
 
 ## 12. Open Issues
 
@@ -249,10 +333,115 @@ lvm_eval/
 
 ### C. Changelog
 
+#### 1.3.0 (2025-11-02 In Progress)
+- Progress Completion UI: When evaluation completes, progress header switches to "Complete" and progress bar turns solid green (non-animated). New runs reset to blue striped/animated.
+- Vec2Text Steps (UI + Backend): Added "Vec2Text Decoding Steps" input (persisted). Value is sent as `vec2text_steps` and used by decoder in `decode_vector(..., steps=...)`.
+- Start Article Controls (UI + Backend): Added "Starting Article (index)" and "Randomize starting article" (persisted). Backend loads a window starting at `start_article_index` and shuffles when `random_start=true`.
+- Metric Persistence: Latency and Memory Usage checkboxes (and all metrics) persist in localStorage and restore on load.
+- Memory Usage Metric: Fixed negative values by reporting peak RSS delta over the evaluation (`peak_rss - initial_rss`), sampled after each test and on error path.
+- Model Path Display: Results headers show project-relative paths (prefer `/lnsp-phase-4/…`, fallback to `/artifacts/…`, then basename). Model list shows relative path, timestamp, and size.
+- Model Path Resolution (Backend): Paths like `/artifacts/...` are treated as project-root relative and resolved with `realpath()` before loading. Fixes "does not load" for UI-shown paths.
+- Test Case Count: Route honors `num_test_cases` > 10; internal sample pool increased to support larger requests.
+- DIRECT Handling: Expected output is last input chunk. Cosine compares encoded expected vs encoded decoded output text; guards for zero/NaN norms.
+- UI State: Persist `numTestCases`, `numConcepts`, `testMode`, `selectAll`, `vec2textSteps`, `startArticleIndex`, and `randomStart`.
+
+##### New/Updated Settings & Params
+- UI Controls (persisted):
+  - Vec2Text Decoding Steps (`#vec2textSteps`)
+  - Starting Article (index) (`#startArticleIndex`)
+  - Randomize starting article (`#randomStart`)
+  - Metric checkboxes including Latency and Memory Usage (`.metric-checkbox`)
+- Request JSON fields:
+  - `vec2text_steps: int` — decoding steps for vec2text
+  - `start_article_index: int` — starting article index (0-based)
+  - `random_start: bool` — shuffle article window
+  - `num_concepts: int`, `num_test_cases: int`, `test_mode: str`, `models: list[str]`, `metrics: list[str]`
+
+##### Display & Pathing
+- Model list shows relative path from project root, modified time, and size (MB).
+- Results panel headers use project-relative paths for readability.
+
+###### Example API Request Payload
+
+```json
+{
+  "models": [
+    "/artifacts/lvm/models/transformer_p5_20251102_095841/stageA/best_model.pt",
+    "DIRECT"
+  ],
+  "test_mode": "both",
+  "metrics": ["cosine", "rouge", "latency", "memory"],
+  "num_concepts": 5,
+  "num_test_cases": 25,
+  "vec2text_steps": 5,
+  "start_article_index": 250,
+  "random_start": false
+}
+```
+
+###### Example curl
+
+```bash
+curl -X POST http://localhost:8999/evaluate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "models": ["/artifacts/lvm/models/transformer_p5_20251102_095841/stageA/best_model.pt", "DIRECT"],
+    "test_mode": "both",
+    "metrics": ["cosine", "rouge", "latency", "memory"],
+    "num_concepts": 5,
+    "num_test_cases": 25,
+    "vec2text_steps": 5,
+    "start_article_index": 250,
+    "random_start": false
+  }'
+```
+
+
+#### 1.2.0 (2025-11-02)
+- Renamed main entry point from `app.py` to `lvm_dashboard.py` for clarity
+- Implemented proper vector sequence processing for next-chunk prediction
+- Each input chunk now encoded separately into individual 768D vectors
+- LVM processes sequences of N vectors (not concatenated text)
+- Updated test data structure to maintain chunk separation
+
+#### 1.1.0 (2025-11-02)
+- Added DIRECT pipeline model for infrastructure testing
+- Integrated Wikipedia 790K dataset (corrected from 80K)
+- Fixed metric selection validation issues
+- Improved vector-to-text decoding with port 7002
+- Updated test data to use real Wikipedia chunks instead of synthetic data
+
 #### 1.0.0 (2025-11-01)
 - Initial release of LVM Model Evaluation Dashboard
 - Core evaluation metrics and visualization
 - Basic model management and comparison
 
+### D. Quick Reference
+
+#### Running the Dashboard
+```bash
+# Start the LVM evaluation dashboard
+python lvm_eval/lvm_dashboard.py
+
+# Dashboard will be available at:
+# http://localhost:8999/
+```
+
+#### Dataset Commands
+```bash
+# Count Wikipedia chunks
+wc -l data/datasets/wikipedia/wikipedia_500k.jsonl  # 500K articles
+
+# Check vector dimensions  
+python -c "import numpy as np; d=np.load('artifacts/wikipedia_500k_corrected_vectors.npz'); print(d['embeddings'].shape)"  # (771115, 768)
+```
+
+#### Testing the Pipeline
+```bash
+# Test DIRECT pipeline with 5 input chunks predicting the 6th
+curl -X POST http://localhost:8999/evaluate -H "Content-Type: application/json" \
+  -d '{"models":["DIRECT"],"test_mode":"both","num_concepts":5,"num_test_cases":10}'
+```
+
 ---
-*Document last updated: November 1, 2025*
+*Document last updated: November 2, 2025*

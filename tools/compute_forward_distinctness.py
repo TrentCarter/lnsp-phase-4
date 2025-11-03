@@ -33,7 +33,17 @@ def cosine_similarity(a, b):
 
 def compute_forward_distinctness(npz_path: Path, output_path: Path = None):
     """
-    Compute forward-distinctness scores for all samples.
+    Compute forward-advantage scores for curriculum learning.
+
+    Computes richer metrics beyond simple similarity:
+    - sim_prev: cos(target, ctx[-1]) - similarity to last context
+    - sim_prev2: cos(target, ctx[-2]) - similarity to second-to-last
+    - sim_other_max: max(cos(target, ctx[i])) for i in [0..3] - best match in earlier context
+    - adv_prev: sim_prev - sim_other_max - FORWARD ADVANTAGE (key signal!)
+    - delta_prev2: sim_prev - sim_prev2 - tie-breaker
+
+    Forward advantage encodes both direction (target similar to ctx[-1]) AND uniqueness
+    (ctx[-1] is the BEST match, not just one of many similar slots).
 
     Args:
         npz_path: Path to training NPZ (with context_sequences, target_vectors)
@@ -46,64 +56,94 @@ def compute_forward_distinctness(npz_path: Path, output_path: Path = None):
     targets = data['target_vectors']      # (N, 768)
 
     N = len(contexts)
-    print(f"   Found {N:,} training samples")
+    ctx_len = contexts.shape[1]  # Should be 5
+    print(f"   Found {N:,} training samples (context length: {ctx_len})")
 
-    # For each sample:
-    # - prev = context[-2] (second-to-last context position)
-    # - next_proxy = target (we don't have actual next, so use target as proxy)
-    # - Δ = cos(target, target) - cos(target, prev)
-    #     = 1.0 - cos(target, prev)  [since target is normalized]
+    print(f"\n🧮 Computing forward-advantage metrics...")
 
-    # Actually, let's use a better definition:
-    # - prev = context[-1] (last context, the copy-last candidate)
-    # - Δ = 1.0 - cos(target, prev)
-    # High Δ → target is far from prev (forward-distinct)
-    # Low Δ → target is close to prev (copy-friendly)
+    # 1. Similarity to last context position (ctx[-1])
+    sim_prev = cosine_similarity(targets, contexts[:, -1, :])
 
-    prev = contexts[:, -1, :]  # (N, 768) - last context position
+    # 2. Similarity to second-to-last position (ctx[-2])
+    sim_prev2 = cosine_similarity(targets, contexts[:, -2, :])
 
-    # Compute similarity
-    sim_prev = cosine_similarity(targets, prev)
+    # 3. Maximum similarity to any earlier context position (ctx[0..3])
+    sim_others = []
+    for i in range(ctx_len - 1):  # Positions 0, 1, 2, 3 (exclude last)
+        sim_i = cosine_similarity(targets, contexts[:, i, :])
+        sim_others.append(sim_i)
 
-    # Forward-distinctness: distance from copy-last
-    # Higher score = less similar to prev = more forward-distinct
-    forward_distinctness = 1.0 - sim_prev
+    sim_others = np.stack(sim_others, axis=0)  # (4, N)
+    sim_other_max = np.max(sim_others, axis=0)  # (N,)
 
-    print(f"\n📊 Forward-Distinctness Statistics:")
-    print(f"   Mean: {forward_distinctness.mean():.4f}")
-    print(f"   Std:  {forward_distinctness.std():.4f}")
-    print(f"   Min:  {forward_distinctness.min():.4f}")
-    print(f"   Max:  {forward_distinctness.max():.4f}")
+    # 4. Forward advantage: is ctx[-1] the BEST match?
+    # High adv_prev → ctx[-1] is uniquely good match (direction + uniqueness)
+    # Low/negative adv_prev → other positions match just as well (ambiguous)
+    adv_prev = sim_prev - sim_other_max
 
-    # Show percentiles
-    p30 = np.percentile(forward_distinctness, 70)  # Top 30% threshold
-    p70 = np.percentile(forward_distinctness, 30)  # Top 70% threshold
-    print(f"\n📌 Curriculum Thresholds:")
-    print(f"   Top 30% (Stage A): Δ ≥ {p30:.4f}")
-    print(f"   Top 70% (Stage B): Δ ≥ {p70:.4f}")
-    print(f"   Full (Stage C):    All samples")
+    # 5. Delta from prev2: tie-breaker for ranking
+    delta_prev2 = sim_prev - sim_prev2
 
-    # Count samples per stage
-    top30_count = np.sum(forward_distinctness >= p30)
-    top70_count = np.sum(forward_distinctness >= p70)
-    print(f"\n📦 Sample Counts:")
-    print(f"   Stage A (top 30%): {top30_count:,} samples")
-    print(f"   Stage B (top 70%): {top70_count:,} samples")
-    print(f"   Stage C (full):    {N:,} samples")
+    print(f"\n📊 Forward-Advantage Statistics:")
+    print(f"   sim_prev (last):         mean={sim_prev.mean():.4f}, std={sim_prev.std():.4f}")
+    print(f"   sim_prev2 (2nd-last):    mean={sim_prev2.mean():.4f}, std={sim_prev2.std():.4f}")
+    print(f"   sim_other_max (best 0-3): mean={sim_other_max.mean():.4f}, std={sim_other_max.std():.4f}")
+    print(f"   adv_prev (ADVANTAGE):    mean={adv_prev.mean():.4f}, std={adv_prev.std():.4f}")
+    print(f"   delta_prev2 (tie-break): mean={delta_prev2.mean():.4f}, std={delta_prev2.std():.4f}")
 
-    # Save scores
+    # Sanity check: % samples with positive advantage
+    pct_positive_adv = 100 * (adv_prev > 0).mean()
+    print(f"\n🔍 Sanity Check:")
+    print(f"   % samples with adv_prev > 0: {pct_positive_adv:.1f}%")
+    if pct_positive_adv < 50:
+        print(f"   ⚠️  WARNING: Less than 50% have positive advantage!")
+        print(f"       This suggests ctx[-1] is NOT the best match for most samples")
+
+    # Show percentiles for advantage metric
+    p30_adv = np.percentile(adv_prev, 70)  # Top 30% by advantage
+    p70_adv = np.percentile(adv_prev, 30)  # Top 70% by advantage
+    print(f"\n📌 Suggested Curriculum Thresholds (by advantage):")
+    print(f"   Top 30% (Stage A): adv_prev ≥ {p30_adv:.4f}")
+    print(f"   Top 70% (Stage B): adv_prev ≥ {p70_adv:.4f}")
+
+    # Also show absolute thresholds (consultant's recommendation)
+    print(f"\n📌 Recommended Absolute Thresholds (consultant):")
+    print(f"   Stage A: sim_prev ≥ 0.66 AND adv_prev ≥ 0.08")
+    print(f"   Stage B: sim_prev ≥ 0.58 OR adv_prev ≥ 0.05")
+
+    # Estimate counts for recommended thresholds
+    mask_A_recommended = (sim_prev >= 0.66) & (adv_prev >= 0.08)
+    mask_B_recommended = (sim_prev >= 0.58) | (adv_prev >= 0.05)
+    print(f"\n📦 Sample Counts (recommended thresholds):")
+    print(f"   Stage A: {mask_A_recommended.sum():,} samples ({100*mask_A_recommended.mean():.1f}%)")
+    print(f"   Stage B: {mask_B_recommended.sum():,} samples ({100*mask_B_recommended.mean():.1f}%)")
+    print(f"   Stage C (full): {N:,} samples (100.0%)")
+
+    # Save richer scores
     if output_path is None:
         output_path = npz_path.parent / f"{npz_path.stem}_forward_scores.npz"
 
     np.savez_compressed(
         output_path,
-        forward_distinctness=forward_distinctness,
-        threshold_top30=p30,
-        threshold_top70=p70,
+        # Rich metrics (P5.1)
+        sim_prev=sim_prev,
+        sim_prev2=sim_prev2,
+        sim_other_max=sim_other_max,
+        adv_prev=adv_prev,
+        delta_prev2=delta_prev2,
+        # Legacy metric (for backward compatibility)
+        forward_distinctness=sim_prev,
+        # Recommended thresholds
+        tau_sim_A=0.66,
+        tau_adv_A=0.08,
+        tau_sim_B=0.58,
+        tau_adv_B=0.05,
+        # Metadata
         num_samples=N,
     )
 
     print(f"\n✅ Saved scores to: {output_path}")
+    print(f"   Includes: sim_prev, sim_prev2, sim_other_max, adv_prev, delta_prev2")
     return output_path
 
 

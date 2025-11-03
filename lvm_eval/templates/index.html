@@ -134,13 +134,34 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label">Number of Concepts</label>
-                            <input type="number" id="numConcepts" class="form-control" min="1" max="10" value="5">
+                            <label for="numConcepts" class="form-label">Number of Input Chunks (1-20)</label>
+                            <input type="number" class="form-control" id="numConcepts" value="5" min="1" max="20">
+                            <div class="form-text">Number of sequential chunks/sentences to use as input (model predicts chunk N+1)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="numTestCases" class="form-label">Number of Test Cases per Model</label>
+                            <input type="number" id="numTestCases" class="form-control" min="1" max="100" value="10">
+                            <div class="form-text">How many test sequences to evaluate (each uses N chunks to predict chunk N+1)</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="vec2textSteps" class="form-label">Vec2Text Decoding Steps</label>
+                            <input type="number" id="vec2textSteps" class="form-control" min="1" max="20" value="3">
+                            <div class="form-text">Higher steps can improve decoded text quality at the cost of latency.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="startArticleIndex" class="form-label">Starting Article (index)</label>
+                            <input type="number" id="startArticleIndex" class="form-control" min="0" value="0">
+                            <div class="form-text">Start from this article index in the Wikipedia JSONL (0-based).</div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="randomStart">
+                            <label class="form-check-label" for="randomStart">Randomize starting article (shuffle window)</label>
                         </div>
                         
                         <div id="evaluationProgress" class="mb-3" style="display: none;">
                             <div class="d-flex justify-content-between mb-1">
-                                <small>Evaluating models...</small>
+                                <small id="progressHeading">Evaluating models...</small>
                                 <small><span id="progressText">0%</span></small>
                             </div>
                             <div class="progress" style="height: 20px;">
@@ -159,6 +180,24 @@
                             <input type="text" id="modelSearch" class="form-control" placeholder="Search models...">
                         </div>
                         
+                        <div class="mb-3 d-flex gap-2 align-items-center">
+                            <label class="form-label mb-0" style="white-space: nowrap;">Show:</label>
+                            <select id="modelLimit" class="form-select form-select-sm">
+                                <option value="50">50 models</option>
+                                <option value="100">100 models</option>
+                                <option value="200" selected>200 models</option>
+                                <option value="500">500 models</option>
+                                <option value="all">All models</option>
+                            </select>
+                            <button id="refreshModels" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                        
+                        <div class="alert alert-info small py-2 mb-2">
+                            <i class="bi bi-info-circle"></i> Showing <strong id="modelCount">{{ models|length }}</strong> models (newest first)
+                        </div>
+                        
                         <div class="model-list" style="max-height: 500px; overflow-y: auto;">
                             {% for model in models %}
                             <div class="card model-card mb-2" data-model-path="{{ model.path }}">
@@ -169,11 +208,13 @@
                                             <label class="form-check-label" for="model-{{ loop.index }}">
                                                 <strong>{{ model.name }}</strong>
                                                 <div class="text-muted small">
-                                                    <i class="bi bi-clock"></i> {{ model.modified|datetime }}
-                                                </div>
-                                                <div class="small text-truncate" title="{{ model.relative_path }}">
-                                                    <i class="bi bi-folder2"></i> {{ model.relative_path }}
-                                                    <span class="text-muted ms-2">{{ "%.1f"|format(model.size_mb) }} MB</span>
+                                                    {% if model.relative_path %}
+                                                    <div>{{ '/' + model.relative_path }}</div>
+                                                    {% endif %}
+                                                    <div>
+                                                        <i class="bi bi-clock"></i> {{ model.modified_str or (model.modified|datetime) }}
+                                                        {% if model.size_mb %} · {{ '%.1f' % model.size_mb }} MB{% endif %}
+                                                    </div>
                                                 </div>
                                             </label>
                                         </div>
@@ -214,7 +255,7 @@
     </div>
 
     <!-- Settings Modal -->
-    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -288,573 +329,65 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="{{ url_for('static', filename='js/progress.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/progress.js') }}?v=2"></script>
+    <script src="{{ url_for('static', filename='js/display.js') }}?v=2"></script>
     
     <script>
-        // Global variables for progress tracking
-        let evaluationInProgress = false;
-        let progressInterval;
+        // Global constants
+        const STORAGE_KEYS = {
+            SETTINGS: 'appSettings',
+            SELECTED_MODELS: 'selectedModels',
+            TEST_MODE: 'testMode',
+            SELECT_ALL: 'selectAllModels',
+            METRICS: 'evaluationMetrics',
+            NUM_TEST_CASES: 'numTestCases',
+            NUM_CONCEPTS: 'numConcepts',
+            VEC2TEXT_STEPS: 'vec2textSteps',
+            START_ARTICLE: 'startArticleIndex',
+            RANDOM_START: 'randomStart'
+        };
+
+        // Global variables
         
-        // Initialize Select2
+
+        // Initialize when document is ready
         $(document).ready(function() {
-            // Initialize settings modal
-            const settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
-            
-            // Function to load all saved settings
-            function loadSettings() {
-                // Load app settings
-                const settings = JSON.parse(localStorage.getItem('appSettings') || '{}');
-                
-                // Apply settings to UI
-                if (settings.debugMode !== undefined) {
-                    $('#enableDebugMode').prop('checked', settings.debugMode);
-                }
-                if (settings.logLevel) {
-                    $('#logLevel').val(settings.logLevel);
-                }
-                if (settings.maxLogFiles) {
-                    $('#maxLogFiles').val(settings.maxLogFiles);
-                }
-                
-                // Load test mode
-                const savedTestMode = localStorage.getItem('testMode');
-                if (savedTestMode) {
-                    $('#testMode').val(savedTestMode);
-                }
-                
-                // Load selected models
-                const selectedModels = JSON.parse(localStorage.getItem('selectedModels') || '[]');
-                if (selectedModels.length > 0) {
-                    $('.model-card').each(function() {
-                        const modelPath = $(this).data('model-path');
-                        if (selectedModels.includes(modelPath)) {
-                            $(this).addClass('selected');
-                            $(this).find('.form-check-input').prop('checked', true);
-                        }
-                    });
-                }
-                
-                // Update select all checkbox
-                updateSelectAllCheckbox();
-            }
-            
-            // Function to save all settings
-            function saveSettings() {
-                // Save app settings
-                const settings = {
-                    debugMode: $('#enableDebugMode').is(':checked'),
-                    logLevel: $('#logLevel').val(),
-                    maxLogFiles: $('#maxLogFiles').val()
-                };
-                localStorage.setItem('appSettings', JSON.stringify(settings));
-                
-                // Save test mode
-                localStorage.setItem('testMode', $('#testMode').val());
-                
-                // Save selected models
-                const selectedModels = [];
-                $('.model-card.selected').each(function() {
-                    selectedModels.push($(this).data('model-path'));
-                });
-                localStorage.setItem('selectedModels', JSON.stringify(selectedModels));
-                
-                return settings;
-            }
-            
-            // Function to reset all settings
-            function resetAllSettings() {
-                if (confirm('Are you sure you want to reset all settings and selections? This cannot be undone.')) {
-                    localStorage.clear();
-                    location.reload();
-                }
-            }
-            
-            // Load settings when page loads
-            loadSettings();
-            
-            // Load system information when settings modal is shown
-            $('#settingsModal').on('show.bs.modal', function() {
-                // Get system information from the server
-                $.get('/api/system-info', function(data) {
-                    $('#logFilePath').val(data.log_file);
-                    $('#modelsDirPath').val(data.models_dir);
-                    
-                    // Load current settings
-                    const settings = JSON.parse(localStorage.getItem('appSettings') || '{}');
-                    $('#enableDebugMode').prop('checked', settings.debugMode || false);
-                    $('#logLevel').val(settings.logLevel || 'INFO');
-                    $('#maxLogFiles').val(settings.maxLogFiles || '10');
-                }).fail(function() {
-                    showAlert('Failed to load system information', 'danger');
-                });
-            });
-            
-            // Handle copy log path button
-            $('#copyLogPath').click(function() {
-                copyToClipboard($('#logFilePath').val());
-                showAlert('Log file path copied to clipboard', 'success');
-            });
-            
-            // Handle copy models path button
-            $('#copyModelsPath').click(function() {
-                copyToClipboard($('#modelsDirPath').val());
-                showAlert('Models directory path copied to clipboard', 'success');
-            });
-            
-            // Handle save settings button
-            $('#saveSettingsBtn').click(function() {
-                const settings = saveSettings();
-                
-                // Send settings to the server
-                $.ajax({
-                    url: '/api/update-settings',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify(settings),
-                    success: function(response) {
-                        showAlert('Settings saved successfully', 'success');
-                        // Close the modal after a short delay
-                        setTimeout(() => settingsModal.hide(), 1000);
-                    },
-                    error: function() {
-                        showAlert('Failed to save settings', 'danger');
-                    }
-                });
-            });
-            
-            // Handle reset all button
-            $('#resetAllBtn').click(resetAllSettings);
-            
-            // Save test mode when changed
-            $('#testMode').change(function() {
-                localStorage.setItem('testMode', $(this).val());
-            });
-            
-            // Handle evaluate button click
-            $('#evaluateBtn').click(function() {
-                if (evaluationProgress && evaluationProgress.eventSource) {
-                    showAlert('Evaluation is already in progress. Please wait...', 'info');
-                    return;
-                }
+            // evaluationProgress is already initialized in progress.js
 
-                const selectedModels = $('.model-checkbox:checked');
-                if (selectedModels.length === 0) {
-                    showAlert('Please select at least one model to evaluate.', 'warning');
-                    return;
-                }
+            // Load settings from session first
+            loadSettingsFromSession();
 
-                const testMode = $('#testMode').val();
-                const metrics = [];
-                $('.metric-checkbox:checked').each(function() {
-                    metrics.push($(this).val());
-                });
-
-                if (metrics.length === 0) {
-                    showAlert('Please select at least one evaluation metric.', 'warning');
-                    return;
-                }
-
-                const numConcepts = parseInt($('#numConcepts').val()) || 5;
-
-                // Collect model paths
-                const modelPaths = [];
-                selectedModels.each(function() {
-                    modelPaths.push($(this).val());
-                });
-
-                console.log('Starting evaluation for models:', modelPaths);
-                console.log('Test mode:', testMode);
-
-                // Start progress tracking UI
-                evaluationProgress.start();
-
-                // Start SSE connection for real-time progress
-                if (window.EventSource) {
-                    evaluationProgress.initializeSSE();
-                }
-
-                // Use parallel endpoint for multiple models, sequential for single model
-                const endpoint = modelPaths.length > 1 ? '/evaluate/parallel' : '/evaluate';
-                
-                console.log('Sending evaluation request to:', endpoint);
-
-                // Start the evaluation (non-blocking)
-                $.ajax({
-                    url: endpoint,
-                    method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        models: modelPaths,
-                        test_mode: testMode,
-                        metrics: metrics,
-                        num_concepts: numConcepts
-                    }),
-                    success: function(response) {
-                        console.log('Evaluation response:', response);
-                        console.log('Results array:', response.results);
-                        evaluationProgress.complete(response);
-                        
-                        // Display results regardless of status
-                        if (response.results) {
-                            console.log('Calling displayResults with', response.results.length, 'results');
-                            displayResults(response.results);
-                            showAlert(response.message || 'Evaluation completed!', 'success');
-                        } else {
-                            console.error('No results in response');
-                            showAlert('Evaluation completed but no results returned', 'warning');
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Evaluation error:', error);
-                        console.error('Status:', status);
-                        console.error('Response:', xhr.responseText);
-                        let errorMsg = 'Error evaluating models: ';
-                        try {
-                            const errorResponse = JSON.parse(xhr.responseText);
-                            errorMsg += errorResponse.error || errorResponse.message || 'Unknown error';
-                        } catch (e) {
-                            errorMsg += error || 'Unknown error';
-                        }
-                        evaluationProgress.error(errorMsg);
-                    }
-                });
-            });
-            
-            // Save model selections when changed
-            $(document).on('change', '.model-card .form-check-input', function() {
-                const card = $(this).closest('.model-card');
-                if ($(this).is(':checked')) {
-                    card.addClass('selected');
-                } else {
-                    card.removeClass('selected');
-                }
-                saveSettings();
-                updateSelectAllCheckbox();
-            });
-            
-            // Toggle model selection when clicking anywhere on the card
-            $(document).on('click', '.model-card', function(e) {
-                // Don't trigger if clicking on a link, button, or input inside the card
-                if ($(e.target).is('a, button, input, .btn, [data-bs-toggle]')) {
-                    return;
-                }
-                
-                const checkbox = $(this).find('.form-check-input');
-                checkbox.prop('checked', !checkbox.prop('checked')).trigger('change');
-            });
-            
-            // Helper function to copy text to clipboard
-            function copyToClipboard(text) {
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-            }
-            
-            // Helper function to show alerts
-            function showAlert(message, type = 'info') {
-                const alertDiv = document.createElement('div');
-                alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-                alertDiv.role = 'alert';
-                alertDiv.innerHTML = `
-                    ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                `;
-                
-                const container = document.querySelector('.container-fluid');
-                if (container) {
-                    container.insertBefore(alertDiv, container.firstChild);
-                }
-                
-                // Auto-dismiss after 5 seconds
-                setTimeout(() => {
-                    const alert = bootstrap.Alert.getOrCreateInstance(alertDiv);
-                    if (alert) alert.close();
-                }, 5000);
-            }
-                    
-                    const model = selectedModels[processed];
-                    const modelPath = model.dataset.modelPath;
-                    const modelName = model.querySelector('.model-name').textContent;
-                    
-                    // Update progress
-                    const progress = Math.floor((processed / total) * 100);
-                    $('#evaluationProgressText').text(`${progress}% - Processing ${modelName}...`);
-                    $('#evaluationProgressBar').css('width', `${progress}%`);
-                    
-                    // Make API call for this model
-                    $.ajax({
-                        url: '/evaluate',
-                        type: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({
-                            models: [modelPath],
-                            test_mode: testMode
-                        }),
-                        success: function(response) {
-                            if (response.status === 'success' && response.results && response.results.length > 0) {
-                                results.push(...response.results);
-                            } else {
-                                console.error('Unexpected response format:', response);
-                            }
-                            
-                            // Process next model
-                            processed++;
-                            processNextModel();
-                        },
-                        error: function(xhr, status, error) {
-                            console.error(`Error evaluating model ${modelName}:`, error);
-                            // Continue with next model even if this one fails
-                            processed++;
-                            processNextModel();
-                        }
-                    });
-                }
-                
-                // Start processing
-                processNextModel();
-            }
-
-            // Display evaluation results
-            function displayResults(results) {
-                const resultsContainer = $('#evaluationResults');
-                resultsContainer.empty().show();
-                
-                if (!results || results.length === 0) {
-                    resultsContainer.html('<div class="alert alert-warning">No evaluation results to display.</div>');
-                    return;
-                }
-                
-                let html = `
-                    <div class="card mb-4">
-                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Evaluation Results</h5>
-                            <button class="btn btn-sm btn-light" onclick="$('.test-cases').slideToggle()">
-                                Toggle All Details
-                            </button>
-                        </div>
-                        <div class="card-body">
-                `;
-                
-                // Sort results by average cosine similarity (descending)
-                results.sort((a, b) => (b.avg_cosine_similarity || 0) - (a.avg_cosine_similarity || 0));
-                
-                results.forEach((modelResult, index) => {
-                    const modelName = modelResult.model_name || `Model ${index + 1}`;
-                    const avgCosine = modelResult.avg_cosine_similarity !== undefined ? 
-                        (modelResult.avg_cosine_similarity * 100).toFixed(2) : 'N/A';
-                    
-                    // Calculate average ROUGE scores if available
-                    let avgRouge1 = 0, avgRouge2 = 0, avgRougeL = 0;
-                    const testCases = modelResult.test_cases || [];
-                    
-                    if (testCases.length > 0) {
-                        const rougeScores = testCases
-                            .filter(tc => tc.rouge_scores)
-                            .map(tc => ({
-                                rouge1: tc.rouge_scores.rouge1?.f1 * 100 || 0,
-                                rouge2: tc.rouge_scores.rouge2?.f1 * 0,  // Not using ROUGE-2 for average
-                                rougeL: tc.rouge_scores.rougeL?.f1 * 100 || 0
-                            }));
-                        
-                        if (rougeScores.length > 0) {
-                            avgRouge1 = (rougeScores.reduce((sum, r) => sum + r.rouge1, 0) / rougeScores.length).toFixed(2);
-                            avgRougeL = (rougeScores.reduce((sum, r) => sum + r.rougeL, 0) / rougeScores.length).toFixed(2);
-                        }
-                    }
-                    
-                    html += `
-                        <div class="model-result mb-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="mb-0">${modelName}</h5>
-                                <div>
-```
-
-```javascript
-            // Initialize UI components
-            function initializeUI() {
-                // Initialize tooltips
-                $('[data-bs-toggle="tooltip"]').tooltip();
-                
-                // Initialize Select2 if you have any select2 elements
-                // $('.select2').select2({ theme: 'bootstrap-5' });
-            }
+            // Then load saved state from localStorage
+            loadSavedState();
 
             // Set up event listeners
-            function setupEventListeners() {
-                // Model selection
-                $('.model-card').on('click', function(e) {
-                    if (!$(e.target).is('input')) {
-                        const checkbox = $(this).find('.model-checkbox');
-                        checkbox.prop('checked', !checkbox.prop('checked'));
-                        $(this).toggleClass('selected', checkbox.prop('checked'));
-                        updateSelectedModels();
-                    }
-                });
+            setupEventListeners();
 
-                // Model checkbox change
-                $('.model-checkbox').on('change', function() {
-                    $(this).closest('.model-card').toggleClass('selected', $(this).prop('checked'));
-                    updateSelectedModels();
-                });
+            // Initialize UI components
+            initializeUI();
+        });
 
-                // Select all/none
-                $('#selectAllModels').on('change', function() {
-                    const isChecked = $(this).prop('checked');
-                    $('.model-checkbox').prop('checked', isChecked).trigger('change');
-                    $('.model-card').toggleClass('selected', isChecked);
-                    updateSelectedModels();
-                    
-                    // Save select all state
-                    localStorage.setItem(STORAGE_KEYS.SELECT_ALL, isChecked);
-                });
-
-                // Evaluate button
-                $('#evaluateBtn').on('click', function() {
-                    const selectedModels = $('.model-checkbox:checked').closest('.model-card').toArray();
-                    evaluateModels(selectedModels);
-                });
-
-                // Test mode change
-                $('#testMode').on('change', function() {
-                    localStorage.setItem(STORAGE_KEYS.TEST_MODE, $(this).val());
-                });
-
-                // Settings form submission
-                $('#settingsForm').on('submit', function(e) {
-                    e.preventDefault();
-                    saveSettings();
-                    showAlert('Settings saved successfully!', 'success');
-                    $('#settingsModal').modal('hide');
-                });
-
-                // Reset all button
-                $('#resetAllBtn').on('click', function() {
-                    if (confirm('Are you sure you want to reset all settings and selections? This cannot be undone.')) {
-                        localStorage.clear();
-                        showAlert('All settings and selections have been reset.', 'info');
-                        setTimeout(() => location.reload(), 1000);
-                    }
-                });
-
-                // Save settings when modal is closed
-                $('#settingsModal').on('hidden.bs.modal', function() {
-                    saveSettings();
-                });
-            }
-
-            // Load saved state from localStorage
-            function loadSavedState() {
-                try {
-                    // Load settings
-                    const savedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-                    if (savedSettings) {
-                        const settings = JSON.parse(savedSettings);
-                        // Apply settings to form
-                        Object.entries(settings).forEach(([key, value]) => {
-                            const element = $(`#${key}`);
-                            if (element.length) {
-                                if (element.attr('type') === 'checkbox') {
-                                    element.prop('checked', value);
-                                } else {
-                                    element.val(value);
-                                }
-                            }
-                        });
-                    }
-
-                    // Load selected models
-                    const selectedModels = JSON.parse(localStorage.getItem(STORAGE_KEYS.SELECTED_MODELS) || '[]');
-                    if (selectedModels.length > 0) {
-                        selectedModels.forEach(modelPath => {
-                            $(`.model-checkbox[value="${escapeHtml(modelPath)}"]`).prop('checked', true)
-                                .closest('.model-card').addClass('selected');
-                        });
-                    }
-
-                    // Load test mode
-                    const savedTestMode = localStorage.getItem(STORAGE_KEYS.TEST_MODE);
-                    if (savedTestMode) {
-                        $('#testMode').val(savedTestMode);
-                    }
-
-                    // Load select all state
-                    const selectAll = localStorage.getItem(STORAGE_KEYS.SELECT_ALL) === 'true';
-                    if (selectAll) {
-                        $('#selectAllModels').prop('checked', true);
-                    }
-
-                } catch (error) {
-                    console.error('Error loading saved state:', error);
-                    // If there's an error, clear the corrupted data
-                    localStorage.removeItem(STORAGE_KEYS.SETTINGS);
-                    localStorage.removeItem(STORAGE_KEYS.SELECTED_MODELS);
-                    localStorage.removeItem(STORAGE_KEYS.TEST_MODE);
-                    localStorage.removeItem(STORAGE_KEYS.SELECT_ALL);
-                }
-            }
-
-            // Update UI based on current state
-            function updateUIState() {
-                updateSelectedModels();
-                // Add any additional UI updates here
-            }
-
-            // Update selected models
-            function updateSelectedModels() {
-                const selectedModels = [];
-                $('.model-checkbox:checked').each(function() {
-                    selectedModels.push($(this).val());
-                });
-                localStorage.setItem(STORAGE_KEYS.SELECTED_MODELS, JSON.stringify(selectedModels));
-            };
-            
-            // Get selected models
-            $('.model-checkbox:checked').each(function() {
-                settings.selected_models.push($(this).val());
-            });
-            
-            // Get selected metrics
-            $('.metric-checkbox').each(function() {
-                settings.evaluation_metrics[$(this).val()] = $(this).is(':checked');
-            });
-            
-            // Save to session via AJAX
-            $.ajax({
-                url: '/save_settings',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ settings: settings }),
-                success: function(response) {
-                    console.log('Settings saved');
-                }
-            });
-        }
-        
-        // Load settings from session
-        function loadSettings() {
-            const settings = {{ settings|tojson|safe }};
+        // Load settings from Flask session
+        function loadSettingsFromSession() {
+            const settings = JSON.parse('{{ settings|tojson|safe }}');
             
             // Set test mode
             if (settings.test_mode) {
                 $('#testMode').val(settings.test_mode);
             }
-            
+
             // Set metrics
             if (settings.evaluation_metrics) {
                 for (const [metric, enabled] of Object.entries(settings.evaluation_metrics)) {
-                    $(`#metric${metric.charAt(0).toUpperCase() + metric.slice(1)}`).prop('checked', enabled);
+                    $('#metric' + metric.charAt(0).toUpperCase() + metric.slice(1)).prop('checked', enabled);
                 }
             }
-            
+
             // Set number of concepts
             if (settings.num_concepts) {
                 $('#numConcepts').val(settings.num_concepts);
             }
-            
+
             // Check previously selected models
             if (settings.selected_models) {
                 $('.model-checkbox').each(function() {
@@ -866,7 +399,217 @@
                 });
             }
         }
-        
+
+        // Load saved state from localStorage
+        function loadSavedState() {
+            try {
+                // Load test mode
+                const savedTestMode = localStorage.getItem(STORAGE_KEYS.TEST_MODE);
+                if (savedTestMode) {
+                    $('#testMode').val(savedTestMode);
+                }
+
+                // Load metrics
+                const savedMetrics = JSON.parse(localStorage.getItem(STORAGE_KEYS.METRICS) || 'null');
+                if (Array.isArray(savedMetrics)) {
+                    $('.metric-checkbox').each(function() {
+                        const val = $(this).val();
+                        $(this).prop('checked', savedMetrics.includes(val));
+                    });
+                }
+
+                // Load numeric inputs
+                const savedNumTests = localStorage.getItem(STORAGE_KEYS.NUM_TEST_CASES);
+                if (savedNumTests) {
+                    $('#numTestCases').val(parseInt(savedNumTests));
+                }
+                const savedNumConcepts = localStorage.getItem(STORAGE_KEYS.NUM_CONCEPTS);
+                if (savedNumConcepts) {
+                    $('#numConcepts').val(parseInt(savedNumConcepts));
+                }
+                const savedSteps = localStorage.getItem(STORAGE_KEYS.VEC2TEXT_STEPS);
+                if (savedSteps) {
+                    $('#vec2textSteps').val(parseInt(savedSteps));
+                }
+                const savedStartArticle = localStorage.getItem(STORAGE_KEYS.START_ARTICLE);
+                if (savedStartArticle !== null) {
+                    $('#startArticleIndex').val(parseInt(savedStartArticle));
+                }
+                const savedRandomStart = localStorage.getItem(STORAGE_KEYS.RANDOM_START);
+                if (savedRandomStart !== null) {
+                    $('#randomStart').prop('checked', savedRandomStart === 'true');
+                }
+
+                // Load select all state
+                const selectAll = localStorage.getItem(STORAGE_KEYS.SELECT_ALL) === 'true';
+                if (selectAll) {
+                    $('#selectAllModels').prop('checked', true);
+                }
+
+                // Update UI state
+                updateUIState();
+
+            } catch (error) {
+                console.error('Error loading saved state:', error);
+                // Clear corrupted data
+                localStorage.removeItem(STORAGE_KEYS.SETTINGS);
+                localStorage.removeItem(STORAGE_KEYS.SELECTED_MODELS);
+                localStorage.removeItem(STORAGE_KEYS.TEST_MODE);
+                localStorage.removeItem(STORAGE_KEYS.SELECT_ALL);
+            }
+        }
+
+        // Update UI based on current state
+        function updateUIState() {
+            updateSelectedModels();
+            updateSelectAllCheckbox();
+        }
+
+        // Update selected models count and storage
+        function updateSelectedModels() {
+            const selectedModels = [];
+            $('.model-checkbox:checked').each(function() {
+                selectedModels.push($(this).val());
+            });
+            localStorage.setItem(STORAGE_KEYS.SELECTED_MODELS, JSON.stringify(selectedModels));
+        }
+
+        // Update select all checkbox state
+        function updateSelectAllCheckbox() {
+            const totalModels = $('.model-checkbox').length;
+            const checkedModels = $('.model-checkbox:checked').length;
+            $('#selectAllModels').prop('checked', totalModels > 0 && checkedModels === totalModels);
+        }
+
+        // Initialize UI components
+        function initializeUI() {
+            // Initialize tooltips
+            $('[data-bs-toggle="tooltip"]').tooltip();
+            
+            // Initialize Select2 if needed
+            // $('.select2').select2({ theme: 'bootstrap-5' });
+        }
+
+        // Set up all event listeners
+        function setupEventListeners() {
+            // Model card click (toggle selection)
+            $(document).on('click', '.model-card', function(e) {
+                // Don't trigger if clicking on a link, button, or input inside the card
+                if ($(e.target).is('a, button, input, .btn, [data-bs-toggle]')) {
+                    return;
+                }
+                
+                const checkbox = $(this).find('.model-checkbox');
+                checkbox.prop('checked', !checkbox.prop('checked')).trigger('change');
+            });
+            
+            // Model checkbox change
+            $(document).on('change', '.model-checkbox', function() {
+                const card = $(this).closest('.model-card');
+                card.toggleClass('selected', $(this).prop('checked'));
+                updateSelectedModels();
+                updateSelectAllCheckbox();
+            });
+
+            // Select all/none
+            $('#selectAllModels').on('change', function() {
+                const isChecked = $(this).prop('checked');
+                $('.model-checkbox').prop('checked', isChecked).trigger('change');
+                updateSelectedModels();
+                localStorage.setItem(STORAGE_KEYS.SELECT_ALL, isChecked);
+            });
+
+            // Metric checkbox changes
+            $(document).on('change', '.metric-checkbox', function() {
+                const metrics = [];
+                $('.metric-checkbox:checked').each(function() { metrics.push($(this).val()); });
+                localStorage.setItem(STORAGE_KEYS.METRICS, JSON.stringify(metrics));
+            });
+
+            // Numeric inputs
+            $('#numTestCases').on('change', function() {
+                const v = parseInt($(this).val()) || 10;
+                localStorage.setItem(STORAGE_KEYS.NUM_TEST_CASES, v);
+            });
+            $('#numConcepts').on('change', function() {
+                const v = parseInt($(this).val()) || 5;
+                localStorage.setItem(STORAGE_KEYS.NUM_CONCEPTS, v);
+            });
+            $('#vec2textSteps').on('change', function() {
+                const v = parseInt($(this).val()) || 3;
+                localStorage.setItem(STORAGE_KEYS.VEC2TEXT_STEPS, v);
+            });
+            $('#startArticleIndex').on('change', function() {
+                const v = Math.max(0, parseInt($(this).val()) || 0);
+                localStorage.setItem(STORAGE_KEYS.START_ARTICLE, v);
+            });
+            $('#randomStart').on('change', function() {
+                localStorage.setItem(STORAGE_KEYS.RANDOM_START, $(this).is(':checked'));
+            });
+
+            // Evaluate button
+            $('#evaluateBtn').on('click', function() {
+                const selectedModels = $('.model-checkbox:checked').closest('.model-card').toArray();
+                evaluateModels(selectedModels);
+            });
+
+            // Test mode change
+            $('#testMode').on('change', function() {
+                localStorage.setItem(STORAGE_KEYS.TEST_MODE, $(this).val());
+            });
+
+            // Settings modal events
+            $('#settingsModal').on('show.bs.modal', loadSystemInfo);
+            $('#settingsModal').on('hidden.bs.modal', saveSettings);
+            $('#saveSettingsBtn').on('click', saveSettings);
+            $('#resetAllBtn').on('click', resetAllSettings);
+        }
+
+        // Load system information for settings modal
+        function loadSystemInfo() {
+            $.get('/api/system-info', function(data) {
+                $('#logFilePath').val(data.log_file);
+                $('#modelsDirPath').val(data.models_dir);
+            }).fail(function() {
+                showAlert('Failed to load system information', 'danger');
+            });
+        }
+
+        // Save settings
+        function saveSettings() {
+            const settings = {
+                debugMode: $('#enableDebugMode').is(':checked'),
+                logLevel: $('#logLevel').val(),
+                maxLogFiles: $('#maxLogFiles').val()
+            };
+            
+            localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+            
+            // Send to server
+            $.ajax({
+                url: '/api/update-settings',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(settings),
+                success: function(response) {
+                    showAlert('Settings saved successfully', 'success');
+                    $('#settingsModal').modal('hide');
+                },
+                error: function() {
+                    showAlert('Failed to save settings', 'danger');
+                }
+            });
+        }
+
+        // Reset all settings
+        function resetAllSettings() {
+            if (confirm('Are you sure you want to reset all settings and selections? This cannot be undone.')) {
+                localStorage.clear();
+                showAlert('All settings and selections have been reset.', 'info');
+                setTimeout(() => location.reload(), 1000);
+            }
+        }
+
         // Evaluate selected models
         function evaluateModels(selectedModels) {
             if (selectedModels.length === 0) {
@@ -874,348 +617,119 @@
                 return;
             }
 
+            // Get evaluation parameters
             const testMode = $('#testMode').val();
-            const button = $('#evaluateBtn');
-            const buttonText = button.html();
-            
-            // Show loading state
-            button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Evaluating...');
-            
-            // Show progress container
-            const progressContainer = $('#evaluationProgress');
-            progressContainer.html(`
-                <div class="alert alert-info">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span>Starting evaluation of ${selectedModels.length} models...</span>
-                        <span id="evaluationProgressText">0%</span>
-                    </div>
-                    <div class="progress mt-2">
-                        <div id="evaluationProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                            role="progressbar" style="width: 0%"></div>
-                    </div>
-                </div>
-            `).show();
-            
-            // Process models one by one to avoid overwhelming the server
-            const results = [];
-            let processed = 0;
-            const total = selectedModels.length;
-            
-            function processNextModel() {
-                if (processed >= total) {
-                    // All models processed
-                    displayResults(results);
-                    showAlert(`Evaluation completed for ${results.length} models!`, 'success');
-                    button.prop('disabled', false).html(buttonText);
-                    return;
-                }
-                
-                const model = selectedModels[processed];
-                const modelPath = model.dataset.modelPath;
-                const modelName = model.querySelector('.model-name').textContent;
-                
-                // Update progress
-                const progress = Math.floor((processed / total) * 100);
-                $('#evaluationProgressText').text(`${progress}% - Processing ${modelName}...`);
-                $('#evaluationProgressBar').css('width', `${progress}%`);
-                
-                // Make API call for this model
-                console.log('Sending evaluation request for model:', modelPath);
-                console.log('Test mode:', testMode);
-                
-                $.ajax({
-                    url: 'http://localhost:9000/evaluate',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        models: [modelPath],
-                        test_mode: testMode
-                    }),
-                    success: function(response) {
-                        if (response.status === 'success' && response.results && response.results.length > 0) {
-                            results.push(...response.results);
-                        } else {
-                            console.error('Unexpected response format:', response);
-                        }
-                        
-                        // Process next model
-                        processed++;
-                        processNextModel();
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error evaluating model:', error);
-                        console.error('Status:', status);
-                        console.error('Response:', xhr.responseText);
-                        showAlert(`Error evaluating ${modelName}: ${error}`, 'danger');
-                        processed++;
-                        processNextModel();
-                    }
-                });
-            }
-            
-            // Start processing
-            processNextModel();
-        }
+            const metrics = [];
+            $('.metric-checkbox:checked').each(function() {
+                metrics.push($(this).val());
+            });
+            const numConcepts = parseInt($('#numConcepts').val()) || 5;
+            const numTestCases = parseInt($('#numTestCases').val()) || 10;
 
-        // Display evaluation results
-        function displayResults(results) {
-            console.log('Displaying results:', results);
-            
-            // Hide "no results" message
-            $('#noResults').hide();
-            
-            const resultsContainer = $('#resultsContainer');
-            resultsContainer.empty();
-            
-            $('#evaluationResults').show();
-            
-            if (!results || results.length === 0) {
-                resultsContainer.html('<div class="alert alert-warning">No evaluation results to display.</div>');
+            if (metrics.length === 0) {
+                showAlert('Please select at least one evaluation metric.', 'warning');
                 return;
             }
-            
-            let html = `
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Evaluation Results</h5>
-                        <button class="btn btn-sm btn-light" onclick="$('.test-cases').slideToggle()">
-                            Toggle All Details
-                        </button>
-                    </div>
-                    <div class="card-body">
-            `;
-            
-            // Sort results by average cosine similarity (descending)
-            results.sort((a, b) => (b.avg_cosine_similarity || 0) - (a.avg_cosine_similarity || 0));
-            
-            results.forEach((modelResult, index) => {
-                const modelName = modelResult.model_name || `Model ${index + 1}`;
-                const avgCosine = modelResult.avg_cosine_similarity !== undefined ? 
-                    (modelResult.avg_cosine_similarity * 100).toFixed(2) : 'N/A';
-                
-                // Calculate average ROUGE scores if available
-                let avgRouge1 = 0, avgRouge2 = 0, avgRougeL = 0;
-                const testCases = modelResult.test_cases || [];
-                
-                if (testCases.length > 0) {
-                    const rougeScores = testCases
-                        .filter(tc => tc.rouge_scores)
-                        .map(tc => ({
-                            rouge1: tc.rouge_scores.rouge1?.f1 * 100 || 0,
-                            rouge2: tc.rouge_scores.rouge2?.f1 * 0,  // Not using ROUGE-2 for average
-                            rougeL: tc.rouge_scores.rougeL?.f1 * 100 || 0
-                        }));
-                    
-                    if (rougeScores.length > 0) {
-                        avgRouge1 = (rougeScores.reduce((sum, r) => sum + r.rouge1, 0) / rougeScores.length).toFixed(2);
-                        avgRougeL = (rougeScores.reduce((sum, r) => sum + r.rougeL, 0) / rougeScores.length).toFixed(2);
-                    }
-                }
-                
-                html += `
-                    <div class="model-result mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">${modelName}</h5>
-                            <div>
-                                <span class="badge bg-primary me-2">${testCases.length} test cases</span>
-                                <button class="btn btn-sm btn-outline-secondary" 
-                                        onclick="$(this).closest('.model-result').find('.test-cases').slideToggle()">
-                                    Show Details
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-3">
-                                <div class="card h-100">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-subtitle mb-2 text-muted">Cosine Similarity</h6>
-                                        <h3 class="text-primary">${avgCosine}%</h3>
-                                        <div class="progress" style="height: 10px;">
-                                            <div class="progress-bar" role="progressbar" 
-                                                 style="width: ${avgCosine}%" 
-                                                 aria-valuenow="${avgCosine}" 
-                                                 aria-valuemin="0" 
-                                                 aria-valuemax="100">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-3">
-                                <div class="card h-100">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-subtitle mb-2 text-muted">ROUGE-1 F1</h6>
-                                        <h3 class="text-success">${avgRouge1}%</h3>
-                                        <div class="progress" style="height: 10px;">
-                                            <div class="progress-bar bg-success" role="progressbar" 
-                                                 style="width: ${avgRouge1}%" 
-                                                 aria-valuenow="${avgRouge1}" 
-                                                 aria-valuemin="0" 
-                                                 aria-valuemax="100">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-3">
-                                <div class="card h-100">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-subtitle mb-2 text-muted">ROUGE-L F1</h6>
-                                        <h3 class="text-info">${avgRougeL}%</h3>
-                                        <div class="progress" style="height: 10px;">
-                                            <div class="progress-bar bg-info" role="progressbar" 
-                                                 style="width: ${avgRougeL}%" 
-                                                 aria-valuenow="${avgRougeL}" 
-                                                 aria-valuemin="0" 
-                                                 aria-valuemax="100">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-3">
-                                <div class="card h-100">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-subtitle mb-2 text-muted">Test Cases</h6>
-                                        <h3>${testCases.length}</h3>
-                                        <div class="text-muted small">
-                                            ${testCases.filter(tc => tc.cosine_similarity > 0.8).length} passed
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="test-cases" style="display: none;">
-                            <h6>Detailed Results</h6>
-                `;
-                
-                if (testCases.length > 0) {
-                    testCases.forEach((testCase, i) => {
-                        const rouge1 = testCase.rouge_scores?.rouge1?.f1 * 100 || 0;
-                        const rougeL = testCase.rouge_scores?.rougeL?.f1 * 100 || 0;
-                        const cosine = testCase.cosine_similarity !== undefined ? 
-                            (testCase.cosine_similarity * 100).toFixed(2) : 'N/A';
-                        
-                        // Determine badge color based on cosine similarity
-                        let badgeClass = 'bg-danger';
-                        if (testCase.cosine_similarity > 0.8) badgeClass = 'bg-success';
-                        else if (testCase.cosine_similarity > 0.5) badgeClass = 'bg-warning';
-                        
-                        html += `
-                            <div class="card mb-3">
-                                <div class="card-header d-flex justify-content-between align-items-center" 
-                                     data-bs-toggle="collapse" href="#testCase${index}${i}">
-                                    <div>
-                                        <span class="badge ${badgeClass} me-2">${cosine}% Similarity</span>
-                                        Test Case ${i + 1}
-                                    </div>
-                                    <i class="bi bi-chevron-down"></i>
-                                </div>
-                                <div class="collapse" id="testCase${index}${i}">
-                                    <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <h6>Input Text</h6>
-                                                <div class="concept-preview">${escapeHtml(testCase.input || 'N/A')}</div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <h6>Expected Output</h6>
-                                                <div class="concept-preview">${escapeHtml(testCase.expected || 'N/A')}</div>
-                                            </div>
-                                        </div>
-                                        <div class="row mt-3">
-                                            <div class="col-md-6">
-                                                <h6>Model Output</h6>
-                                                <div class="concept-preview">${escapeHtml(testCase.output || 'N/A')}</div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <h6>Metrics</h6>
-                                                <div class="metric-item mb-2">
-                                                    <div class="d-flex justify-content-between">
-                                                        <span>Cosine Similarity:</span>
-                                                        <span>${cosine}%</span>
-                                                    </div>
-                                                    <div class="progress" style="height: 6px;">
-                                                        <div class="progress-bar" role="progressbar" 
-                                                            style="width: ${cosine}%" 
-                                                            aria-valuenow="${cosine}" 
-                                                            aria-valuemin="0" 
-                                                            aria-valuemax="100">
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="metric-item mb-2">
-                                                    <div class="d-flex justify-content-between">
-                                                        <span>ROUGE-1 F1:</span>
-                                                        <span>${rouge1.toFixed(2)}%</span>
-                                                    </div>
-                                                    <div class="progress" style="height: 6px;">
-                                                        <div class="progress-bar bg-success" role="progressbar" 
-                                                            style="width: ${rouge1}%" 
-                                                            aria-valuenow="${rouge1}" 
-                                                            aria-valuemin="0" 
-                                                            aria-valuemax="100">
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="metric-item">
-                                                    <div class="d-flex justify-content-between">
-                                                        <span>ROUGE-L F1:</span>
-                                                        <span>${rougeL.toFixed(2)}%</span>
-                                                    </div>
-                                                    <div class="progress" style="height: 6px;">
-                                                        <div class="progress-bar bg-info" role="progressbar" 
-                                                            style="width: ${rougeL}%" 
-                                                            aria-valuenow="${rougeL}" 
-                                                            aria-valuemin="0" 
-                                                            aria-valuemax="100">
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                } else {
-                    html += '<div class="alert alert-warning">No test cases available for this model.</div>';
-                }
-                
-                html += `
-                        </div>
-                    </div>
-                    <hr class="my-4">
-                `;
+
+            // Collect model paths
+            const modelPaths = [];
+            selectedModels.forEach(model => {
+                const checkbox = $(model).find('.model-checkbox');
+                modelPaths.push(checkbox.val());
             });
+
+            console.log('Starting evaluation for models:', modelPaths);
+
+            // Start progress tracking
+            evaluationProgress.start();
+
+            // Start SSE connection for real-time progress
+            // Disabled: SSE endpoint not implemented
+            // if (window.EventSource) {
+            //     evaluationProgress.initializeSSE();
+            // }
+
+            // Use polling for progress updates instead
+            evaluationProgress.startPolling();
+
+            // Use parallel endpoint for multiple models, sequential for single model
+            const endpoint = modelPaths.length > 1 ? '/evaluate/parallel' : '/evaluate';
             
-            html += `
-                    </div>
-                </div>
-            `;
-            
-            resultsContainer.html(html);
-            
-            // Initialize tooltips
-            $('[data-bs-toggle="tooltip"]').tooltip();
+            // Start the evaluation (non-blocking)
+            $.ajax({
+                url: endpoint,
+                method: 'POST',
+                contentType: 'application/json',
+                timeout: 300000, // 5 minute timeout for model evaluation
+                data: JSON.stringify({
+                    models: modelPaths,
+                    test_mode: testMode,
+                    metrics: metrics,
+                    num_concepts: numConcepts,
+                    num_test_cases: numTestCases,
+                    vec2text_steps: parseInt($('#vec2textSteps').val()) || 3,
+                    start_article_index: Math.max(0, parseInt($('#startArticleIndex').val()) || 0),
+                    random_start: $('#randomStart').is(':checked')
+                }),
+                success: function(response) {
+                    console.log('Evaluation response:', response);
+                    console.log('Results array:', response.results);
+                    evaluationProgress.complete(response);
+                    
+                    // Display results regardless of status
+                    if (response.results) {
+                        console.log('Calling displayResults with', response.results.length, 'results');
+                        displayResults(response.results);
+                        showAlert(response.message || 'Evaluation completed!', 'success');
+                    } else {
+                        console.error('No results in response');
+                        showAlert('Evaluation completed but no results returned', 'warning');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Evaluation error:', error);
+                    console.error('Status:', status);
+                    console.error('Response:', xhr.responseText);
+                    
+                    let errorMsg = 'Error evaluating models: ';
+                    if (status === 'timeout') {
+                        errorMsg += 'Request timed out. The evaluation may be taking too long.';
+                    } else if (xhr.responseText) {
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            errorMsg += errorResponse.error || errorResponse.message || 'Unknown error';
+                        } catch (e) {
+                            errorMsg += xhr.responseText;
+                        }
+                    } else {
+                        errorMsg += error || 'Unknown error';
+                    }
+                    
+                    evaluationProgress.error(errorMsg);
+                }
+            });
         }
-        
-        // Helper function to escape HTML
-        function escapeHtml(unsafe) {
-            if (typeof unsafe !== 'string') return '';
-            return unsafe
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }  
+
+        // Helper function to copy text to clipboard
+        function copyToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+        }
+
+        // Copy button handlers
+        $('#copyLogPath').click(function() {
+            copyToClipboard($('#logFilePath').val());
+            showAlert('Log file path copied to clipboard', 'success');
+        });
+
+        $('#copyModelsPath').click(function() {
+            copyToClipboard($('#modelsDirPath').val());
+            showAlert('Models directory path copied to clipboard', 'success');
+        });
     </script>
 </body>
 </html>

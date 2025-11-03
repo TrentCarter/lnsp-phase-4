@@ -147,15 +147,27 @@ def load_sequences_npz(path: str, name: str) -> Dataset:
                 return arr[k]
         raise KeyError(f"None of keys {candidates} found in {path}. Available: {sorted(keys)}")
 
-    contexts = pick("contexts", "context", "X")
-    targets = pick("targets", "target", "y")
+    contexts = pick("contexts", "context", "X", "context_sequences")
+    targets = pick("targets", "target", "y", "target_vectors")
     article_ids = arr.get("article_ids", None)
     target_indices = arr.get("target_indices", None)
+
+    # P6 COMPATIBILITY: Extract metadata from object array if available
+    metadata_arr = arr.get("metadata", None)
+    if metadata_arr is not None and article_ids is None:
+        # Extract article_ids and target_indices from metadata dicts
+        article_ids = np.array([m.get('article_index', m.get('article_id')) for m in metadata_arr])
+        target_indices = np.array([m.get('target_chunk_index', m.get('target_idx')) for m in metadata_arr])
+        print(f"[INFO] Extracted metadata from P6 format: {len(article_ids)} samples")
 
     contexts = np.asarray(contexts)
     targets = np.asarray(targets)
     assert contexts.ndim == 3 and contexts.shape[1] == 5, "contexts must be (N,5,D)"
     assert targets.ndim == 2 and targets.shape[0] == contexts.shape[0], "targets must be (N,D)"
+
+    # Validation: Check for NaN/Inf in vectors
+    assert np.isfinite(contexts).all(), f"NaN/Inf detected in contexts from {path}"
+    assert np.isfinite(targets).all(), f"NaN/Inf detected in targets from {path}"
 
     # L2 normalize defensively for eval
     contexts = l2_normalize(contexts, axis=-1)
@@ -306,10 +318,13 @@ def offset_alignment_sweep(ds: Dataset, model: ModelWrapper, store: ArticleStore
     offsets = [-3, -2, -1, 0, 1, 2, 3]
     bucket: Dict[int, List[float]] = {k: [] for k in offsets}
     n = 0
+    skipped_no_meta = 0
+    skipped_no_offset = 0
     for s in ds.samples:
         if n >= max_samples:
             break
         if s.article_id is None or s.target_idx is None:
+            skipped_no_meta += 1
             continue  # need metadata
         vhat = model.predict(s.ctx)
         ok = True
@@ -319,11 +334,21 @@ def offset_alignment_sweep(ds: Dataset, model: ModelWrapper, store: ArticleStore
                 ok = False
                 break
         if not ok:
+            skipped_no_offset += 1
             continue
         for k in offsets:
             tvec = store.get_offset(s.article_id, s.target_idx, k)
             bucket[k].append(cosine(vhat, tvec))
         n += 1
+
+    # HARD-FAIL: If no samples passed, something is wrong
+    if n == 0:
+        raise RuntimeError(
+            f"5CAT:offset_sweep selected 0 samples! "
+            f"Skipped {skipped_no_meta} (no metadata), {skipped_no_offset} (missing offsets). "
+            f"Check dataset format and article store coverage."
+        )
+
     means = {f"k={k}": (float(np.mean(v)) if v else float("nan")) for k, v in bucket.items()}
     # compute margin
     cpos = np.mean(bucket[1]) if bucket[1] else float("nan")
@@ -339,13 +364,17 @@ def retrieval_rank_within_article(ds: Dataset, model: ModelWrapper, store: Artic
     r5 = []
     rr = []  # reciprocal rank
     n = 0
+    skipped_no_meta = 0
+    skipped_too_small = 0
     for s in ds.samples:
         if n >= max_samples:
             break
         if s.article_id is None or s.target_idx is None:
+            skipped_no_meta += 1
             continue
         article_vecs = store.article_vectors(s.article_id)
         if article_vecs is None or article_vecs.shape[0] < 6:
+            skipped_too_small += 1
             continue
         vhat = model.predict(s.ctx)
         # cosine similarities to all vecs in this article
@@ -361,6 +390,15 @@ def retrieval_rank_within_article(ds: Dataset, model: ModelWrapper, store: Artic
         r5.append(1.0 if rank <= 5 else 0.0)
         rr.append(1.0 / rank)
         n += 1
+
+    # HARD-FAIL: If no samples passed, something is wrong
+    if n == 0:
+        raise RuntimeError(
+            f"5CAT:retrieval_rank selected 0 samples! "
+            f"Skipped {skipped_no_meta} (no metadata), {skipped_too_small} (article too small). "
+            f"Check dataset format and article store."
+        )
+
     return {
         "R@1": float(np.mean(r1)) if r1 else float("nan"),
         "R@5": float(np.mean(r5)) if r5 else float("nan"),
