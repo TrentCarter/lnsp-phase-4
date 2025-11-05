@@ -317,3 +317,46 @@ reranked_indices = argsort(-final_scores)[:10]
 **Document Version**: 2025-10-04
 **Status**: LLM-based extraction working, ready for re-ingestion
 **Next Steps**: Re-ingest corpus with LLM-generated TMD codes
+
+
+Research from 11/4/2025
+
+Current State with D-only:
+
+100M concepts ÷ 16 domains = 6.25M per bucket
+Critical-n at d=768: ~1.7M
+Problem: You're 3.7× OVER the critical-n threshold!
+
+Here's the analysis:
+Domain CountConcepts/Bucket (100M)vs Critical-n (d=768)Concepts/Bucket (1B)Known ImplementationsBenefitsDrawbacks16 (current)6.25M❌ 3.7× OVER (1.7M)62.5MGoogle Product Categories uses ~20 root categories LitCommerce; Your LNSP docsSimple, fast LLM classificationAbove critical-n at scale; losing recall323.125M❌ 1.8× OVER31.25MIAB Content Taxonomy uses 40 Tier-1 categories NyckelStill manageable for LLM; closer to thresholdStill over critical-n for large corpora641.56M✅ BELOW (0.9×)15.6MDeepSeekMoE uses 64 experts with proven domain specialization OpenReview; ENZYME dataset uses hierarchical structure organized across multiple levels PubMed CentralBelow critical-n at 100M scale; good specializationMore difficult LLM classification; potential sparsity issues128781K✅ 0.46× (safe margin)7.8MWOS dataset processed with 123 Fields of Research organized hierarchically PubMed CentralComfortable margin; scales to 500M+ conceptsLLM accuracy degrades; high routing cost256391K✅ 0.23× (large margin)3.9MDeepSeek-V2 uses 160 routed experts Wikipedia (similar scale)Massive headroom for billion-scaleSerious LLM classification challenges; very sparse buckets
+Critical Insights:
+The DeepMind paper shows that at d=768, critical-n is approximately 1.7M concepts - beyond this, recall drops below 100% even with perfect training. LitCommerce
+Recommended Path:
+
+Immediate: 64 domains
+
+Gets you below critical-n threshold (1.56M < 1.7M)
+DeepSeekMoE successfully uses 64 experts with domain specialization validated empirically OpenReview
+Modern MoE architectures like Mixtral use 8 experts with top-2 routing, while larger models scale to 64-160 experts successfully Wikipedia
+
+
+For 500M+ scale: 128 domains
+
+500M ÷ 128 = 3.9M per bucket (2.3× over critical-n, but manageable)
+1B ÷ 128 = 7.8M per bucket (needs higher d like 1536)
+
+
+
+Implementation Strategy:
+Since T and M aren't working well, consider:
+
+Hierarchical domains: 16 top-level → 4 sub-domains each = 64 total
+
+LLM classifies coarse (16) then fine (4), easier than flat 64
+Hierarchical classification first identifies high-level categories like Sports or Education, then reruns through branch-specific models for subcategories Nyckel
+
+
+Fix your current 16: Add d=1536 or d=2048 embeddings
+
+Critical-n at d=1536: ~13.5M (safely handles 100M with 16 domains)
+Cheaper than re-ingesting with new taxonomy

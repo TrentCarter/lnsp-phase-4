@@ -1,0 +1,202 @@
+[
+  {
+    "arxiv_id": "2510.27688v1",
+    "title": "Continuous Autoregressive Language Models",
+    "text_length": 116507,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27671v1",
+    "title": "MolChord: Structure-Sequence Alignment for Protein-Guided Drug Design",
+    "text_length": 78925,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27659v1",
+    "title": "Challenges in Credit Assignment for Multi-Agent Reinforcement Learning\n  in Open Agent Systems",
+    "text_length": 44314,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27655v1",
+    "title": "Community Detection on Model Explanation Graphs for Explainable AI",
+    "text_length": 62226,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27651v1",
+    "title": "Information-Theoretic Greedy Layer-wise Training for Traffic Sign\n  Recognition",
+    "text_length": 55145,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27632v1",
+    "title": "Sketch-to-Layout: Sketch-Guided Multimodal Layout Generation",
+    "text_length": 86775,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27630v2",
+    "title": "Interaction as Intelligence Part II: Asynchronous Human-Agent Rollout\n  for Long-Horizon Task Training",
+    "text_length": 76282,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27629v2",
+    "title": "Best Practices for Biorisk Evaluations on Open-Weight Bio-Foundation\n  Models",
+    "text_length": 59229,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27623v1",
+    "title": "Visual Backdoor Attacks on MLLM Embodied Decision Making via Contrastive\n  Trigger Learning",
+    "text_length": 65096,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27617v1",
+    "title": "VeriMoA: A Mixture-of-Agents Framework for Spec-to-HDL Generation",
+    "text_length": 47286,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27606v1",
+    "title": "Spatial-SSRL: Enhancing Spatial Understanding via Self-Supervised\n  Reinforcement Learning",
+    "text_length": 89070,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27598v2",
+    "title": "InnovatorBench: Evaluating Agents' Ability to Conduct Innovative LLM\n  Research",
+    "text_length": 122678,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27568v1",
+    "title": "SIGMA: Search-Augmented On-Demand Knowledge Integration for Agentic\n  Mathematical Reasoning",
+    "text_length": 30498,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27544v1",
+    "title": "Mechanics of Learned Reasoning 1: TempoBench, A Benchmark for\n  Interpretable Deconstruction of Reasoning System Performance",
+    "text_length": 69134,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27527v1",
+    "title": "TetraJet-v2: Accurate NVFP4 Training for Large Language Models with\n  Oscillation Suppression and Outlier Control",
+    "text_length": 55297,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27504v1",
+    "title": "DP-FedPGN: Finding Global Flat Minima for Differentially Private\n  Federated Learning via Penalizing Gradient Norm",
+    "text_length": 53153,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27497v1",
+    "title": "InertialAR: Autoregressive 3D Molecule Generation with Inertial Frames",
+    "text_length": 71597,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27486v1",
+    "title": "FedAdamW: A Communication-Efficient Optimizer with Convergence and\n  Generalization Guarantees for Federated Large Models",
+    "text_length": 81948,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27484v1",
+    "title": "Thought Branches: Interpreting LLM Reasoning Requires Resampling",
+    "text_length": 81049,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  },
+  {
+    "arxiv_id": "2510.27462v1",
+    "title": "VCORE: Variance-Controlled Optimization-based Reweighting for\n  Chain-of-Thought Supervision",
+    "text_length": 64476,
+    "total_lines": 1,
+    "filtered_lines": 1,
+    "kept_lines": 0,
+    "filter_rate": "100.0%",
+    "estimated_chunks": 0
+  }
+]

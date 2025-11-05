@@ -406,6 +406,36 @@ curl -X POST http://localhost:8999/evaluate \
 
 #### 1.1.0 (2025-11-02)
 - Added DIRECT pipeline model for infrastructure testing
+
+### D. Rollback & Checkpoints
+
+To create a checkpoint you can roll back to:
+
+```bash
+# Optional: commit current work
+git add -A
+git commit -m "feat: checkpoint LVM eval dashboard (BERTScore, compression, summary, A/B, sweep)"
+
+# Create an annotated tag for this working version
+git tag -a lvm_eval_dash_1.4.0 -m "Working dashboard: BERTScore+compression+summary+A/B+sweep"
+
+# Optionally push tag to remote
+git push --tags
+```
+
+To restore later:
+
+```bash
+# View tags
+git tag --list
+
+# Checkout the checkpoint (detached HEAD)
+git checkout lvm_eval_dash_1.4.0
+
+# Or create a branch from the tag
+git checkout -b restore/lvm_eval_dash_1.4.0 lvm_eval_dash_1.4.0
+```
+
 - Integrated Wikipedia 790K dataset (corrected from 80K)
 - Fixed metric selection validation issues
 - Improved vector-to-text decoding with port 7002

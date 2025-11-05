@@ -122,29 +122,91 @@ decode_resp = requests.post("http://localhost:8766/decode", json={"vectors": [ve
 
 ---
 
-## 📌 ACTIVE CHECKPOINT: Wikipedia Ingestion (2025-10-18 - Updated)
+## 🚨 CRITICAL: WIKIPEDIA DATA IS BACKWARD-BIASED (2025-11-02)
 
-**STATUS**: Ready to continue ingestion with improved checkpoint system
+**⚠️ DO NOT TRAIN FORWARD LVM ON RAW WIKIPEDIA DATA**
 
-- **Current data**: 339,615 concepts (articles 1-3,431)
-- **Next batch**: Articles 3,432+ (checkpoint system now active!)
-- **Improvements**: Auto-save every 100 articles, `--resume` flag, graceful shutdown
-- **Estimated time**: ~30-40 hours for 3,000 more articles
+**Data Analysis Results** (790,391 chunks analyzed):
+- **Δ (Forward - Backward)**: **-0.0696** (backward is 7% stronger)
+- **100% of articles**: Backward-biased (no exceptions)
+- **Root cause**: Explanatory structure (later chunks reference earlier concepts)
+- **Offset curve**: Monotonic increase toward recent past (k=-1 strongest)
+- **Reversing doesn't help**: Δ_reversed = -0.0395 (still negative)
 
-To continue ingestion with checkpoints:
+**Evidence**:
+```
+Forward (ctx[-1] → target_next):  0.3876 ± 0.1372
+Backward (ctx[-1] → target_prev): 0.4572 ± 0.1769
+Δ = -0.0696 ± 0.2064
+
+Per-article: Mean Δ = -0.0766, Range [-0.1762, -0.0490]
+Worst examples: Δ = -0.92 (chunk 1 after lead, cos(prev) = 0.98)
+```
+
+**Why Wikipedia is backward**:
+- Lead sections introduce key terms (Einstein, relativity, quantum)
+- Later sections reference these terms repeatedly ("As mentioned earlier...", "the Einstein...")
+- Explanatory flow (general → specific → detail) not narrative flow (setup → payoff)
+- Example: Apollo article chunk 5 says "As patron deity of Delphi" (refers to "deity" in chunk 0)
+
+**Decision Gate**: Δ ≤ -0.05 → **STOP forward training on Wikipedia**
+
+**See Complete Analysis**: `artifacts/lvm/wikipedia_temporal_analysis/REPORT.md`
+
+**Options**:
+1. ✅ **Switch to forward-flow data** (arXiv papers, tutorials, stories)
+2. ✅ **LLM temporal rewiring** (rewrite chunks to add forward signals)
+3. ✅ **Multi-scale hierarchy** (train on sentence/section scales where Δ > 0)
+4. ✅ **Contrastive ranking** (rank next > prev instead of exact prediction)
+5. ⚠️ **Bi-directional training** (exploit backward signal, schedule forward preference late)
+6. ❌ **NOT: Train forward on raw Wikipedia** (will fail with negative margin)
+
+**Sample Articles Extracted**: `artifacts/lvm/SAMPLE_ARTICLES_SUMMARY.md`
+- Apollo (1,107 chunks), Russian Orthodox bell ringing (100), William West (50), Dennis Bock (20)
+- Database: `psql -h localhost -U lnsp -d lnsp` (790,391 chunks)
+
+---
+
+## 📌 ACTIVE CHECKPOINT: Phase 2 Complete - Decision Point (2025-11-04)
+
+**STATUS**: ✅ **PHASE 2 COMPLETE** - Critical Decision Point
+
+**Results**:
+- **Downloaded**: 3,715 arXiv papers (cs.CL, cs.LG, stat.ML, cs.AI)
+- **Processed**: 619 papers (17% success rate - filter too aggressive)
+- **Vectors**: 111,825 (768D GTR-T5 embeddings)
+- **Sequences**: 108,730 (context_size=5)
+- **Δ (Forward Bias)**: +0.0638 (6.38% - PASSING but 20% below target)
+
+**Critical Finding**: V2 pre-cleaning filter has 82% false positive rate
+- **ROOT CAUSE**: PDF text extraction creates single-line files (no newlines)
+- Filter treats 88KB paper as ONE line → rejects as "ASCII art"
+- See analysis: `artifacts/lvm/SKIPPED_PAPERS_FOR_FILTER_REVIEW.md`
+
+**Decision Point**:
+- **Option A**: Fix filter (6-9 hrs) → 1,500-2,000 papers, 270k-360k vectors, Δ may improve to +0.08-0.10
+- **Option B**: Train P6b v2.3 now (8-12 hrs) → Use existing 111k vectors, Δ=+0.06
+- **Recommendation**: Option B (data is clean, Δ is passing, faster to results)
+
+**Next Step**: `./scripts/train_transformer_p6b_v23.sh --train-npz artifacts/lvm/arxiv_clean_sequences.npz`
+
+**Complete Documentation**: `artifacts/lvm/SESSION_SUMMARY_2025_11_04_PHASE2_COMPLETE.md`
+
+**Previous Checkpoint**: Wikipedia Ingestion (2025-10-18 - PAUSED)
+- **Status**: ⚠️ **PAUSED - Data unsuitable for forward LVM training**
+- **Data**: 790,391 concepts (500k articles) in PostgreSQL
+- **Analysis**: Δ = -0.0696 (backward bias confirmed)
+- **Decision**: DO NOT use Wikipedia for forward LVM training
+
+**If resuming Wikipedia ingestion for OTHER purposes** (vecRAG, GraphRAG):
 ```bash
-# Start fresh batch (saves progress every 100 articles)
+# Wikipedia is still useful for retrieval, just not forward LVM training
 LNSP_TMD_MODE=hybrid \
 LNSP_LLM_ENDPOINT="http://localhost:11434" \
 LNSP_LLM_MODEL="llama3.1:8b" \
 ./.venv/bin/python tools/ingest_wikipedia_pipeline.py \
   --input data/datasets/wikipedia/wikipedia_500k.jsonl \
-  --skip-offset 3432 \
-  --limit 3000 \
-  > logs/wikipedia_ingestion_$(date +%Y%m%d_%H%M%S).log 2>&1 &
-
-# Or resume from checkpoint (if crashed)
-LNSP_TMD_MODE=hybrid ./.venv/bin/python tools/ingest_wikipedia_pipeline.py --resume
+  --skip-offset 3432 --limit 3000
 ```
 
 ---
@@ -188,11 +250,11 @@ directional_bonus = 0.03   # Directional alignment bonus
 
 ---
 
-## 🎓 LVM TRAINING: P6b v2.2 WITH ρ-CONTROLLER (2025-11-02)
+## 🎓 LVM TRAINING: P6b v2.3 "GOLDILOCKS" (2025-11-02)
 
-**🔴 CRITICAL FINDING (Nov 2, 2025)**: Wikipedia data has inherent backward temporal bias (Δ = -0.069). All approaches P1-P6 failed because **the data itself teaches backward prediction**, not due to model architecture. See `docs/WIKIPEDIA_BACKWARD_BIAS_ROOT_CAUSE.md` for complete analysis.
+**🔴 CRITICAL FINDING (Nov 2, 2025)**: Wikipedia data has inherent backward temporal bias (Δ = -0.0696). All approaches P1-P6b v2.2 failed because **the data itself teaches backward prediction**, not due to model architecture. Confirmed via comprehensive temporal flow analysis of 790,391 chunks.
 
-**STATUS**: ✅ **P6b v2.2 READY TO TRAIN** - Controlled stronger directional pressure
+**STATUS**: 🚀 **P6b v2.3 READY** - But **DO NOT train on raw Wikipedia** (use forward-flow data instead)
 
 ### Evolution: P1 → P6 → P6b v1 → v2.1 → v2.2
 
@@ -219,21 +281,36 @@ directional_bonus = 0.03   # Directional alignment bonus
 - **Root cause**: Guardrails too conservative (ρ capped at 25%, directional loss too weak)
 - **Verdict**: Stability proven ✅, but need stronger directional pressure
 
-**P6b v2.2 = Controlled Stronger Pressure (🚀 READY)**:
-1. **ρ-controller** - Makes ρ a TARGET (0.35), not just a cap
-2. **Stronger anchors** - pos_floor τ=0.12, β=2e-3 (was 0.10, 1e-3)
-3. **Orthogonality penalty** - κ=5e-4 (NEW: anti-prev bias)
-4. **Higher margins** - 0.06-0.07 (was 0.05)
-5. **Higher λ_max** - 0.03 (was 0.02)
-6. **All v2.1 guardrails kept** - No collapse risk
+**P6b v2.2 = Controlled Stronger Pressure (❌ FAILED at Epoch 8)**:
+- Model: `artifacts/lvm/models/transformer_p6b_v22_20251102_203637/best_model.pt`
+- Result: Margin +0.002 at E8 (briefly positive!), but **FAKE WIN** - orthogonal escape
+- Val cosine: 0.44 → 0.18 (60% collapse!)
+- R@5: 100% → 12% (retrieval broke)
+- **Failure mode**: Directional pressure too strong (ρ=0.35), overwhelmed MSE loss
+- Model learned to predict vectors FAR from target (negative cosine to prev: -0.086)
+- Passed only 1/5 5CAT gates (need 3/5)
+- **Verdict**: Proved that training tricks can't overcome backward data bias
+
+**P6b v2.3 = "Goldilocks" Balanced Pressure (✅ IMPLEMENTED, READY)**:
+1. **Directional-when-confident gate** (CRITICAL) - Scale loss by cos(pred, target):
+   - If cos < 0.30: scale=0 (directional OFF when misaligned)
+   - If cos > 0.45: scale=1 (directional FULL when aligned)
+   - Prevents orthogonal escape (v2.2's failure mode)
+2. **Lower ρ targets** - 0.15 → 0.20 → 0.25 (not 0.35 like v2.2)
+3. **Weaker penalties** - Back to v2.1 values (τ=0.10, β=1e-3, κ=1e-4)
+4. **Lower λ_max** - 0.018 (not 0.03)
+5. **Gentler margins** - 0.02-0.04 (not 0.06-0.07)
+6. **All v2.1 guardrails kept** - Stability proven
 
 ### Quick Start
 ```bash
-# P6b v2.2 with ρ-controller (RECOMMENDED - stronger pressure)
-./scripts/train_transformer_p6b_v22.sh
+# ⚠️ DO NOT TRAIN ON WIKIPEDIA - Use forward-flow data instead!
 
-# P6b v2.1 with 6 guardrails (STABLE - proven no collapse)
-./scripts/train_transformer_p6b_v21.sh
+# P6b v2.3 with directional-when-confident gate (RECOMMENDED for forward-flow data)
+./scripts/train_transformer_p6b_v23.sh
+
+# ❌ NOT: P6b v2.2 (failed with orthogonal escape)
+# ❌ NOT: Train on raw Wikipedia (Δ = -0.0696, will fail)
 ```
 
 ### P6b v2.2 Implementation (✅ COMPLETE)

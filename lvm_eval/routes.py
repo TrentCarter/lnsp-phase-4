@@ -23,6 +23,11 @@ try:
     from sentence_transformers import SentenceTransformer
     from transformers import AutoModel, AutoTokenizer
     import torch.nn.functional as F
+    try:
+        from bert_score import score as bertscore
+        BERTSCORE_AVAILABLE = True
+    except Exception:
+        BERTSCORE_AVAILABLE = False
 except ImportError as e:
     logger.error(f"Error importing required modules: {e}")
     raise
@@ -228,6 +233,61 @@ def evaluate_models():
 def evaluate_models_parallel():
     """Evaluate models with the given test data (parallel/multi-threaded)"""
     return _evaluate_models_impl(parallel=True)
+
+@app.route('/evaluate/sweep', methods=['POST'])
+def evaluate_sweep():
+    """Sweep over vec2text_steps and num_concepts to build a heatmap grid for one or more models.
+    For MVP, compute on the first provided model and return a grid of averages.
+    """
+    try:
+        data = request.get_json() or {}
+        model_paths = data.get('models', [])
+        if not model_paths:
+            return jsonify({'error': 'No models specified', 'status': 'error'}), 400
+        test_mode = data.get('test_mode', 'both')
+        num_test_cases = int(data.get('num_test_cases', 10))
+        steps_list = data.get('steps_list', [3, 5, 7])
+        concepts_list = data.get('concepts_list', [3, 5, 7])
+
+        # Use the first model for heatmap computation
+        model_path = model_paths[0]
+        logger.info(f"Starting sweep for model: {model_path} steps={steps_list}, concepts={concepts_list}")
+
+        grid = []
+        for concepts in concepts_list:
+            # Build test data per concepts setting once
+            td = get_test_data(test_mode, num_concepts=int(concepts))
+            if not td:
+                logger.warning(f"No test data for concepts={concepts}")
+                continue
+            if len(td) > num_test_cases:
+                td = td[:num_test_cases]
+            for steps in steps_list:
+                # Evaluate single model with given steps and concepts
+                res = evaluate_single_model(model_path, td, idx=1, total_models=1, vec2text_steps=int(steps))
+                avg_cos = float(res.get('avg_cosine_similarity') or 0.0)
+                avg_lat = float(res.get('avg_latency') or 0.0)
+                avg_bert = res.get('avg_bert') or {}
+                avg_bert_f1 = float(avg_bert.get('f1') or 0.0) if isinstance(avg_bert, dict) else 0.0
+                grid.append({
+                    'steps': int(steps),
+                    'concepts': int(concepts),
+                    'avg_cosine': avg_cos,
+                    'avg_bert_f1': avg_bert_f1,
+                    'avg_latency': avg_lat,
+                })
+
+        payload = {
+            'status': 'complete',
+            'model': model_path,
+            'grid': grid,
+            'steps_list': steps_list,
+            'concepts_list': concepts_list,
+        }
+        return jsonify(payload)
+    except Exception as e:
+        logger.error(f"Error in evaluate_sweep: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'error': str(e)}), 500
 
 def _evaluate_models_impl(parallel=False):
     """Internal implementation for model evaluation"""
@@ -456,6 +516,8 @@ def evaluate_single_model(model_path: str, test_data: List[Dict], idx: int, tota
         peak_memory = initial_memory
         total_latency = 0.0
         test_latencies = []
+        bert_p_list, bert_r_list, bert_f1_list = [], [], []
+        comp_ratios, out_lengths, exp_lengths = [], [], []
         
         # Process test cases
         model_results = []
@@ -606,6 +668,23 @@ def evaluate_single_model(model_path: str, test_data: List[Dict], idx: int, tota
                 if output_text and output_text not in ["[Decoding failed]", "[No decoder available]"]:
                     rouge_scores = calculate_rouge([output_text], [expected_text])
                 
+                # BERTScore (P/R/F1) if available
+                bert_scores = None
+                if BERTSCORE_AVAILABLE and output_text and expected_text:
+                    try:
+                        P, R, F1 = bertscore([output_text], [expected_text], lang='en', rescale_with_baseline=True)
+                        p, r, f1 = float(P[0]), float(R[0]), float(F1[0])
+                        bert_scores = {'p': p, 'r': r, 'f1': f1}
+                        bert_p_list.append(p); bert_r_list.append(r); bert_f1_list.append(f1)
+                    except Exception as e:
+                        logger.warning(f"BERTScore failed: {e}")
+                
+                # Compression/length metrics
+                ol = len(output_text) if output_text else 0
+                el = len(expected_text) if expected_text else 0
+                cr = (ol / el) if el > 0 else 0.0
+                out_lengths.append(ol); exp_lengths.append(el); comp_ratios.append(cr)
+                
                 # Prepare input display text with numbered chunks (full text)
                 if input_chunks:
                     # Show all chunks with [N] annotations (full text)
@@ -638,6 +717,10 @@ def evaluate_single_model(model_path: str, test_data: List[Dict], idx: int, tota
                     'cosine_similarity': float(similarity),  # Changed from 'similarity' to match frontend
                     'rouge_scores': rouge_scores,
                     'latency': test_latency,
+                    'bert': bert_scores,
+                    'compression_ratio': cr,
+                    'output_length': ol,
+                    'expected_length': el,
                     'status': 'success'
                 })
                 
@@ -692,8 +775,15 @@ def evaluate_single_model(model_path: str, test_data: List[Dict], idx: int, tota
         avg_similarity = sum(r['cosine_similarity'] for r in successful_results) / len(successful_results) if successful_results else 0
         avg_latency = total_latency / len(test_latencies) if test_latencies else 0.0
         
-        # Calculate memory usage as peak increase during evaluation
-        memory_usage = peak_memory - initial_memory
+        # Aggregate BERTScore and compression/length metrics
+        avg_bert = {
+            'p': sum(bert_p_list) / len(bert_p_list) if bert_p_list else None,
+            'r': sum(bert_r_list) / len(bert_r_list) if bert_r_list else None,
+            'f1': sum(bert_f1_list) / len(bert_f1_list) if bert_f1_list else None,
+        }
+        avg_compression_ratio = sum(comp_ratios) / len(comp_ratios) if comp_ratios else None
+        avg_output_length = sum(out_lengths) / len(out_lengths) if out_lengths else None
+        avg_expected_length = sum(exp_lengths) / len(exp_lengths) if exp_lengths else None
         
         # Update final progress
         update_progress(
@@ -717,6 +807,29 @@ def evaluate_single_model(model_path: str, test_data: List[Dict], idx: int, tota
                     'modified': stat.st_mtime,
                     'modified_str': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat.st_mtime))
                 }
+                # Try to parse training_history.json from same directory
+                try:
+                    th_dir = os.path.dirname(model_path)
+                    th_path = os.path.join(th_dir, 'training_history.json')
+                    if os.path.exists(th_path):
+                        with open(th_path, 'r') as fh:
+                            th = json.load(fh)
+                        # Heuristic extraction of best val
+                        best = {}
+                        for k in ['best_val_loss', 'best_val_metric', 'best', 'best_metrics']:
+                            if k in th:
+                                best['value'] = th[k]
+                                break
+                        for k in ['best_epoch', 'epoch', 'best_step', 'step']:
+                            if k in th:
+                                best['at'] = th[k]
+                                break
+                        model_metadata['training_history'] = {
+                            'best': best,
+                            'has_history': True
+                        }
+                except Exception as e:
+                    logger.warning(f"training_history.json parse failed for {model_path}: {e}")
             except Exception as e:
                 logger.warning(f"Could not get model metadata for {model_path}: {e}")
         
@@ -728,11 +841,17 @@ def evaluate_single_model(model_path: str, test_data: List[Dict], idx: int, tota
             'test_cases': model_results,
             'avg_cosine_similarity': avg_similarity,
             'avg_latency': avg_latency,
-            'memory_usage_mb': memory_usage,
+            'avg_bert': avg_bert,
+            'avg_compression_ratio': avg_compression_ratio,
+            'avg_output_length': avg_output_length,
+            'avg_expected_length': avg_expected_length,
             'metrics': {
                 'average_similarity': avg_similarity,
                 'average_latency': avg_latency,
-                'memory_usage_mb': memory_usage,
+                'average_bert': avg_bert,
+                'average_compression_ratio': avg_compression_ratio,
+                'average_output_length': avg_output_length,
+                'average_expected_length': avg_expected_length,
                 'total_tests': len(model_results),
                 'successful_tests': len(successful_results),
                 'failed_tests': len(model_results) - len(successful_results)

@@ -1,0 +1,82 @@
+[
+  {
+    "paper_id": "2510.25701v1",
+    "original_length": 41323,
+    "num_chunks": 126,
+    "stats": {
+      "mode": "Current Paragraph",
+      "num_chunks": 126,
+      "avg_chars": 324.6904761904762,
+      "min_chars": 81,
+      "max_chars": 968,
+      "avg_words": 45.88095238095238,
+      "status": "success"
+    },
+    "time_sec": 0.001783132553100586,
+    "sample_chunks": [
+      "5 2 0 2 t c O 9 2 ] L C . s c [ 1 v 1 0 7 5 2 . 0 1 5 2 : v i X r a Interpreting LLMs as Credit Risk Classifiers: Do Their Feature Explanations Align with Classical ML?",
+      "Saeed AlMarri Khalifa University Abu Dhabi, United Arab Emirates 100061460@ku.ac.ae Kristof Juhasz ADIA Abu Dhabi, United Arab Emirates kristof.juhasz@adia.ae Mathieu Ravaut ADIA Abu Dhabi, United Arab Emirates mathieu.ravaut@adia.ae Gautier Marti ADIA Abu Dhabi, United Arab Emirates gautier.marti@adia.ae Hamdan Al Ahbabi Khalifa University Abu Dhabi, United Arab Emirates 100061346@ku.ac.ae Ibrahim Elfadel Khalifa University Abu Dhabi, United Arab Emirates ibrahim.elfadel@ku.ac.ae Abstract Large Language Models (LLMs) are increasingly explored as flexible alternatives to classical machine learning models for classification tasks through zero-shot prompting.",
+      "However, their suitability for structured tabular data remains underexplored, especially in high- stakes financial applications such as financial risk assessment. This study conducts a systematic comparison between zero-shot LLM- based classifiers and LightGBM, a state-of-the-art gradient-boosting model, on a real-world loan default prediction task."
+    ]
+  },
+  {
+    "paper_id": "2510.25704v1",
+    "original_length": 107895,
+    "num_chunks": 323,
+    "stats": {
+      "mode": "Current Paragraph",
+      "num_chunks": 323,
+      "avg_chars": 328.57894736842104,
+      "min_chars": 100,
+      "max_chars": 1110,
+      "avg_words": 53.591331269349844,
+      "status": "success"
+    },
+    "time_sec": 0.004940032958984375,
+    "sample_chunks": [
+      "Prepared for submission to JHEP Scaling flow-based approaches for topology sampling in SU(3) gauge theory 5 2 0 2 t c O 9 2 ] t a l - p e h [ 1 v 4 0 7 5 2 .",
+      "0 1 5 2 : v i X r a Claudio Bonanno,a Andrea Bulgarelli,b,c Elia Cellini,b Alessandro Nada,b Dario Panfalone,b Davide Vadacchino,d Lorenzo Verzichellib aInstituto de F\u00b4\u0131sica Te\u00b4orica UAM-CSIC, c/ Nicol\u00b4as Cabrera 13-15, Universidad Aut\u00b4onoma de Madrid, Cantoblanco, E-28049 Madrid, Spain bDipartimento di Fisica, Universit\u00b4a degli Studi di Torino and INFN, Sezione di Torino, Via Pietro Giuria 1, I-10125 Turin, Italy cTransdisciplinary Research Area \u201cBuilding Blocks of Matter and Fundamental Interactions\u201d (TRA Matter) and Helmholtz Institute for Radiation and Nuclear Physics (HISKP), University of Bonn, Nussallee 14-16, 53115 Bonn, Germany cCentre for Mathematical Sciences, University of Plymouth, Plymouth, PL4 8AA, United Kingdom E-mail: claudio.bonanno@csic.es, andrea.bulgarelli@unito.it, elia.cellini@unito.it, alessandro.nada@unito.it, dario.panfalone@unito.it, davide.vadacchino@plymouth.ac.uk, lorenzo.verzichelli@unito.it Abstract: We develop a methodology based on out-of-equilibrium simulations to miti- gate topological freezing when approaching the continuum limit of lattice gauge theories.",
+      "We reduce the autocorrelation of the topological charge employing open boundary condi- tions, while removing exactly their unphysical effects using a non-equilibrium Monte Carlo approach in which periodic boundary conditions are gradually switched on. We perform a detailed analysis of the computational costs of this strategy in the case of the four- dimensional SU(3) Yang-Mills theory."
+    ]
+  },
+  {
+    "paper_id": "2510.25726v1",
+    "original_length": 90281,
+    "num_chunks": 249,
+    "stats": {
+      "mode": "Current Paragraph",
+      "num_chunks": 249,
+      "avg_chars": 357.8835341365462,
+      "min_chars": 80,
+      "max_chars": 2757,
+      "avg_words": 50.734939759036145,
+      "status": "success"
+    },
+    "time_sec": 0.003981113433837891,
+    "sample_chunks": [
+      "0 1 5 2 : v i X r a THE TOOL DECATHLON: BENCHMARKING LANGUAGE AGENTS FOR DIVERSE, REALISTIC, AND LONG- HORIZON TASK EXECUTION Wenshuo Zhao1* Junlong Li1\u2217 Xiaochen Wang1 Rui Ge1 Yuxuan Cao1 Yuzhen Huang1 Wei Liu1 Zhaochen Su1 Yiyang Guo1 Xingyao Wang2 Xiang Yue3 Fan Zhou1 Lueyang Zhang1 Shuyan Zhou4 Graham Neubig2,3 Jian Zhao1* Weihao Zeng1* Haoze Wu1* Juan Michelini2 Junxian He1\u2020 Junteng Liu1 1The Hong Kong University of Science and Technology 2All Hands AI Website: toolathlon.xyz 3Carnegie Mellon University 4Duke University \u00a7 github.com/hkust-nlp/toolathlon ABSTRACT Real-world language agents must handle complex, multi-step workflows across diverse applications.",
+      "For instance, an agent may manage emails by coordinating with calendars and file systems, or monitor a production database like BigQuery to detect anomalies and generate reports following a standard operating manual.",
+      "However, existing language agent benchmarks often focus on narrow domains or simplified tasks that lack the diversity, realism, and long-horizon complexity required to evaluate agents\u2019 real-world performance."
+    ]
+  },
+  {
+    "paper_id": "2510.25729v1",
+    "original_length": 57533,
+    "num_chunks": 169,
+    "stats": {
+      "mode": "Current Paragraph",
+      "num_chunks": 169,
+      "avg_chars": 337.7810650887574,
+      "min_chars": 113,
+      "max_chars": 3199,
+      "avg_words": 44.28402366863905,
+      "status": "success"
+    },
+    "time_sec": 0.0025169849395751953,
+    "sample_chunks": [
+      "Physics-Guided Conditional Diffusion Networks for Microwave Image Reconstruction Shirin Chehelgami, Joe LoVetri, and Vahab Khoshdel\u2217 Department of Electrical and Computer Engineering, University of Manitoba, Winnipeg, Manitoba, Canada \u2217Corresponding author: vahab.khoshdel@umanitoba.ca 5 2 0 2 t c O 9 2 ] V I . s s e e [ 1 v 9 2 7 5 2 .",
+      "0 1 5 2 : v i X r a Abstract\u2014A conditional latent-diffusion based framework for solving the electromagnetic inverse scattering problem associ- ated with microwave imaging is introduced. This generative machine-learning model explicitly mirrors the non-uniqueness of the ill-posed inverse problem.",
+      "Unlike existing inverse solvers utilizing deterministic machine learning techniques that produce a single reconstruction, the proposed latent-diffusion model generates multiple plausible permittivity maps conditioned on measured scattered-field data, thereby generating several po- tential instances in the range-space of the non-unique inverse mapping."
+    ]
+  }
+]
