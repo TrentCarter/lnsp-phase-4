@@ -71,17 +71,30 @@ docs/how_to_use_jxe_and_ielab.md
   http://localhost:9000
 
   Port Mapping Now:
-  | Port  | Model                  | Type               | Val Cosine |
-  |-------|------------------------|--------------------|------------|
-  | 8999  | LVM Evaluation         | Dashboard          | N/A        |
-  | 9000  | MASTER AI CHAT         | ALL LVMs.          | N/A        |
-  | 9001  | AMN                    | Best OOD + Fastest | 0.5597     |
-  | 9002  | Transformer            | Baseline           | 0.5774     |
-  | 9003  | GRU                    | Runner-up          | 0.5920     |
-  | 9004  | LSTM                   | Deprecated         | 0.4102 ⚠️  |
-  | 9005  | Vec2Text Direct        | Passthrough        | N/A        |
-  | 9006  | Transformer            | Optimized ✅        | 0.5864     |
-  | 9007  | Transformer            | Experimental ✨     | 0.5579     |
+  | Port | Service / Model           | Role / Notes                              |
+  |------|---------------------------|-------------------------------------------|
+  | 6000 | Reserved                  | Currently unused (available for future)   |
+  | 6001 | Reserved                  | Currently unused (available for future)   |
+  | 6002 | Reserved                  | Currently unused (available for future)   |
+  | 6003 | Reserved                  | Currently unused (available for future)   |
+  | 6004 | Reserved                  | Currently unused (available for future)   |
+  | 6005 | Reserved                  | Currently unused (available for future)   |
+  | 6006 | Reserved                  | Currently unused (available for future)   |
+  | 6007 | Reserved                  | Currently unused (available for future)   |
+  | 6008 | Reserved                  | Currently unused (available for future)   |
+  | 6009 | Reserved                  | Currently unused (available for future)   |
+  | 6010 | Reserved                  | Currently unused (available for future)   |
+  | 7001 | Vec2Text Encoder          | Production encoder (text → 768D vectors)  |
+  | 7002 | Vec2Text Decoder          | Production decoder (vectors → text)       |
+  | 8999 | LVM Evaluation Dashboard  | Web UI for eval metrics                   |
+  | 9000 | Master AI Chat            | Aggregated chat UI for all LVMs           |
+  | 9001 | AMN                       | Best OOD + fastest LVM                    |
+  | 9002 | Transformer               | Baseline LVM                              |
+  | 9003 | GRU                       | Runner-up LVM                             |
+  | 9004 | LSTM                      | Deprecated LVM (use with caution)         |
+  | 9005 | Vec2Text Direct           | Passthrough chat via vec→text             |
+  | 9006 | Transformer (Optimized)   | Optimized transformer serving variant     |
+  | 9007 | Transformer (Experimental)| Experimental transformer build            |
 
   2. Auto-Chunking Feature Added
 

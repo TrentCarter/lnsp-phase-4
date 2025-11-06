@@ -324,7 +324,8 @@ def _evaluate_models_impl(parallel=False):
         if start_article_index < 0:
             start_article_index = 0
         random_start = bool(data.get('random_start', False))
-        
+        evaluation_dataset = data.get('evaluation_dataset', 'wikipedia')  # Dataset for evaluation
+
         if not model_paths:
             error_msg = "No models specified"
             logger.error(error_msg)
@@ -332,12 +333,12 @@ def _evaluate_models_impl(parallel=False):
             return jsonify({'error': error_msg, 'status': 'error'}), 400
         
         logger.info(f"Processing evaluation for {len(model_paths)} models with test mode: {test_mode} (parallel={parallel})")
-        logger.info(f"Using {num_test_cases} test cases/model, {num_concepts} chunks → 1 next, vec2text_steps={vec2text_steps}, start_article_index={start_article_index}, random_start={random_start}")
-        update_progress(5, '', f'Preparing to evaluate {len(model_paths)} model(s) with {num_test_cases} test cases each...', 'running')
-        
+        logger.info(f"Using {num_test_cases} test cases/model, {num_concepts} chunks → 1 next, vec2text_steps={vec2text_steps}, start_article_index={start_article_index}, random_start={random_start}, dataset={evaluation_dataset}")
+        update_progress(5, '', f'Preparing to evaluate {len(model_paths)} model(s) with {num_test_cases} test cases each on {evaluation_dataset} data...', 'running')
+
         # Get test data
-        update_progress(10, '', 'Loading test data...', 'running')
-        test_data = get_test_data(test_mode, num_concepts=num_concepts, start_article_index=start_article_index, random_start=random_start)
+        update_progress(10, '', f'Loading {evaluation_dataset} test data...', 'running')
+        test_data = get_test_data(test_mode, num_concepts=num_concepts, start_article_index=start_article_index, random_start=random_start, dataset=evaluation_dataset)
         if not test_data:
             error_msg = f"No test data available for test mode: {test_mode}"
             logger.error(error_msg)
@@ -526,9 +527,13 @@ def evaluate_single_model(model_path: str, test_data: List[Dict], idx: int, tota
         for i, test_case in enumerate(test_data):
             test_start_time = time.time()
             try:
+                # Initialize variables for error handling
+                output_text = "[Processing failed]"
+                similarity = 0.0
+
                 # Check if we have separate input chunks (new format) or single text (legacy)
                 input_chunks = test_case.get('input_chunks', None)
-                
+
                 # Determine expected text based on model type
                 if is_direct:
                     # For DIRECT model: expected output is the last input chunk (pass-through)
@@ -965,30 +970,54 @@ def get_available_models(limit=None, search_all=True) -> List[Dict[str, Any]]:
         logger.error(f"Error in get_available_models: {e}", exc_info=True)
         return []
 
-def get_test_data(test_mode: str = 'both', num_concepts: int = 5, start_article_index: int = 0, random_start: bool = False) -> List[Dict[str, Any]]:
-    """Get test data from Wikipedia chunks for next-chunk prediction
-    
+def get_test_data(test_mode: str = 'both', num_concepts: int = 5, start_article_index: int = 0, random_start: bool = False, dataset: str = 'wikipedia') -> List[Dict[str, Any]]:
+    """Get test data from multiple datasets for next-chunk prediction
+
     Args:
         test_mode: 'in', 'out', or 'both'
         num_concepts: Number of input chunks (N) - the model will predict chunk N+1
-    
+        dataset: 'wikipedia' or 'arxiv'
+
     Returns:
         List of test cases, each with N input chunks and 1 expected output chunk
     """
     base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
-    
-    # Use the real Wikipedia chunks database
-    wikipedia_file = 'data/datasets/wikipedia/wikipedia_500k.jsonl'  # Use 500k sample for faster loading
-    wikipedia_path = os.path.join(base_dir, wikipedia_file)
-    
-    if os.path.exists(wikipedia_path):
+
+    # Dataset registry - easily extensible for future datasets
+    dataset_registry = {
+        'wikipedia': {
+            'file': 'data/datasets/wikipedia/wikipedia_500k.jsonl',
+            'source_name': 'wikipedia',
+            'min_text_length': 500
+        },
+        'arxiv': {
+            'file': 'data/datasets/arxiv/arxiv_cs_lg_ml_complete.jsonl.gz',
+            'source_name': 'arxiv',
+            'min_text_length': 1000
+        }
+    }
+
+    # Get dataset config or default to Wikipedia
+    dataset_config = dataset_registry.get(dataset, dataset_registry['wikipedia'])
+    data_file = dataset_config['file']
+    source_name = dataset_config['source_name']
+    min_text_length = dataset_config['min_text_length']
+
+    data_path = os.path.join(base_dir, data_file)
+
+    # Handle gzipped files
+    import gzip
+    open_fn = gzip.open if data_file.endswith('.gz') else open
+    open_mode = 'rt' if data_file.endswith('.gz') else 'r'
+
+    if os.path.exists(data_path):
         try:
-            logger.info(f"Loading Wikipedia chunks from {wikipedia_path}")
+            logger.info(f"Loading {dataset} dataset from {data_path}")
             logger.info(f"Will use {num_concepts} chunks as input, predicting chunk {num_concepts+1}")
-            
+
             # First, load articles and split them into sentences/chunks
             articles_data = []
-            with open(wikipedia_path, 'r') as f:
+            with open_fn(data_path, open_mode) as f:
                 for i, line in enumerate(f):
                     if i < start_article_index:
                         continue
@@ -996,10 +1025,22 @@ def get_test_data(test_mode: str = 'both', num_concepts: int = 5, start_article_
                         break
                     try:
                         article = json.loads(line)
-                        text = article.get('text', '').strip()
                         title = article.get('title', '')
-                        
-                        if text and len(text) > 500:  # Only use substantial articles
+
+                        # Handle both Wikipedia format (text field) and arXiv format (fulltext_path)
+                        text = article.get('text', '').strip()
+                        if not text:
+                            # Try reading from fulltext_path (arXiv format)
+                            fulltext_path = article.get('fulltext_path', '')
+                            if fulltext_path and os.path.exists(fulltext_path):
+                                try:
+                                    with open(fulltext_path, 'r', encoding='utf-8') as tf:
+                                        text = tf.read().strip()
+                                except Exception as e:
+                                    logger.warning(f"Failed to read {fulltext_path}: {e}")
+                                    text = ''
+
+                        if text and len(text) > min_text_length:  # Only use substantial articles
                             # Split article into sentences (chunks)
                             import re
                             # Split on sentence boundaries (., !, ?) followed by space and capital letter
@@ -1047,7 +1088,7 @@ def get_test_data(test_mode: str = 'both', num_concepts: int = 5, start_article_
                             'input_chunks': input_chunks,  # List of N separate chunks
                             'expected_text': expected_chunk,  # Chunk N+1 as expected output for LVMs
                             'last_input_chunk': last_input_chunk,  # Last input chunk for DIRECT model
-                            'source': 'wikipedia',
+                            'source': source_name,
                             'metadata': {
                                 'title': title,
                                 'chunk_index': i,
@@ -1448,9 +1489,11 @@ def load_model(model_path: str):
             logger.warning(f"Missing keys in state_dict: {missing_keys}")
         if unexpected_keys:
             logger.warning(f"Unexpected keys in state_dict: {unexpected_keys}")
-        
+
+        # Move model to CPU and set to eval mode
+        model = model.to('cpu')
         model.eval()
-        logger.info("Model loaded successfully")
+        logger.info("Model loaded successfully and moved to CPU")
         return model
         
     except Exception as e:

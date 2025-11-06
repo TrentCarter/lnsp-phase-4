@@ -63,9 +63,18 @@ def _clean_and_reformat_text(raw_text: str) -> str:
     This addresses "franken-chunks" identified in the 11/04 review
     by filtering headers, footers, tables, pseudo-code, and captions
     before the chunking logic is applied.
+
+    FIX (2025-11-04): Split on sentence boundaries FIRST to handle
+    single-line PDF extractions (no newlines). This prevents entire
+    papers from being rejected as "ASCII art".
     """
+    # CRITICAL FIX: Split on sentence boundaries FIRST
+    # This handles PDF extractions that are single-line files
+    # Split on: periods, newlines, and multiple spaces
+    lines = re.split(r'(?<=[.!?])\s+|\n+|\s{2,}', raw_text)
+
     good_lines = []
-    for line in raw_text.splitlines():
+    for line in lines:
         line_stripped = line.strip()
 
         # 1. Filter out empty lines

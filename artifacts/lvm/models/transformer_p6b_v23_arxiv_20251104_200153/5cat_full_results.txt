@@ -1,0 +1,5 @@
+usage: test_5to1_alignment.py [-h] --model MODEL --val-npz VAL_NPZ
+                              --ood-npz OOD_NPZ --articles-npz ARTICLES_NPZ
+                              [--device DEVICE] [--max-samples MAX_SAMPLES]
+                              [--horizon HORIZON] [--disable-pos]
+test_5to1_alignment.py: error: the following arguments are required: --articles-npz

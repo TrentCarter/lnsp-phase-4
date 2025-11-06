@@ -149,10 +149,23 @@
                             <input type="number" id="vec2textSteps" class="form-control" min="1" max="20" value="3">
                             <div class="form-text">Higher steps can improve decoded text quality at the cost of latency.</div>
                         </div>
+
+                        <div class="mb-3">
+                            <label for="evaluationDataset" class="form-label">Evaluation Dataset</label>
+                            <select id="evaluationDataset" class="form-select">
+                                <option value="wikipedia" selected>English Wikipedia (500k articles)</option>
+                                <option value="arxiv">arXiv Papers (cs.CL, cs.LG, cs.AI)</option>
+                            </select>
+                            <div class="form-text">
+                                <span id="datasetDesc"></span>
+                                <span class="badge bg-info" id="datasetBias"></span>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label for="startArticleIndex" class="form-label">Starting Article (index)</label>
                             <input type="number" id="startArticleIndex" class="form-control" min="0" value="0">
-                            <div class="form-text">Start from this article index in the Wikipedia JSONL (0-based).</div>
+                            <div class="form-text" id="startArticleDesc">Start from this article index in the selected dataset (0-based).</div>
                         </div>
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" id="randomStart">
@@ -650,11 +663,41 @@
                 localStorage.setItem(STORAGE_KEYS.TEST_MODE, $(this).val());
             });
 
+            // Dataset selection change
+            $('#evaluationDataset').on('change', function() {
+                const dataset = $(this).val();
+                localStorage.setItem('evaluation_dataset', dataset);
+                updateDatasetDescription(dataset);
+            });
+
+            // Initialize dataset description on load
+            updateDatasetDescription($('#evaluationDataset').val());
+
             // Settings modal events
             $('#settingsModal').on('show.bs.modal', loadSystemInfo);
             $('#settingsModal').on('hidden.bs.modal', saveSettings);
             $('#saveSettingsBtn').on('click', saveSettings);
             $('#resetAllBtn').on('click', resetAllSettings);
+        }
+
+        // Update dataset description
+        function updateDatasetDescription(dataset) {
+            const descriptions = {
+                'wikipedia': {
+                    desc: 'Wikipedia articles with backward temporal bias.',
+                    bias: 'Δ = -0.07 (backward)',
+                    badgeClass: 'bg-warning'
+                },
+                'arxiv': {
+                    desc: 'arXiv academic papers with forward temporal bias.',
+                    bias: 'Δ = +0.06 (forward)',
+                    badgeClass: 'bg-success'
+                }
+            };
+
+            const info = descriptions[dataset] || descriptions['wikipedia'];
+            $('#datasetDesc').text(info.desc);
+            $('#datasetBias').text(info.bias).removeClass().addClass('badge ' + info.badgeClass);
         }
 
         // Load system information for settings modal
@@ -761,7 +804,8 @@
                     num_test_cases: numTestCases,
                     vec2text_steps: parseInt($('#vec2textSteps').val()) || 3,
                     start_article_index: Math.max(0, parseInt($('#startArticleIndex').val()) || 0),
-                    random_start: $('#randomStart').is(':checked')
+                    random_start: $('#randomStart').is(':checked'),
+                    evaluation_dataset: $('#evaluationDataset').val() || 'wikipedia'
                 }),
                 success: function(response) {
                     console.log('Evaluation response:', response);

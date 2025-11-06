@@ -1,0 +1,32 @@
+TRAIN/VAL SPLIT PARITY CHECK
+======================================================================
+
+Train: artifacts/lvm/arxiv_train_sequences.npz
+Val:   artifacts/lvm/arxiv_val_sequences.npz
+Samples analyzed: 5000
+
+TRAIN METRICS:
+  cos_c0_target_mean: 0.4553
+  cos_c0_target_std: 0.1278
+  cos_c4_target_mean: 0.5194
+  cos_c4_target_std: 0.1319
+  delta_mean: 0.0641
+  delta_std: 0.1551
+  delta_positive_pct: 66.0800
+  forward_signal_mean: 0.0016
+  forward_signal_std: 0.1548
+  forward_signal_positive_pct: 50.5000
+
+VAL METRICS:
+  cos_c0_target_mean: 0.4541
+  cos_c0_target_std: 0.1272
+  cos_c4_target_mean: 0.5188
+  cos_c4_target_std: 0.1311
+  delta_mean: 0.0647
+  delta_std: 0.1519
+  delta_positive_pct: 66.5600
+  forward_signal_mean: 0.0018
+  forward_signal_std: 0.1543
+  forward_signal_positive_pct: 50.0400
+
+DISTRIBUTIONS MATCH: YES

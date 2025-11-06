@@ -1,0 +1,41 @@
+[
+  {
+    "config": "1_baseline_para_only",
+    "use_reranker": false,
+    "use_adapter": false,
+    "n_queries": 50,
+    "k": 10,
+    "metrics": {
+      "R@1": 0.0,
+      "R@5": 0.28,
+      "R@10": 0.38,
+      "MRR": 0.11574603174603178
+    }
+  },
+  {
+    "config": "2_sent_rerank",
+    "use_reranker": true,
+    "use_adapter": false,
+    "n_queries": 50,
+    "k": 10,
+    "metrics": {
+      "R@1": 0.0,
+      "R@5": 0.26,
+      "R@10": 0.38,
+      "MRR": 0.11552380952380953
+    }
+  },
+  {
+    "config": "3_sent_rerank_adapter",
+    "use_reranker": true,
+    "use_adapter": true,
+    "n_queries": 50,
+    "k": 10,
+    "metrics": {
+      "R@1": 0.0,
+      "R@5": 0.18,
+      "R@10": 0.22,
+      "MRR": 0.07066666666666667
+    }
+  }
+]

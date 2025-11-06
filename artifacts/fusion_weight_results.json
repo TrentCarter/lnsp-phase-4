@@ -1,0 +1,67 @@
+[
+  {
+    "config": "baseline_para_only",
+    "weights": {
+      "sent": 0.0,
+      "para": 1.0
+    },
+    "metrics": {
+      "R@1": 0.0,
+      "R@5": 0.28,
+      "R@10": 0.38,
+      "MRR": 0.11574603174603178
+    }
+  },
+  {
+    "config": "conservative_favor_para",
+    "weights": {
+      "sent": 0.3,
+      "para": 0.6
+    },
+    "metrics": {
+      "R@1": 0.0,
+      "R@5": 0.28,
+      "R@10": 0.38,
+      "MRR": 0.12071428571428573
+    }
+  },
+  {
+    "config": "balanced",
+    "weights": {
+      "sent": 0.5,
+      "para": 0.4
+    },
+    "metrics": {
+      "R@1": 0.0,
+      "R@5": 0.26,
+      "R@10": 0.38,
+      "MRR": 0.12219047619047622
+    }
+  },
+  {
+    "config": "slight_sent_favor",
+    "weights": {
+      "sent": 0.6,
+      "para": 0.35
+    },
+    "metrics": {
+      "R@1": 0.0,
+      "R@5": 0.26,
+      "R@10": 0.38,
+      "MRR": 0.12219047619047622
+    }
+  },
+  {
+    "config": "original_sent_heavy",
+    "weights": {
+      "sent": 0.75,
+      "para": 0.15
+    },
+    "metrics": {
+      "R@1": 0.0,
+      "R@5": 0.26,
+      "R@10": 0.38,
+      "MRR": 0.11552380952380953
+    }
+  }
+]

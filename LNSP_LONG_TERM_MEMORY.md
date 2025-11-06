@@ -68,7 +68,7 @@ PostgreSQL ↔ Neo4j ↔ FAISS
 
 ### 3. Complete Data Pipeline: CPESH + TMD + Graph
 
-**PRINCIPLE**: Every ingestion run must create ALL data artifacts for both vecRAG+GraphRAG AND LVM training
+**PRINCIPLE**: Every ingestion run must create ALL data artifacts for vecRAG + GraphRAG retrieval
 
 ```
 Source Data (Ontology)
@@ -99,29 +99,29 @@ Source Data (Ontology)
 **REQUIRED ARTIFACTS PER INGESTION**:
 1. **CPESH** (Concept-Probe-Expected-Soft-Hard negatives)
    - Stored in PostgreSQL `cpe_entry.soft_negatives`, `hard_negatives`
-   - Used for contrastive training of LVM
+   - **Purpose**: Improves retrieval quality via hard negative mining
+   - Optional for basic vecRAG, recommended for production
 
 2. **TMD** (Task-Method-Domain 16D encoding)
    - Stored in PostgreSQL `cpe_vectors.tmd_dense`
    - Concatenated with 768D semantic → 784D fused vectors
-   - Used for semantic routing and retrieval
+   - **Purpose**: Semantic routing and query classification
 
 3. **Graph** (Neo4j concept relationships)
    - Concept nodes with `text`, `cpe_id`, `tmd_bits`
    - RELATES_TO edges with confidence scores
    - SHORTCUT_6DEG edges for graph walks
-   - Used for GraphRAG neighbor expansion
+   - **Purpose**: GraphRAG neighbor expansion (future)
 
 4. **Vectors** (FAISS 784D embeddings)
    - NPZ file: `[16D TMD | 768D GTR-T5]` per concept
    - FAISS index for fast similarity search
-   - Used for vecRAG dense retrieval
+   - **Purpose**: Core vecRAG dense retrieval (REQUIRED)
 
 **WHY ALL FOUR**:
-- **vecRAG**: Needs vectors (FAISS) + TMD routing
-- **GraphRAG**: Needs vectors (FAISS) + graph (Neo4j) synchronized
-- **LVM Training**: Needs CPESH for contrastive learning + graph for sequence prediction
-- **LVM Inference**: Needs FAISS index as decoder (vector → nearest concept → text)
+- **vecRAG (current)**: Requires vectors (FAISS), benefits from TMD routing and CPESH negatives
+- **GraphRAG (future)**: Requires vectors (FAISS) + graph (Neo4j) synchronized
+- **Q-tower ranker (future)**: May use CPESH for contrastive ranking
 
 **ENFORCEMENT**:
 - ✅ Default to `--write-pg --write-neo4j --faiss-out` in ALL ingestion scripts
@@ -133,45 +133,7 @@ Source Data (Ontology)
 
 ---
 
-### 4. LVM Architecture: Tokenless Vector-Native
-
-**PRINCIPLE**: The LVM processes 768D/784D vectors directly, NO tokens involved
-
-```
-Input Text → GTR-T5 (768D) → [Optional TMD 16D] → LVM (Mamba-2) → 768D Output → Decoder
-             Frozen                                 12 layers                    ↓
-                                                                          FAISS + Vec2Text
-```
-
-**DECODER IS vecRAG+GraphRAG**:
-1. LVM outputs 768D vector
-2. FAISS finds nearest neighbors (threshold 0.85)
-3. GraphRAG expands via Neo4j relationships
-4. Vec2Text handles out-of-distribution vectors
-5. LLM smoother optional for fluency
-
-**WHY**:
-- **24x faster** than token-based LLMs (no tokenization overhead)
-- **Infinite vocabulary** (any 768D vector = valid concept)
-- **Perfect RAG alignment** (same vector space as retrieval)
-- **No hallucination** (always retrieve or decode from graph)
-
-**TRAINING DATA**:
-- **CPESH** (4,500 contrastive pairs) → learn concept boundaries
-- **GWOM** (10K graph walks) → learn concept transitions
-- **Objective**: Predict next concept vector in sequence
-
-**INFERENCE**:
-- Input: Query text → 768D vector
-- LVM: Processes sequence, outputs next concept vector
-- Decoder: vecRAG finds nearest concept + GraphRAG expands context
-- Output: Grounded concept text (not hallucinated)
-
-**REFERENCE**: `docs/TOKENLESS_MAMBA_ARCHITECTURE.md`, `docs/PRDs/PRD_P15_Latent_LVM_Implementation_Plan.md`
-
----
-
-### 5. Six Degrees of Separation + Shortcuts
+### 4. Six Degrees of Separation + Shortcuts
 
 **PRINCIPLE**: Use 6-degrees theory with 0.5-3% shortcut edges to achieve ≤6-hop convergence from any question to answer
 
@@ -242,25 +204,15 @@ Before ANY ingestion/training/inference run, verify:
 
 ## 🎯 Success Metrics (Know Your Numbers)
 
-### vecRAG Baseline
-- **P@1**: 54.4% (current)
-- **P@5**: 77.8%
-- **Latency**: 0.04ms mean
+### vecRAG Production (2025-11-05)
+- **Contain@50**: 73.4%
+- **R@5**: 50.2%
+- **Latency P95**: 1.33ms
 
 ### GraphRAG Target
 - **P@1**: 60-70% (+10-15% over vecRAG)
 - **Graph neighbors**: 1-10 per query (NOT 0!)
-- **Latency**: <5ms (100x slower than vecRAG but still fast)
-
-### LVM Training Target
-- **CPESH loss**: <0.1 (contrastive triplet loss)
-- **GWOM MSE**: <0.05 (next vector prediction)
-- **Echo score**: >0.85 (predicted ≈ expected)
-
-### LVM Inference Target
-- **FAISS recall@1**: >0.80 (vector → concept accuracy)
-- **GraphRAG boost**: +10% over pure FAISS
-- **Vec2Text fallback**: <20% of queries (most should hit FAISS)
+- **Latency**: <5ms (still fast for production)
 
 ---
 
@@ -299,14 +251,7 @@ cypher-shell "CREATE (c:Concept {text: 'foo'})"
 ./scripts/generate_6deg_shortcuts.sh
 ```
 
-### ❌ Mistake 5: Empty CPESH Negatives
-```bash
-# Check for this bug:
-psql lnsp -c "SELECT count(*) FROM cpe_entry WHERE soft_negatives = '[]'::jsonb;"
-# If count > 0, CPESH extraction failed - re-ingest with real LLM!
-```
-
-### ❌ Mistake 6: Hardcoded dataset_source Labels (FIXED Oct 4, 2025)
+### ❌ Mistake 5: Hardcoded dataset_source Labels (FIXED Oct 4, 2025)
 ```python
 # WRONG - Hardcoded label in process_sample()!
 cpe_record = {
@@ -347,39 +292,42 @@ Read first. Contains immutable principles.
 
 ### Level 3: Implementation Guides
 - `docs/PRDs/PRD_KnownGood_vecRAG_Data_Ingestion.md` - Ingestion procedure
-- `docs/TOKENLESS_MAMBA_ARCHITECTURE.md` - LVM architecture
-- `docs/GraphRAG_Implementation.md` - GraphRAG technical details
+- `docs/RETRIEVAL_OPTIMIZATION_RESULTS.md` - vecRAG configuration
+- `docs/GraphRAG_Implementation.md` - GraphRAG technical details (future)
 
 ### Level 4: Quick References
-- `docs/GraphRAG_QuickStart.md` - 30-second test
-- `QUICKSTART_ONTOLOGY_PIPELINE.md` - Fast setup
+- `docs/DATABASE_LOCATIONS.md` - Data locations and status
+- `docs/DATA_FLOW_DIAGRAM.md` - System architecture
 - `README.md` - Project overview
+
+### Archived (Historical Reference)
+- `docs/TOKENLESS_MAMBA_ARCHITECTURE.md` - LVM architecture (AR-LVM abandoned Nov 2025)
+- `docs/LVM_DATA_MAP.md` - LVM training data (AR-LVM abandoned Nov 2025)
+- `artifacts/lvm/COMPREHENSIVE_LEADERBOARD.md` - LVM benchmarks (Historical)
 
 ---
 
 ## 🔄 Change Log
 
+### November 5, 2025 - AR-LVM Abandonment Cleanup
+- **Removed**: Cardinal Rule #4 (LVM Architecture) - AR-LVM officially abandoned
+- **Updated**: Cardinal Rule #3 - CPESH/TMD still needed for retrieval (not just LVM)
+- **Updated**: Success metrics - Removed LVM training/inference targets
+- **Updated**: Common Mistakes - Removed LVM-specific issues
+- **Focus**: System now optimized for retrieval-only vecRAG + GraphRAG
+
+**Why**: After 8 failed training attempts and decisive narrative delta test, proven that GTR-T5 lacks temporal signal. Pivoting to retrieval-only approach.
+
 ### October 4, 2025 - Critical Fixes Applied
 - **Fixed**: `dataset_source` labeling bug in `ingest_factoid.py`
-  - Hardcoded `"factoid-wiki-large"` → Parameterized with `dataset_source` argument
-  - Ontology ingestions now use `ontology-{source}` labels (e.g., `ontology-swo`)
 - **Fixed**: Missing `faiss_db.save()` call in `ingest_ontology_simple.py`
-  - FAISS NPZ files now created automatically with `--write-faiss` flag
-- **Fixed**: Validation script false positives in `validate_no_factoidwiki.sh`
-  - Now checks concept content patterns, not just labels
-- **Created**: Comprehensive fix documentation in `docs/FIXES_Oct4_2025_FactoidWiki_Labeling.md`
-
-**Why**: 6K overnight ingestion completed but had mislabeled data. All 4,484 concepts were ontological but labeled `factoid-wiki-large`. Fixes prevent recurrence.
+- **Fixed**: Validation script false positives
 
 ### October 3, 2025 - Initial Creation
 - Documented Cardinal Rules 1-5
 - Established NO FACTOIDWIKI policy
 - Defined complete data pipeline requirements
 - Documented 6-degrees shortcuts theory
-- Created mandatory checklist
-- Defined success metrics
-
-**Why**: Oct 2-3 incident showed that critical principles weren't documented. GraphRAG failed due to data desynchronization. This file ensures it never happens again.
 
 ---
 
@@ -389,7 +337,7 @@ Read first. Contains immutable principles.
 
 These are not suggestions. These are REQUIREMENTS that the entire system depends on.
 
-If you violate any Cardinal Rule, the system will break in subtle ways that are hard to debug. Follow the checklist. Verify synchronization. Use ontologies only. Generate shortcuts. Your future self will thank you.
+If you violate any Cardinal Rule, the system will break in subtle ways that are hard to debug. Follow the checklist. Verify synchronization. Use ontologies only. Generate shortcuts.
 
 **Remember**: Fast re-ingestion is better than slow debugging of desynchronized data.
 
@@ -398,5 +346,5 @@ If you violate any Cardinal Rule, the system will break in subtle ways that are 
 **END OF LONG-TERM MEMORY**
 
 _This document must be updated whenever new fundamental principles are discovered._
-_Last review: October 4, 2025_
-_Last update: October 4, 2025 - Added fixes for dataset_source labeling and FAISS save issues_
+_Last review: November 5, 2025_
+_Last update: November 5, 2025 - Removed AR-LVM references, focus on retrieval_
