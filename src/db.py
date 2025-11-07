@@ -10,7 +10,7 @@ def insert_entry(conn, core: dict):
     # Insert logic here
     cursor.close()
 
-def upsert_vectors(conn, cpe_id: str, fused_vec, question_vec, concept_vec, tmd_dense=None, fused_n):
+def upsert_vectors(conn, cpe_id: str, fused_vec, question_vec, concept_vec, fused_n=None, tmd_dense=None):
     cursor = conn.cursor()
     # Upsert logic here
     cursor.close()
