@@ -297,7 +297,9 @@ def start_project(
         response=resp
     )
 
-    return resp
+    # Return fresh response with replay=false header
+    from fastapi.responses import JSONResponse
+    return JSONResponse(content=resp, headers={"Idempotent-Replay": "false"})
 
 
 @router.post("/{project_id}/simulate")
