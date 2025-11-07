@@ -230,7 +230,7 @@ directional_bonus = 0.03   # Directional alignment bonus
 
 ---
 
-## 📍 CURRENT STATUS (2025-11-05)
+## 📍 CURRENT STATUS (2025-11-06)
 
 **Production Data**:
 - 339,615 Wikipedia concepts (articles 1-3,431) with vectors in PostgreSQL
@@ -247,11 +247,13 @@ directional_bonus = 0.03   # Directional alignment bonus
 - Encoder/Decoder: Ports 7001/7002 (CPU, 2.93x faster than MPS)
 - CPESH: Full implementation with real LLM generation (Ollama + Llama 3.1:8b)
 - n8n MCP: Configured and tested (`claude mcp list` to verify)
+- **✨ PLMS Tier 1**: Project Lifecycle Management System (see below)
 
-**Recent Updates (Nov 4-5, 2025)**:
+**Recent Updates (Nov 4-6, 2025)**:
 - ✅ **AR-LVM abandoned**: Narrative delta test (Δ=0.0004) proved GTR-T5 lacks temporal signal
 - ✅ **Wikipedia analysis**: Backward-biased (Δ=-0.0696), still useful for retrieval
 - ✅ **P9 sentence retrieval**: Tested, no improvement over paragraph-only
+- ✅ **PLMS Tier 1 shipped**: Multi-run support, Bayesian calibration, risk visualization (Nov 6)
 - 🎯 **Current focus**: Retrieval-only vecRAG (no vector-to-vector prediction)
 - 🔍 **Optional future work**: Q-tower ranker for retrieved candidates
 
@@ -361,6 +363,123 @@ export LNSP_LLM_MODEL="llama3.1:8b"
 ./scripts/generate_6deg_shortcuts.sh
 ```
 
+
+## 🚀 PLMS (PROJECT LIFECYCLE MANAGEMENT SYSTEM) - Tier 1
+
+**Status**: ✅ Shipped (Nov 6, 2025)
+**Version**: V1 Tier 1
+**PRD**: `docs/PRDs/PRD_Project_Lifecycle_Management_System_PLMS.md`
+
+### What is PLMS?
+
+Production-grade project orchestration system that estimates token costs, duration, and resource allocation for PAS-executed projects. Includes multi-run support (baseline/rehearsal/replay), Bayesian calibration, and risk visualization.
+
+### Quick Start
+
+```bash
+# 1. Apply database migration
+sqlite3 artifacts/registry/registry.db < migrations/2025_11_06_plms_v1_tier1.sql
+
+# 2. Verify migration
+sqlite3 artifacts/registry/registry.db ".schema project_runs" | grep run_kind
+
+# 3. Import PLMS modules
+./.venv/bin/python -c "from services.plms.api.projects import router; print('✓ PLMS ready')"
+
+# 4. Run test vectors (requires API server running on port 6100)
+export PLMS_API_BASE_URL=http://localhost:6100
+bash tests/api/plms_test_vectors.sh
+```
+
+### Key Features (Tier 1)
+
+1. **Multi-run Support**: `run_kind` enum (baseline/rehearsal/replay/hotfix)
+2. **Idempotent API**: Requires `Idempotency-Key` header for safe retries
+3. **Rehearsal Mode**: 1% canary testing before full execution (`?rehearsal_pct=0.01`)
+4. **Credible Intervals**: 90% Bayesian CIs for token/duration/cost estimates
+5. **Lane-Specific KPIs**: Beyond Echo-Loop (test pass rate, schema diff, BLEU, etc.)
+6. **Active Learning**: Lane override feedback (`lane_overrides` table)
+7. **Budget Runway**: Time-to-depletion + projected overrun visualization
+8. **Risk Heatmap**: Lane × phase risk matrix (MAE, CI width)
+9. **Estimation Drift**: Sparkline charts showing MAE trends
+
+### API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/projects/{id}/start` | POST | Start execution (requires `Idempotency-Key`) |
+| `/api/projects/{id}/simulate` | POST | Rehearsal mode with `?rehearsal_pct=0.01` |
+| `/api/projects/{id}/metrics` | GET | Get estimates (add `?with_ci=1` for credible intervals) |
+| `/api/projects/{id}/lane-overrides` | GET | Active learning feedback for lane classifier |
+| `/api/projects/{id}/budget-runway` | GET | Budget depletion time + projected overrun |
+| `/api/projects/{id}/risk-heatmap` | GET | Lane × phase risk scores |
+| `/api/projects/{id}/estimation-drift` | GET | MAE trend sparklines |
+
+### Files & Locations
+
+**Code**:
+- `services/plms/api/projects.py` - FastAPI endpoints (7 routes)
+- `services/plms/kpi_validators.py` - Lane-specific quality gates (7 validators)
+- `services/plms/calibration.py` - Bayesian learning hooks
+
+**Database**:
+- `migrations/2025_11_06_plms_v1_tier1.sql` - Schema migration (SQLite + PostgreSQL)
+- `artifacts/registry/registry.db` - SQLite database (apply migration here)
+
+**Documentation**:
+- `docs/PRDs/PRD_Project_Lifecycle_Management_System_PLMS.md` - Complete PRD (70KB)
+- `docs/HMI_JSON_CONTRACTS_PLMS.md` - Frontend integration guide
+- `tests/api/plms_test_vectors.sh` - Executable test script (10 test cases)
+
+### Integration TODOs
+
+The current implementation has intentional stubs that need wiring:
+
+1. **Database Integration**: Replace `db_*` stub functions in `projects.py` with actual Registry DB queries
+2. **PAS Integration**: Replace `pas_submit_jobcard()` with actual PAS Architect submission
+3. **Auth Middleware**: Replace `get_current_user()` with JWT/session auth
+4. **Idempotency Cache**: Swap `_IDEMP_CACHE` (in-memory) to Redis for production
+5. **Calibration Webhooks**: Wire `update_priors_after_run()` to PAS completion events
+6. **KPI Validators**: Add actual DB queries (replace `get_table_schema()`, etc.)
+
+### Example Usage
+
+```python
+import requests
+
+# Start execution (idempotent)
+response = requests.post(
+    "http://localhost:6100/api/projects/42/start",
+    headers={"Idempotency-Key": "unique-uuid-here"},
+    json={"run_kind": "baseline"}
+)
+print(response.json())
+# {"run_id": "abc123", "replay_passport": {...}, "status": "submitted"}
+
+# Simulate with 1% rehearsal
+response = requests.post(
+    "http://localhost:6100/api/projects/42/simulate?rehearsal_pct=0.01"
+)
+print(response.json())
+# {"rehearsal_tokens": 150, "projected_tokens": 15000, "risk_score": 0.12}
+
+# Get estimates with credible intervals
+response = requests.get(
+    "http://localhost:6100/api/projects/42/metrics?with_ci=1"
+)
+print(response.json())
+# {"tokens_mean": 15000, "tokens_ci_lower": 13200, "tokens_ci_upper": 16800, ...}
+```
+
+### HMI Integration
+
+See `docs/HMI_JSON_CONTRACTS_PLMS.md` for complete frontend integration guide:
+- Budget Runway Gauge (WebSocket/SSE streaming)
+- Risk Heatmap (lane × phase matrix)
+- Estimation Drift Sparklines (Chart.js)
+- Error handling + graceful fallbacks
+
+---
 
 ## 📂 KEY COMMANDS
 
