@@ -54,6 +54,12 @@ def sequencer_view():
     return render_template('sequencer.html')
 
 
+@app.route('/actions')
+def actions_view():
+    """Actions log view - hierarchical task flow"""
+    return render_template('actions.html')
+
+
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
@@ -553,6 +559,43 @@ def get_sequencer_data():
             'agents': [],
             'tasks': []
         }), 500
+
+
+@app.route('/api/actions/tasks', methods=['GET'])
+def get_action_tasks():
+    """Get all tasks from action logs"""
+    try:
+        response = requests.get(f'{REGISTRY_URL}/action_logs/tasks', timeout=5)
+        response.raise_for_status()
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Error fetching action tasks: {e}")
+        return jsonify({'error': str(e), 'items': []}), 500
+
+
+@app.route('/api/actions/task/<task_id>', methods=['GET'])
+def get_task_actions(task_id):
+    """Get hierarchical actions for a specific task"""
+    try:
+        response = requests.get(f'{REGISTRY_URL}/action_logs/task/{task_id}', timeout=5)
+        response.raise_for_status()
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Error fetching actions for task {task_id}: {e}")
+        return jsonify({'error': str(e), 'task_id': task_id, 'actions': []}), 500
+
+
+@app.route('/api/actions/log', methods=['POST'])
+def log_action():
+    """Log a new action (proxy to Registry service)"""
+    try:
+        action_data = request.get_json()
+        response = requests.post(f'{REGISTRY_URL}/action_logs', json=action_data, timeout=5)
+        response.raise_for_status()
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Error logging action: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

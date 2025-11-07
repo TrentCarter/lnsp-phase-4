@@ -1,0 +1,741 @@
+{% extends "base.html" %}
+
+{% block title %}Actions Log - PAS Agent Swarm{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .actions-container {
+        display: flex;
+        gap: 1rem;
+        height: calc(100vh - 100px);
+        margin-top: 1rem;
+    }
+
+    .tasks-sidebar {
+        width: 350px;
+        background: linear-gradient(135deg, #0f1423 0%, #1a1f3a 100%);
+        border-radius: 12px;
+        padding: 1.5rem;
+        overflow-y: auto;
+        flex-shrink: 0;
+    }
+
+    .tasks-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .tasks-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #fff;
+    }
+
+    .refresh-button {
+        padding: 0.5rem 1rem;
+        background: rgba(59, 130, 246, 0.8);
+        border: 1px solid #3b82f6;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .refresh-button:hover {
+        background: rgba(59, 130, 246, 1);
+        transform: translateY(-1px);
+    }
+
+    .search-box {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(30, 39, 71, 0.6);
+        border: 1px solid #3a4568;
+        border-radius: 6px;
+        color: #e0e0e0;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
+    .search-box:focus {
+        outline: none;
+        border-color: #3b82f6;
+    }
+
+    .task-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .task-item {
+        padding: 1rem;
+        background: rgba(30, 39, 71, 0.6);
+        border: 1px solid #3a4568;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .task-item:hover {
+        background: rgba(30, 39, 71, 0.9);
+        border-color: #4a5578;
+        transform: translateY(-1px);
+    }
+
+    .task-item.active {
+        background: rgba(59, 130, 246, 0.2);
+        border-color: #3b82f6;
+    }
+
+    .task-id {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #3b82f6;
+        margin-bottom: 0.5rem;
+    }
+
+    .task-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        font-size: 0.75rem;
+        color: #9ca3af;
+    }
+
+    .task-meta-row {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .actions-main {
+        flex: 1;
+        background: linear-gradient(135deg, #0f1423 0%, #1a1f3a 100%);
+        border-radius: 12px;
+        padding: 1.5rem;
+        overflow-y: auto;
+    }
+
+    .actions-header {
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .actions-header-left {
+        flex: 1;
+    }
+
+    .actions-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 0.5rem;
+    }
+
+    .actions-subtitle {
+        font-size: 0.875rem;
+        color: #9ca3af;
+    }
+
+    .actions-header-controls {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .expand-button {
+        padding: 0.5rem 1rem;
+        background: rgba(59, 130, 246, 0.8);
+        border: 1px solid #3b82f6;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+
+    .expand-button:hover {
+        background: rgba(59, 130, 246, 1);
+        transform: translateY(-1px);
+    }
+
+    .expand-button.collapse {
+        background: rgba(107, 114, 128, 0.8);
+        border-color: #6b7280;
+    }
+
+    .expand-button.collapse:hover {
+        background: rgba(107, 114, 128, 1);
+    }
+
+    .action-tree {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .action-node {
+        background: rgba(30, 39, 71, 0.6);
+        border: 1px solid #3a4568;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .action-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .action-header:hover {
+        background: rgba(30, 39, 71, 0.8);
+    }
+
+    .action-header.has-children {
+        cursor: pointer;
+    }
+
+    .expand-icon {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+        color: #9ca3af;
+        flex-shrink: 0;
+    }
+
+    .expand-icon.expanded {
+        transform: rotate(90deg);
+    }
+
+    .action-flow {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1;
+    }
+
+    .agent-badge {
+        padding: 0.25rem 0.75rem;
+        background: rgba(59, 130, 246, 0.2);
+        border: 1px solid #3b82f6;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #3b82f6;
+        white-space: nowrap;
+    }
+
+    .flow-arrow {
+        color: #4a5578;
+        font-size: 1rem;
+    }
+
+    .action-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #e0e0e0;
+        flex: 1;
+    }
+
+    .action-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .action-status.completed {
+        background: #10b981;
+        color: white;
+    }
+
+    .action-status.running {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .action-status.error {
+        background: #ef4444;
+        color: white;
+    }
+
+    .action-status.blocked {
+        background: #f59e0b;
+        color: white;
+    }
+
+    .action-timestamp {
+        font-size: 0.75rem;
+        color: #9ca3af;
+    }
+
+    .action-children {
+        display: none;
+        padding-left: 2rem;
+        padding-bottom: 1rem;
+        border-left: 2px solid #3a4568;
+        margin-left: 2rem;
+    }
+
+    .action-children.expanded {
+        display: block;
+    }
+
+    .action-data {
+        padding: 1rem;
+        background: rgba(15, 20, 35, 0.6);
+        border-top: 1px solid #3a4568;
+        font-size: 0.75rem;
+        color: #9ca3af;
+        font-family: 'Courier New', monospace;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 300px;
+        color: #9ca3af;
+        text-align: center;
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .empty-state-text {
+        font-size: 1rem;
+    }
+
+    .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 200px;
+        color: #9ca3af;
+    }
+
+    .spinner {
+        border: 3px solid rgba(59, 130, 246, 0.3);
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Scrollbar styling */
+    .tasks-sidebar::-webkit-scrollbar,
+    .actions-main::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .tasks-sidebar::-webkit-scrollbar-track,
+    .actions-main::-webkit-scrollbar-track {
+        background: rgba(30, 39, 71, 0.3);
+        border-radius: 4px;
+    }
+
+    .tasks-sidebar::-webkit-scrollbar-thumb,
+    .actions-main::-webkit-scrollbar-thumb {
+        background: #4a5578;
+        border-radius: 4px;
+    }
+
+    .tasks-sidebar::-webkit-scrollbar-thumb:hover,
+    .actions-main::-webkit-scrollbar-thumb:hover {
+        background: #5a6588;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="actions-container">
+    <!-- Tasks Sidebar -->
+    <div class="tasks-sidebar">
+        <div class="tasks-header">
+            <div class="tasks-title">Tasks</div>
+            <button class="refresh-button" onclick="refreshTasks()">🔄 Refresh</button>
+        </div>
+
+        <input type="text" class="search-box" id="task-search" placeholder="Search tasks..." oninput="filterTasks()">
+
+        <div id="task-list" class="task-list">
+            <div class="loading">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Main View -->
+    <div class="actions-main">
+        <div class="actions-header">
+            <div class="actions-header-left">
+                <div class="actions-title" id="selected-task-title">Select a task to view actions</div>
+                <div class="actions-subtitle" id="selected-task-subtitle"></div>
+            </div>
+            <div class="actions-header-controls" id="expand-controls" style="display: none;">
+                <button class="expand-button" onclick="expandAll()">⬇️ Expand All</button>
+                <button class="expand-button collapse" onclick="collapseAll()">⬆️ Collapse All</button>
+            </div>
+        </div>
+
+        <div id="actions-tree" class="action-tree">
+            <div class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <div class="empty-state-text">Select a task from the list to view its action flow</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let allTasks = [];
+let selectedTaskId = null;
+let expandedActions = new Set(); // Track which actions are expanded
+
+// Fetch tasks on load
+async function fetchTasks() {
+    try {
+        const response = await fetch('/api/actions/tasks');
+        const data = await response.json();
+        allTasks = data.items || [];
+        renderTaskList();
+    } catch (error) {
+        console.error('Error fetching tasks:', error);
+        document.getElementById('task-list').innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">⚠️</div>
+                <div class="empty-state-text">Error loading tasks</div>
+            </div>
+        `;
+    }
+}
+
+function renderTaskList() {
+    const taskListEl = document.getElementById('task-list');
+
+    if (allTasks.length === 0) {
+        taskListEl.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <div class="empty-state-text">No tasks yet</div>
+            </div>
+        `;
+        return;
+    }
+
+    taskListEl.innerHTML = allTasks.map(task => `
+        <div class="task-item ${selectedTaskId === task.task_id ? 'active' : ''}"
+             onclick="selectTask('${task.task_id}')">
+            <div class="task-id">${task.task_id}</div>
+            <div class="task-meta">
+                <div class="task-meta-row">
+                    <span>📊 ${task.action_count} actions</span>
+                    <span>${formatTimestamp(task.start_time)}</span>
+                </div>
+                <div class="task-meta-row">
+                    <span>👥 ${task.agents_involved.length} agents</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterTasks() {
+    const searchTerm = document.getElementById('task-search').value.toLowerCase();
+    const filteredTasks = allTasks.filter(task =>
+        task.task_id.toLowerCase().includes(searchTerm)
+    );
+
+    const taskListEl = document.getElementById('task-list');
+    taskListEl.innerHTML = filteredTasks.map(task => `
+        <div class="task-item ${selectedTaskId === task.task_id ? 'active' : ''}"
+             onclick="selectTask('${task.task_id}')">
+            <div class="task-id">${task.task_id}</div>
+            <div class="task-meta">
+                <div class="task-meta-row">
+                    <span>📊 ${task.action_count} actions</span>
+                    <span>${formatTimestamp(task.start_time)}</span>
+                </div>
+                <div class="task-meta-row">
+                    <span>👥 ${task.agents_involved.length} agents</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function selectTask(taskId) {
+    // Clear expanded state when switching tasks (only if different task)
+    if (selectedTaskId !== taskId) {
+        expandedActions.clear();
+    }
+
+    selectedTaskId = taskId;
+    renderTaskList(); // Re-render to show active state
+
+    // Update header
+    document.getElementById('selected-task-title').textContent = `Task: ${taskId}`;
+    document.getElementById('selected-task-subtitle').textContent = 'Loading actions...';
+
+    // Show loading
+    document.getElementById('actions-tree').innerHTML = `
+        <div class="loading">
+            <div class="spinner"></div>
+        </div>
+    `;
+
+    try {
+        const response = await fetch(`/api/actions/task/${taskId}`);
+        const data = await response.json();
+
+        document.getElementById('selected-task-subtitle').textContent = `${data.actions.length} root actions`;
+        renderActionTree(data.actions);
+
+        // Show expand/collapse controls
+        document.getElementById('expand-controls').style.display = 'flex';
+    } catch (error) {
+        console.error('Error fetching task actions:', error);
+        document.getElementById('actions-tree').innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">⚠️</div>
+                <div class="empty-state-text">Error loading actions</div>
+            </div>
+        `;
+        // Hide expand controls on error
+        document.getElementById('expand-controls').style.display = 'none';
+    }
+}
+
+function renderActionTree(actions, parentEl = null) {
+    const container = parentEl || document.getElementById('actions-tree');
+
+    if (!parentEl && actions.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <div class="empty-state-text">No actions recorded for this task</div>
+            </div>
+        `;
+        return;
+    }
+
+    const html = actions.map(action => {
+        const hasChildren = action.children && action.children.length > 0;
+        const statusClass = getStatusClass(action.status);
+
+        return `
+            <div class="action-node" id="action-${action.log_id}">
+                <div class="action-header ${hasChildren ? 'has-children' : ''}"
+                     onclick="${hasChildren ? `toggleAction(${action.log_id})` : ''}">
+                    ${hasChildren ? '<span class="expand-icon" id="icon-' + action.log_id + '">▶</span>' : '<span class="expand-icon"></span>'}
+
+                    <div class="action-flow">
+                        ${action.from_agent ? `<span class="agent-badge">${action.from_agent}</span>` : ''}
+                        ${action.from_agent && action.to_agent ? '<span class="flow-arrow">→</span>' : ''}
+                        ${action.to_agent ? `<span class="agent-badge">${action.to_agent}</span>` : ''}
+                        <div class="action-name">${action.action_name || action.action_type}</div>
+                        ${action.status ? `<span class="action-status ${statusClass}">${action.status}</span>` : ''}
+                        <span class="action-timestamp">${formatTimestamp(action.timestamp)}</span>
+                    </div>
+                </div>
+
+                ${action.action_data ? `<div class="action-data">${JSON.stringify(action.action_data, null, 2)}</div>` : ''}
+
+                ${hasChildren ? `
+                    <div class="action-children" id="children-${action.log_id}">
+                        ${renderChildActions(action.children)}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+
+    if (parentEl) {
+        return html;
+    } else {
+        container.innerHTML = html;
+        // Restore expanded state after rendering
+        restoreExpandedState();
+    }
+}
+
+function restoreExpandedState() {
+    // Restore the expanded state for all actions that were previously expanded
+    expandedActions.forEach(logId => {
+        const icon = document.getElementById(`icon-${logId}`);
+        const children = document.getElementById(`children-${logId}`);
+
+        if (icon && children) {
+            icon.classList.add('expanded');
+            children.classList.add('expanded');
+        }
+    });
+}
+
+function renderChildActions(children) {
+    return children.map(action => {
+        const hasChildren = action.children && action.children.length > 0;
+        const statusClass = getStatusClass(action.status);
+
+        return `
+            <div class="action-node" id="action-${action.log_id}">
+                <div class="action-header ${hasChildren ? 'has-children' : ''}"
+                     onclick="${hasChildren ? `toggleAction(${action.log_id})` : ''}">
+                    ${hasChildren ? '<span class="expand-icon" id="icon-' + action.log_id + '">▶</span>' : '<span class="expand-icon"></span>'}
+
+                    <div class="action-flow">
+                        ${action.from_agent ? `<span class="agent-badge">${action.from_agent}</span>` : ''}
+                        ${action.from_agent && action.to_agent ? '<span class="flow-arrow">→</span>' : ''}
+                        ${action.to_agent ? `<span class="agent-badge">${action.to_agent}</span>` : ''}
+                        <div class="action-name">${action.action_name || action.action_type}</div>
+                        ${action.status ? `<span class="action-status ${statusClass}">${action.status}</span>` : ''}
+                        <span class="action-timestamp">${formatTimestamp(action.timestamp)}</span>
+                    </div>
+                </div>
+
+                ${action.action_data ? `<div class="action-data">${JSON.stringify(action.action_data, null, 2)}</div>` : ''}
+
+                ${hasChildren ? `
+                    <div class="action-children" id="children-${action.log_id}">
+                        ${renderChildActions(action.children)}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleAction(logId) {
+    const icon = document.getElementById(`icon-${logId}`);
+    const children = document.getElementById(`children-${logId}`);
+
+    if (icon && children) {
+        icon.classList.toggle('expanded');
+        children.classList.toggle('expanded');
+
+        // Track expanded state
+        if (expandedActions.has(logId)) {
+            expandedActions.delete(logId);
+        } else {
+            expandedActions.add(logId);
+        }
+    }
+}
+
+function getAllActionIds() {
+    // Find all action nodes with children in the DOM
+    const allLogIds = [];
+    const actionNodes = document.querySelectorAll('.action-node');
+
+    actionNodes.forEach(node => {
+        const id = node.id.replace('action-', '');
+        const childrenEl = document.getElementById(`children-${id}`);
+
+        // Only include nodes that have children
+        if (childrenEl) {
+            allLogIds.push(parseInt(id));
+        }
+    });
+
+    return allLogIds;
+}
+
+function expandAll() {
+    const allLogIds = getAllActionIds();
+
+    // Add all IDs to expanded set
+    allLogIds.forEach(logId => {
+        expandedActions.add(logId);
+
+        // Apply expanded class
+        const icon = document.getElementById(`icon-${logId}`);
+        const children = document.getElementById(`children-${logId}`);
+
+        if (icon && children) {
+            icon.classList.add('expanded');
+            children.classList.add('expanded');
+        }
+    });
+}
+
+function collapseAll() {
+    const allLogIds = getAllActionIds();
+
+    // Remove all IDs from expanded set
+    allLogIds.forEach(logId => {
+        expandedActions.delete(logId);
+
+        // Remove expanded class
+        const icon = document.getElementById(`icon-${logId}`);
+        const children = document.getElementById(`children-${logId}`);
+
+        if (icon && children) {
+            icon.classList.remove('expanded');
+            children.classList.remove('expanded');
+        }
+    });
+}
+
+function getStatusClass(status) {
+    if (!status) return '';
+    const s = status.toLowerCase();
+    if (s.includes('complete') || s.includes('done')) return 'completed';
+    if (s.includes('run')) return 'running';
+    if (s.includes('error') || s.includes('fail')) return 'error';
+    if (s.includes('block') || s.includes('wait')) return 'blocked';
+    return '';
+}
+
+function formatTimestamp(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+}
+
+function refreshTasks() {
+    fetchTasks();
+    if (selectedTaskId) {
+        selectTask(selectedTaskId);
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    fetchTasks();
+
+    // Auto-refresh every 30 seconds
+    setInterval(refreshTasks, 30000);
+});
+</script>
+{% endblock %}

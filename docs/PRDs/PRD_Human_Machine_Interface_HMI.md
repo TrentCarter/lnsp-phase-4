@@ -44,6 +44,7 @@
 
 * **PAS Web UI:** Flask @ **6101** (this HMI).
 * **Event Stream:** WS/SSE @ **6102** (live updates).
+* **Audio Service:** FastAPI @ **6103** (TTS, MIDI notes, tones).
 * **PAS Orchestrator API:** FastAPI @ **6100** (job submit/approve).
 * **Gateway:** @ **6120** (single client entrypoint).
 * **Registry:** @ **6121** (service discovery & heartbeats).
@@ -436,16 +437,264 @@ Retention:
 
 ## 17) Open Questions
 
-* Preferred TTS backend for narration (local vs vendor).
-* Default audio pack/instrument set.
+* ✅ ~~Preferred TTS backend for narration~~ → **RESOLVED**: f5_tts_mlx (local, Apple Silicon optimized)
+* Default audio pack/instrument set → Currently using generated tones, could add custom samples
 * Minimum retention for events vs audio sidecars (30/90 days?).
 * Whether to auto‑suggest scaling ("add N workers") from HMI based on saturation.
+* How to handle concurrent audio (mixing strategy, priority queue)?
 
----*
+---
 
-## 18) Appendix — Quick Mappings & Tables
+## 18) Implementation Status (as of 2025-11-07)
 
-### 18.1 Event Types
+### ✅ Completed Features
+
+#### Dashboard View
+- ✅ Service cards with live status (running/error/idle)
+- ✅ Real-time metrics (latency, throughput, success rate)
+- ✅ Cost metrics visualization (per-minute window)
+- ✅ Auto-refresh with configurable interval (5-300 seconds)
+- ✅ Persistent settings via localStorage
+
+#### Tree View
+- ✅ D3.js hierarchical tree visualization
+- ✅ Parent-child agent relationships
+- ✅ Node color coding by status
+- ✅ State preservation during refresh (expanded nodes, zoom/pan)
+- ✅ Smart refresh (updates colors/stats without moving tree)
+- ✅ Interactive node collapse/expand
+- ✅ Auto-refresh with settings integration
+- ✅ **Orientation dropdown** (Top ⬇️, Left ➡️, Right ⬅️, Bottom ⬆️):
+  - Real-time layout switching
+  - Persistent orientation saved to settings
+  - Proper text alignment and link paths for each orientation
+  - Available in toolbar and Settings modal
+- ✅ **Auto-refresh bug fix**: Now respects "Enable Auto-Refresh" setting for WebSocket events
+
+#### Sequencer View (MIDI-Style Timeline)
+- ✅ Canvas-based task timeline rendering
+- ✅ Horizontal time axis with auto-scaling grid
+- ✅ Agent rows sorted by tier (VP → Directors → Managers → Workers)
+- ✅ Color-coded task blocks by status/progress
+- ✅ Interactive playhead with draggable red circle handle
+- ✅ Play/Pause/Stop playback controls
+- ✅ **Non-linear playback speed (0.1x-100x)**:
+  - Slider range: 0-100 (percentage position)
+  - 0-50%: 0.1x to 1.0x (linear scaling)
+  - 50-75%: 1.0x to 10x (exponential, t²)
+  - 75-100%: 10x to 100x (exponential, t²)
+  - Round-trip accuracy: <0.0001 error
+  - Smart formatting: 0.00x, 0.0x, or 0x based on magnitude
+- ✅ Dual synchronized playback sliders (top toolbar + bottom bar)
+- ✅ Sound mode dropdown (None/Voice/Music/Random) — UI complete
+- ✅ Zoom controls (10%-1000%)
+- ✅ Time range selector (5min to 4hr)
+- ✅ Task tooltips on hover (name, agent, status, progress, duration)
+- ✅ Click-to-scrub timeline
+- ✅ Scrollbar visibility toggle via settings
+
+#### Actions View (Hierarchical Task Flow Log) — **2025-11-06**
+- ✅ **Two-panel layout**: Tasks sidebar + Action tree main view
+- ✅ **Hierarchical action tree** showing agent-to-agent communication flows:
+  - Parent-child relationships via `parent_log_id`
+  - Multi-level nesting (unlimited depth)
+  - Example: `VP_ENG → Dir_SW → SW-MGR_1 → Programmer_1 → work → responses back up`
+- ✅ **Task list with metadata**:
+  - Action count, agent involvement, timestamps
+  - Search/filter by task ID
+  - Click to load hierarchical action tree
+- ✅ **Expandable tree nodes**:
+  - Individual node expand/collapse (click arrow icon)
+  - "Expand All" button (⬇️) — Expands entire task tree instantly
+  - "Collapse All" button (⬆️) — Collapses entire tree
+  - State preserved during auto-refresh (30s interval)
+- ✅ **Agent flow visualization**:
+  - From/to agent badges with arrow (→) indicator
+  - Action name and type display
+  - Timestamp (relative: "just now", "5m ago", etc.)
+- ✅ **Status indicators** (color-coded):
+  - ✅ Completed (green)
+  - 🔵 Running (blue)
+  - ⚠️ Blocked (orange)
+  - ❌ Error (red)
+- ✅ **Token-based metrics** (AI agent system):
+  - `estimated_tokens` — Estimated token usage
+  - `estimated_task_points` — Task complexity (story points)
+  - `tokens_used` — Actual tokens consumed
+  - `task_duration` — Actual time taken
+  - `total_cost_usd` — Total cost in USD
+- ✅ **Action data display** (JSON):
+  - Expandable action details
+  - File changes, test results, blockers, etc.
+- ✅ **Auto-refresh** with state preservation:
+  - Refreshes every 30 seconds
+  - Preserves expanded/collapsed state
+  - Cleared when switching tasks
+- ✅ **Empty state handling**: Helpful messages for no tasks/actions
+
+#### Settings System
+- ✅ Persistent settings with localStorage
+- ✅ Reset to defaults functionality
+- ✅ Auto-refresh toggle and interval control (5-300 seconds)
+- ✅ Display settings (tooltips, compact mode, timezone)
+- ✅ Tree View settings (orientation: top/left/right/bottom)
+- ✅ Sequencer settings (hide scrollbars, default speed, default sound)
+- ✅ Audio settings (master toggle, sequencer notes, agent voice, volume)
+- ✅ Performance settings (animation duration 0-2000ms)
+- ✅ Timezone selector (EST/PST/UTC/etc., default: EST)
+- ✅ Settings validation and bounds checking
+
+#### Task Status Indicator
+- ✅ Compact LED indicator in header bar
+- ✅ Shows current active task name
+- ✅ Animated status LED (RUNNING/DONE/ERROR/IDLE/etc.)
+- ✅ Color-coded states:
+  - 🟢 Green (done)
+  - 🔵 Blue (running, pulsing animation)
+  - 🟡 Yellow (waiting/blocked)
+  - 🔴 Red (error/stuck)
+  - ⚪ Gray (idle)
+- ✅ Auto-hides when no active task
+- ✅ 5-second polling + WebSocket updates
+
+#### API Endpoints
+
+**HMI Service (Port 6101)**:
+- ✅ `/api/services` — Service registry data
+- ✅ `/api/metrics` — Performance metrics
+- ✅ `/api/costs` — Cost tracking with time windows
+- ✅ `/api/tree` — Hierarchical agent tree
+- ✅ `/api/sequencer` — Timeline data (agents + tasks)
+- ✅ `/api/current-task` — Active task status
+- ✅ `/api/actions/tasks` — List all tasks from action logs
+- ✅ `/api/actions/task/<task_id>` — Get hierarchical actions for specific task
+- ✅ `/api/actions/log` — Log new action (proxy to Registry)
+- ✅ `/health` — Service health check
+
+**Registry Service (Port 6121)**:
+- ✅ `POST /action_logs` — Log new action/message
+- ✅ `GET /action_logs/tasks` — List all tasks with summary metadata
+- ✅ `GET /action_logs/task/{task_id}` — Get hierarchical action tree for task
+
+**Audio Service (Port 6103)**:
+- ✅ `POST /audio/tts` — Text-to-speech synthesis (f5_tts_mlx)
+- ✅ `POST /audio/note` — MIDI note playback (21-108)
+- ✅ `POST /audio/tone` — Tone/beep generation
+- ✅ `POST /audio/play` — Audio file playback
+- ✅ `POST /audio/volume` — Master volume control
+- ✅ `POST /audio/enable` — Enable/disable features
+- ✅ `GET /health` — Audio service health
+- ✅ `GET /status` — Current playback status
+
+#### Technical Infrastructure
+- ✅ Flask backend @ port 6101
+- ✅ WebSocket integration @ port 6102
+- ✅ **Audio Service @ port 6103** (FastAPI with f5_tts_mlx)
+- ✅ D3.js for tree visualization
+- ✅ HTML5 Canvas for sequencer rendering
+- ✅ Real-time event processing from Event Stream
+- ✅ Service Registry integration @ port 6121
+- ✅ JavaScript audio integration in base.html (TTS, notes, tones)
+
+#### Audio Playback (NEW - 2025-11-07)
+- ✅ **Unified Audio Service** @ port 6103 (FastAPI)
+- ✅ **Text-to-Speech (TTS)** using f5_tts_mlx:
+  - Reference voice: Sophia3.wav (352KB)
+  - Speed control (0.5x-2.0x)
+  - Generation methods (midpoint, euler, rk4)
+  - Auto-play option
+  - ~1-3 seconds per sentence (Apple Silicon MLX)
+- ✅ **MIDI Note Playback**:
+  - Full MIDI range (21-108, A4=440Hz)
+  - Event-to-note mapping (task_assigned=C4, completed=C5, error=C3)
+  - Duration and velocity control
+  - Multiple waveforms (piano, sine, square, sawtooth)
+- ✅ **Tone/Beep Generation**:
+  - Frequency range (20Hz-20kHz)
+  - Multiple waveforms
+  - Fade in/out (anti-click)
+  - Alert type mapping (success=800Hz, error=200Hz)
+- ✅ **Volume Control**:
+  - Master volume (0.0-1.0)
+  - Per-sound volume override
+  - Synced with HMI settings (0-100%)
+- ✅ **Frontend Integration**:
+  - `speakStatus(text, speed)` — TTS helper
+  - `playNoteForEvent(eventType)` — Sequencer notes
+  - `playAlert(type)` — Alert tones
+  - `checkAudioService()` — Health check
+  - Settings-aware (respects Master Audio, TTS, Notes toggles)
+- ✅ **Startup Script**: `./scripts/start_audio_service.sh`
+- ✅ **Documentation**: `docs/AUDIO_SERVICE_API.md` (comprehensive guide)
+- ✅ **Concurrent Playback**: Multiple sounds can overlap
+
+**Performance**:
+- TTS: ~1-3s generation time (MLX optimized)
+- Tones: <100ms
+- Notes: <100ms
+
+**Output Directory**: `/tmp/pas_audio/` (temporary WAV files)
+
+### 🔲 Not Yet Implemented
+
+#### Tree View Enhancements
+- 🔲 Edge animations (message throughput)
+- 🔲 Node size encoding (load/tokens)
+- 🔲 3D orientation mode
+
+#### Cost Visualization
+- 🔲 Detailed cost breakdown by agent/tier
+- 🔲 Budget alerts and thresholds
+- 🔲 Top N spenders list
+
+#### Agent Interaction
+- 🔲 Approval workflow UI
+- 🔲 Task reassignment controls
+- 🔲 Pause/Resume/Kill actions
+
+#### Advanced Features (P2+)
+- 🔲 Log viewer with filtering
+- 🔲 Save-State UI integration
+- 🔲 Dependency graph overlay
+- 🔲 AR/VR holographic task cube
+
+### 📊 Test Coverage
+
+#### Non-Linear Playback Speed
+- ✅ Boundary tests: 0→0.1x, 50→1.0x, 75→10x, 100→100x
+- ✅ Round-trip tests: Slider→Speed→Slider (0.0000 error)
+- ✅ Round-trip tests: Speed→Slider→Speed (0.0000 error)
+- ✅ Exponential growth verified across all ranges
+
+#### Service Integration
+- ✅ Health checks passing (port 6101)
+- ✅ API endpoints returning valid data
+- ✅ WebSocket connection stable
+- ✅ Settings persistence across page reloads
+
+### 📝 Documentation
+
+- ✅ PRD updated with implementation status
+- ✅ Code comments for all major functions
+- ✅ Inline documentation for scaling algorithms
+- ✅ API response format examples
+
+### 🎯 Next Priorities
+
+1. **Sequencer Audio Integration** — Connect audio service to sequencer events (play notes on task start/complete)
+2. **Cost Dashboard Enhancement** — Detailed breakdown and budget alerts
+3. **Approval Workflow UI** — Interactive approval interface
+4. **Tree View Edge Animations** — Animate message flow between agents
+5. **Advanced Audio Features**:
+   - Pitch mapping by agent tier (VP=low, Workers=high)
+   - Rate limiting (≤8 notes/sec global)
+   - Custom voice samples for different agent types
+
+---
+
+## 19) Appendix — Quick Mappings & Tables
+
+### 19.1 Event Types
 
 | Event             | Source           | Triggers                                                |
 | ----------------- | ---------------- | ------------------------------------------------------- |
@@ -459,17 +708,17 @@ Retention:
 | heartbeat         | All              | Node glow refresh; missed x2 ⇒ alert                    |
 | cost_receipt      | Gateway          | Costs/latency charts update                             |
 
-### 18.2 Rights (perm‑codes)
+### 19.2 Rights (perm‑codes)
 
 `[F:rw]` filesystem, `[B:x]` bash, `[G:x]` git, `[P:x]` python, `[N:rw]` network, `[S:x]` sql/psql, `[D:x]` docker.
 
-### 18.3 Status Colors
+### 19.3 Status Colors
 
 queued gray · running blue · waiting_approval purple · blocked orange · paused teal · error red · done green
 
 ---
 
-## 19) One‑Screen Summary (for Execs)
+## 20) One‑Screen Summary (for Execs)
 
 * **Where are we?** Tree + roll‑up bar (done/running/blocked).
 * **What’s it costing?** $/min and tokens/min with top spenders.

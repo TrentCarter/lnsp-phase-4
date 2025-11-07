@@ -68,6 +68,20 @@ class ServiceDeregistration(BaseModel):
     service_id: str
 
 
+class ActionLog(BaseModel):
+    """Action log entry"""
+    task_id: str
+    parent_log_id: Optional[int] = None
+    from_agent: Optional[str] = None
+    to_agent: Optional[str] = None
+    action_type: str
+    action_name: Optional[str] = None
+    action_data: Optional[Dict[str, Any]] = None
+    status: Optional[str] = None
+    tier_from: Optional[int] = None
+    tier_to: Optional[int] = None
+
+
 # ============================================================================
 # Database Management
 # ============================================================================
@@ -105,6 +119,31 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_services_type_role ON services(type, role)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_services_status ON services(status)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_services_last_heartbeat ON services(last_heartbeat_ts)")
+
+    # Action logs table for tracking agent communication flows
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS action_logs (
+            log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id TEXT NOT NULL,
+            parent_log_id INTEGER,
+            timestamp TEXT NOT NULL,
+            from_agent TEXT,
+            to_agent TEXT,
+            action_type TEXT NOT NULL,
+            action_name TEXT,
+            action_data TEXT,
+            status TEXT,
+            tier_from INTEGER,
+            tier_to INTEGER,
+            FOREIGN KEY (parent_log_id) REFERENCES action_logs(log_id)
+        )
+    """)
+
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_logs_task_id ON action_logs(task_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_logs_parent_log_id ON action_logs(parent_log_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_logs_timestamp ON action_logs(timestamp)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_logs_from_agent ON action_logs(from_agent)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_logs_to_agent ON action_logs(to_agent)")
 
     conn.commit()
     conn.close()
@@ -491,6 +530,153 @@ async def list_all_services():
             })
 
         return {"items": items}
+
+
+# ============================================================================
+# Action Logs Endpoints
+# ============================================================================
+
+@app.post("/action_logs")
+async def log_action(action_log: ActionLog):
+    """
+    Log an action/message in the agent communication flow
+
+    Returns:
+        - log_id: ID of the created log entry
+        - timestamp: Timestamp of the log
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        timestamp = datetime.utcnow().isoformat()
+        action_data_json = json.dumps(action_log.action_data) if action_log.action_data else None
+
+        cursor.execute("""
+            INSERT INTO action_logs (
+                task_id, parent_log_id, timestamp,
+                from_agent, to_agent,
+                action_type, action_name, action_data,
+                status, tier_from, tier_to
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            action_log.task_id, action_log.parent_log_id, timestamp,
+            action_log.from_agent, action_log.to_agent,
+            action_log.action_type, action_log.action_name, action_data_json,
+            action_log.status, action_log.tier_from, action_log.tier_to
+        ))
+
+        log_id = cursor.lastrowid
+        conn.commit()
+
+        return {
+            "log_id": log_id,
+            "timestamp": timestamp
+        }
+
+
+@app.get("/action_logs/tasks")
+async def list_tasks():
+    """
+    List all tasks with their summary information
+
+    Returns:
+        - items: List of tasks with metadata
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                task_id,
+                MIN(timestamp) as start_time,
+                MAX(timestamp) as end_time,
+                COUNT(*) as action_count,
+                GROUP_CONCAT(DISTINCT from_agent) as agents_involved
+            FROM action_logs
+            GROUP BY task_id
+            ORDER BY start_time DESC
+        """)
+
+        rows = cursor.fetchall()
+
+        items = []
+        for row in rows:
+            items.append({
+                "task_id": row["task_id"],
+                "start_time": row["start_time"],
+                "end_time": row["end_time"],
+                "action_count": row["action_count"],
+                "agents_involved": row["agents_involved"].split(",") if row["agents_involved"] else []
+            })
+
+        return {"items": items}
+
+
+@app.get("/action_logs/task/{task_id}")
+async def get_task_actions(task_id: str):
+    """
+    Get all actions for a specific task in hierarchical format
+
+    Returns:
+        - task_id: The task ID
+        - actions: Hierarchical tree of actions
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Fetch all actions for this task
+        cursor.execute("""
+            SELECT
+                log_id, parent_log_id, timestamp,
+                from_agent, to_agent,
+                action_type, action_name, action_data,
+                status, tier_from, tier_to
+            FROM action_logs
+            WHERE task_id = ?
+            ORDER BY timestamp ASC
+        """, (task_id,))
+
+        rows = cursor.fetchall()
+
+        if not rows:
+            raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+        # Build flat list of actions
+        actions = []
+        action_map = {}
+
+        for row in rows:
+            action = {
+                "log_id": row["log_id"],
+                "parent_log_id": row["parent_log_id"],
+                "timestamp": row["timestamp"],
+                "from_agent": row["from_agent"],
+                "to_agent": row["to_agent"],
+                "action_type": row["action_type"],
+                "action_name": row["action_name"],
+                "action_data": json.loads(row["action_data"]) if row["action_data"] else None,
+                "status": row["status"],
+                "tier_from": row["tier_from"],
+                "tier_to": row["tier_to"],
+                "children": []
+            }
+            actions.append(action)
+            action_map[action["log_id"]] = action
+
+        # Build hierarchical structure
+        root_actions = []
+        for action in actions:
+            if action["parent_log_id"] is None:
+                root_actions.append(action)
+            else:
+                parent = action_map.get(action["parent_log_id"])
+                if parent:
+                    parent["children"].append(action)
+
+        return {
+            "task_id": task_id,
+            "actions": root_actions
+        }
 
 
 # ============================================================================

@@ -521,6 +521,7 @@
             <a href="/" {% if request.path == '/' %}class="active"{% endif %}>Dashboard</a>
             <a href="/tree" {% if request.path == '/tree' %}class="active"{% endif %}>Tree View</a>
             <a href="/sequencer" {% if request.path == '/sequencer' %}class="active"{% endif %}>Sequencer</a>
+            <a href="/actions" {% if request.path == '/actions' %}class="active"{% endif %}>Actions</a>
             <button class="settings-button" onclick="openSettings()">⚙️ Settings</button>
         </nav>
         <div class="connection-status">
@@ -616,6 +617,25 @@
                     <div class="setting-control">
                         <input type="number" id="animation-duration" class="setting-input" min="0" max="2000" step="100" value="750">
                         <span style="color: #9ca3af; font-size: 0.875rem;">ms</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tree View Settings -->
+            <div class="settings-section">
+                <h3>🌳 Tree View</h3>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Tree Orientation</div>
+                        <div class="setting-description">Default layout orientation for tree visualization</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="tree-orientation" class="setting-input" style="width: 140px;">
+                            <option value="top" selected>Top</option>
+                            <option value="left">Left</option>
+                            <option value="right">Right</option>
+                            <option value="bottom">Bottom</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -868,6 +888,7 @@
             agentVoiceEnabled: false,
             audioVolume: 70,
             timezone: 'America/New_York',  // EST as default
+            treeOrientation: 'top',
             hideScrollbars: true,
             defaultPlaybackSpeed: 1.0,
             defaultSoundMode: 'none'
@@ -901,6 +922,7 @@
             currentSettings.agentVoiceEnabled = document.getElementById('agent-voice-toggle').classList.contains('active');
             currentSettings.audioVolume = parseInt(document.getElementById('audio-volume').value);
             currentSettings.timezone = document.getElementById('timezone-select').value;
+            currentSettings.treeOrientation = document.getElementById('tree-orientation').value;
             currentSettings.hideScrollbars = document.getElementById('hide-scrollbars-toggle').classList.contains('active');
             currentSettings.defaultPlaybackSpeed = parseFloat(document.getElementById('default-playback-speed').value);
             currentSettings.defaultSoundMode = document.getElementById('default-sound-mode').value;
@@ -963,6 +985,7 @@
             document.getElementById('audio-volume').value = currentSettings.audioVolume;
             document.getElementById('volume-display').textContent = currentSettings.audioVolume + '%';
             document.getElementById('timezone-select').value = currentSettings.timezone;
+            document.getElementById('tree-orientation').value = currentSettings.treeOrientation;
             document.getElementById('default-playback-speed').value = currentSettings.defaultPlaybackSpeed;
             document.getElementById('default-sound-mode').value = currentSettings.defaultSoundMode;
         }
@@ -1052,6 +1075,205 @@
         function getSettings() {
             return currentSettings;
         }
+
+        // ============================================================================
+        // Audio Service Integration
+        // ============================================================================
+
+        const AUDIO_SERVICE_URL = 'http://localhost:6103';
+
+        /**
+         * Play text-to-speech announcement
+         * @param {string} text - Text to speak
+         * @param {number} speed - Speech speed (0.5-2.0, default: 1.0)
+         * @returns {Promise<Object>} Audio service response
+         */
+        async function speakStatus(text, speed = 1.0) {
+            // Check if master audio and TTS are enabled
+            const settings = getSettings();
+            if (!settings.masterAudioEnabled || !settings.agentVoiceEnabled) {
+                console.log('TTS disabled in settings');
+                return { success: false, message: 'TTS disabled' };
+            }
+
+            try {
+                const response = await fetch(`${AUDIO_SERVICE_URL}/audio/tts`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, speed, auto_play: true })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`TTS request failed: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('TTS generated:', data);
+                return data;
+            } catch (error) {
+                console.error('TTS error:', error);
+                return { success: false, message: error.message };
+            }
+        }
+
+        /**
+         * Play MIDI note for sequencer events
+         * @param {string} eventType - Event type (task_assigned, task_started, task_completed, error)
+         * @returns {Promise<Object>} Audio service response
+         */
+        async function playNoteForEvent(eventType) {
+            // Check if master audio and sequencer notes are enabled
+            const settings = getSettings();
+            if (!settings.masterAudioEnabled || !settings.sequencerNotesEnabled) {
+                console.log('Sequencer notes disabled in settings');
+                return { success: false, message: 'Notes disabled' };
+            }
+
+            // Map event types to MIDI notes
+            const noteMap = {
+                'task_assigned': 60,    // C4 (middle C)
+                'task_started': 64,     // E4
+                'task_completed': 72,   // C5 (higher octave)
+                'error': 48,            // C3 (lower octave)
+                'warning': 55,          // G3
+                'success': 77           // F5
+            };
+
+            const note = noteMap[eventType] || 60;
+
+            try {
+                const response = await fetch(`${AUDIO_SERVICE_URL}/audio/note`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        note,
+                        duration: 0.3,
+                        velocity: 100,
+                        instrument: 'piano'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Note playback failed: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Note played:', data);
+                return data;
+            } catch (error) {
+                console.error('Note playback error:', error);
+                return { success: false, message: error.message };
+            }
+        }
+
+        /**
+         * Play alert tone
+         * @param {string} type - Alert type (info, success, warning, error)
+         * @returns {Promise<Object>} Audio service response
+         */
+        async function playAlert(type = 'info') {
+            // Check if master audio is enabled
+            const settings = getSettings();
+            if (!settings.masterAudioEnabled) {
+                console.log('Audio disabled in settings');
+                return { success: false, message: 'Audio disabled' };
+            }
+
+            const toneMap = {
+                'info': { frequency: 440, duration: 0.2, waveform: 'sine' },
+                'success': { frequency: 800, duration: 0.15, waveform: 'sine' },
+                'warning': { frequency: 600, duration: 0.3, waveform: 'square' },
+                'error': { frequency: 200, duration: 0.4, waveform: 'square' }
+            };
+
+            const config = toneMap[type] || toneMap['info'];
+
+            try {
+                const response = await fetch(`${AUDIO_SERVICE_URL}/audio/tone`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...config, volume: 0.5 })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Tone playback failed: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Alert played:', data);
+                return data;
+            } catch (error) {
+                console.error('Alert playback error:', error);
+                return { success: false, message: error.message };
+            }
+        }
+
+        /**
+         * Update audio service volume to match settings
+         * @param {number} volume - Volume percentage (0-100)
+         * @returns {Promise<Object>} Audio service response
+         */
+        async function updateAudioServiceVolume(volume) {
+            try {
+                const response = await fetch(`${AUDIO_SERVICE_URL}/audio/volume`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ master_volume: volume / 100 })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Volume update failed: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Audio service volume updated:', data);
+                return data;
+            } catch (error) {
+                console.error('Volume update error:', error);
+                return { success: false, message: error.message };
+            }
+        }
+
+        /**
+         * Check if audio service is available
+         * @returns {Promise<boolean>} True if service is healthy
+         */
+        async function checkAudioService() {
+            try {
+                const response = await fetch(`${AUDIO_SERVICE_URL}/health`, {
+                    method: 'GET',
+                    signal: AbortSignal.timeout(2000) // 2 second timeout
+                });
+
+                if (!response.ok) {
+                    return false;
+                }
+
+                const data = await response.json();
+                return data.status === 'ok';
+            } catch (error) {
+                console.warn('Audio service not available:', error.message);
+                return false;
+            }
+        }
+
+        // Sync audio service volume when settings change
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check if audio service is available
+            const audioAvailable = await checkAudioService();
+            if (audioAvailable) {
+                console.log('✓ Audio service available');
+
+                // Sync volume on startup
+                const settings = getSettings();
+                if (settings.audioVolume !== undefined) {
+                    await updateAudioServiceVolume(settings.audioVolume);
+                }
+            } else {
+                console.warn('⚠ Audio service not available at', AUDIO_SERVICE_URL);
+                console.warn('Start audio service with: ./scripts/start_audio_service.sh');
+            }
+        });
     </script>
 
     {% block extra_scripts %}{% endblock %}

@@ -192,6 +192,12 @@
             <button class="control-button" onclick="expandAll()">➕ Expand All</button>
             <button class="control-button" onclick="collapseAll()">➖ Collapse All</button>
             <button class="control-button" onclick="refreshTree()">🔄 Refresh</button>
+            <select id="orientation-select" class="control-button" onchange="changeOrientation(this.value)" style="cursor: pointer; padding: 0.5rem 0.75rem;">
+                <option value="top">⬇️ Top</option>
+                <option value="left">➡️ Left</option>
+                <option value="right">⬅️ Right</option>
+                <option value="bottom">⬆️ Bottom</option>
+            </select>
         </div>
     </div>
 
@@ -208,6 +214,7 @@
     const width = window.innerWidth - 80;
     const height = window.innerHeight - 150;
     let autoRefreshTimer = null;
+    let currentOrientation = 'top';  // Default orientation
 
     // Status colors
     const statusColors = {
@@ -224,6 +231,10 @@
         'down': '#ef4444'
     };
 
+    /**
+     * Initialize the tree visualization with D3.js
+     * Sets up SVG, zoom behavior, and tree layout based on current orientation
+     */
     function initializeTree() {
         // Create SVG
         svg = d3.select('#tree-svg')
@@ -239,14 +250,50 @@
 
         svg.call(zoom);
 
-        // Create container group
+        // Create container group with initial transform based on orientation
         g = svg.append('g')
-            .attr('transform', `translate(${width / 2},50)`);
+            .attr('transform', getInitialTransform());
 
-        // Create tree layout
-        tree = d3.tree()
-            .size([width - 200, height - 100])
-            .separation((a, b) => (a.parent === b.parent ? 1 : 1.5));
+        // Create tree layout based on orientation
+        updateTreeLayout();
+    }
+
+    /**
+     * Get the initial transform for the tree based on orientation
+     * @returns {string} SVG transform string
+     */
+    function getInitialTransform() {
+        switch (currentOrientation) {
+            case 'top':
+                return `translate(${width / 2},50)`;
+            case 'bottom':
+                return `translate(${width / 2},${height - 50})`;
+            case 'left':
+                return `translate(50,${height / 2})`;
+            case 'right':
+                return `translate(${width - 50},${height / 2})`;
+            default:
+                return `translate(${width / 2},50)`;
+        }
+    }
+
+    /**
+     * Update tree layout configuration based on current orientation
+     */
+    function updateTreeLayout() {
+        const isHorizontal = currentOrientation === 'left' || currentOrientation === 'right';
+
+        if (isHorizontal) {
+            // Horizontal layout (left/right)
+            tree = d3.tree()
+                .size([height - 100, width - 200])
+                .separation((a, b) => (a.parent === b.parent ? 1 : 1.5));
+        } else {
+            // Vertical layout (top/bottom)
+            tree = d3.tree()
+                .size([width - 200, height - 100])
+                .separation((a, b) => (a.parent === b.parent ? 1 : 1.5));
+        }
     }
 
     async function fetchTreeData() {
@@ -269,8 +316,25 @@
         const nodes = treeData.descendants();
         const links = treeData.links();
 
-        // Normalize for fixed-depth
-        nodes.forEach(d => { d.y = d.depth * 180; });
+        // Normalize for fixed-depth and apply orientation transforms
+        const isHorizontal = currentOrientation === 'left' || currentOrientation === 'right';
+        const depthMultiplier = 180;
+
+        nodes.forEach(d => {
+            if (isHorizontal) {
+                // For horizontal layouts, depth extends along x-axis
+                d.y = d.depth * depthMultiplier;
+                if (currentOrientation === 'right') {
+                    d.y = -d.y;  // Reverse for right orientation
+                }
+            } else {
+                // For vertical layouts, depth extends along y-axis
+                d.y = d.depth * depthMultiplier;
+                if (currentOrientation === 'bottom') {
+                    d.y = -d.y;  // Reverse for bottom orientation
+                }
+            }
+        });
 
         // Update nodes
         const node = g.selectAll('g.node')
@@ -279,7 +343,11 @@
         // Enter new nodes
         const nodeEnter = node.enter().append('g')
             .attr('class', 'node')
-            .attr('transform', d => `translate(${source.y0 || 0},${source.x0 || 0})`)
+            .attr('transform', d => {
+                const x0 = source.x0 || 0;
+                const y0 = source.y0 || 0;
+                return isHorizontal ? `translate(${y0},${x0})` : `translate(${x0},${y0})`;
+            })
             .on('click', (event, d) => click(event, d))
             .on('mouseenter', (event, d) => showTooltip(event, d))
             .on('mouseleave', hideTooltip);
@@ -291,8 +359,27 @@
 
         nodeEnter.append('text')
             .attr('dy', '.35em')
-            .attr('x', d => d.children || d._children ? -13 : 13)
-            .attr('text-anchor', d => d.children || d._children ? 'end' : 'start')
+            .attr('x', d => {
+                // Position text based on orientation and node state
+                if (isHorizontal) {
+                    return (d.children || d._children) ? -13 : 13;
+                } else {
+                    return 0;
+                }
+            })
+            .attr('y', d => {
+                if (!isHorizontal) {
+                    return (d.children || d._children) ? -13 : 20;
+                }
+                return 0;
+            })
+            .attr('text-anchor', d => {
+                if (isHorizontal) {
+                    return (d.children || d._children) ? 'end' : 'start';
+                } else {
+                    return 'middle';
+                }
+            })
             .text(d => d.data.name)
             .style('fill', '#e0e0e0')
             .style('fill-opacity', 1e-6);
@@ -302,7 +389,9 @@
 
         nodeUpdate.transition()
             .duration(duration)
-            .attr('transform', d => `translate(${d.y},${d.x})`);
+            .attr('transform', d => {
+                return isHorizontal ? `translate(${d.y},${d.x})` : `translate(${d.x},${d.y})`;
+            });
 
         nodeUpdate.select('circle')
             .attr('r', 8)
@@ -316,7 +405,9 @@
         // Remove exiting nodes
         const nodeExit = node.exit().transition()
             .duration(duration)
-            .attr('transform', d => `translate(${source.y},${source.x})`)
+            .attr('transform', d => {
+                return isHorizontal ? `translate(${source.y},${source.x})` : `translate(${source.x},${source.y})`;
+            })
             .remove();
 
         nodeExit.select('circle')
@@ -334,20 +425,20 @@
             .attr('class', 'link')
             .attr('d', d => {
                 const o = {x: source.x0 || 0, y: source.y0 || 0};
-                return diagonal(o, o);
+                return diagonal(o, o, isHorizontal);
             });
 
         // Merge and transition links
         linkEnter.merge(link).transition()
             .duration(duration)
-            .attr('d', d => diagonal(d.source, d.target));
+            .attr('d', d => diagonal(d.source, d.target, isHorizontal));
 
         // Remove exiting links
         link.exit().transition()
             .duration(duration)
             .attr('d', d => {
                 const o = {x: source.x, y: source.y};
-                return diagonal(o, o);
+                return diagonal(o, o, isHorizontal);
             })
             .remove();
 
@@ -358,11 +449,28 @@
         });
     }
 
-    function diagonal(s, d) {
-        return `M ${s.y},${s.x}
-                C ${(s.y + d.y) / 2},${s.x}
-                  ${(s.y + d.y) / 2},${d.x}
-                  ${d.y},${d.x}`;
+    /**
+     * Generate curved path between source and destination nodes
+     * Adapts to horizontal vs vertical layouts
+     * @param {Object} s - Source node with x, y coordinates
+     * @param {Object} d - Destination node with x, y coordinates
+     * @param {boolean} isHorizontal - Whether layout is horizontal (left/right)
+     * @returns {string} SVG path string
+     */
+    function diagonal(s, d, isHorizontal) {
+        if (isHorizontal) {
+            // Horizontal layout: depth extends along y-axis
+            return `M ${s.y},${s.x}
+                    C ${(s.y + d.y) / 2},${s.x}
+                      ${(s.y + d.y) / 2},${d.x}
+                      ${d.y},${d.x}`;
+        } else {
+            // Vertical layout: depth extends along x-axis
+            return `M ${s.x},${s.y}
+                    C ${s.x},${(s.y + d.y) / 2}
+                      ${d.x},${(s.y + d.y) / 2}
+                      ${d.x},${d.y}`;
+        }
     }
 
     function getStatusColor(status) {
@@ -421,11 +529,44 @@
         d3.select('#tooltip').classed('visible', false);
     }
 
+    /**
+     * Change tree orientation and redraw
+     * @param {string} orientation - One of: 'top', 'left', 'right', 'bottom'
+     */
+    function changeOrientation(orientation) {
+        console.log('Changing orientation to:', orientation);
+        currentOrientation = orientation;
+
+        // Save to localStorage
+        localStorage.setItem('pas_tree_orientation', orientation);
+
+        // Update settings
+        const settings = getSettings();
+        settings.treeOrientation = orientation;
+        localStorage.setItem('pas_hmi_settings', JSON.stringify(settings));
+
+        // Clear and reinitialize tree
+        d3.select('#tree-svg').selectAll('*').remove();
+        initializeTree();
+        refreshTree();
+    }
+
+    /**
+     * Center the tree view based on current orientation
+     */
     function centerTree() {
-        svg.transition().duration(750).call(
-            zoom.transform,
-            d3.zoomIdentity.translate(width / 2, 50).scale(1)
-        );
+        const transform = getInitialTransform();
+        const translateMatch = transform.match(/translate\(([^,]+),([^)]+)\)/);
+
+        if (translateMatch) {
+            const x = parseFloat(translateMatch[1]);
+            const y = parseFloat(translateMatch[2]);
+
+            svg.transition().duration(750).call(
+                zoom.transform,
+                d3.zoomIdentity.translate(x, y).scale(1)
+            );
+        }
     }
 
     function expandAll() {
@@ -562,9 +703,13 @@
     function handleRealtimeEvent(event) {
         console.log('Tree view received event:', event.event_type);
 
-        // Refresh tree on significant events
-        if (['heartbeat', 'status_update', 'service_registered'].includes(event.event_type)) {
-            refreshTree();
+        // Only refresh on events if auto-refresh is enabled
+        const settings = getSettings();
+        if (settings.autoRefreshEnabled) {
+            // Refresh tree on significant events
+            if (['heartbeat', 'status_update', 'service_registered'].includes(event.event_type)) {
+                refreshTree();
+            }
         }
     }
 
@@ -594,13 +739,25 @@
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', async () => {
         console.log('Initializing tree view...');
+
+        // Load saved orientation from settings
+        const settings = getSettings();
+        currentOrientation = settings.treeOrientation || 'top';
+
+        // Update dropdown to match saved orientation
+        const orientationSelect = document.getElementById('orientation-select');
+        if (orientationSelect) {
+            orientationSelect.value = currentOrientation;
+        }
+
+        console.log('Loaded orientation:', currentOrientation);
+
         initializeTree();
         await refreshTree();
 
         // Settings will be loaded by base.html, which will call applyViewSettings()
         // Default auto-refresh (will be overridden by settings)
         setTimeout(() => {
-            const settings = getSettings();
             applyViewSettings(settings);
         }, 100);
     });
