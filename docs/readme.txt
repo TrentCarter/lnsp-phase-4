@@ -1,8 +1,139 @@
-# LNSP Phase 4 — Quickstart and Working Commands
+# LNSP Phase 4 — Project Status and Quick Commands
 source .venv/bin/activate
 claude --dangerously-skip-permissions
 
-🔴 CRITICAL: ENCODER/DECODER USAGE (10/31/2025)
+# ========================================================================
+# 🚨 CURRENT PROJECT: POLYGLOT AGENT SWARM (PAS) + HMI
+# ========================================================================
+#
+# This repository contains TWO independent projects:
+#
+# 1. **vecRAG** (PAUSED) - Vector retrieval system with vec2text
+#    - Status: 73.4% Contain@50 achieved (production ready)
+#    - Location: artifacts/lvm/, src/, tools/
+#    - Last worked: Nov 4-5, 2025
+#    - Decision: AR-LVM abandoned, retrieval-only vecRAG works well
+#
+# 2. **PAS (Polyglot Agent Swarm)** (ACTIVE) ⭐ ← CURRENT WORK
+#    - Status: 57% complete (4/7 phases)
+#    - Location: services/, contracts/, scripts/
+#    - Started: Nov 6, 2025
+#    - Focus: Multi-agent coordination with HMI dashboard
+#
+# ========================================================================
+# 🎯 POLYGLOT AGENT SWARM (PAS) — CURRENT STATUS
+# ========================================================================
+
+**ACTIVE PROJECT**: Polyglot Agent Swarm + HMI Dashboard
+
+**STATUS**: ✅ Phase 0, 1, 2 & 3 Complete (57% overall, 4/7 phases)
+
+**GOAL**: Build production-ready multi-agent coordination system with:
+  - Service discovery and health monitoring
+  - Resource management and token governance
+  - Real-time HMI dashboard with cost tracking
+  - AI provider routing with cost optimization
+  - 42 Claude sub-agents for specialized tasks
+
+**Active Services** (8 running):
+  - Registry (6121)          http://localhost:6121
+  - Heartbeat Monitor (6109) http://localhost:6109
+  - Resource Manager (6104)  http://localhost:6104
+  - Token Governor (6105)    http://localhost:6105
+  - Event Stream (6102)      http://localhost:6102
+  - Flask HMI (6101)         http://localhost:6101
+  - Provider Router (6103)   http://localhost:6103  ⭐ NEW!
+  - Gateway (6120)           http://localhost:6120  ⭐ NEW!
+
+**Quick Commands**:
+  # Start all PAS services (Phase 0+1+2+3)
+  ./scripts/start_all_pas_services.sh
+
+  # Open HMI Dashboard
+  open http://localhost:6101
+
+  # Run all tests (77 tests, 100% passing)
+  ./scripts/test_phase0.sh
+  ./scripts/test_phase1.sh
+  ./scripts/test_phase2.sh
+  ./scripts/test_phase3.sh
+
+  # Check service status
+  curl http://localhost:6121/health
+  curl http://localhost:6109/health
+  curl http://localhost:6104/health
+  curl http://localhost:6105/health
+  curl http://localhost:6102/health
+  curl http://localhost:6101/health
+  curl http://localhost:6103/health
+  curl http://localhost:6120/health
+
+  # Check system metrics
+  curl http://localhost:6101/api/metrics | jq .
+  curl "http://localhost:6120/metrics?window=minute" | jq .
+
+  # View cost receipts
+  cat artifacts/costs/*.jsonl | jq .
+
+  # Test WebSocket event broadcasting
+  curl -X POST http://localhost:6102/broadcast \
+    -H "Content-Type: application/json" \
+    -d '{"event_type": "test", "data": {"msg": "Hello!"}}'
+
+  # Stop all PAS services
+  ./scripts/stop_all_pas_services.sh
+
+**HMI Dashboard Features**:
+  - Real-time service health cards
+  - D3.js agent hierarchy tree visualization
+  - WebSocket live updates
+  - System metrics (services, health %, clients)
+  - Alert banner system
+  - Auto-refresh (Dashboard: 5s, Tree: 10s)
+
+**Gateway & Cost Tracking Features** ⭐ NEW!:
+  - Provider registration & capability matching
+  - Provider selection (cost, latency, balanced)
+  - Cost tracking with Decimal precision
+  - LDJSON receipts → artifacts/costs/<run_id>.jsonl
+  - Budget management with alerts (75%, 90%, 100%)
+  - Rolling cost windows (minute/hour/day)
+  - Real-time cost broadcasting to Event Stream
+
+**Documentation**:
+  - PROGRESS.md                    - Overall progress tracker
+  - NEXT_STEPS.md                  - Resume guide for Phase 4
+  - docs/SESSION_SUMMARY_2025_11_06_PAS_PHASE01_COMPLETE.md
+  - docs/SESSION_SUMMARY_2025_11_06_PAS_PHASE02_COMPLETE.md
+  - docs/SESSION_SUMMARY_2025_11_06_PAS_PHASE03_COMPLETE.md ⭐ NEW!
+  - docs/PHASE2_HMI_STATUS.md      (Complete HMI guide)
+  - docs/PRDs/PRD_Polyglot_Agent_Swarm.md
+  - docs/PRDs/PRD_Human_Machine_Interface_HMI.md
+  - docs/PRDs/PRD_IMPLEMENTATION_PHASES.md
+  - docs/HYBRID_AGENT_ARCHITECTURE.md
+
+**Next Phase**: Phase 4 - Claude Sub-Agents (42 agent definitions + registry integration)
+
+# ========================================================================
+# 📦 vecRAG PROJECT (PAUSED - REFERENCE ONLY)
+# ========================================================================
+#
+# **NOT CURRENT WORK** - This section is for reference only.
+# The vecRAG project is complete and paused. Focus is on PAS (above).
+#
+# vecRAG Status: Production ready, 73.4% Contain@50, 50.2% R@5
+# Last Activity: Nov 4-5, 2025 (AR-LVM abandoned, retrieval-only works)
+#
+# If you need to work on vecRAG again, see:
+#   - CLAUDE.md (complete vecRAG instructions)
+#   - docs/RETRIEVAL_OPTIMIZATION_RESULTS.md
+#   - artifacts/lvm/ (models and data)
+#
+# ========================================================================
+# 🔴 CRITICAL: ENCODER/DECODER USAGE (vecRAG ONLY)
+# ========================================================================
+# NOTE: This section applies ONLY to vecRAG project, not PAS!
+
 docs/CORRECT_ENCODER_DECODER_USAGE.md
 CLAUDE.md (see section: CRITICAL: CORRECT ENCODER/DECODER)
 
@@ -62,7 +193,7 @@ docs/how_to_use_jxe_and_ielab.md
   2. Start LVM Chat Services:
   ./scripts/start_lvm_services.sh
 
-  Created:
+  Created:*
   - ✅ Symlink: artifacts/lvm/models/transformer_optimized_v0.pt → optimized model (val_cosine: 0.5865)
   - ✅ Updated scripts/start_lvm_services.sh to start port 9006
   - ✅ Updated scripts/stop_lvm_services.sh to stop port 9006

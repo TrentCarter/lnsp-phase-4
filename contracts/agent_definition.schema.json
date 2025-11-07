@@ -1,0 +1,278 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "agent_definition.schema.json",
+  "title": "Agent Definition Schema",
+  "description": "Schema for defining Claude sub-agents in the Polyglot Agent Swarm",
+  "type": "object",
+  "required": ["name", "role", "tier", "description", "capabilities", "resources"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique agent identifier (kebab-case)",
+      "pattern": "^[a-z0-9-]+$",
+      "examples": ["tree-supervisor", "cpe-generator", "code-writer"]
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Human-readable display name",
+      "examples": ["Tree Supervisor", "CPE Generator", "Code Writer"]
+    },
+    "role": {
+      "type": "string",
+      "enum": ["coord", "exec", "system"],
+      "description": "Agent role: coordinator, executor, or system service"
+    },
+    "tier": {
+      "type": "integer",
+      "enum": [1, 2, 3],
+      "description": "Agent tier: 1=Claude, 2=Local LLM, 3=External API"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["long", "task"],
+      "default": "task",
+      "description": "Long-lived or ephemeral task-based agent"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of agent's purpose and responsibilities"
+    },
+    "parent": {
+      "type": ["string", "null"],
+      "description": "Parent agent name (null for top-level agents)",
+      "pattern": "^[a-z0-9-]*$"
+    },
+    "children": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]+$"
+      },
+      "description": "List of child agent names"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of capabilities this agent provides",
+      "examples": [["code_write", "test_generation"], ["cpe_generation", "domain_classification"]]
+    },
+    "transports": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["rpc", "file", "mcp", "rest"]
+      },
+      "default": ["rpc"],
+      "description": "Supported transport mechanisms (priority order)"
+    },
+    "rights": {
+      "type": "object",
+      "description": "Permissions granted to this agent",
+      "properties": {
+        "filesystem": {
+          "type": "string",
+          "enum": ["none", "read", "rw"],
+          "default": "rw"
+        },
+        "bash": {
+          "type": "boolean",
+          "default": false
+        },
+        "git": {
+          "type": "boolean",
+          "default": false
+        },
+        "python": {
+          "type": "boolean",
+          "default": false
+        },
+        "network": {
+          "type": "string",
+          "enum": ["none", "read", "rw"],
+          "default": "none"
+        },
+        "sql": {
+          "type": "boolean",
+          "default": false
+        },
+        "docker": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "required": ["token_budget"],
+      "properties": {
+        "token_budget": {
+          "type": "object",
+          "required": ["target_ratio", "hard_max_ratio"],
+          "properties": {
+            "target_ratio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Target context usage ratio (e.g., 0.50 = 50%)"
+            },
+            "hard_max_ratio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Hard maximum context usage ratio (e.g., 0.75 = 75%)"
+            }
+          }
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1000,
+          "description": "Maximum token limit for this agent"
+        },
+        "cpu_cores": {
+          "type": "number",
+          "minimum": 0,
+          "description": "CPU cores required"
+        },
+        "memory_mb": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Memory in MB required"
+        },
+        "gpu_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of GPUs required"
+        },
+        "gpu_memory_mb": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "GPU memory in MB required"
+        }
+      }
+    },
+    "heartbeat": {
+      "type": "object",
+      "properties": {
+        "interval_s": {
+          "type": "integer",
+          "minimum": 10,
+          "default": 60,
+          "description": "Heartbeat interval in seconds"
+        },
+        "timeout_s": {
+          "type": "integer",
+          "minimum": 20,
+          "description": "Heartbeat timeout (2x interval by default)"
+        }
+      }
+    },
+    "approvals": {
+      "type": "object",
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["git_push", "file_delete", "db_destructive", "external_post", "release_promotion", "docker_build", "service_restart"]
+          },
+          "description": "Operations requiring approval"
+        }
+      }
+    },
+    "model_preferences": {
+      "type": "object",
+      "description": "Model selection preferences for this agent",
+      "properties": {
+        "primary": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Preferred models (in priority order)",
+          "examples": [["claude-sonnet-4-5", "gpt-5-codex"]]
+        },
+        "fallback": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Fallback models if primary unavailable"
+        },
+        "optimization": {
+          "type": "string",
+          "enum": ["cost", "latency", "quality"],
+          "default": "cost",
+          "description": "Model selection optimization criterion"
+        }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "description": "Routing configuration for this agent",
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["capability_match", "round_robin", "least_loaded", "custom"],
+          "default": "capability_match",
+          "description": "How to route requests to child agents"
+        },
+        "load_balancing": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable load balancing across children"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata for documentation and discovery",
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version (e.g., 1.0.0)"
+        },
+        "author": {
+          "type": "string",
+          "description": "Agent author"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tags for categorization and search"
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "string",
+                "description": "Example input"
+              },
+              "output": {
+                "type": "string",
+                "description": "Expected output"
+              }
+            }
+          },
+          "description": "Example invocations"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,613 @@
+{% extends "base.html" %}
+
+{% block title %}Agent Tree - PAS Agent Swarm{% endblock %}
+
+{% block extra_styles %}
+<style>
+    #tree-container {
+        width: 100%;
+        height: calc(100vh - 100px);
+        background: linear-gradient(135deg, #0f1423 0%, #1a1f3a 100%);
+        border-radius: 12px;
+        margin-top: 1rem;
+        overflow: hidden;
+        position: relative;
+    }
+
+    #tree-svg {
+        width: 100%;
+        height: 100%;
+    }
+
+    .node circle {
+        cursor: pointer;
+        stroke-width: 2px;
+        transition: all 0.3s;
+    }
+
+    .node circle:hover {
+        stroke-width: 3px;
+        filter: brightness(1.2);
+    }
+
+    .node text {
+        font-size: 12px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        pointer-events: none;
+        user-select: none;
+    }
+
+    .link {
+        fill: none;
+        stroke: #4a5578;
+        stroke-width: 2px;
+        stroke-opacity: 0.6;
+    }
+
+    .link.animated {
+        stroke-dasharray: 5, 5;
+        animation: dash 1s linear infinite;
+    }
+
+    @keyframes dash {
+        to {
+            stroke-dashoffset: -10;
+        }
+    }
+
+    .tooltip {
+        position: absolute;
+        padding: 0.75rem 1rem;
+        background: rgba(30, 39, 71, 0.95);
+        border: 1px solid #4a5578;
+        border-radius: 8px;
+        color: #e0e0e0;
+        font-size: 0.875rem;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 1000;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .tooltip.visible {
+        opacity: 1;
+    }
+
+    .tooltip-title {
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 0.5rem;
+    }
+
+    .tooltip-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin: 0.25rem 0;
+    }
+
+    .tooltip-label {
+        color: #9ca3af;
+    }
+
+    .tooltip-value {
+        color: #e0e0e0;
+        font-weight: 500;
+    }
+
+    .legend {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: rgba(30, 39, 71, 0.95);
+        border: 1px solid #4a5578;
+        border-radius: 8px;
+        padding: 1rem;
+        color: #e0e0e0;
+        font-size: 0.875rem;
+    }
+
+    .legend-title {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #fff;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0.5rem 0;
+    }
+
+    .legend-circle {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+    }
+
+    .controls {
+        position: absolute;
+        bottom: 1rem;
+        left: 1rem;
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .control-button {
+        padding: 0.5rem 1rem;
+        background: rgba(59, 130, 246, 0.8);
+        border: 1px solid #3b82f6;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .control-button:hover {
+        background: rgba(59, 130, 246, 1);
+        transform: translateY(-1px);
+    }
+
+    .control-button:active {
+        transform: translateY(0);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 100%; padding: 1rem 2rem;">
+    <div id="tree-container">
+        <svg id="tree-svg"></svg>
+
+        <div class="legend">
+            <div class="legend-title">Status Legend</div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background-color: #6b7280;"></div>
+                <span>Idle / Unknown</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background-color: #3b82f6;"></div>
+                <span>Running</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background-color: #10b981;"></div>
+                <span>Healthy / OK</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background-color: #f59e0b;"></div>
+                <span>Warning / Blocked</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background-color: #ef4444;"></div>
+                <span>Error / Down</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-button" onclick="centerTree()">🎯 Center</button>
+            <button class="control-button" onclick="expandAll()">➕ Expand All</button>
+            <button class="control-button" onclick="collapseAll()">➖ Collapse All</button>
+            <button class="control-button" onclick="refreshTree()">🔄 Refresh</button>
+        </div>
+    </div>
+
+    <div id="tooltip" class="tooltip"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Global variables
+    let svg, g, root, tree, zoom;
+    let i = 0;
+    let duration = 750;  // Will be updated from settings
+    const width = window.innerWidth - 80;
+    const height = window.innerHeight - 150;
+    let autoRefreshTimer = null;
+
+    // Status colors
+    const statusColors = {
+        'idle': '#6b7280',
+        'unknown': '#6b7280',
+        'running': '#3b82f6',
+        'up': '#10b981',
+        'ok': '#10b981',
+        'healthy': '#10b981',
+        'done': '#10b981',
+        'warning': '#f59e0b',
+        'blocked': '#f59e0b',
+        'error': '#ef4444',
+        'down': '#ef4444'
+    };
+
+    function initializeTree() {
+        // Create SVG
+        svg = d3.select('#tree-svg')
+            .attr('width', width)
+            .attr('height', height);
+
+        // Add zoom behavior
+        zoom = d3.zoom()
+            .scaleExtent([0.1, 3])
+            .on('zoom', (event) => {
+                g.attr('transform', event.transform);
+            });
+
+        svg.call(zoom);
+
+        // Create container group
+        g = svg.append('g')
+            .attr('transform', `translate(${width / 2},50)`);
+
+        // Create tree layout
+        tree = d3.tree()
+            .size([width - 200, height - 100])
+            .separation((a, b) => (a.parent === b.parent ? 1 : 1.5));
+    }
+
+    async function fetchTreeData() {
+        try {
+            const response = await fetch('/api/tree');
+            const data = await response.json();
+            console.log('Fetched tree data:', data);
+            return data;
+        } catch (error) {
+            console.error('Error fetching tree data:', error);
+            return { name: 'Error', children: [] };
+        }
+    }
+
+    function update(source) {
+        if (!root) return;
+
+        // Compute the new tree layout
+        const treeData = tree(root);
+        const nodes = treeData.descendants();
+        const links = treeData.links();
+
+        // Normalize for fixed-depth
+        nodes.forEach(d => { d.y = d.depth * 180; });
+
+        // Update nodes
+        const node = g.selectAll('g.node')
+            .data(nodes, d => d.id || (d.id = ++i));
+
+        // Enter new nodes
+        const nodeEnter = node.enter().append('g')
+            .attr('class', 'node')
+            .attr('transform', d => `translate(${source.y0 || 0},${source.x0 || 0})`)
+            .on('click', (event, d) => click(event, d))
+            .on('mouseenter', (event, d) => showTooltip(event, d))
+            .on('mouseleave', hideTooltip);
+
+        nodeEnter.append('circle')
+            .attr('r', 1e-6)
+            .style('fill', d => d._children ? '#4a5578' : '#fff')
+            .style('stroke', d => getStatusColor(d.data.status));
+
+        nodeEnter.append('text')
+            .attr('dy', '.35em')
+            .attr('x', d => d.children || d._children ? -13 : 13)
+            .attr('text-anchor', d => d.children || d._children ? 'end' : 'start')
+            .text(d => d.data.name)
+            .style('fill', '#e0e0e0')
+            .style('fill-opacity', 1e-6);
+
+        // Merge enter and update selections
+        const nodeUpdate = nodeEnter.merge(node);
+
+        nodeUpdate.transition()
+            .duration(duration)
+            .attr('transform', d => `translate(${d.y},${d.x})`);
+
+        nodeUpdate.select('circle')
+            .attr('r', 8)
+            .style('fill', d => d._children ? '#4a5578' : '#fff')
+            .style('stroke', d => getStatusColor(d.data.status))
+            .style('stroke-width', 2);
+
+        nodeUpdate.select('text')
+            .style('fill-opacity', 1);
+
+        // Remove exiting nodes
+        const nodeExit = node.exit().transition()
+            .duration(duration)
+            .attr('transform', d => `translate(${source.y},${source.x})`)
+            .remove();
+
+        nodeExit.select('circle')
+            .attr('r', 1e-6);
+
+        nodeExit.select('text')
+            .style('fill-opacity', 1e-6);
+
+        // Update links
+        const link = g.selectAll('path.link')
+            .data(links, d => d.target.id);
+
+        // Enter new links
+        const linkEnter = link.enter().insert('path', 'g')
+            .attr('class', 'link')
+            .attr('d', d => {
+                const o = {x: source.x0 || 0, y: source.y0 || 0};
+                return diagonal(o, o);
+            });
+
+        // Merge and transition links
+        linkEnter.merge(link).transition()
+            .duration(duration)
+            .attr('d', d => diagonal(d.source, d.target));
+
+        // Remove exiting links
+        link.exit().transition()
+            .duration(duration)
+            .attr('d', d => {
+                const o = {x: source.x, y: source.y};
+                return diagonal(o, o);
+            })
+            .remove();
+
+        // Store old positions for transition
+        nodes.forEach(d => {
+            d.x0 = d.x;
+            d.y0 = d.y;
+        });
+    }
+
+    function diagonal(s, d) {
+        return `M ${s.y},${s.x}
+                C ${(s.y + d.y) / 2},${s.x}
+                  ${(s.y + d.y) / 2},${d.x}
+                  ${d.y},${d.x}`;
+    }
+
+    function getStatusColor(status) {
+        return statusColors[status] || statusColors.unknown;
+    }
+
+    function click(event, d) {
+        console.log('Clicked node:', d.data.name, 'Has children:', !!d.children, 'Has _children:', !!d._children);
+
+        if (d.children) {
+            d._children = d.children;
+            d.children = null;
+        } else if (d._children) {
+            d.children = d._children;
+            d._children = null;
+        }
+        update(d);
+    }
+
+    function showTooltip(event, d) {
+        const tooltip = d3.select('#tooltip');
+        const data = d.data;
+
+        let content = `<div class="tooltip-title">${data.name}</div>`;
+
+        if (data.service_id) {
+            content += `<div class="tooltip-row"><span class="tooltip-label">ID:</span><span class="tooltip-value">${data.service_id.substring(0, 20)}...</span></div>`;
+        }
+
+        content += `<div class="tooltip-row"><span class="tooltip-label">Status:</span><span class="tooltip-value">${data.status || 'unknown'}</span></div>`;
+
+        if (data.agent_role) {
+            content += `<div class="tooltip-row"><span class="tooltip-label">Role:</span><span class="tooltip-value">${data.agent_role}</span></div>`;
+        }
+
+        if (data.tier) {
+            content += `<div class="tooltip-row"><span class="tooltip-label">Tier:</span><span class="tooltip-value">Tier ${data.tier}</span></div>`;
+        }
+
+        if (data.port) {
+            content += `<div class="tooltip-row"><span class="tooltip-label">Port:</span><span class="tooltip-value">${data.port}</span></div>`;
+        }
+
+        if (data.last_heartbeat) {
+            const lastBeat = new Date(data.last_heartbeat);
+            content += `<div class="tooltip-row"><span class="tooltip-label">Last Beat:</span><span class="tooltip-value">${lastBeat.toLocaleTimeString()}</span></div>`;
+        }
+
+        tooltip.html(content)
+            .style('left', `${event.pageX + 10}px`)
+            .style('top', `${event.pageY - 10}px`)
+            .classed('visible', true);
+    }
+
+    function hideTooltip() {
+        d3.select('#tooltip').classed('visible', false);
+    }
+
+    function centerTree() {
+        svg.transition().duration(750).call(
+            zoom.transform,
+            d3.zoomIdentity.translate(width / 2, 50).scale(1)
+        );
+    }
+
+    function expandAll() {
+        if (!root) return;
+
+        function expand(d) {
+            if (d._children) {
+                d.children = d._children;
+                d._children = null;
+            }
+            if (d.children) {
+                d.children.forEach(expand);
+            }
+        }
+
+        expand(root);
+        update(root);
+    }
+
+    function collapseAll() {
+        if (!root) return;
+
+        function collapse(d) {
+            if (d.children) {
+                d._children = d.children;
+                d.children = null;
+                d._children.forEach(collapse);
+            }
+        }
+
+        if (root.children) {
+            root.children.forEach(collapse);
+        }
+        update(root);
+    }
+
+    async function refreshTree() {
+        // Save current state (expanded nodes, zoom/pan position)
+        const savedState = saveTreeState();
+
+        // Fetch new data
+        const data = await fetchTreeData();
+        console.log('Building tree from data:', data);
+
+        root = d3.hierarchy(data);
+        root.x0 = 0;
+        root.y0 = 0;
+
+        // Initially collapse all children except root
+        if (root.children) {
+            root.children.forEach(collapseNode);
+        }
+
+        // Restore the saved state (expansion & position)
+        if (savedState) {
+            restoreTreeState(savedState);
+            console.log('Restored tree state:', savedState.expandedPaths.size, 'expanded nodes');
+        }
+
+        update(root);
+
+        // Only center if this is the first load (no saved state)
+        if (!savedState) {
+            centerTree();
+        }
+    }
+
+    function collapseNode(d) {
+        if (d.children) {
+            d._children = d.children;
+            d._children.forEach(collapseNode);
+            d.children = null;
+        }
+    }
+
+    // Save the current tree state (expanded nodes, zoom/pan)
+    function saveTreeState() {
+        if (!root) return null;
+
+        const expandedPaths = new Set();
+        const currentTransform = d3.zoomTransform(svg.node());
+
+        function walkTree(node, path = []) {
+            const nodePath = [...path, node.data.name];
+            if (node.children) {
+                // Node is currently expanded
+                expandedPaths.add(nodePath.join('/'));
+                node.children.forEach(child => walkTree(child, nodePath));
+            }
+        }
+
+        walkTree(root);
+
+        return {
+            expandedPaths,
+            transform: currentTransform
+        };
+    }
+
+    // Restore tree state after refresh
+    function restoreTreeState(state) {
+        if (!state || !root) return;
+
+        function walkTree(node, path = []) {
+            const nodePath = [...path, node.data.name].join('/');
+
+            if (state.expandedPaths.has(nodePath)) {
+                // This node should be expanded
+                if (node._children) {
+                    node.children = node._children;
+                    node._children = null;
+                }
+            }
+
+            // Recurse into children
+            if (node.children) {
+                node.children.forEach(child => walkTree(child, [...path, node.data.name]));
+            }
+            // Also check collapsed children to restore nested expansions
+            if (node._children) {
+                node._children.forEach(child => walkTree(child, [...path, node.data.name]));
+            }
+        }
+
+        walkTree(root);
+
+        // Restore zoom/pan transform
+        if (state.transform) {
+            svg.call(zoom.transform, state.transform);
+        }
+    }
+
+    // Override the base event handler
+    function handleRealtimeEvent(event) {
+        console.log('Tree view received event:', event.event_type);
+
+        // Refresh tree on significant events
+        if (['heartbeat', 'status_update', 'service_registered'].includes(event.event_type)) {
+            refreshTree();
+        }
+    }
+
+    // Apply settings to tree view
+    function applyViewSettings(settings) {
+        console.log('Applying tree view settings:', settings);
+
+        // Update animation duration
+        duration = settings.animationDuration;
+
+        // Clear existing auto-refresh timer
+        if (autoRefreshTimer) {
+            clearInterval(autoRefreshTimer);
+            autoRefreshTimer = null;
+        }
+
+        // Setup auto-refresh if enabled
+        if (settings.autoRefreshEnabled) {
+            const intervalMs = settings.refreshInterval * 1000;
+            console.log('Setting up auto-refresh every', settings.refreshInterval, 'seconds');
+            autoRefreshTimer = setInterval(refreshTree, intervalMs);
+        } else {
+            console.log('Auto-refresh disabled');
+        }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('Initializing tree view...');
+        initializeTree();
+        await refreshTree();
+
+        // Settings will be loaded by base.html, which will call applyViewSettings()
+        // Default auto-refresh (will be overridden by settings)
+        setTimeout(() => {
+            const settings = getSettings();
+            applyViewSettings(settings);
+        }, 100);
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        location.reload(); // Simple approach - reload page
+    });
+</script>
+{% endblock %}

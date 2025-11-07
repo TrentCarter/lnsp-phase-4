@@ -69,11 +69,59 @@ HMI consumes:
 * **Nodes:** agents; **size** ∝ live token usage / load; **color** = status; **ring** indicates role (coord/exec/system).
 * **Edges:** animated “light bars” for messages; brightness = throughput.
 
-### 4.3 Sequencer (Activity Timeline)
+### 4.3 Sequencer (Activity Timeline) — MIDI-Style Task Visualizer
 
-* Rows = tiers (Workers bottom → Managers → Directors → VP top).
-* Time on X‑axis; **glyph length** = task duration; **thickness** = live token usage; **color** = state.
-* A moving playhead shows “now”.
+**Layout:**
+* **Horizontal axis:** Time (scrolling left-to-right, like DAW/MIDI sequencer).
+* **Vertical axis:** Each agent is a row (grouped by tier: VP → Directors → Managers → Workers).
+* **Playhead:** Moving vertical line showing "now" (auto-scroll or manual scrub).
+
+**Visual Encoding (Task "Notes"):**
+* **Note blocks:** Rectangles representing agent tasks/actions.
+* **Length:** Task duration (start → end time).
+* **Height:** Row height (consistent per agent).
+* **Color:** Task status/progress:
+  * 🟦 **Blue:** Running (0-25% complete)
+  * 🟨 **Yellow:** Running (25-75% complete)
+  * 🟩 **Green:** Running (75-99% complete) or Done (100%)
+  * 🟧 **Orange:** Blocked/Waiting
+  * 🟪 **Purple:** Awaiting Approval
+  * 🟥 **RED:** Stuck/Error (no progress for >2 heartbeat intervals)
+* **Opacity:** Progress percentage (0% = 0.4 opacity, 100% = 1.0 opacity).
+* **Border:** Thick border if task is currently active/selected.
+
+**Interactions:**
+* **Click note:** Show task details tooltip (task ID, agent, duration, status, tokens used).
+* **Hover:** Highlight corresponding agent in tree view (if visible).
+* **Zoom:** Mouse wheel to zoom in/out on time axis.
+* **Pan:** Drag to scroll timeline left/right (optional scrollbars can be hidden via settings).
+* **Playhead:** Click timeline to jump to timestamp, or drag playhead handle directly.
+* **Draggable Playhead:** Red circle handle on playhead for precise scrubbing (cursor: grab/grabbing).
+
+**Playback Controls (Toolbar):**
+* **Play/Pause/Stop:** Standard playback controls with animated playhead.
+* **Playback Speed:** Dual sliders (top toolbar + bottom bar) for speed control:
+  * Range: 0.1x to 100x (default: 1.0x)
+  * Non-linear scaling for intuitive control:
+    * 0-50%: 0.1x to 1.0x (slow to normal, linear)
+    * 50-75%: 1.0x to 10x (normal to fast, exponential)
+    * 75-100%: 10x to 100x (fast to ultra-fast, exponential)
+  * Live display shows current speed (e.g., "1.5x", "25.0x")
+  * Both sliders synchronized in real-time
+  * Setting persists across page loads
+* **Sound Mode:** Dropdown selector for audio playback:
+  * **None** (default) — Silent mode
+  * **Voice** — Text-to-speech announcements for task events
+  * **Music Note** — Musical notes mapped to task events (pitch = tier)
+  * **Random Sounds** — Random sound effects for variety
+* **Time Range:** Dropdown to select visible time window (5min to 4hr).
+* **Zoom:** Controls to zoom in/out on timeline (10%-1000%).
+* **Refresh:** Manual data refresh button.
+
+**Row Controls:**
+* **Solo:** Mute all other agents (highlight only this agent's notes).
+* **Mute:** Hide this agent's notes from view.
+* **Color-code by tier:** VP (dark blue), Directors (blue), Managers (cyan), Workers (light blue).
 
 ### 4.4 Sonification (Musical Notes)
 
@@ -89,6 +137,40 @@ HMI consumes:
 ### 4.6 Timeline Scrubber (Replay)
 
 * Scrub backward to replay the last 24–72h with the sequencer/graph synchronized; export as MP4/GIF for post‑mortems.
+
+### 4.7 Task Status Indicator (Header)
+
+**Location:** Header bar, between "PAS Agent Swarm (OK)" badge and navigation tabs.
+
+**Purpose:** Provide at-a-glance visibility of current active task without consuming screen space.
+
+**Visual Design:**
+* **Compact Layout:** Max width 350px, does not push navigation tabs.
+* **LED Indicator:** Animated status light (10px circle) with glow effects.
+* **Task Name:** Current active task name (truncated with ellipsis if too long).
+* **Status Label:** Uppercase status text (RUNNING, DONE, ERROR, etc.).
+
+**Status Colors & Animations:**
+* 🔵 **RUNNING** — Blue LED, pulsing animation (2s cycle).
+* 🟢 **DONE/COMPLETED** — Green LED, steady glow.
+* 🔴 **ERROR/STUCK/FAILED** — Red LED, fast pulsing (1s cycle).
+* 🟠 **BLOCKED/WAITING** — Orange LED, steady glow.
+* 🟣 **AWAITING APPROVAL** — Purple LED, steady glow.
+* ⚪ **IDLE** — Gray LED, no animation (hidden by default).
+
+**Behavior:**
+* **Auto-Hide:** Hidden when no active tasks detected.
+* **Auto-Show:** Appears when task starts (job_started event).
+* **Real-Time Updates:**
+  * Polls `/api/current-task` every 5 seconds.
+  * Updates on WebSocket events (heartbeat, completed, error, blocked).
+  * Shows recently completed tasks for 10 seconds before hiding.
+* **Graceful Degradation:** Falls back to polling if WebSocket unavailable.
+
+**API Integration:**
+* **Endpoint:** `GET /api/current-task`
+* **Returns:** Most recent active task or `null` if none.
+* **Sources:** Event Stream (recent 50 events) with status inference.
 
 ---
 
@@ -122,12 +204,43 @@ HMI consumes:
 
 ## 6) Controls (Operator Actions)
 
+**Agent Management:**
 * Pause/Resume agent or subtree.
 * Reassign task to different agent (via Gateway target filters).
 * Restart worker (kills run, preserves artifacts).
 * Approve/Reject pending gates (PRs, destructive ops).
+
+**View Navigation:**
+* Toggle views: Dashboard, Tree View, Sequencer (navigation tabs).
+* Settings panel (⚙️ button) — Global configuration with persistence.
+
+**Sequencer Playback:**
+* **Play/Pause/Stop:** Control playback animation.
+* **Playback Speed:** Dual sliders (top toolbar + bottom bar):
+  * Range: 0.1x to 100x (non-linear scaling)
+  * Synchronized sliders update in real-time
+  * Setting persists via localStorage
+  * Allows rapid replay (100x) or slow-motion analysis (0.1x)
+* **Draggable Playhead:** Click/drag red circle handle to scrub timeline.
+* **Time Range:** Dropdown to select visible window (5min to 4hr).
+* **Zoom:** Controls to zoom timeline (10%-1000%).
+* **Sound Mode:** Dropdown to select audio output:
+  * None, Voice, Music Note, Random Sounds
+  * Integrates with master audio settings
+
+**Audio Controls:**
 * Mute/solo tiers for audio; set narration cadence (live vs digest).
-* Toggle views (Tree/Sequencer), tie playhead to real time or replay mode.
+* Master audio toggle (enable/disable all sound).
+* Individual toggles for sequencer notes and agent voice.
+* Volume slider (0-100%) affecting all audio output.
+
+**Settings Panel Controls:**
+* **Auto-Refresh:** Toggle + interval (5-300 seconds).
+* **Display:** Tooltips, compact mode, time zone selection.
+* **Sequencer:** Hide scrollbars, default playback speed, default sound mode.
+* **Audio:** Master toggle, sequencer notes, agent voice, volume.
+* **Performance:** Animation duration (0-2000ms).
+* **Reset to Defaults:** Restore factory settings (with confirmation).
 
 ---
 
@@ -169,6 +282,56 @@ Retention:
 * Captions/real‑time transcript for narration; per‑tier volume sliders.
 * Mobile layout for quick checks; voice‑only control set (basic commands).
 
+### 10.1 Sound Controls (Settings Panel)
+
+**Audio Settings Section (🔊 Audio):**
+* **Enable/Disable Master Audio:** Global toggle for all sound output (default: OFF).
+* **Sequencer Notes:** Musical note sonification for task events (assign, start, progress, complete).
+  * Individual toggle for sequencer notes (default: OFF)
+  * Volume slider (0-100%, default: 70%)
+  * Pitch mapping: VP (low) → Directors → Managers → Workers (high)
+* **Agent Voice Status:** Text-to-speech narration of agent status updates.
+  * Individual toggle for spoken status (default: OFF)
+  * Volume slider (0-100%, default: 70%)
+  * Voice depth mapping: VP (deep) → Workers (light)
+  * Per-tier mute controls
+* **Audio Volume:** Master volume slider (0-100%, default: 70%).
+  * Real-time percentage display
+  * Affects both notes and voice
+* **Audio Rate Limiting:** ≤8 notes/sec global; ≤2 notes/sec per-agent (prevent audio chaos).
+* **Ducking:** Auto-reduce music notes during voice narration to ensure clarity.
+
+**Sequencer Settings Section (🎹 Sequencer):**
+* **Hide Scrollbars:** Toggle to use draggable playhead instead of scrollbars (default: ON).
+  * When enabled: Canvas wrapper has `overflow: hidden`
+  * When disabled: Standard scrollbars appear for navigation
+* **Default Playback Speed:** Initial playback speed multiplier (0.1x to 100x, default: 1.0x).
+  * Applies when sequencer first loads
+  * User can adjust live via dual sliders (top + bottom)
+  * Non-linear scaling: 0-50% → 0.1x-1.0x, 50-75% → 1.0x-10x, 75-100% → 10x-100x
+* **Default Sound Mode:** Initial sound output mode (default: None).
+  * Options: None, Voice, Music Note, Random Sounds
+  * User can change via toolbar dropdown during playback
+
+**Display Settings:**
+* **Time Zone:** Display time zone for all timestamps (default: EST / America/New_York).
+  * Options: EST, CST, MST, PST, UTC, GMT, JST
+  * Applies to Dashboard, Tree View, and Sequencer
+* **Show Tooltips:** Display detailed info on hover (default: ON).
+* **Compact Mode:** Reduce spacing for higher information density (default: OFF).
+
+**Performance Settings:**
+* **Animation Duration:** Transition speed for visual updates (0-2000ms, default: 750ms).
+  * Affects tree transitions, sequencer updates, and UI animations
+
+**Settings Persistence:**
+* **localStorage Integration:** All settings automatically saved to browser storage.
+  * Settings survive page reloads and browser restarts
+  * Per-user, per-browser storage
+* **Reset to Defaults:** Button in settings footer to restore factory defaults.
+  * Confirmation dialog before resetting
+  * Clears localStorage key: `pas_hmi_settings`
+
 ---
 
 ## 11) Extensibility & Integrations
@@ -181,12 +344,38 @@ Retention:
 
 ## 12) API (HMI Facade)
 
-* `GET /hmi/agents` → list with hierarchy, status, ctx, rights.
-* `GET /hmi/tree` → graph JSON (nodes, edges, metrics).
-* `GET /hmi/seq?from..to` → sequencer strips.
-* `GET /hmi/metrics` → roll‑ups (tokens/min, $/min, errors).
-* `WS /hmi/stream` → unified event bus (beats, status, receipts).
-* `POST /hmi/action` → pause/resume/reassign/approve with reason.
+**Service Discovery & Status:**
+* `GET /api/services` → List all registered services from Registry.
+* `GET /api/tree` → Agent hierarchy tree (D3.js-compatible JSON).
+* `GET /api/metrics` → Aggregated metrics from all services.
+* `GET /api/alerts` → Current alerts from Heartbeat Monitor.
+
+**Task & Timeline:**
+* `GET /api/current-task` → Most recent active task (for header indicator).
+  * Returns: `{task: {...}}` or `{task: null}`
+  * Sources: Event Stream (recent 50 events)
+* `GET /api/sequencer` → Sequencer timeline data (agents + tasks).
+  * Returns: `{agents: [...], tasks: [...], timestamp}`
+  * Tasks include: task_id, agent_id, name, status, progress, start_time, end_time
+
+**Cost & Budget:**
+* `GET /api/costs?window=minute` → Cost metrics from Gateway.
+* `GET /api/costs/receipts/:run_id` → Cost receipts for specific run.
+* `GET /api/costs/budget/:run_id` → Budget status for specific run.
+
+**Real-Time Events:**
+* `WS ws://localhost:6102` → WebSocket stream (via Event Stream service).
+  * Events: heartbeat, job_started, job_completed, error, blocked, etc.
+  * Client subscribes on connect, receives event history + live updates.
+
+**Control Actions (Future):**
+* `POST /api/action` → pause/resume/reassign/approve with reason.
+  * Body: `{action, target, reason}`
+  * Returns: `{status, message}`
+
+**Health Checks:**
+* `GET /health` → HMI app health status.
+* Returns: `{status: "ok", service: "hmi_app", port: 6101, timestamp}`
 
 ---
 
@@ -252,7 +441,7 @@ Retention:
 * Minimum retention for events vs audio sidecars (30/90 days?).
 * Whether to auto‑suggest scaling ("add N workers") from HMI based on saturation.
 
----
+---*
 
 ## 18) Appendix — Quick Mappings & Tables
 

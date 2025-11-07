@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Routing Receipt Schema",
+  "description": "Schema for routing receipts tracking cost and performance of routed requests",
+  "type": "object",
+  "required": [
+    "request_id",
+    "agent",
+    "timestamp",
+    "provider",
+    "model",
+    "status"
+  ],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "description": "Unique request identifier matching the routing request"
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Optional run identifier for grouping receipts"
+    },
+    "agent": {
+      "type": "string",
+      "description": "Agent that made the request"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp when the request was processed",
+      "format": "date-time"
+    },
+    "provider": {
+      "type": "string",
+      "description": "Provider that handled the request"
+    },
+    "model": {
+      "type": "string",
+      "description": "Model used for the request"
+    },
+    "input_tokens": {
+      "type": "integer",
+      "description": "Number of input tokens",
+      "minimum": 0
+    },
+    "output_tokens": {
+      "type": "integer",
+      "description": "Number of output tokens",
+      "minimum": 0
+    },
+    "cost_usd": {
+      "type": "number",
+      "description": "Total cost in USD (input_tokens * input_rate + output_tokens * output_rate)",
+      "minimum": 0
+    },
+    "latency_ms": {
+      "type": "integer",
+      "description": "Request latency in milliseconds",
+      "minimum": 0
+    },
+    "status": {
+      "type": "string",
+      "description": "Request status",
+      "enum": ["success", "error", "timeout", "fallback"]
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error message if status is not 'success'"
+    },
+    "fallback_from": {
+      "type": "string",
+      "description": "Original provider if this was a fallback request"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata",
+      "additionalProperties": true
+    }
+  }
+}

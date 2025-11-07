@@ -1,0 +1,611 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LLM Service API Contract",
+  "description": "JSON schema for Local LLM wrapper services (Phase 5)",
+  "version": "1.0.0",
+
+  "definitions": {
+    "ChatMessage": {
+      "type": "object",
+      "required": ["role", "content"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["system", "user", "assistant"],
+          "description": "Message role"
+        },
+        "content": {
+          "type": "string",
+          "description": "Message content"
+        },
+        "name": {
+          "type": "string",
+          "description": "Optional sender name"
+        }
+      }
+    },
+
+    "ChatCompletionRequest": {
+      "type": "object",
+      "required": ["model", "messages"],
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Model identifier (e.g., 'llama3.1:8b')",
+          "examples": ["llama3.1:8b", "tinyllama:1.1b"]
+        },
+        "messages": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/ChatMessage"},
+          "description": "Conversation history",
+          "minItems": 1
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0.7,
+          "description": "Sampling temperature"
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192,
+          "description": "Maximum tokens to generate"
+        },
+        "top_p": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 1.0,
+          "description": "Nucleus sampling threshold"
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable streaming response"
+        },
+        "stop": {
+          "oneOf": [
+            {"type": "string"},
+            {"type": "array", "items": {"type": "string"}}
+          ],
+          "description": "Stop sequences"
+        },
+        "presence_penalty": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 2,
+          "default": 0,
+          "description": "Presence penalty"
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 2,
+          "default": 0,
+          "description": "Frequency penalty"
+        }
+      }
+    },
+
+    "ChatCompletionResponse": {
+      "type": "object",
+      "required": ["id", "object", "created", "model", "choices"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique completion ID",
+          "examples": ["chat-abc123"]
+        },
+        "object": {
+          "type": "string",
+          "const": "chat.completion",
+          "description": "Response object type"
+        },
+        "created": {
+          "type": "integer",
+          "description": "Unix timestamp"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model used"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["index", "message", "finish_reason"],
+            "properties": {
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "message": {
+                "$ref": "#/definitions/ChatMessage"
+              },
+              "finish_reason": {
+                "type": "string",
+                "enum": ["stop", "length", "content_filter", "null"],
+                "description": "Reason completion stopped"
+              }
+            }
+          }
+        },
+        "usage": {
+          "type": "object",
+          "required": ["prompt_tokens", "completion_tokens", "total_tokens"],
+          "properties": {
+            "prompt_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "completion_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "total_tokens": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "system_fingerprint": {
+          "type": "string",
+          "description": "System configuration fingerprint"
+        }
+      }
+    },
+
+    "GenerateRequest": {
+      "type": "object",
+      "required": ["model", "prompt"],
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Model identifier",
+          "examples": ["llama3.1:8b", "tinyllama:1.1b"]
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Text prompt",
+          "minLength": 1
+        },
+        "system": {
+          "type": "string",
+          "description": "System prompt"
+        },
+        "template": {
+          "type": "string",
+          "description": "Prompt template"
+        },
+        "context": {
+          "type": "array",
+          "items": {"type": "integer"},
+          "description": "Context from previous request"
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable streaming"
+        },
+        "raw": {
+          "type": "boolean",
+          "default": false,
+          "description": "Bypass prompt templating"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json"],
+          "description": "Response format"
+        },
+        "options": {
+          "type": "object",
+          "description": "Model parameters",
+          "properties": {
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "top_k": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "top_p": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "num_predict": {
+              "type": "integer",
+              "minimum": -2,
+              "description": "Max tokens to generate (-1 = infinite, -2 = fill context)"
+            },
+            "repeat_penalty": {
+              "type": "number",
+              "minimum": 0
+            },
+            "seed": {
+              "type": "integer",
+              "description": "Random seed"
+            }
+          }
+        },
+        "keep_alive": {
+          "oneOf": [
+            {"type": "string"},
+            {"type": "integer"}
+          ],
+          "description": "Duration to keep model loaded"
+        }
+      }
+    },
+
+    "GenerateResponse": {
+      "type": "object",
+      "required": ["model", "created_at", "response", "done"],
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Model identifier"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp"
+        },
+        "response": {
+          "type": "string",
+          "description": "Generated text"
+        },
+        "done": {
+          "type": "boolean",
+          "description": "Whether generation is complete"
+        },
+        "context": {
+          "type": "array",
+          "items": {"type": "integer"},
+          "description": "Context for next request"
+        },
+        "total_duration": {
+          "type": "integer",
+          "description": "Total time in nanoseconds"
+        },
+        "load_duration": {
+          "type": "integer",
+          "description": "Model load time in nanoseconds"
+        },
+        "prompt_eval_count": {
+          "type": "integer",
+          "description": "Number of prompt tokens"
+        },
+        "prompt_eval_duration": {
+          "type": "integer",
+          "description": "Prompt eval time in nanoseconds"
+        },
+        "eval_count": {
+          "type": "integer",
+          "description": "Number of generated tokens"
+        },
+        "eval_duration": {
+          "type": "integer",
+          "description": "Generation time in nanoseconds"
+        }
+      }
+    },
+
+    "HealthResponse": {
+      "type": "object",
+      "required": ["status", "service", "port"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["healthy", "degraded", "unhealthy"],
+          "description": "Service health status"
+        },
+        "service": {
+          "type": "string",
+          "description": "Service identifier"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535
+        },
+        "ollama_backend": {
+          "type": "string",
+          "format": "uri",
+          "description": "Ollama backend URL"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model identifier"
+        },
+        "model_loaded": {
+          "type": "boolean",
+          "description": "Whether model is loaded in Ollama"
+        },
+        "uptime_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Service uptime"
+        },
+        "last_request_ms": {
+          "type": "number",
+          "description": "Time since last request"
+        }
+      }
+    },
+
+    "ServiceInfo": {
+      "type": "object",
+      "required": ["service_name", "version", "model", "capabilities", "endpoints"],
+      "properties": {
+        "service_name": {
+          "type": "string",
+          "description": "Human-readable service name"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version"
+        },
+        "model": {
+          "type": "object",
+          "required": ["name"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Model identifier"
+            },
+            "parameters": {
+              "type": "string",
+              "description": "Model size (e.g., '8B', '1.1B')"
+            },
+            "quantization": {
+              "type": "string",
+              "description": "Quantization format"
+            },
+            "context_length": {
+              "type": "integer",
+              "description": "Max context tokens"
+            },
+            "embedding_dim": {
+              "type": "integer",
+              "description": "Embedding dimension"
+            }
+          }
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Service capabilities"
+        },
+        "performance": {
+          "type": "object",
+          "properties": {
+            "avg_throughput_tok_s": {
+              "type": "number",
+              "description": "Average tokens per second"
+            },
+            "avg_latency_ms": {
+              "type": "number",
+              "description": "Average latency in ms"
+            },
+            "p95_latency_ms": {
+              "type": "number",
+              "description": "P95 latency in ms"
+            }
+          }
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Available API endpoints"
+        }
+      }
+    },
+
+    "DomainClassificationRequest": {
+      "type": "object",
+      "required": ["query"],
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "User query to classify",
+          "minLength": 1
+        },
+        "top_k": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 3,
+          "description": "Number of top domains to return"
+        },
+        "context_docs": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Optional context documents"
+        }
+      }
+    },
+
+    "DomainClassificationResponse": {
+      "type": "object",
+      "required": ["query", "domains", "primary_domain"],
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Original query"
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["domain", "confidence"],
+            "properties": {
+              "domain": {
+                "type": "string",
+                "description": "Domain name"
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Confidence score"
+              }
+            }
+          },
+          "minItems": 1
+        },
+        "primary_domain": {
+          "type": "string",
+          "description": "Highest confidence domain"
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "processing_time_ms": {
+              "type": "number"
+            },
+            "model_used": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+
+    "TMDExtractionRequest": {
+      "type": "object",
+      "required": ["query"],
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "User query",
+          "minLength": 1
+        },
+        "context_docs": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Context documents"
+        },
+        "method_hint": {
+          "type": "string",
+          "enum": ["DENSE", "SPARSE", "HYBRID"],
+          "description": "Suggested retrieval method"
+        }
+      }
+    },
+
+    "TMDExtractionResponse": {
+      "type": "object",
+      "required": ["query", "tmd"],
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Original query"
+        },
+        "tmd": {
+          "type": "object",
+          "required": ["task", "method", "domain"],
+          "properties": {
+            "task": {
+              "type": "string",
+              "enum": ["RETRIEVE", "ANSWER", "VERIFY", "COMPARE", "SUMMARIZE"],
+              "description": "Task type"
+            },
+            "method": {
+              "type": "string",
+              "enum": ["DENSE", "SPARSE", "HYBRID", "GRAPH"],
+              "description": "Retrieval method"
+            },
+            "domain": {
+              "type": "string",
+              "description": "Subject domain"
+            }
+          }
+        },
+        "confidence": {
+          "type": "object",
+          "properties": {
+            "task": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "method": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "domain": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "processing_time_ms": {
+              "type": "number"
+            },
+            "model_used": {
+              "type": "string"
+            },
+            "llm_raw_response": {
+              "type": "string",
+              "description": "Raw LLM output for debugging"
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "oneOf": [
+    {
+      "title": "Chat Completion Request",
+      "$ref": "#/definitions/ChatCompletionRequest"
+    },
+    {
+      "title": "Chat Completion Response",
+      "$ref": "#/definitions/ChatCompletionResponse"
+    },
+    {
+      "title": "Generate Request",
+      "$ref": "#/definitions/GenerateRequest"
+    },
+    {
+      "title": "Generate Response",
+      "$ref": "#/definitions/GenerateResponse"
+    },
+    {
+      "title": "Health Response",
+      "$ref": "#/definitions/HealthResponse"
+    },
+    {
+      "title": "Service Info",
+      "$ref": "#/definitions/ServiceInfo"
+    },
+    {
+      "title": "Domain Classification Request",
+      "$ref": "#/definitions/DomainClassificationRequest"
+    },
+    {
+      "title": "Domain Classification Response",
+      "$ref": "#/definitions/DomainClassificationResponse"
+    },
+    {
+      "title": "TMD Extraction Request",
+      "$ref": "#/definitions/TMDExtractionRequest"
+    },
+    {
+      "title": "TMD Extraction Response",
+      "$ref": "#/definitions/TMDExtractionResponse"
+    }
+  ]
+}

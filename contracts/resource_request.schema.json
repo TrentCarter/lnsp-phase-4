@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "resource_request.schema.json",
+  "title": "Resource Request",
+  "description": "Schema for resource reservation requests",
+  "type": "object",
+  "properties": {
+    "cpu": {
+      "type": "number",
+      "description": "CPU cores requested",
+      "minimum": 0
+    },
+    "mem_mb": {
+      "type": "integer",
+      "description": "Memory in MB",
+      "minimum": 0
+    },
+    "gpu": {
+      "type": "integer",
+      "description": "Number of GPUs",
+      "minimum": 0
+    },
+    "gpu_mem_mb": {
+      "type": "integer",
+      "description": "GPU memory in MB",
+      "minimum": 0
+    },
+    "disk_gb": {
+      "type": "integer",
+      "description": "Disk space in GB",
+      "minimum": 0
+    },
+    "ports": {
+      "type": "array",
+      "description": "Port numbers to reserve",
+      "items": {
+        "type": "integer",
+        "minimum": 1024,
+        "maximum": 65535
+      },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false
+}

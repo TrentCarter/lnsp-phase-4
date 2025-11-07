@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "heartbeat.schema.json",
+  "title": "Heartbeat",
+  "description": "Schema for agent/service heartbeat updates (HMI PRD §7)",
+  "type": "object",
+  "required": ["service_id", "ts", "status"],
+  "properties": {
+    "service_id": {
+      "type": "string",
+      "description": "Service identifier from registration",
+      "format": "uuid"
+    },
+    "run_id": {
+      "type": ["string", "null"],
+      "description": "Current run/job identifier (if applicable)"
+    },
+    "agent": {
+      "type": ["string", "null"],
+      "description": "Agent name (if this is an agent heartbeat)"
+    },
+    "ts": {
+      "type": "string",
+      "description": "Timestamp (ISO 8601)",
+      "format": "date-time"
+    },
+    "progress": {
+      "type": "number",
+      "description": "Task progress ratio (0.0 to 1.0)",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "status": {
+      "type": "string",
+      "description": "Current service/agent status",
+      "enum": ["ok", "degraded", "down", "queued", "running", "blocked", "waiting_approval", "paused", "error", "done"]
+    },
+    "message": {
+      "type": "string",
+      "description": "Optional status message"
+    },
+    "token_usage": {
+      "type": "object",
+      "description": "Context window usage",
+      "properties": {
+        "ctx_used": {
+          "type": "integer",
+          "description": "Tokens used in current context",
+          "minimum": 0
+        },
+        "ctx_limit": {
+          "type": "integer",
+          "description": "Maximum context window size",
+          "minimum": 0
+        }
+      },
+      "required": ["ctx_used", "ctx_limit"]
+    },
+    "resources": {
+      "type": "object",
+      "description": "Resource usage snapshot",
+      "properties": {
+        "cpu": {
+          "type": "number",
+          "description": "CPU cores in use",
+          "minimum": 0
+        },
+        "mem_mb": {
+          "type": "number",
+          "description": "Memory usage in MB",
+          "minimum": 0
+        },
+        "gpu_mem_mb": {
+          "type": "number",
+          "description": "GPU memory usage in MB",
+          "minimum": 0
+        }
+      }
+    },
+    "p95_ms": {
+      "type": "number",
+      "description": "P95 latency in milliseconds",
+      "minimum": 0
+    },
+    "queue_depth": {
+      "type": "integer",
+      "description": "Number of pending requests",
+      "minimum": 0
+    },
+    "load": {
+      "type": "number",
+      "description": "Load factor (0.0 to 1.0)",
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "additionalProperties": false
+}

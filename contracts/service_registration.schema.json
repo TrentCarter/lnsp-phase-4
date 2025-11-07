@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "service_registration.schema.json",
+  "title": "Service Registration",
+  "description": "Schema for registering a service (model, tool, or agent) with the Registry",
+  "type": "object",
+  "required": ["name", "type", "role", "url", "caps"],
+  "properties": {
+    "service_id": {
+      "type": "string",
+      "description": "Unique service identifier (UUID). Auto-generated if not provided.",
+      "format": "uuid"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-friendly service name (non-unique across instances)",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "type": {
+      "type": "string",
+      "description": "Service type",
+      "enum": ["model", "tool", "agent"]
+    },
+    "role": {
+      "type": "string",
+      "description": "Deployment role",
+      "enum": ["production", "staging", "canary", "experimental"]
+    },
+    "url": {
+      "type": "string",
+      "description": "Base URL for this service",
+      "format": "uri"
+    },
+    "caps": {
+      "type": "array",
+      "description": "Capability tags (e.g., 'infer', 'classify', 'plan')",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "labels": {
+      "type": "object",
+      "description": "Additional metadata labels (e.g., space, domain, vendor, parent)",
+      "additionalProperties": true
+    },
+    "ctx_limit": {
+      "type": "integer",
+      "description": "Context window size (tokens)",
+      "minimum": 0
+    },
+    "cost_hint": {
+      "type": "object",
+      "description": "Cost estimate for routing decisions",
+      "properties": {
+        "usd_per_1k": {
+          "type": "number",
+          "description": "Cost in USD per 1000 tokens",
+          "minimum": 0
+        }
+      }
+    },
+    "heartbeat_interval_s": {
+      "type": "integer",
+      "description": "Expected heartbeat interval in seconds",
+      "default": 60,
+      "minimum": 10,
+      "maximum": 300
+    },
+    "ttl_s": {
+      "type": "integer",
+      "description": "Time-to-live in seconds (evict after this period without heartbeat)",
+      "default": 90,
+      "minimum": 30,
+      "maximum": 600
+    }
+  },
+  "additionalProperties": false
+}

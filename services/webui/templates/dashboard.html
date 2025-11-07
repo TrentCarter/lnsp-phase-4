@@ -1,0 +1,615 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - PAS Agent Swarm{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .service-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .service-card {
+        background: linear-gradient(135deg, #1e2747 0%, #2a3558 100%);
+        border: 1px solid #3a4568;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .service-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .service-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .service-name {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #fff;
+    }
+
+    .service-status {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #6b7280;
+    }
+
+    .service-status.healthy {
+        background-color: #10b981;
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+    }
+
+    .service-status.unhealthy {
+        background-color: #ef4444;
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+    }
+
+    .service-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        color: #9ca3af;
+        font-size: 0.875rem;
+    }
+
+    .service-info-row {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .service-info-label {
+        color: #6b7280;
+    }
+
+    .service-info-value {
+        color: #e0e0e0;
+        font-weight: 500;
+    }
+
+    .last-update {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #3a4568;
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+
+    /* Collapsible Section Styles */
+    .section-container {
+        margin-bottom: 2rem;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background: linear-gradient(135deg, #2a3558 0%, #1e2747 100%);
+        border: 1px solid #3a4568;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        user-select: none;
+    }
+
+    .section-header:hover {
+        background: linear-gradient(135deg, #3a4568 0%, #2a3558 100%);
+        border-color: #4a5578;
+    }
+
+    .section-header h2 {
+        color: #fff;
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .section-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #9ca3af;
+        font-size: 0.875rem;
+    }
+
+    .section-toggle-icon {
+        font-size: 1.25rem;
+        font-weight: bold;
+        transition: transform 0.3s ease;
+    }
+
+    .section-header.collapsed .section-toggle-icon {
+        transform: rotate(-90deg);
+    }
+
+    .section-content {
+        max-height: 10000px;
+        overflow: hidden;
+        transition: max-height 0.5s ease, opacity 0.3s ease;
+        opacity: 1;
+    }
+
+    .section-content.collapsed {
+        max-height: 0;
+        opacity: 0;
+    }
+
+    .section-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: rgba(16, 185, 129, 0.2);
+        border: 1px solid #10b981;
+        border-radius: 12px;
+        color: #10b981;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-left: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div id="alerts-container"></div>
+
+    <!-- System Metrics Section -->
+    <div class="section-container">
+        <div class="section-header" onclick="toggleSection('system-metrics')">
+            <h2>System Metrics <span class="section-badge" id="system-health-badge">-</span></h2>
+            <div class="section-toggle">
+                <span class="section-toggle-text">Collapse</span>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+        </div>
+        <div class="section-content" id="system-metrics-content">
+            <div class="metrics-row" style="margin-top: 1rem;">
+                <div class="metric-card">
+                    <h3>Total Services</h3>
+                    <div class="value" id="total-services">-</div>
+                    <div class="subtext">Registered in system</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Healthy Services</h3>
+                    <div class="value" id="healthy-services">-</div>
+                    <div class="subtext">Responding to heartbeats</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Connected Clients</h3>
+                    <div class="value" id="connected-clients">-</div>
+                    <div class="subtext">WebSocket connections</div>
+                </div>
+                <div class="metric-card">
+                    <h3>System Health</h3>
+                    <div class="value" id="system-health">-</div>
+                    <div class="subtext">Overall system status</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Services Section -->
+    <div class="section-container">
+        <div class="section-header" onclick="toggleSection('core-services')">
+            <h2>Core Services <span class="section-badge" id="core-services-badge">5</span></h2>
+            <div class="section-toggle">
+                <span class="section-toggle-text">Collapse</span>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+        </div>
+        <div class="section-content" id="core-services-content">
+            <div id="services-container" class="service-cards">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading services...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registered Agents Section -->
+    <div class="section-container">
+        <div class="section-header" onclick="toggleSection('registered-agents')">
+            <h2>Registered Agents <span class="section-badge" id="agents-badge">0</span></h2>
+            <div class="section-toggle">
+                <span class="section-toggle-text">Collapse</span>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+        </div>
+        <div class="section-content" id="registered-agents-content">
+            <div id="agents-container" class="service-cards">
+                <div class="loading">
+                    <p>No agents registered yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost Tracking Section (MOVED TO BOTTOM) -->
+    <div class="section-container">
+        <div class="section-header" onclick="toggleSection('cost-tracking')">
+            <h2>Cost Tracking <span class="section-badge" id="cost-badge">$0.00</span></h2>
+            <div class="section-toggle">
+                <span class="section-toggle-text">Collapse</span>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+        </div>
+        <div class="section-content" id="cost-tracking-content">
+            <div class="metrics-row" style="margin-top: 1rem;">
+                <div class="metric-card">
+                    <h3>Total Cost</h3>
+                    <div class="value" id="total-cost">$0.00</div>
+                    <div class="subtext">Last minute</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Requests</h3>
+                    <div class="value" id="total-requests">0</div>
+                    <div class="subtext">Last minute</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Tokens</h3>
+                    <div class="value" id="total-tokens">0</div>
+                    <div class="subtext">Last minute</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Avg Cost/Request</h3>
+                    <div class="value" id="avg-cost">$0.00</div>
+                    <div class="subtext">Per request</div>
+                </div>
+            </div>
+
+            <!-- Cost Breakdown -->
+            <div style="margin-top: 2rem; background: linear-gradient(135deg, #1e2747 0%, #2a3558 100%); border: 1px solid #3a4568; border-radius: 12px; padding: 1.5rem;">
+                <h3 style="color: #fff; margin-bottom: 1rem;">Cost Breakdown by Provider</h3>
+                <div id="cost-breakdown">
+                    <p style="color: #9ca3af;">No cost data available yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let metricsUpdateInterval = null;
+
+    // Collapsible Section Toggle
+    function toggleSection(sectionId) {
+        const content = document.getElementById(`${sectionId}-content`);
+        const header = content.previousElementSibling;
+        const toggleText = header.querySelector('.section-toggle-text');
+
+        if (content.classList.contains('collapsed')) {
+            content.classList.remove('collapsed');
+            header.classList.remove('collapsed');
+            toggleText.textContent = 'Collapse';
+        } else {
+            content.classList.add('collapsed');
+            header.classList.add('collapsed');
+            toggleText.textContent = 'Expand';
+        }
+    }
+
+    // Override the base event handler
+    function handleRealtimeEvent(event) {
+        console.log('Dashboard received event:', event.event_type, event);
+
+        switch(event.event_type) {
+            case 'heartbeat':
+                updateServiceCard(event.data);
+                break;
+            case 'status_update':
+                updateServiceStatus(event.data);
+                break;
+            case 'alert':
+                showAlert(event.data);
+                break;
+            default:
+                console.log('Unhandled event type:', event.event_type);
+        }
+    }
+
+    function updateServiceCard(data) {
+        // Update individual service card if it exists
+        const card = document.querySelector(`[data-service-id="${data.service_id}"]`);
+        if (card) {
+            const statusDot = card.querySelector('.service-status');
+            if (statusDot) {
+                statusDot.classList.add('healthy');
+                statusDot.classList.remove('unhealthy');
+            }
+
+            const lastUpdate = card.querySelector('.last-update');
+            if (lastUpdate) {
+                lastUpdate.textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+            }
+        }
+
+        // Refresh metrics
+        fetchMetrics();
+    }
+
+    function updateServiceStatus(data) {
+        console.log('Status update:', data);
+        fetchMetrics();
+    }
+
+    function showAlert(data) {
+        const alertsContainer = document.getElementById('alerts-container');
+
+        const severity = data.severity || 'warning';
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert-banner ${severity}`;
+        alertDiv.innerHTML = `
+            <div class="alert-icon">${severity === 'error' ? '🔴' : '⚠️'}</div>
+            <div class="alert-content">
+                <div class="alert-title">${data.alert_type || 'Alert'}</div>
+                <div class="alert-message">${data.message}</div>
+            </div>
+        `;
+
+        alertsContainer.appendChild(alertDiv);
+
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 10000);
+    }
+
+    async function fetchMetrics() {
+        try {
+            const response = await fetch('/api/metrics');
+            const data = await response.json();
+
+            // Update metrics
+            const registry = data.services.registry || {};
+            const eventStream = data.services.event_stream || {};
+            const summary = data.summary || {};
+
+            document.getElementById('total-services').textContent = registry.registered || 0;
+            document.getElementById('healthy-services').textContent = registry.healthy || 0;
+            document.getElementById('connected-clients').textContent = eventStream.connected_clients || 0;
+            document.getElementById('system-health').textContent = summary.health_percentage
+                ? `${Math.round(summary.health_percentage)}%`
+                : '-';
+
+            // Update system health badge
+            const healthBadge = document.getElementById('system-health-badge');
+            if (summary.health_percentage >= 80) {
+                healthBadge.textContent = `${Math.round(summary.health_percentage)}% Healthy`;
+                healthBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+                healthBadge.style.borderColor = '#10b981';
+                healthBadge.style.color = '#10b981';
+            } else if (summary.health_percentage >= 50) {
+                healthBadge.textContent = `${Math.round(summary.health_percentage)}% Warning`;
+                healthBadge.style.background = 'rgba(251, 191, 36, 0.2)';
+                healthBadge.style.borderColor = '#fbbf24';
+                healthBadge.style.color = '#fbbf24';
+            } else {
+                healthBadge.textContent = `${Math.round(summary.health_percentage)}% Error`;
+                healthBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+                healthBadge.style.borderColor = '#ef4444';
+                healthBadge.style.color = '#ef4444';
+            }
+
+            // Update global status badge
+            const globalStatus = document.getElementById('global-status');
+            if (summary.health_percentage >= 80) {
+                globalStatus.className = 'status-badge ok';
+                globalStatus.textContent = 'OK';
+            } else if (summary.health_percentage >= 50) {
+                globalStatus.className = 'status-badge warning';
+                globalStatus.textContent = 'WARNING';
+            } else {
+                globalStatus.className = 'status-badge error';
+                globalStatus.textContent = 'ERROR';
+            }
+
+            // Update core services display
+            updateCoreServicesDisplay(data.services);
+
+        } catch (error) {
+            console.error('Error fetching metrics:', error);
+        }
+    }
+
+    async function fetchCostMetrics() {
+        try {
+            const response = await fetch('/api/costs?window=minute');
+            const data = await response.json();
+
+            if (!data.cost_metrics) {
+                return;
+            }
+
+            const costData = data.cost_metrics;
+
+            // Update cost cards
+            const totalCost = costData.total_cost_usd || 0;
+            document.getElementById('total-cost').textContent =
+                `$${totalCost.toFixed(4)}`;
+            document.getElementById('total-requests').textContent =
+                costData.total_requests || 0;
+            document.getElementById('total-tokens').textContent =
+                (costData.total_tokens || 0).toLocaleString();
+            document.getElementById('avg-cost').textContent =
+                `$${(costData.cost_per_request || 0).toFixed(4)}`;
+
+            // Update cost badge in header
+            document.getElementById('cost-badge').textContent = `$${totalCost.toFixed(4)}`;
+
+            // Update cost breakdown by provider
+            if (costData.cost_per_provider && Object.keys(costData.cost_per_provider).length > 0) {
+                const breakdown = document.getElementById('cost-breakdown');
+                breakdown.innerHTML = Object.entries(costData.cost_per_provider)
+                    .map(([provider, cost]) => {
+                        const requests = costData.requests_per_provider[provider] || 0;
+                        return `
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #3a4568;">
+                                <span style="color: #e0e0e0;">${provider}</span>
+                                <span style="color: #10b981; font-weight: 600;">$${cost.toFixed(4)} (${requests} req)</span>
+                            </div>
+                        `;
+                    }).join('');
+            } else {
+                document.getElementById('cost-breakdown').innerHTML =
+                    '<p style="color: #9ca3af;">No cost data available yet</p>';
+            }
+
+        } catch (error) {
+            console.error('Error fetching cost metrics:', error);
+        }
+    }
+
+    function updateCoreServicesDisplay(services) {
+        const container = document.getElementById('services-container');
+
+        const coreServices = [
+            { name: 'Registry', key: 'registry', port: 6121 },
+            { name: 'Heartbeat Monitor', key: 'heartbeat_monitor', port: 6109 },
+            { name: 'Resource Manager', key: 'resource_manager', port: 6104 },
+            { name: 'Token Governor', key: 'token_governor', port: 6105 },
+            { name: 'Event Stream', key: 'event_stream', port: 6102 }
+        ];
+
+        container.innerHTML = coreServices.map(svc => {
+            const serviceData = services[svc.key] || {};
+            const isHealthy = serviceData.status === 'ok';
+
+            return `
+                <div class="service-card" data-service-key="${svc.key}">
+                    <div class="service-header">
+                        <div class="service-name">${svc.name}</div>
+                        <div class="service-status ${isHealthy ? 'healthy' : 'unhealthy'}"></div>
+                    </div>
+                    <div class="service-info">
+                        <div class="service-info-row">
+                            <span class="service-info-label">Port:</span>
+                            <span class="service-info-value">${svc.port}</span>
+                        </div>
+                        <div class="service-info-row">
+                            <span class="service-info-label">Status:</span>
+                            <span class="service-info-value">${serviceData.status || 'unknown'}</span>
+                        </div>
+                        ${svc.key === 'registry' ? `
+                        <div class="service-info-row">
+                            <span class="service-info-label">Registered:</span>
+                            <span class="service-info-value">${serviceData.registered || 0}</span>
+                        </div>
+                        ` : ''}
+                        ${svc.key === 'event_stream' ? `
+                        <div class="service-info-row">
+                            <span class="service-info-label">Clients:</span>
+                            <span class="service-info-value">${serviceData.connected_clients || 0}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="last-update">Last check: ${new Date().toLocaleTimeString()}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function fetchAgents() {
+        try {
+            const response = await fetch('/api/services');
+            const data = await response.json();
+            const agents = data.services || [];
+
+            const container = document.getElementById('agents-container');
+
+            // Update agents badge count
+            document.getElementById('agents-badge').textContent = agents.length;
+
+            if (agents.length === 0) {
+                container.innerHTML = '<div class="loading"><p>No agents registered yet</p></div>';
+                return;
+            }
+
+            container.innerHTML = agents.map(agent => `
+                <div class="service-card" data-service-id="${agent.service_id}">
+                    <div class="service-header">
+                        <div class="service-name">${agent.name}</div>
+                        <div class="service-status ${agent.status === 'ok' ? 'healthy' : 'unhealthy'}"></div>
+                    </div>
+                    <div class="service-info">
+                        <div class="service-info-row">
+                            <span class="service-info-label">Type:</span>
+                            <span class="service-info-value">${agent.labels?.agent_role || 'unknown'}</span>
+                        </div>
+                        <div class="service-info-row">
+                            <span class="service-info-label">Tier:</span>
+                            <span class="service-info-value">Tier ${agent.labels?.tier || '?'}</span>
+                        </div>
+                        <div class="service-info-row">
+                            <span class="service-info-label">Capabilities:</span>
+                            <span class="service-info-value">${agent.caps?.length || 0} caps</span>
+                        </div>
+                    </div>
+                    <div class="last-update">Last heartbeat: ${new Date(agent.last_heartbeat_ts).toLocaleTimeString()}</div>
+                </div>
+            `).join('');
+
+        } catch (error) {
+            console.error('Error fetching agents:', error);
+        }
+    }
+
+    // Initialize dashboard
+    // Apply settings to dashboard view
+    function applyViewSettings(settings) {
+        console.log('Applying dashboard settings:', settings);
+
+        // Clear existing auto-refresh timer
+        if (metricsUpdateInterval) {
+            clearInterval(metricsUpdateInterval);
+            metricsUpdateInterval = null;
+        }
+
+        // Setup auto-refresh if enabled
+        if (settings.autoRefreshEnabled) {
+            const intervalMs = settings.refreshInterval * 1000;
+            console.log('Setting up auto-refresh every', settings.refreshInterval, 'seconds');
+            metricsUpdateInterval = setInterval(() => {
+                fetchMetrics();
+                fetchAgents();
+                fetchCostMetrics();
+            }, intervalMs);
+        } else {
+            console.log('Auto-refresh disabled');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initial fetch
+        fetchMetrics();
+        fetchAgents();
+        fetchCostMetrics();
+
+        // Settings will be loaded by base.html, which will call applyViewSettings()
+        // Default auto-refresh (will be overridden by settings)
+        setTimeout(() => {
+            const settings = getSettings();
+            applyViewSettings(settings);
+        }, 100);
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (metricsUpdateInterval) {
+            clearInterval(metricsUpdateInterval);
+        }
+    });
+</script>
+{% endblock %}

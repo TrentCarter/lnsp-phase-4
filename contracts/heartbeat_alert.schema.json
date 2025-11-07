@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "heartbeat_alert.schema.json",
+  "title": "Heartbeat Alert",
+  "description": "Schema for heartbeat miss alerts (HMI PRD §5.4)",
+  "type": "object",
+  "required": ["alert_type", "service_id", "service_name", "missed_beats", "last_seen", "action", "ts"],
+  "properties": {
+    "alert_type": {
+      "type": "string",
+      "description": "Type of alert",
+      "enum": ["heartbeat_miss", "heartbeat_restored", "service_down", "service_deregistered"]
+    },
+    "service_id": {
+      "type": "string",
+      "description": "Service UUID",
+      "format": "uuid"
+    },
+    "service_name": {
+      "type": "string",
+      "description": "Human-friendly service name"
+    },
+    "missed_beats": {
+      "type": "integer",
+      "description": "Number of consecutive heartbeats missed",
+      "minimum": 1
+    },
+    "last_seen": {
+      "type": "string",
+      "description": "Timestamp of last successful heartbeat (ISO 8601)",
+      "format": "date-time"
+    },
+    "action": {
+      "type": "string",
+      "description": "Action taken by Heartbeat Monitor",
+      "enum": ["warning", "marked_down", "deregistered", "escalated"]
+    },
+    "ts": {
+      "type": "string",
+      "description": "Alert timestamp (ISO 8601)",
+      "format": "date-time"
+    },
+    "parent": {
+      "type": ["string", "null"],
+      "description": "Parent agent to notify (if applicable)"
+    }
+  },
+  "additionalProperties": false
+}

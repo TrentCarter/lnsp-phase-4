@@ -1,0 +1,189 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "agent_invocation.schema.json",
+  "title": "Agent Invocation Schema",
+  "description": "Schema for agent invocation requests and responses",
+  "definitions": {
+    "AgentInvocationRequest": {
+      "type": "object",
+      "required": ["request_id", "payload"],
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique request identifier"
+        },
+        "run_id": {
+          "type": "string",
+          "description": "Optional run ID for grouping related requests"
+        },
+        "agent_name": {
+          "type": "string",
+          "description": "Direct agent name to invoke (mutually exclusive with capabilities)"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Capabilities required (router will find matching agent)"
+        },
+        "payload": {
+          "type": "object",
+          "description": "Request payload to pass to agent"
+        },
+        "timeout_s": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600,
+          "default": 30,
+          "description": "Timeout in seconds"
+        },
+        "transport": {
+          "type": "string",
+          "enum": ["rpc", "file", "mcp", "rest"],
+          "description": "Transport mechanism (auto-detected if not specified)"
+        },
+        "context": {
+          "type": "object",
+          "description": "Additional context for agent (parent agent, run metadata, etc.)",
+          "properties": {
+            "parent_agent": {
+              "type": "string"
+            },
+            "depth": {
+              "type": "integer",
+              "description": "Depth in agent hierarchy (0 = top-level)"
+            },
+            "metadata": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "AgentInvocationResponse": {
+      "type": "object",
+      "required": ["request_id", "agent_name", "status", "latency_ms"],
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "description": "Request ID from original request"
+        },
+        "agent_name": {
+          "type": "string",
+          "description": "Name of agent that processed request"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["success", "error", "timeout"],
+          "description": "Invocation status"
+        },
+        "result": {
+          "description": "Agent response (null if error or timeout)"
+        },
+        "error": {
+          "type": "string",
+          "description": "Error message if status is error or timeout"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional metadata about invocation",
+          "properties": {
+            "transport": {
+              "type": "string"
+            },
+            "agent_role": {
+              "type": "string"
+            },
+            "tier": {
+              "type": "string"
+            },
+            "retries": {
+              "type": "integer"
+            },
+            "cost_usd": {
+              "type": "number"
+            }
+          }
+        },
+        "latency_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total invocation latency in milliseconds"
+        }
+      }
+    },
+    "AgentDiscoveryRequest": {
+      "type": "object",
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Required capabilities"
+        },
+        "agent_role": {
+          "type": "string",
+          "enum": ["coord", "exec", "system"],
+          "description": "Agent role filter"
+        },
+        "tier": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3,
+          "description": "Tier filter (1=Claude, 2=Local LLM, 3=External API)"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10,
+          "description": "Maximum number of results"
+        }
+      }
+    },
+    "AgentDiscoveryResponse": {
+      "type": "object",
+      "required": ["count", "agents"],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "description": "Number of matching agents"
+        },
+        "agents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "agent_name": {
+                "type": "string"
+              },
+              "display_name": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string"
+              },
+              "tier": {
+                "type": "string"
+              },
+              "capabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "url": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

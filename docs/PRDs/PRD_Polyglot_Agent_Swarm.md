@@ -9,7 +9,7 @@
 
 ## 1) Objectives & Success Criteria
 
-**Primary workflows (runtime):**
+**Primary workflows (runtime):***
 A. Chunk datasets → DBs
 B. DB QA (field completeness) + lightweight Domain tagging via local LLMs
 C. Model training (Query Tower, reranker, directional adapters)

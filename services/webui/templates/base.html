@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PAS Agent Swarm HMI{% endblock %}</title>
+
+    <!-- D3.js for tree visualization -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <!-- Socket.IO for real-time updates -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+    <!-- Chart.js for metrics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/hmi.css') }}">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #0a0e27;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1f3a 0%, #2d3561 100%);
+            padding: 1rem 2rem;
+            border-bottom: 2px solid #4a5578;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.ok {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .status-badge.warning {
+            background-color: #f59e0b;
+            color: white;
+        }
+
+        .status-badge.error {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        /* Task Status Indicator */
+        .task-status {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 1rem;
+            background: rgba(30, 39, 71, 0.6);
+            border-radius: 8px;
+            border: 1px solid #3a4568;
+            max-width: 350px;
+        }
+
+        .task-status-led {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #6b7280;
+            box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.3);
+            flex-shrink: 0;
+        }
+
+        .task-status-led.running {
+            background-color: #3b82f6;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+            animation: pulse-led 2s ease-in-out infinite;
+        }
+
+        .task-status-led.done {
+            background-color: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        }
+
+        .task-status-led.error {
+            background-color: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+            animation: pulse-led 1s ease-in-out infinite;
+        }
+
+        .task-status-led.waiting {
+            background-color: #f59e0b;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+        }
+
+        .task-status-led.idle {
+            background-color: #6b7280;
+            box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.3);
+        }
+
+        @keyframes pulse-led {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .task-status-text {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .task-status-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #e0e0e0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .task-status-label {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav a {
+            color: #a0aec0;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .nav a:hover, .nav a.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .settings-button {
+            background: transparent;
+            border: 1px solid #4a5578;
+            color: #a0aec0;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .settings-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-color: #6b7280;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #1e2747 0%, #2a3558 100%);
+            border: 1px solid #3a4568;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .metric-card h3 {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .metric-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+
+        .alert-banner {
+            background-color: #7c2d12;
+            border: 1px solid #dc2626;
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .alert-banner.warning {
+            background-color: #713f12;
+            border-color: #f59e0b;
+        }
+
+        .alert-banner.info {
+            background-color: #1e3a8a;
+            border-color: #3b82f6;
+        }
+
+        .alert-icon {
+            font-size: 1.5rem;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .alert-message {
+            font-size: 0.875rem;
+            color: #d1d5db;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #6b7280;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #6b7280;
+        }
+
+        .connection-dot.connected {
+            background-color: #10b981;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Settings Modal */
+        .settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .settings-modal.active {
+            display: flex;
+        }
+
+        .settings-content {
+            background: linear-gradient(135deg, #1e2747 0%, #2a3558 100%);
+            border: 2px solid #4a5578;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+        }
+
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #4a5578;
+        }
+
+        .settings-header h2 {
+            color: #fff;
+            font-size: 1.5rem;
+        }
+
+        .close-button {
+            background: transparent;
+            border: none;
+            color: #9ca3af;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .close-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .settings-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .settings-section h3 {
+            color: #e0e0e0;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #3a4568;
+        }
+
+        .setting-row:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
+            color: #d1d5db;
+            font-size: 0.875rem;
+        }
+
+        .setting-description {
+            color: #9ca3af;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .setting-input {
+            background-color: #1a1f3a;
+            border: 1px solid #4a5578;
+            color: #e0e0e0;
+            padding: 0.5rem;
+            border-radius: 6px;
+            width: 80px;
+            text-align: center;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            background-color: #4a5578;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .toggle-switch.active {
+            background-color: #10b981;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(24px);
+        }
+
+        .settings-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #4a5578;
+        }
+
+        .settings-button-primary {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .settings-button-primary:hover {
+            background-color: #2563eb;
+        }
+
+        .settings-button-secondary {
+            background-color: transparent;
+            color: #9ca3af;
+            border: 1px solid #4a5578;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .settings-button-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: #e0e0e0;
+        }
+    </style>
+
+    {% block extra_styles %}{% endblock %}
+</head>
+<body>
+    <header class="header">
+        <h1>
+            <span>🤖</span>
+            PAS Agent Swarm
+            <span id="global-status" class="status-badge ok">OK</span>
+        </h1>
+
+        <!-- Task Status Indicator -->
+        <div id="task-status" class="task-status" style="display: none;">
+            <div id="task-status-led" class="task-status-led idle"></div>
+            <div class="task-status-text">
+                <div id="task-status-name" class="task-status-name">No active task</div>
+                <div id="task-status-label" class="task-status-label">IDLE</div>
+            </div>
+        </div>
+
+        <nav class="nav">
+            <a href="/" {% if request.path == '/' %}class="active"{% endif %}>Dashboard</a>
+            <a href="/tree" {% if request.path == '/tree' %}class="active"{% endif %}>Tree View</a>
+            <a href="/sequencer" {% if request.path == '/sequencer' %}class="active"{% endif %}>Sequencer</a>
+            <button class="settings-button" onclick="openSettings()">⚙️ Settings</button>
+        </nav>
+        <div class="connection-status">
+            <div id="connection-dot" class="connection-dot"></div>
+            <span id="connection-text">Connecting...</span>
+        </div>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="settings-modal">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h2>⚙️ Settings</h2>
+                <button class="close-button" onclick="closeSettings()">✕</button>
+            </div>
+
+            <!-- Auto-Refresh Settings -->
+            <div class="settings-section">
+                <h3>🔄 Auto-Refresh</h3>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Enable Auto-Refresh</div>
+                        <div class="setting-description">Automatically update data without manual refresh</div>
+                    </div>
+                    <div class="setting-control">
+                        <div id="auto-refresh-toggle" class="toggle-switch" onclick="toggleAutoRefresh()"></div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Refresh Interval</div>
+                        <div class="setting-description">Time between auto-refreshes (seconds)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" id="refresh-interval" class="setting-input" min="5" max="300" value="60">
+                        <span style="color: #9ca3af; font-size: 0.875rem;">sec</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Display Settings -->
+            <div class="settings-section">
+                <h3>🎨 Display</h3>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Show Tooltips</div>
+                        <div class="setting-description">Display detailed information on hover</div>
+                    </div>
+                    <div class="setting-control">
+                        <div id="tooltips-toggle" class="toggle-switch active" onclick="toggleTooltips()"></div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Compact Mode</div>
+                        <div class="setting-description">Reduce spacing for more information density</div>
+                    </div>
+                    <div class="setting-control">
+                        <div id="compact-toggle" class="toggle-switch" onclick="toggleCompactMode()"></div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Time Zone</div>
+                        <div class="setting-description">Display time zone for timestamps</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="timezone-select" class="setting-input" style="width: 140px;">
+                            <option value="America/New_York">EST (US Eastern)</option>
+                            <option value="America/Chicago">CST (US Central)</option>
+                            <option value="America/Denver">MST (US Mountain)</option>
+                            <option value="America/Los_Angeles">PST (US Pacific)</option>
+                            <option value="UTC">UTC</option>
+                            <option value="Europe/London">GMT (London)</option>
+                            <option value="Asia/Tokyo">JST (Tokyo)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Settings -->
+            <div class="settings-section">
+                <h3>⚡ Performance</h3>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Animation Duration</div>
+                        <div class="setting-description">Transition speed for visual updates (milliseconds)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" id="animation-duration" class="setting-input" min="0" max="2000" step="100" value="750">
+                        <span style="color: #9ca3af; font-size: 0.875rem;">ms</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sequencer Settings -->
+            <div class="settings-section">
+                <h3>🎹 Sequencer</h3>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Hide Scrollbars</div>
+                        <div class="setting-description">Use draggable playhead instead of scrollbars</div>
+                    </div>
+                    <div class="setting-control">
+                        <div id="hide-scrollbars-toggle" class="toggle-switch active" onclick="toggleHideScrollbars()"></div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Default Playback Speed</div>
+                        <div class="setting-description">Initial playback speed multiplier</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" id="default-playback-speed" class="setting-input" min="0.1" max="100" step="0.1" value="1.0">
+                        <span style="color: #9ca3af; font-size: 0.875rem;">x (0.1x-100x range)</span>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Default Sound Mode</div>
+                        <div class="setting-description">Default sound output mode</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="default-sound-mode" class="setting-input" style="width: 140px;">
+                            <option value="none" selected>None</option>
+                            <option value="voice">Voice</option>
+                            <option value="music">Music Note</option>
+                            <option value="random">Random Sounds</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio Settings -->
+            <div class="settings-section">
+                <h3>🔊 Audio</h3>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Master Audio</div>
+                        <div class="setting-description">Enable all sound output</div>
+                    </div>
+                    <div class="setting-control">
+                        <div id="master-audio-toggle" class="toggle-switch" onclick="toggleMasterAudio()"></div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Sequencer Notes</div>
+                        <div class="setting-description">Musical notes for task events (assign, start, complete)</div>
+                    </div>
+                    <div class="setting-control">
+                        <div id="sequencer-notes-toggle" class="toggle-switch" onclick="toggleSequencerNotes()"></div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Agent Voice Status</div>
+                        <div class="setting-description">Text-to-speech narration of agent updates</div>
+                    </div>
+                    <div class="setting-control">
+                        <div id="agent-voice-toggle" class="toggle-switch" onclick="toggleAgentVoice()"></div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Audio Volume</div>
+                        <div class="setting-description">Master volume level (0-100%)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="range" id="audio-volume" class="setting-input" min="0" max="100" value="70" style="width: 120px;">
+                        <span id="volume-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 40px;">70%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-footer">
+                <button class="settings-button-secondary" onclick="resetSettings()">Reset to Defaults</button>
+                <button class="settings-button-primary" onclick="saveSettings()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Base WebSocket connection -->
+    <script>
+        // Global WebSocket connection
+        let socket = null;
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
+
+        function connectWebSocket() {
+            const connectionDot = document.getElementById('connection-dot');
+            const connectionText = document.getElementById('connection-text');
+
+            socket = io('http://localhost:6102', {
+                transports: ['websocket', 'polling'],
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: MAX_RECONNECT_ATTEMPTS
+            });
+
+            socket.on('connect', () => {
+                console.log('WebSocket connected');
+                connectionDot.classList.add('connected');
+                connectionText.textContent = 'Connected';
+                reconnectAttempts = 0;
+            });
+
+            socket.on('disconnect', () => {
+                console.log('WebSocket disconnected');
+                connectionDot.classList.remove('connected');
+                connectionText.textContent = 'Disconnected';
+            });
+
+            socket.on('connected', (data) => {
+                console.log('Server acknowledged connection:', data);
+            });
+
+            socket.on('event', (event) => {
+                console.log('Received event:', event);
+                handleRealtimeEvent(event);
+            });
+
+            socket.on('event_history', (events) => {
+                console.log('Received event history:', events.length, 'events');
+                events.forEach(handleRealtimeEvent);
+            });
+
+            socket.on('pong', (data) => {
+                console.log('Pong received:', data);
+            });
+        }
+
+        // Override this function in child templates
+        function handleRealtimeEvent(event) {
+            console.log('Base handler received event:', event.event_type);
+
+            // Update task status on relevant events
+            if (['job_started', 'task_started', 'job_completed', 'task_completed', 'heartbeat', 'error', 'blocked'].includes(event.event_type)) {
+                fetchCurrentTask();
+            }
+        }
+
+        // Task Status Management
+        let currentTaskTimer = null;
+
+        async function fetchCurrentTask() {
+            try {
+                const response = await fetch('/api/current-task', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    hideTaskStatus();
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.task) {
+                    updateTaskStatus(data.task);
+                } else {
+                    hideTaskStatus();
+                }
+            } catch (error) {
+                console.error('Error fetching current task:', error);
+                hideTaskStatus();
+            }
+        }
+
+        function updateTaskStatus(task) {
+            const statusContainer = document.getElementById('task-status');
+            const statusLed = document.getElementById('task-status-led');
+            const statusName = document.getElementById('task-status-name');
+            const statusLabel = document.getElementById('task-status-label');
+
+            // Show the status indicator
+            statusContainer.style.display = 'flex';
+
+            // Update task name
+            statusName.textContent = task.name || 'Active Task';
+
+            // Map task status to LED class and label
+            const statusMap = {
+                'running': { class: 'running', label: 'RUNNING' },
+                'blocked': { class: 'waiting', label: 'BLOCKED' },
+                'waiting': { class: 'waiting', label: 'WAITING' },
+                'awaiting_approval': { class: 'waiting', label: 'AWAITING APPROVAL' },
+                'done': { class: 'done', label: 'DONE' },
+                'completed': { class: 'done', label: 'COMPLETED' },
+                'error': { class: 'error', label: 'ERROR' },
+                'failed': { class: 'error', label: 'FAILED' },
+                'stuck': { class: 'error', label: 'STUCK' },
+                'idle': { class: 'idle', label: 'IDLE' }
+            };
+
+            const status = statusMap[task.status] || statusMap['idle'];
+
+            // Update LED class
+            statusLed.className = `task-status-led ${status.class}`;
+
+            // Update label
+            statusLabel.textContent = status.label;
+        }
+
+        function hideTaskStatus() {
+            const statusContainer = document.getElementById('task-status');
+            statusContainer.style.display = 'none';
+        }
+
+        function startTaskStatusPolling() {
+            // Poll for current task every 5 seconds
+            if (currentTaskTimer) {
+                clearInterval(currentTaskTimer);
+            }
+
+            fetchCurrentTask(); // Initial fetch
+
+            currentTaskTimer = setInterval(() => {
+                fetchCurrentTask();
+            }, 5000);
+        }
+
+        function stopTaskStatusPolling() {
+            if (currentTaskTimer) {
+                clearInterval(currentTaskTimer);
+                currentTaskTimer = null;
+            }
+        }
+
+        // Settings Management
+        const DEFAULT_SETTINGS = {
+            autoRefreshEnabled: true,
+            refreshInterval: 60,
+            showTooltips: true,
+            compactMode: false,
+            animationDuration: 750,
+            masterAudioEnabled: false,
+            sequencerNotesEnabled: false,
+            agentVoiceEnabled: false,
+            audioVolume: 70,
+            timezone: 'America/New_York',  // EST as default
+            hideScrollbars: true,
+            defaultPlaybackSpeed: 1.0,
+            defaultSoundMode: 'none'
+        };
+
+        let currentSettings = { ...DEFAULT_SETTINGS };
+
+        function loadSettings() {
+            const saved = localStorage.getItem('pas_hmi_settings');
+            if (saved) {
+                try {
+                    currentSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+                } catch (e) {
+                    console.error('Failed to load settings:', e);
+                    currentSettings = { ...DEFAULT_SETTINGS };
+                }
+            }
+            applySettings();
+            updateSettingsUI();
+        }
+
+        function saveSettings() {
+            // Read values from UI
+            currentSettings.autoRefreshEnabled = document.getElementById('auto-refresh-toggle').classList.contains('active');
+            currentSettings.refreshInterval = parseInt(document.getElementById('refresh-interval').value);
+            currentSettings.showTooltips = document.getElementById('tooltips-toggle').classList.contains('active');
+            currentSettings.compactMode = document.getElementById('compact-toggle').classList.contains('active');
+            currentSettings.animationDuration = parseInt(document.getElementById('animation-duration').value);
+            currentSettings.masterAudioEnabled = document.getElementById('master-audio-toggle').classList.contains('active');
+            currentSettings.sequencerNotesEnabled = document.getElementById('sequencer-notes-toggle').classList.contains('active');
+            currentSettings.agentVoiceEnabled = document.getElementById('agent-voice-toggle').classList.contains('active');
+            currentSettings.audioVolume = parseInt(document.getElementById('audio-volume').value);
+            currentSettings.timezone = document.getElementById('timezone-select').value;
+            currentSettings.hideScrollbars = document.getElementById('hide-scrollbars-toggle').classList.contains('active');
+            currentSettings.defaultPlaybackSpeed = parseFloat(document.getElementById('default-playback-speed').value);
+            currentSettings.defaultSoundMode = document.getElementById('default-sound-mode').value;
+
+            // Validate
+            if (currentSettings.refreshInterval < 5) currentSettings.refreshInterval = 5;
+            if (currentSettings.refreshInterval > 300) currentSettings.refreshInterval = 300;
+            if (currentSettings.animationDuration < 0) currentSettings.animationDuration = 0;
+            if (currentSettings.animationDuration > 2000) currentSettings.animationDuration = 2000;
+            if (currentSettings.audioVolume < 0) currentSettings.audioVolume = 0;
+            if (currentSettings.audioVolume > 100) currentSettings.audioVolume = 100;
+            if (currentSettings.defaultPlaybackSpeed < 0.1) currentSettings.defaultPlaybackSpeed = 0.1;
+            if (currentSettings.defaultPlaybackSpeed > 100) currentSettings.defaultPlaybackSpeed = 100;
+
+            // Save to localStorage
+            localStorage.setItem('pas_hmi_settings', JSON.stringify(currentSettings));
+
+            // Apply settings
+            applySettings();
+
+            // Close modal
+            closeSettings();
+
+            // Notify user
+            console.log('Settings saved:', currentSettings);
+
+            // Reload page to apply changes (simple approach)
+            location.reload();
+        }
+
+        function resetSettings() {
+            if (confirm('Reset all settings to defaults?')) {
+                currentSettings = { ...DEFAULT_SETTINGS };
+                localStorage.removeItem('pas_hmi_settings');
+                updateSettingsUI();
+                applySettings();
+            }
+        }
+
+        function applySettings() {
+            // This will be overridden by child templates to apply view-specific settings
+            if (typeof applyViewSettings === 'function') {
+                applyViewSettings(currentSettings);
+            }
+        }
+
+        function updateSettingsUI() {
+            // Update toggle switches
+            document.getElementById('auto-refresh-toggle').classList.toggle('active', currentSettings.autoRefreshEnabled);
+            document.getElementById('tooltips-toggle').classList.toggle('active', currentSettings.showTooltips);
+            document.getElementById('compact-toggle').classList.toggle('active', currentSettings.compactMode);
+            document.getElementById('master-audio-toggle').classList.toggle('active', currentSettings.masterAudioEnabled);
+            document.getElementById('sequencer-notes-toggle').classList.toggle('active', currentSettings.sequencerNotesEnabled);
+            document.getElementById('agent-voice-toggle').classList.toggle('active', currentSettings.agentVoiceEnabled);
+            document.getElementById('hide-scrollbars-toggle').classList.toggle('active', currentSettings.hideScrollbars);
+
+            // Update input values
+            document.getElementById('refresh-interval').value = currentSettings.refreshInterval;
+            document.getElementById('animation-duration').value = currentSettings.animationDuration;
+            document.getElementById('audio-volume').value = currentSettings.audioVolume;
+            document.getElementById('volume-display').textContent = currentSettings.audioVolume + '%';
+            document.getElementById('timezone-select').value = currentSettings.timezone;
+            document.getElementById('default-playback-speed').value = currentSettings.defaultPlaybackSpeed;
+            document.getElementById('default-sound-mode').value = currentSettings.defaultSoundMode;
+        }
+
+        function openSettings() {
+            updateSettingsUI();
+            document.getElementById('settings-modal').classList.add('active');
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.remove('active');
+        }
+
+        function toggleAutoRefresh() {
+            document.getElementById('auto-refresh-toggle').classList.toggle('active');
+        }
+
+        function toggleTooltips() {
+            document.getElementById('tooltips-toggle').classList.toggle('active');
+        }
+
+        function toggleCompactMode() {
+            document.getElementById('compact-toggle').classList.toggle('active');
+        }
+
+        function toggleMasterAudio() {
+            document.getElementById('master-audio-toggle').classList.toggle('active');
+        }
+
+        function toggleSequencerNotes() {
+            document.getElementById('sequencer-notes-toggle').classList.toggle('active');
+        }
+
+        function toggleAgentVoice() {
+            document.getElementById('agent-voice-toggle').classList.toggle('active');
+        }
+
+        function toggleHideScrollbars() {
+            document.getElementById('hide-scrollbars-toggle').classList.toggle('active');
+        }
+
+        // Update volume display as slider moves
+        document.addEventListener('DOMContentLoaded', () => {
+            const volumeSlider = document.getElementById('audio-volume');
+            const volumeDisplay = document.getElementById('volume-display');
+
+            if (volumeSlider && volumeDisplay) {
+                volumeSlider.addEventListener('input', (e) => {
+                    volumeDisplay.textContent = e.target.value + '%';
+                });
+            }
+        });
+
+        // Close modal when clicking outside
+        document.addEventListener('click', (event) => {
+            const modal = document.getElementById('settings-modal');
+            if (event.target === modal) {
+                closeSettings();
+            }
+        });
+
+        // Initialize WebSocket on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load settings first
+            loadSettings();
+
+            // Then connect WebSocket
+            connectWebSocket();
+
+            // Start task status polling
+            startTaskStatusPolling();
+
+            // Send ping every 30 seconds
+            setInterval(() => {
+                if (socket && socket.connected) {
+                    socket.emit('ping');
+                }
+            }, 30000);
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopTaskStatusPolling();
+        });
+
+        // Export settings for child templates
+        function getSettings() {
+            return currentSettings;
+        }
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

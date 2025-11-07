@@ -1,0 +1,1020 @@
+{% extends "base.html" %}
+
+{% block title %}Sequencer - PAS Agent Swarm{% endblock %}
+
+{% block extra_styles %}
+<style>
+    #sequencer-container {
+        width: 100%;
+        height: calc(100vh - 100px);
+        background: linear-gradient(135deg, #0f1423 0%, #1a1f3a 100%);
+        border-radius: 12px;
+        margin-top: 1rem;
+        overflow: hidden;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #sequencer-toolbar {
+        background: rgba(30, 39, 71, 0.95);
+        border-bottom: 2px solid #4a5578;
+        padding: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    #sequencer-canvas-wrapper {
+        flex: 1;
+        position: relative;
+        overflow: auto;
+        background: #0a0e27;
+    }
+
+    #sequencer-canvas {
+        display: block;
+        cursor: crosshair;
+    }
+
+    .playhead {
+        position: absolute;
+        top: 0;
+        width: 2px;
+        height: 100%;
+        background: #ef4444;
+        pointer-events: none;
+        z-index: 100;
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+    }
+
+    .playhead-handle {
+        position: absolute;
+        top: -8px;
+        left: -8px;
+        width: 16px;
+        height: 16px;
+        background: #ef4444;
+        border: 2px solid white;
+        border-radius: 50%;
+        cursor: grab;
+        pointer-events: all;
+        z-index: 101;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    .playhead-handle:hover {
+        transform: scale(1.2);
+        background: #dc2626;
+    }
+
+    .playhead-handle:active {
+        cursor: grabbing;
+    }
+
+    .toolbar-group {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .toolbar-label {
+        color: #9ca3af;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .toolbar-button {
+        padding: 0.5rem 1rem;
+        background: rgba(59, 130, 246, 0.8);
+        border: 1px solid #3b82f6;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .toolbar-button:hover {
+        background: rgba(59, 130, 246, 1);
+        transform: translateY(-1px);
+    }
+
+    .toolbar-button:active {
+        transform: translateY(0);
+    }
+
+    .toolbar-button.active {
+        background: rgba(16, 185, 129, 0.8);
+        border-color: #10b981;
+    }
+
+    .toolbar-button.active:hover {
+        background: rgba(16, 185, 129, 1);
+    }
+
+    .zoom-control {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #e0e0e0;
+    }
+
+    .zoom-button {
+        padding: 0.25rem 0.5rem;
+        background: rgba(59, 130, 246, 0.6);
+        border: 1px solid #3b82f6;
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .zoom-button:hover {
+        background: rgba(59, 130, 246, 0.8);
+    }
+
+    .time-display {
+        color: #e0e0e0;
+        font-size: 1rem;
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        background: rgba(30, 39, 71, 0.8);
+        border-radius: 6px;
+    }
+
+    .legend {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: rgba(30, 39, 71, 0.95);
+        border: 1px solid #4a5578;
+        border-radius: 8px;
+        padding: 1rem;
+        color: #e0e0e0;
+        font-size: 0.875rem;
+        z-index: 10;
+        max-width: 250px;
+    }
+
+    .legend-title {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: #fff;
+        border-bottom: 1px solid #4a5578;
+        padding-bottom: 0.5rem;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0.5rem 0;
+    }
+
+    .legend-color {
+        width: 20px;
+        height: 12px;
+        border-radius: 3px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .tooltip {
+        position: absolute;
+        padding: 0.75rem 1rem;
+        background: rgba(30, 39, 71, 0.95);
+        border: 1px solid #4a5578;
+        border-radius: 8px;
+        color: #e0e0e0;
+        font-size: 0.875rem;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 1000;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        max-width: 300px;
+    }
+
+    .tooltip.visible {
+        opacity: 1;
+    }
+
+    .tooltip-title {
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 0.5rem;
+    }
+
+    .tooltip-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin: 0.25rem 0;
+    }
+
+    .tooltip-label {
+        color: #9ca3af;
+    }
+
+    .tooltip-value {
+        color: #e0e0e0;
+        font-weight: 500;
+    }
+
+    /* Playback Speed Control */
+    .playback-speed-container {
+        background: rgba(30, 39, 71, 0.95);
+        border-top: 2px solid #4a5578;
+        padding: 1rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .speed-slider-group {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        max-width: 600px;
+        width: 100%;
+    }
+
+    .speed-label {
+        color: #9ca3af;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+    }
+
+    .speed-slider {
+        flex: 1;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(74, 85, 120, 0.5);
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    .speed-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #3b82f6;
+        cursor: pointer;
+        box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+    }
+
+    .speed-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #3b82f6;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+    }
+
+    .speed-slider:hover::-webkit-slider-thumb {
+        background: #2563eb;
+    }
+
+    .speed-slider:hover::-moz-range-thumb {
+        background: #2563eb;
+    }
+
+    .speed-value {
+        color: #e0e0e0;
+        font-size: 1rem;
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+        min-width: 60px;
+        text-align: center;
+        padding: 0.5rem 1rem;
+        background: rgba(30, 39, 71, 0.8);
+        border-radius: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 100%; padding: 1rem 2rem;">
+    <div id="sequencer-container">
+        <!-- Toolbar -->
+        <div id="sequencer-toolbar">
+            <div class="toolbar-group">
+                <span class="toolbar-label">Playback</span>
+                <button id="play-pause-btn" class="toolbar-button" onclick="togglePlayPause()">
+                    <span id="play-icon">▶️</span> <span id="play-text">Play</span>
+                </button>
+                <button class="toolbar-button" onclick="resetPlayhead()">⏹️ Stop</button>
+            </div>
+
+            <div class="toolbar-group">
+                <span class="toolbar-label">Playback Speed</span>
+                <div class="zoom-control">
+                    <input type="range" id="playback-speed-top" class="speed-slider"
+                           min="0" max="100" step="1" value="50"
+                           style="width: 120px;"
+                           oninput="updatePlaybackSpeedFromSlider(this.value, 'top')">
+                    <span id="speed-value-top" class="speed-value" style="min-width: 50px; padding: 0.25rem 0.75rem;">1.0x</span>
+                </div>
+            </div>
+
+            <div class="toolbar-group">
+                <span class="toolbar-label">Sound</span>
+                <select id="sound-mode" class="toolbar-button" style="padding: 0.5rem;" onchange="changeSoundMode()">
+                    <option value="none" selected>None</option>
+                    <option value="voice">Voice</option>
+                    <option value="music">Music Note</option>
+                    <option value="random">Random Sounds</option>
+                </select>
+            </div>
+
+            <div class="toolbar-group">
+                <span class="toolbar-label">Zoom</span>
+                <div class="zoom-control">
+                    <button class="zoom-button" onclick="zoomOut()">−</button>
+                    <span id="zoom-level">100%</span>
+                    <button class="zoom-button" onclick="zoomIn()">+</button>
+                </div>
+            </div>
+
+            <div class="toolbar-group">
+                <span class="toolbar-label">Time Range</span>
+                <select id="time-range" class="toolbar-button" style="padding: 0.5rem;" onchange="changeTimeRange()">
+                    <option value="300">Last 5 min</option>
+                    <option value="900">Last 15 min</option>
+                    <option value="1800">Last 30 min</option>
+                    <option value="3600" selected>Last 1 hour</option>
+                    <option value="7200">Last 2 hours</option>
+                    <option value="14400">Last 4 hours</option>
+                </select>
+            </div>
+
+            <div class="toolbar-group">
+                <div class="time-display" id="current-time">00:00:00</div>
+            </div>
+
+            <div class="toolbar-group">
+                <button class="toolbar-button" onclick="refreshSequencer()">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <!-- Canvas Wrapper -->
+        <div id="sequencer-canvas-wrapper">
+            <canvas id="sequencer-canvas"></canvas>
+            <div id="playhead" class="playhead" style="left: 0px;">
+                <div id="playhead-handle" class="playhead-handle"></div>
+            </div>
+        </div>
+
+        <!-- Bottom Playback Speed Control -->
+        <div class="playback-speed-container">
+            <div class="speed-slider-group">
+                <span class="speed-label">Playback Speed</span>
+                <input type="range" id="playback-speed-bottom" class="speed-slider"
+                       min="0" max="100" step="1" value="50"
+                       oninput="updatePlaybackSpeedFromSlider(this.value, 'bottom')">
+                <span id="speed-value-bottom" class="speed-value">1.0x</span>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-title">Status Colors</div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #3b82f6;"></div>
+                <span>Running (0-25%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #fbbf24;"></div>
+                <span>Running (25-75%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #10b981;"></div>
+                <span>Running (75-100%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #f59e0b;"></div>
+                <span>Blocked/Waiting</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #a855f7;"></div>
+                <span>Awaiting Approval</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ef4444;"></div>
+                <span>Stuck/Error</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #6b7280;"></div>
+                <span>Done/Idle</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="tooltip" class="tooltip"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Global variables
+    let canvas, ctx;
+    let isPlaying = false;
+    let playheadPosition = 0;
+    let zoomLevel = 1.0;
+    let timeRangeSeconds = 3600; // 1 hour default
+    let playbackSpeed = 1.0; // Playback speed multiplier (0.1x to 5.0x)
+    let soundMode = 'none'; // none, voice, music, random
+    let agents = [];
+    let tasks = [];
+    let autoRefreshTimer = null;
+
+    // Layout constants
+    const ROW_HEIGHT = 40;
+    const ROW_PADDING = 5;
+    const AGENT_LABEL_WIDTH = 150;
+    const PIXELS_PER_SECOND = 2; // Base: 2 pixels = 1 second
+
+    // Color mapping
+    const statusColors = {
+        'running_0_25': '#3b82f6',     // Blue
+        'running_25_75': '#fbbf24',    // Yellow
+        'running_75_100': '#10b981',   // Green
+        'blocked': '#f59e0b',          // Orange
+        'waiting': '#f59e0b',          // Orange
+        'awaiting_approval': '#a855f7', // Purple
+        'stuck': '#ef4444',            // Red
+        'error': '#ef4444',            // Red
+        'done': '#6b7280',             // Gray
+        'idle': '#6b7280'              // Gray
+    };
+
+    function initializeSequencer() {
+        canvas = document.getElementById('sequencer-canvas');
+        ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Mouse events for interactions
+        canvas.addEventListener('click', handleCanvasClick);
+        canvas.addEventListener('mousemove', handleCanvasHover);
+        canvas.addEventListener('mouseleave', hideTooltip);
+
+        // Draggable playhead
+        initializePlayheadDrag();
+    }
+
+    let isDraggingPlayhead = false;
+
+    function initializePlayheadDrag() {
+        const playheadHandle = document.getElementById('playhead-handle');
+        const canvasWrapper = document.getElementById('sequencer-canvas-wrapper');
+
+        playheadHandle.addEventListener('mousedown', (e) => {
+            isDraggingPlayhead = true;
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDraggingPlayhead) return;
+
+            const wrapperRect = canvasWrapper.getBoundingClientRect();
+            const x = e.clientX - wrapperRect.left;
+
+            // Calculate playhead position from x coordinate
+            const clickedTime = (x - AGENT_LABEL_WIDTH) / (PIXELS_PER_SECOND * zoomLevel);
+            playheadPosition = Math.max(0, Math.min(clickedTime, timeRangeSeconds));
+
+            updatePlayhead();
+            updateCurrentTime();
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDraggingPlayhead = false;
+        });
+    }
+
+    function resizeCanvas() {
+        const wrapper = document.getElementById('sequencer-canvas-wrapper');
+        canvas.width = Math.max(wrapper.clientWidth, 2000);
+        canvas.height = Math.max(wrapper.clientHeight, agents.length * ROW_HEIGHT + 100);
+        drawSequencer();
+    }
+
+    async function fetchSequencerData() {
+        try {
+            const response = await fetch('/api/sequencer');
+            const data = await response.json();
+            console.log('Fetched sequencer data:', data);
+            agents = data.agents || [];
+            tasks = data.tasks || [];
+            drawSequencer();
+        } catch (error) {
+            console.error('Error fetching sequencer data:', error);
+        }
+    }
+
+    function drawSequencer() {
+        if (!ctx) return;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw timeline grid
+        drawTimelineGrid();
+
+        // Draw agent rows
+        drawAgentRows();
+
+        // Draw task blocks
+        drawTaskBlocks();
+    }
+
+    function drawTimelineGrid() {
+        const now = Date.now() / 1000;
+        const startTime = now - timeRangeSeconds;
+        const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
+        const timelineWidth = timeRangeSeconds * pixelsPerSecond;
+
+        // Draw vertical grid lines (every 5 minutes)
+        ctx.strokeStyle = 'rgba(74, 85, 120, 0.3)';
+        ctx.lineWidth = 1;
+
+        const interval = 300; // 5 minutes in seconds
+        for (let t = 0; t <= timeRangeSeconds; t += interval) {
+            const x = AGENT_LABEL_WIDTH + (t * pixelsPerSecond);
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+
+            // Time label
+            const timeFromStart = startTime + t;
+            const date = new Date(timeFromStart * 1000);
+            const timeStr = date.toLocaleTimeString('en-US', { hour12: false });
+
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillText(timeStr, x + 5, 15);
+        }
+    }
+
+    function drawAgentRows() {
+        ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+        agents.forEach((agent, index) => {
+            const y = index * ROW_HEIGHT;
+
+            // Row background (alternating)
+            ctx.fillStyle = index % 2 === 0 ? 'rgba(30, 39, 71, 0.3)' : 'rgba(30, 39, 71, 0.5)';
+            ctx.fillRect(0, y, canvas.width, ROW_HEIGHT);
+
+            // Agent label
+            ctx.fillStyle = '#e0e0e0';
+            ctx.fillText(agent.name, 10, y + ROW_HEIGHT / 2 + 5);
+
+            // Horizontal separator
+            ctx.strokeStyle = 'rgba(74, 85, 120, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, y + ROW_HEIGHT);
+            ctx.lineTo(canvas.width, y + ROW_HEIGHT);
+            ctx.stroke();
+        });
+    }
+
+    function drawTaskBlocks() {
+        const now = Date.now() / 1000;
+        const startTime = now - timeRangeSeconds;
+        const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
+
+        tasks.forEach(task => {
+            const agentIndex = agents.findIndex(a => a.service_id === task.agent_id);
+            if (agentIndex === -1) return;
+
+            const y = agentIndex * ROW_HEIGHT + ROW_PADDING;
+            const blockHeight = ROW_HEIGHT - (2 * ROW_PADDING);
+
+            // Calculate x position and width
+            const taskStartTime = task.start_time;
+            const taskEndTime = task.end_time || now;
+            const duration = taskEndTime - taskStartTime;
+
+            const x = AGENT_LABEL_WIDTH + ((taskStartTime - startTime) * pixelsPerSecond);
+            const width = Math.max(duration * pixelsPerSecond, 2); // Min 2px width
+
+            // Determine color based on status/progress
+            const color = getTaskColor(task);
+            const opacity = task.progress || 0.5;
+
+            // Draw block
+            ctx.fillStyle = color;
+            ctx.globalAlpha = Math.min(Math.max(opacity, 0.4), 1.0);
+            ctx.fillRect(x, y, width, blockHeight);
+
+            // Draw border for active tasks
+            if (!task.end_time) {
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 1.0;
+                ctx.strokeRect(x, y, width, blockHeight);
+            }
+
+            // Reset alpha
+            ctx.globalAlpha = 1.0;
+
+            // Store block bounds for click detection
+            task._bounds = { x, y, width, height: blockHeight };
+        });
+    }
+
+    function getTaskColor(task) {
+        if (task.status === 'error' || task.status === 'stuck') {
+            return statusColors.error;
+        } else if (task.status === 'blocked' || task.status === 'waiting') {
+            return statusColors.blocked;
+        } else if (task.status === 'awaiting_approval') {
+            return statusColors.awaiting_approval;
+        } else if (task.status === 'done') {
+            return statusColors.done;
+        } else {
+            // Running - determine color by progress
+            const progress = task.progress || 0;
+            if (progress < 0.25) return statusColors.running_0_25;
+            if (progress < 0.75) return statusColors.running_25_75;
+            return statusColors.running_75_100;
+        }
+    }
+
+    function handleCanvasClick(event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // Check if clicked on a task block
+        const clickedTask = tasks.find(task => {
+            if (!task._bounds) return false;
+            const b = task._bounds;
+            return x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
+        });
+
+        if (clickedTask) {
+            console.log('Clicked task:', clickedTask);
+            showTaskDetails(clickedTask, event);
+        } else {
+            // Clicked on timeline - move playhead
+            const clickedTime = (x - AGENT_LABEL_WIDTH) / (PIXELS_PER_SECOND * zoomLevel);
+            playheadPosition = clickedTime;
+            updatePlayhead();
+        }
+    }
+
+    function handleCanvasHover(event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        const hoveredTask = tasks.find(task => {
+            if (!task._bounds) return false;
+            const b = task._bounds;
+            return x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
+        });
+
+        if (hoveredTask) {
+            canvas.style.cursor = 'pointer';
+            showTooltip(event, hoveredTask);
+        } else {
+            canvas.style.cursor = 'crosshair';
+            hideTooltip();
+        }
+    }
+
+    function showTooltip(event, task) {
+        const tooltip = document.getElementById('tooltip');
+        const agent = agents.find(a => a.service_id === task.agent_id);
+
+        let content = `<div class="tooltip-title">${task.name || 'Task'}</div>`;
+        content += `<div class="tooltip-row"><span class="tooltip-label">Agent:</span><span class="tooltip-value">${agent ? agent.name : 'Unknown'}</span></div>`;
+        content += `<div class="tooltip-row"><span class="tooltip-label">Status:</span><span class="tooltip-value">${task.status}</span></div>`;
+        content += `<div class="tooltip-row"><span class="tooltip-label">Progress:</span><span class="tooltip-value">${Math.round((task.progress || 0) * 100)}%</span></div>`;
+
+        if (task.start_time) {
+            const start = new Date(task.start_time * 1000);
+            content += `<div class="tooltip-row"><span class="tooltip-label">Started:</span><span class="tooltip-value">${start.toLocaleTimeString()}</span></div>`;
+        }
+
+        if (task.end_time) {
+            const end = new Date(task.end_time * 1000);
+            content += `<div class="tooltip-row"><span class="tooltip-label">Ended:</span><span class="tooltip-value">${end.toLocaleTimeString()}</span></div>`;
+        }
+
+        const duration = (task.end_time || Date.now() / 1000) - task.start_time;
+        content += `<div class="tooltip-row"><span class="tooltip-label">Duration:</span><span class="tooltip-value">${formatDuration(duration)}</span></div>`;
+
+        tooltip.innerHTML = content;
+        tooltip.style.left = `${event.pageX + 10}px`;
+        tooltip.style.top = `${event.pageY - 10}px`;
+        tooltip.classList.add('visible');
+    }
+
+    function hideTooltip() {
+        document.getElementById('tooltip').classList.remove('visible');
+    }
+
+    function showTaskDetails(task, event) {
+        // Could open a modal or sidebar with full task details
+        console.log('Task details:', task);
+    }
+
+    function formatDuration(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+
+        if (hours > 0) {
+            return `${hours}h ${minutes}m ${secs}s`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${secs}s`;
+        } else {
+            return `${secs}s`;
+        }
+    }
+
+    function updatePlayhead() {
+        const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
+        const x = AGENT_LABEL_WIDTH + (playheadPosition * pixelsPerSecond);
+        document.getElementById('playhead').style.left = `${x}px`;
+    }
+
+    function togglePlayPause() {
+        isPlaying = !isPlaying;
+        const icon = document.getElementById('play-icon');
+        const text = document.getElementById('play-text');
+        const btn = document.getElementById('play-pause-btn');
+
+        if (isPlaying) {
+            icon.textContent = '⏸️';
+            text.textContent = 'Pause';
+            btn.classList.add('active');
+            startPlayback();
+        } else {
+            icon.textContent = '▶️';
+            text.textContent = 'Play';
+            btn.classList.remove('active');
+        }
+    }
+
+    function startPlayback() {
+        if (!isPlaying) return;
+
+        // Advance by 0.1 seconds * playback speed
+        playheadPosition += (0.1 * playbackSpeed);
+        if (playheadPosition > timeRangeSeconds) {
+            playheadPosition = 0;
+        }
+
+        updatePlayhead();
+        updateCurrentTime();
+
+        // Check if playhead crossed any task boundaries for sound
+        checkTaskEvents();
+
+        setTimeout(startPlayback, 100); // Update every 100ms
+    }
+
+    function checkTaskEvents() {
+        // Future: Check if playhead crossed task start/end and trigger sound
+        // For now, this is a placeholder for sound integration
+        if (soundMode !== 'none') {
+            // TODO: Implement sound playback based on soundMode
+            // - 'voice': Text-to-speech announcements
+            // - 'music': Musical notes mapped to task events
+            // - 'random': Random sound effects
+        }
+    }
+
+    function resetPlayhead() {
+        playheadPosition = 0;
+        isPlaying = false;
+        document.getElementById('play-icon').textContent = '▶️';
+        document.getElementById('play-text').textContent = 'Play';
+        document.getElementById('play-pause-btn').classList.remove('active');
+        updatePlayhead();
+        updateCurrentTime();
+    }
+
+    function updateCurrentTime() {
+        const now = Date.now() / 1000;
+        const currentTime = now - timeRangeSeconds + playheadPosition;
+        const date = new Date(currentTime * 1000);
+        document.getElementById('current-time').textContent = date.toLocaleTimeString('en-US', { hour12: false });
+    }
+
+    function zoomIn() {
+        zoomLevel = Math.min(zoomLevel * 1.5, 10.0);
+        document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+        resizeCanvas();
+    }
+
+    function zoomOut() {
+        zoomLevel = Math.max(zoomLevel / 1.5, 0.1);
+        document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+        resizeCanvas();
+    }
+
+    function changeTimeRange() {
+        timeRangeSeconds = parseInt(document.getElementById('time-range').value);
+        playheadPosition = 0;
+        updatePlayhead();
+        fetchSequencerData();
+    }
+
+    async function refreshSequencer() {
+        await fetchSequencerData();
+    }
+
+    /**
+     * Convert slider position (0-100) to playback speed (0.1x-100x) using non-linear scaling.
+     * - 0-50%: 0.1x to 1.0x (linear)
+     * - 50-75%: 1.0x to 10x (exponential)
+     * - 75-100%: 10x to 100x (exponential)
+     */
+    function sliderToSpeed(sliderValue) {
+        const val = parseFloat(sliderValue);
+        if (val <= 50) {
+            // 0-50%: 0.1x to 1.0x (linear)
+            return 0.1 + (val / 50) * 0.9;
+        } else if (val <= 75) {
+            // 50-75%: 1.0x to 10x (exponential)
+            const t = (val - 50) / 25; // 0 to 1
+            return 1.0 + Math.pow(t, 2) * 9.0;
+        } else {
+            // 75-100%: 10x to 100x (exponential)
+            const t = (val - 75) / 25; // 0 to 1
+            return 10.0 + Math.pow(t, 2) * 90.0;
+        }
+    }
+
+    /**
+     * Convert playback speed (0.1x-100x) to slider position (0-100) using inverse function.
+     */
+    function speedToSlider(speed) {
+        if (speed <= 1.0) {
+            // 0.1x-1.0x → 0-50
+            return ((speed - 0.1) / 0.9) * 50;
+        } else if (speed <= 10.0) {
+            // 1.0x-10x → 50-75
+            const t = Math.sqrt((speed - 1.0) / 9.0);
+            return 50 + t * 25;
+        } else {
+            // 10x-100x → 75-100
+            const t = Math.sqrt((speed - 10.0) / 90.0);
+            return 75 + t * 25;
+        }
+    }
+
+    /**
+     * Update playback speed from slider input (handles non-linear scaling).
+     */
+    function updatePlaybackSpeedFromSlider(sliderValue, source) {
+        const speed = sliderToSpeed(sliderValue);
+        updatePlaybackSpeed(speed, source);
+    }
+
+    /**
+     * Update playback speed directly (called programmatically or from settings).
+     */
+    function updatePlaybackSpeed(speed, source) {
+        playbackSpeed = parseFloat(speed);
+
+        // Update both sliders and both displays
+        const topSlider = document.getElementById('playback-speed-top');
+        const bottomSlider = document.getElementById('playback-speed-bottom');
+        const topValue = document.getElementById('speed-value-top');
+        const bottomValue = document.getElementById('speed-value-bottom');
+
+        const sliderPos = speedToSlider(playbackSpeed);
+
+        if (source !== 'top') {
+            topSlider.value = sliderPos;
+            topValue.textContent = formatSpeed(playbackSpeed);
+        }
+
+        if (source !== 'bottom') {
+            bottomSlider.value = sliderPos;
+            bottomValue.textContent = formatSpeed(playbackSpeed);
+        }
+
+        console.log('Playback speed set to:', playbackSpeed + 'x (slider position:', sliderPos + ')');
+    }
+
+    /**
+     * Format speed value for display.
+     */
+    function formatSpeed(speed) {
+        if (speed < 1.0) {
+            return speed.toFixed(2) + 'x';
+        } else if (speed < 10.0) {
+            return speed.toFixed(1) + 'x';
+        } else {
+            return Math.round(speed) + 'x';
+        }
+    }
+
+    function changeSoundMode() {
+        const soundSelect = document.getElementById('sound-mode');
+        soundMode = soundSelect.value;
+
+        console.log('Sound mode changed to:', soundMode);
+
+        // Show notification about sound mode
+        if (soundMode !== 'none') {
+            console.log('🔊 Sound enabled:', soundMode);
+            // Future: Initialize audio context based on selected mode
+            // - 'voice': Initialize Web Speech API for TTS
+            // - 'music': Initialize Web Audio API for musical notes
+            // - 'random': Load sound effect library
+        } else {
+            console.log('🔇 Sound disabled');
+        }
+    }
+
+    // Apply settings to sequencer view
+    function applyViewSettings(settings) {
+        console.log('Applying sequencer settings:', settings);
+
+        // Clear existing auto-refresh timer
+        if (autoRefreshTimer) {
+            clearInterval(autoRefreshTimer);
+            autoRefreshTimer = null;
+        }
+
+        // Setup auto-refresh if enabled
+        if (settings.autoRefreshEnabled) {
+            const intervalMs = settings.refreshInterval * 1000;
+            console.log('Setting up auto-refresh every', settings.refreshInterval, 'seconds');
+            autoRefreshTimer = setInterval(refreshSequencer, intervalMs);
+        } else {
+            console.log('Auto-refresh disabled');
+        }
+
+        // Apply sequencer-specific settings
+        if (settings.defaultPlaybackSpeed) {
+            updatePlaybackSpeed(settings.defaultPlaybackSpeed, 'settings');
+        }
+
+        if (settings.defaultSoundMode) {
+            soundMode = settings.defaultSoundMode;
+            const soundSelect = document.getElementById('sound-mode');
+            if (soundSelect) {
+                soundSelect.value = soundMode;
+            }
+        }
+
+        // Apply scrollbar visibility
+        const canvasWrapper = document.getElementById('sequencer-canvas-wrapper');
+        if (canvasWrapper) {
+            if (settings.hideScrollbars) {
+                canvasWrapper.style.overflow = 'hidden';
+            } else {
+                canvasWrapper.style.overflow = 'auto';
+            }
+        }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('Initializing sequencer view...');
+        initializeSequencer();
+        await fetchSequencerData();
+
+        // Settings will be loaded by base.html
+        setTimeout(() => {
+            const settings = getSettings();
+            applyViewSettings(settings);
+        }, 100);
+
+        // Update current time every second
+        setInterval(updateCurrentTime, 1000);
+    });
+</script>
+{% endblock %}

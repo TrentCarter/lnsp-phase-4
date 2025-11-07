@@ -1,0 +1,27 @@
+---
+name: resource-manager
+display_name: Resource Manager
+role: system
+tier: 1
+mode: long
+parent: architect
+capabilities:
+  - resource_allocation
+  - quota_enforcement
+  - cleanup
+resources:
+  token_budget:
+    target_ratio: 0.0
+    hard_max_ratio: 0.0
+  cpu_cores: 1
+  memory_mb: 1024
+heartbeat:
+  interval_s: 60
+metadata:
+  version: 1.0.0
+  port: 6104
+  service_type: fastapi
+---
+
+# Resource Manager
+CPU/Memory/GPU allocation and quotas. Already implemented at port 6104.

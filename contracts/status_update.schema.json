@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "status_update.schema.json",
+  "title": "Status Update",
+  "description": "Schema for agent/job status update events (HMI PRD §7)",
+  "type": "object",
+  "required": ["job_id", "agent", "event", "ts"],
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "description": "Job/run identifier"
+    },
+    "agent": {
+      "type": "string",
+      "description": "Agent name"
+    },
+    "event": {
+      "type": "string",
+      "description": "Status event type (HMI PRD §18.1)",
+      "enum": [
+        "accepted",
+        "started",
+        "awaiting_approval",
+        "approved",
+        "rejected",
+        "soft_timeout",
+        "hard_timeout",
+        "escalated",
+        "completed"
+      ]
+    },
+    "ts": {
+      "type": "string",
+      "description": "Timestamp (ISO 8601)",
+      "format": "date-time"
+    },
+    "details": {
+      "type": "object",
+      "description": "Additional event-specific details",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
