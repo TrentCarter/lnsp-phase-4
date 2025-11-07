@@ -1,0 +1,37 @@
+[Unit]
+Description=PLMS Nightly Invariants Check
+Documentation=file:///docs/PLMS_OPS_GUARDRAILS.md
+After=network.target
+
+[Service]
+Type=oneshot
+User=plms
+Group=plms
+
+# Project root directory (adapt for your deployment)
+WorkingDirectory=/opt/lnsp-phase-4
+
+# Environment variables (override in /etc/default/plms-invariants if needed)
+Environment=DB_PATH=/opt/lnsp-phase-4/artifacts/registry/registry.db
+Environment=ENV_NAME=prod
+Environment=REDIS_URL=redis://localhost:6379/0
+
+# Load additional config from file (optional)
+EnvironmentFile=-/etc/default/plms-invariants
+
+# Run wrapper script
+ExecStart=/opt/lnsp-phase-4/scripts/run_invariants.sh
+
+# Sandboxing (optional, for security)
+# PrivateTmp=yes
+# NoNewPrivileges=yes
+# ProtectSystem=strict
+# ProtectHome=yes
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=plms-invariants
+
+[Install]
+WantedBy=multi-user.target

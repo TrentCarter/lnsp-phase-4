@@ -1,0 +1,26 @@
+[Unit]
+Description=Run PLMS Invariants Check Daily at 02:00 ET
+Documentation=file:///docs/PLMS_OPS_GUARDRAILS.md
+
+[Timer]
+# Run at 02:00 Eastern Time (convert to UTC if server uses UTC)
+# For ET = UTC-5 (winter) / UTC-4 (summer), use OnCalendar with timezone
+# Example: 02:00 ET ≈ 07:00 UTC (winter) or 06:00 UTC (summer)
+#
+# Recommended: Set server timezone to America/New_York, then use:
+OnCalendar=*-*-* 02:00:00
+
+# Alternative: Specify timezone explicitly (systemd 230+)
+# OnCalendar=America/New_York *-*-* 02:00:00
+
+# Persistent: If system was down at scheduled time, run on next boot
+Persistent=true
+
+# Add small random delay (0-60s) to avoid thundering herd if multiple servers
+RandomizedDelaySec=60
+
+# Accuracy: Allow up to 5 minutes drift (low precision OK for nightly job)
+AccuracySec=5m
+
+[Install]
+WantedBy=timers.target

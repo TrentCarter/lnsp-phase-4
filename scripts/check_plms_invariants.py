@@ -23,7 +23,8 @@ import argparse
 import json
 import sqlite3
 import sys
-from typing import List, Dict, Any
+from datetime import datetime
+from typing import List, Dict, Any, Tuple
 
 
 # Registered KPI validators (must match services/plms/kpi_validators.py)
@@ -205,54 +206,244 @@ def check_lane_overrides(conn: sqlite3.Connection) -> List[str]:
     return errors
 
 
-def run_all_checks(db_path: str) -> int:
+def check_calibration_pollution(conn: sqlite3.Connection) -> List[str]:
+    """
+    Invariant 6 (STRICT): Calibration dataset excludes rehearsal/replay/sandbox/failed runs.
+
+    Returns:
+        List of error messages (empty if passed)
+    """
+    errors = []
+
+    cursor = conn.cursor()
+
+    # Check for rehearsal runs in estimate_versions
+    cursor.execute("""
+        SELECT ev.id, ev.project_id, pr.run_kind
+        FROM estimate_versions ev
+        JOIN project_runs pr ON ev.project_id = pr.project_id
+        WHERE pr.run_kind IN ('rehearsal', 'replay')
+    """)
+
+    rehearsal_pollution = cursor.fetchall()
+    if rehearsal_pollution:
+        errors.append(
+            f"🔴 CRITICAL: {len(rehearsal_pollution)} estimate_versions include non-production runs "
+            f"(rehearsal/replay) - calibration poisoned!"
+        )
+        for row in rehearsal_pollution[:5]:
+            errors.append(f"   - estimate_versions.id={row[0]}, run_kind={row[2]}")
+
+    # Check for sandbox runs
+    cursor.execute("""
+        SELECT ev.id, ev.project_id, pr.write_sandbox
+        FROM estimate_versions ev
+        JOIN project_runs pr ON ev.project_id = pr.project_id
+        WHERE pr.write_sandbox = 1
+    """)
+
+    sandbox_pollution = cursor.fetchall()
+    if sandbox_pollution:
+        errors.append(
+            f"🔴 CRITICAL: {len(sandbox_pollution)} estimate_versions include sandbox runs "
+            f"- calibration poisoned!"
+        )
+
+    # Check for failed validation runs
+    cursor.execute("""
+        SELECT ev.id, ev.project_id, pr.validation_pass
+        FROM estimate_versions ev
+        JOIN project_runs pr ON ev.project_id = pr.project_id
+        WHERE pr.validation_pass = 0
+    """)
+
+    failed_pollution = cursor.fetchall()
+    if failed_pollution:
+        errors.append(
+            f"🔴 CRITICAL: {len(failed_pollution)} estimate_versions include failed validation runs "
+            f"- calibration poisoned!"
+        )
+
+    return errors
+
+
+def check_provider_snapshots(conn: sqlite3.Connection) -> List[str]:
+    """
+    Invariant 7 (STRICT): Baseline/hotfix runs have complete provider snapshots.
+
+    Returns:
+        List of error messages (empty if passed)
+    """
+    errors = []
+
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, run_id, run_kind, provider_matrix_json
+        FROM project_runs
+        WHERE run_kind IN ('baseline', 'hotfix')
+          AND (provider_matrix_json IS NULL OR provider_matrix_json = '' OR provider_matrix_json = '{}')
+    """)
+
+    missing_snapshots = cursor.fetchall()
+    if missing_snapshots:
+        errors.append(
+            f"🔴 CRITICAL: {len(missing_snapshots)} baseline/hotfix runs missing provider_matrix_json "
+            f"- cannot replay deterministically!"
+        )
+        for row in missing_snapshots[:5]:
+            errors.append(f"   - project_runs.id={row[0]}, run_id={row[1]}, run_kind={row[2]}")
+
+    return errors
+
+
+def check_strata_coverage(conn: sqlite3.Connection) -> List[str]:
+    """
+    Invariant 8 (STRICT): Representative canaries must have strata_coverage = 1.0.
+
+    Returns:
+        List of error messages (empty if passed)
+    """
+    errors = []
+
+    # This requires a column to track strata_coverage per run
+    # For now, stub check (implement when column added)
+    cursor = conn.cursor()
+
+    # Check if column exists
+    cursor.execute("PRAGMA table_info(project_runs)")
+    columns = {row[1] for row in cursor.fetchall()}
+
+    if 'strata_coverage' not in columns:
+        # No column yet, skip check
+        return errors
+
+    cursor.execute("""
+        SELECT id, run_id, rehearsal_pct, strata_coverage
+        FROM project_runs
+        WHERE run_kind = 'rehearsal'
+          AND strata_coverage < 1.0
+    """)
+
+    incomplete_strata = cursor.fetchall()
+    if incomplete_strata:
+        errors.append(
+            f"⚠️  {len(incomplete_strata)} rehearsal runs have incomplete strata coverage "
+            f"(not representative!)"
+        )
+        for row in incomplete_strata[:5]:
+            errors.append(
+                f"   - run_id={row[1]}, rehearsal_pct={row[2]}, "
+                f"strata_coverage={row[3]}"
+            )
+
+    return errors
+
+
+def run_all_checks(db_path: str, strict: bool = False, json_output: bool = False) -> Tuple[int, Dict[str, Any]]:
     """
     Run all invariant checks.
 
     Args:
         db_path: Path to SQLite database
+        strict: Enable strict checks (calibration pollution, provider snapshots)
+        json_output: Output results as JSON
 
     Returns:
-        Exit code (0 = pass, 1 = fail)
+        (exit_code, results_dict)
     """
     conn = sqlite3.connect(db_path)
-    all_errors = []
 
-    print("=== PLMS Data Invariants Checker ===\n")
-
-    # Run all checks
+    # Base checks (always run)
     checks = [
-        ("Passport Artifacts", check_passport_artifacts),
-        ("KPI Formulas", check_kpi_formulas),
-        ("Baseline Sandbox", check_baseline_sandbox),
-        ("Calibration Sources", check_calibration_sources),
-        ("Lane Overrides", check_lane_overrides)
+        ("passport_artifacts", "Passport Artifacts", check_passport_artifacts),
+        ("kpi_formulas", "KPI Formulas", check_kpi_formulas),
+        ("baseline_sandbox", "Baseline Sandbox", check_baseline_sandbox),
+        ("calibration_sources", "Calibration Sources", check_calibration_sources),
+        ("lane_overrides", "Lane Overrides", check_lane_overrides)
     ]
 
-    for check_name, check_fn in checks:
-        print(f"Checking: {check_name}...")
+    # Strict checks (optional)
+    if strict:
+        checks.extend([
+            ("calibration_pollution", "Calibration Pollution (STRICT)", check_calibration_pollution),
+            ("provider_snapshots", "Provider Snapshots (STRICT)", check_provider_snapshots),
+            ("strata_coverage", "Strata Coverage (STRICT)", check_strata_coverage)
+        ])
+
+    results = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "db_path": db_path,
+        "strict_mode": strict,
+        "checks": {},
+        "summary": {}
+    }
+
+    all_errors = []
+
+    if not json_output:
+        print("=== PLMS Data Invariants Checker ===")
+        if strict:
+            print("Mode: STRICT (production-hardened checks)\n")
+        else:
+            print("Mode: STANDARD (basic checks)\n")
+
+    for check_key, check_name, check_fn in checks:
+        if not json_output:
+            print(f"Checking: {check_name}...")
+
         errors = check_fn(conn)
+        passed = len(errors) == 0
+
+        results["checks"][check_key] = {
+            "name": check_name,
+            "passed": passed,
+            "violations": len(errors),
+            "errors": errors
+        }
 
         if errors:
             all_errors.extend(errors)
-            print(f"  ✗ FAILED ({len(errors)} violations)")
+            if not json_output:
+                print(f"  ✗ FAILED ({len(errors)} violations)")
         else:
-            print(f"  ✓ PASSED")
+            if not json_output:
+                print(f"  ✓ PASSED")
 
     conn.close()
 
-    # Print summary
-    print(f"\n=== Summary ===")
-    print(f"Total violations: {len(all_errors)}")
+    # Summary
+    total_checks = len(checks)
+    passed_checks = sum(1 for c in results["checks"].values() if c["passed"])
+    total_violations = len(all_errors)
 
-    if all_errors:
-        print("\nViolations:\n")
-        for error in all_errors:
-            print(f"  {error}")
-        return 1
+    results["summary"] = {
+        "total_checks": total_checks,
+        "passed_checks": passed_checks,
+        "failed_checks": total_checks - passed_checks,
+        "total_violations": total_violations,
+        "status": "pass" if total_violations == 0 else "fail"
+    }
+
+    if json_output:
+        # JSON output for machine consumption
+        print(json.dumps(results, indent=2))
     else:
-        print("✓ All invariants passed")
-        return 0
+        # Human-readable output
+        print(f"\n=== Summary ===")
+        print(f"Total checks: {total_checks}")
+        print(f"Passed: {passed_checks}")
+        print(f"Failed: {total_checks - passed_checks}")
+        print(f"Total violations: {total_violations}")
+
+        if all_errors:
+            print("\nViolations:\n")
+            for error in all_errors:
+                print(f"  {error}")
+        else:
+            print("\n✓ All invariants passed")
+
+    exit_code = 0 if total_violations == 0 else 1
+    return exit_code, results
 
 
 def main():
@@ -263,9 +454,19 @@ def main():
         default="artifacts/registry/registry.db",
         help="Path to SQLite database (default: artifacts/registry/registry.db)"
     )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Enable strict checks (calibration pollution, provider snapshots, strata coverage)"
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results as JSON (for machine consumption / Slack alerts)"
+    )
 
     args = parser.parse_args()
-    exit_code = run_all_checks(args.db)
+    exit_code, results = run_all_checks(args.db, strict=args.strict, json_output=args.json)
     sys.exit(exit_code)
 
 

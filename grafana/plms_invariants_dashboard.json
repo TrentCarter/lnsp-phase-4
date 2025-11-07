@@ -1,0 +1,389 @@
+{
+  "dashboard": {
+    "title": "PLMS Invariants Monitor",
+    "tags": ["plms", "invariants", "ops"],
+    "timezone": "browser",
+    "schemaVersion": 36,
+    "version": 1,
+    "refresh": "1m",
+    "time": {
+      "from": "now-30d",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Current Status",
+        "type": "stat",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "plms_invariants_status",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "background",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "ok": {
+                    "text": "✓ PASS",
+                    "color": "green"
+                  },
+                  "fail": {
+                    "text": "✗ FAIL",
+                    "color": "red"
+                  },
+                  "unknown": {
+                    "text": "? UNKNOWN",
+                    "color": "yellow"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "description": "Latest invariants check status (refreshes every minute)"
+      },
+      {
+        "id": 2,
+        "title": "Total Violations (Latest)",
+        "type": "stat",
+        "gridPos": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "plms_invariants_violations_total",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "value",
+          "textMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": 0,
+                  "color": "green"
+                },
+                {
+                  "value": 1,
+                  "color": "orange"
+                },
+                {
+                  "value": 10,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        },
+        "description": "Total violations found in latest check"
+      },
+      {
+        "id": 3,
+        "title": "Check Success Rate (30d)",
+        "type": "gauge",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "sum(plms_invariants_checks_passed) / sum(plms_invariants_checks_total) * 100",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": 0,
+                  "color": "red"
+                },
+                {
+                  "value": 90,
+                  "color": "yellow"
+                },
+                {
+                  "value": 95,
+                  "color": "green"
+                }
+              ]
+            }
+          }
+        },
+        "description": "Percentage of invariant checks that passed in last 30 days"
+      },
+      {
+        "id": 4,
+        "title": "Last Check Time",
+        "type": "stat",
+        "gridPos": {
+          "x": 18,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "time() - plms_invariants_last_check_timestamp",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "none",
+          "textMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "dtdurations",
+            "decimals": 0
+          }
+        },
+        "description": "Time since last invariants check"
+      },
+      {
+        "id": 5,
+        "title": "Check Status Over Time",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 0,
+          "y": 4,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "plms_invariants_status_history",
+            "refId": "A",
+            "legendFormat": "Status (1=OK, 0=FAIL)"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "stepAfter",
+              "fillOpacity": 20
+            },
+            "min": 0,
+            "max": 1,
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "1": {
+                    "text": "PASS",
+                    "color": "green"
+                  },
+                  "0": {
+                    "text": "FAIL",
+                    "color": "red"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "description": "Historical pass/fail status (green = pass, red = fail)"
+      },
+      {
+        "id": 6,
+        "title": "Violations by Check Type",
+        "type": "timeseries",
+        "gridPos": {
+          "x": 12,
+          "y": 4,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "plms_invariants_violations_by_check",
+            "refId": "A",
+            "legendFormat": "{{check_name}}"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "bars",
+              "fillOpacity": 80
+            },
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "description": "Violations by invariant check type over time"
+      },
+      {
+        "id": 7,
+        "title": "Mean Time to Fix (Days)",
+        "type": "stat",
+        "gridPos": {
+          "x": 0,
+          "y": 12,
+          "w": 8,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "avg(plms_invariants_time_to_fix_seconds) / 86400",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "days",
+            "decimals": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": 0,
+                  "color": "green"
+                },
+                {
+                  "value": 1,
+                  "color": "yellow"
+                },
+                {
+                  "value": 3,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        },
+        "description": "Average time to fix violations (from FAIL to PASS)"
+      },
+      {
+        "id": 8,
+        "title": "Critical Checks (STRICT Mode)",
+        "type": "table",
+        "gridPos": {
+          "x": 8,
+          "y": 12,
+          "w": 16,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "plms_invariants_critical_violations",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "options": {
+          "showHeader": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "left",
+              "displayMode": "auto"
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "severity"
+              },
+              "properties": [
+                {
+                  "id": "custom.displayMode",
+                  "value": "color-background"
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "critical": {
+                          "text": "🔴 CRITICAL",
+                          "color": "red"
+                        },
+                        "warning": {
+                          "text": "⚠️ WARNING",
+                          "color": "yellow"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "description": "Critical violations from STRICT mode checks (calibration pollution, provider snapshots)"
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "Check Failures",
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "iconColor": "red",
+          "tags": ["plms", "failure"],
+          "type": "tags"
+        }
+      ]
+    }
+  },
+  "overwrite": true
+}
