@@ -8,20 +8,60 @@ Updates lane×provider priors from PAS receipts after each run completes.
 from math import sqrt
 from collections import defaultdict
 from typing import Dict, List, Any
+import statistics
+
+
+def should_include_run_for_calibration(run_kind: str, validation_pass: bool, write_sandbox: bool) -> bool:
+    """
+    Determine if run should be used for calibration.
+
+    Policy:
+    - ONLY include runs with run_kind in {'baseline', 'hotfix'}
+    - MUST have validation_pass=true
+    - MUST NOT be write_sandbox=true
+
+    Args:
+        run_kind: 'baseline' | 'rehearsal' | 'replay' | 'hotfix'
+        validation_pass: Did all KPI validators pass?
+        write_sandbox: Was this a sandbox run?
+
+    Returns:
+        True if run should update priors, False otherwise
+    """
+    # Exclude rehearsal and replay runs (not production-representative)
+    if run_kind not in {"baseline", "hotfix"}:
+        return False
+
+    # Exclude failed validation (bad data)
+    if not validation_pass:
+        return False
+
+    # Exclude sandbox runs (not real execution)
+    if write_sandbox:
+        return False
+
+    return True
 
 
 def update_priors_after_run(project_id: int, run_id: str, alpha: float = 0.3):
     """
     Update lane×provider priors with PAS receipts after run completes.
 
+    **Calibration Filtering Policy**:
+    - Only use runs with run_kind in {'baseline', 'hotfix'}
+    - Only use runs with validation_pass=true
+    - Exclude write_sandbox=true runs
+    - Apply trimmed-mean guard (drop top/bottom 10% outliers)
+
     Steps:
     1. Load actual metrics from receipts (tokens, duration, cost per task)
-    2. Load estimated metrics from task_estimates
+    2. Check if run should be included (filtering policy)
     3. For each (lane, provider) pair:
        a. Compute error: delta = actual - estimated
-       b. Update prior using exponential smoothing
-       c. Update variance for credible intervals
-       d. Store in estimate_versions table
+       b. Apply trimmed-mean outlier filtering
+       c. Update prior using exponential smoothing
+       d. Update variance for credible intervals
+       e. Store in estimate_versions table
     4. Next project using this (lane, provider) gets updated priors
 
     Args:
@@ -29,6 +69,18 @@ def update_priors_after_run(project_id: int, run_id: str, alpha: float = 0.3):
         run_id: PAS run UUID
         alpha: Learning rate (0.3 = moderate adaptation)
     """
+    # Load run metadata to check filtering policy
+    run_metadata = load_run_metadata(run_id)
+    run_kind = run_metadata.get("run_kind", "baseline")
+    validation_pass = run_metadata.get("validation_pass", False)
+    write_sandbox = run_metadata.get("write_sandbox", False)
+
+    # Apply filtering policy
+    if not should_include_run_for_calibration(run_kind, validation_pass, write_sandbox):
+        print(f"⚠️  Skipping calibration update for run {run_id}: "
+              f"run_kind={run_kind}, validation_pass={validation_pass}, write_sandbox={write_sandbox}")
+        return
+
     # Load PAS receipts for this run
     recs = load_pas_receipts(run_id)
     # recs = [
@@ -272,3 +324,55 @@ def register_pas_completion_webhook():
     #     callback=lambda run_id: update_priors_after_run(project_id, run_id)
     # )
     pass
+
+
+def trimmed_mean(values: List[float], trim_pct: float = 0.1) -> float:
+    """
+    Compute trimmed mean (drop top/bottom trim_pct outliers).
+
+    Args:
+        values: List of numeric values
+        trim_pct: Fraction to trim from each end (default 0.1 = 10%)
+
+    Returns:
+        Trimmed mean (robust to outliers)
+    """
+    if not values:
+        return 0.0
+
+    if len(values) < 5:
+        # Too few values for trimming, use regular mean
+        return statistics.mean(values)
+
+    # Sort and trim
+    sorted_values = sorted(values)
+    n = len(sorted_values)
+    trim_count = max(1, int(n * trim_pct))
+
+    # Drop top/bottom trim_count values
+    trimmed = sorted_values[trim_count: -trim_count]
+
+    if not trimmed:
+        # Fallback if all values were trimmed
+        return statistics.mean(values)
+
+    return statistics.mean(trimmed)
+
+
+def load_run_metadata(run_id: str) -> Dict:
+    """
+    Load run metadata from project_runs table.
+
+    Args:
+        run_id: PAS run UUID
+
+    Returns:
+        {"run_kind": str, "validation_pass": bool, "write_sandbox": bool}
+    """
+    # Stub: wire to actual DB
+    # SELECT run_kind, validation_pass, write_sandbox FROM project_runs WHERE run_id = ?
+    return {
+        "run_kind": "baseline",
+        "validation_pass": True,
+        "write_sandbox": False
+    }

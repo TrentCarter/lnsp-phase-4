@@ -3,14 +3,36 @@ PLMS Project API Endpoints - Tier 1 Enhanced
 Includes: Idempotency, RBAC hooks, Rehearsal mode, Multi-run support
 """
 
-from fastapi import APIRouter, HTTPException, Header, Depends, Body, Query
+from fastapi import APIRouter, HTTPException, Header, Depends, Body, Query, Request
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import hashlib
 import json
 import uuid
+import os
+
+# Import Redis-backed idempotency cache
+from services.plms.idempotency import get_cache, InMemoryIdempotencyCache
+from services.plms.stratified_sampler import stratified_sample, validate_strata_coverage
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
+
+# --- Idempotency Cache Initialization ---
+
+# Use Redis if REDIS_URL env var set, otherwise fallback to in-memory (dev only)
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+USE_REDIS = os.environ.get("PLMS_USE_REDIS", "true").lower() == "true"
+
+try:
+    if USE_REDIS:
+        idempotency_cache = get_cache(REDIS_URL)
+        print(f"✓ Redis idempotency cache initialized: {REDIS_URL}")
+    else:
+        idempotency_cache = InMemoryIdempotencyCache()
+        print("⚠️  Using in-memory idempotency cache (NOT production-safe!)")
+except Exception as e:
+    print(f"⚠️  Redis unavailable ({e}), falling back to in-memory cache")
+    idempotency_cache = InMemoryIdempotencyCache()
 
 # --- Dependencies (stubs - wire to actual auth/DB) ---
 
@@ -34,15 +56,11 @@ def rbac(required_scope: str):
 def idempotency_guard(key: str = Header(..., alias="Idempotency-Key")):
     """
     Idempotency guard: require Idempotency-Key header for POST /start.
-    Store key -> last_response for safe retries.
-    Replace with Redis in production.
+    Now backed by Redis with 24h TTL.
     """
     if not key or len(key) < 8:
         raise HTTPException(status_code=400, detail="Invalid or missing Idempotency-Key header")
     return key
-
-# In-memory demo cache; swap to Redis in production
-_IDEMP_CACHE: Dict[str, Any] = {}
 
 # Stub helpers (wire to actual DB/PAS)
 def provider_router_snapshot() -> Dict:
@@ -204,16 +222,31 @@ def start_project(
     user=Depends(rbac("projects.start"))
 ):
     """
-    Start execution with idempotency + replay passport.
+    Start execution with Redis-backed idempotency + replay passport.
 
     Headers:
         Idempotency-Key: UUID (required for safe retries)
+        Returns Idempotent-Replay: true if served from cache
 
     Body:
         run_kind: "baseline" | "rehearsal" | "replay" | "hotfix"
+        write_sandbox: bool (explicitly recorded)
     """
-    if idem_key in _IDEMP_CACHE:
-        return _IDEMP_CACHE[idem_key]  # return cached response
+    # Check Redis cache first
+    cached_response = idempotency_cache.check_and_store(
+        method="POST",
+        path=f"/api/projects/{project_id}/start",
+        body=payload,
+        user_id=user["username"]
+    )
+
+    if cached_response:
+        # Return cached response with replay header
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            content=cached_response,
+            headers={"Idempotent-Replay": "true"}
+        )
 
     run_kind = payload.get("run_kind", "baseline")
     if run_kind not in {"baseline", "rehearsal", "replay", "hotfix"}:
@@ -237,13 +270,15 @@ def start_project(
     }
     passport_path = persist_artifact(project_id, run_id, "replay_passport.json", passport)
 
-    # Persist run row with snapshot
+    # Persist run row with snapshot + critical flags
     db_project_runs_insert(
         project_id=project_id,
         run_id=run_id,
         run_kind=run_kind,
         provider_matrix_json=json.dumps(provider_matrix),
-        capability_snapshot=json.dumps(capability_snapshot)
+        capability_snapshot=json.dumps(capability_snapshot),
+        write_sandbox=payload.get("write_sandbox", False),  # Explicitly record
+        validation_pass=None  # Will be set after validation phase
     )
 
     resp = {
@@ -252,7 +287,16 @@ def start_project(
         "provider_matrix": provider_matrix,
         "replay_passport_path": passport_path
     }
-    _IDEMP_CACHE[idem_key] = resp
+
+    # Store in Redis cache (24h TTL)
+    idempotency_cache.check_and_store(
+        method="POST",
+        path=f"/api/projects/{project_id}/start",
+        body=payload,
+        user_id=user["username"],
+        response=resp
+    )
+
     return resp
 
 
@@ -264,17 +308,32 @@ def simulate_project(
     user=Depends(rbac("projects.simulate"))
 ):
     """
-    Simulate with rehearsal (1% canary execution).
+    Simulate with stratified rehearsal (guaranteed strata coverage).
 
     Query Params:
-        rehearsal_pct: Fraction of tasks to execute (default 0.01 = 1%)
+        rehearsal_pct: Requested fraction (default 0.01 = 1%)
+                      Auto-bumps if needed to cover all strata (cap 5%)
         write_sandbox: Suppress DB/artifact writes (default False)
+
+    Returns:
+        strata_coverage: 1.0 means all strata sampled
+        auto_bumped: true if rehearsal_pct was increased
     """
     plan = load_task_estimates(project_id)
-    canary = stratified_sample(plan, pct=rehearsal_pct)
+
+    # Use stratified sampler with coverage guarantee
+    canary_tasks, sampling_metrics = stratified_sample(
+        plan,
+        rehearsal_pct=rehearsal_pct,
+        min_per_stratum=1,
+        max_pct=0.05
+    )
+
+    # Validate coverage and collect warnings
+    warnings = validate_strata_coverage(sampling_metrics)
 
     # Execute canary via PAS with write-suppression if requested
-    rehearsal_actual = pas_execute_canary(project_id, canary, write_sandbox)
+    rehearsal_actual = pas_execute_canary(project_id, canary_tasks, write_sandbox)
 
     # Extrapolate with uncertainty (seeded by priors, widened for small n)
     extrapolated = extrapolate_full(plan, rehearsal_actual)
@@ -287,7 +346,17 @@ def simulate_project(
             "rehearsal_actual": rehearsal_actual,
             "extrapolated_full": extrapolated,
             "risk_factors": risks
-        }
+        },
+        "sampling_metrics": {
+            "n_total": sampling_metrics["n_total"],
+            "n_sample": sampling_metrics["n_sample"],
+            "actual_pct": sampling_metrics["actual_pct"],
+            "requested_pct": sampling_metrics["requested_pct"],
+            "strata_coverage": sampling_metrics["strata_coverage"],
+            "auto_bumped": sampling_metrics["auto_bumped"],
+            "n_strata": sampling_metrics["n_strata"]
+        },
+        "warnings": warnings
     }
 
 

@@ -16,6 +16,10 @@ ALTER TABLE project_runs
   ADD COLUMN capability_snapshot TEXT;                      -- portfolio/capabilities at start (JSON)
 ALTER TABLE project_runs
   ADD COLUMN risk_score REAL;                               -- computed at /simulate
+ALTER TABLE project_runs
+  ADD COLUMN validation_pass BOOLEAN DEFAULT NULL;          -- gates calibration + completion
+ALTER TABLE project_runs
+  ADD COLUMN write_sandbox BOOLEAN DEFAULT FALSE;           -- explicitly recorded for safety
 
 -- Index to group metrics by run kind and time
 CREATE INDEX IF NOT EXISTS idx_project_runs_kind_time
@@ -89,7 +93,9 @@ ALTER TABLE project_runs
   ADD COLUMN rehearsal_pct REAL,
   ADD COLUMN provider_matrix_json JSONB,
   ADD COLUMN capability_snapshot JSONB,
-  ADD COLUMN risk_score REAL;
+  ADD COLUMN risk_score REAL,
+  ADD COLUMN validation_pass BOOLEAN DEFAULT NULL,
+  ADD COLUMN write_sandbox BOOLEAN DEFAULT FALSE;
 
 CREATE INDEX IF NOT EXISTS idx_project_runs_kind_time
   ON project_runs (project_id, run_kind, started_at);
