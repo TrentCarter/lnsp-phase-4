@@ -522,6 +522,10 @@
             <a href="/tree" {% if request.path == '/tree' %}class="active"{% endif %}>Tree View</a>
             <a href="/sequencer" {% if request.path == '/sequencer' %}class="active"{% endif %}>Sequencer</a>
             <a href="/actions" {% if request.path == '/actions' %}class="active"{% endif %}>Actions</a>
+            <button id="start-demo-button" class="settings-button" onclick="startDemo()" style="background: #10b981;">▶️ Start Demo</button>
+            <button id="stop-demo-button" class="settings-button" onclick="stopDemo()" style="background: #ef4444; display: none;">⏹️ Stop Demo</button>
+            <button class="settings-button" onclick="clearDemoData()" style="background: #f59e0b;">🗑️ Clear Data</button>
+            <button id="audio-init-button" class="settings-button" onclick="initAudioManual()" style="display: none;">🔊 Enable Sound</button>
             <button class="settings-button" onclick="openSettings()">⚙️ Settings</button>
         </nav>
         <div class="connection-status">
@@ -557,10 +561,10 @@
                 <div class="setting-row">
                     <div>
                         <div class="setting-label">Refresh Interval</div>
-                        <div class="setting-description">Time between auto-refreshes (seconds)</div>
+                        <div class="setting-description">Time between auto-refreshes (0 = instant/fast, seconds)</div>
                     </div>
                     <div class="setting-control">
-                        <input type="number" id="refresh-interval" class="setting-input" min="5" max="300" value="60">
+                        <input type="number" id="refresh-interval" class="setting-input" min="0" max="600" value="0">
                         <span style="color: #9ca3af; font-size: 0.875rem;">sec</span>
                     </div>
                 </div>
@@ -658,8 +662,8 @@
                         <div class="setting-description">Initial playback speed multiplier</div>
                     </div>
                     <div class="setting-control">
-                        <input type="number" id="default-playback-speed" class="setting-input" min="0.1" max="100" step="0.1" value="1.0">
-                        <span style="color: #9ca3af; font-size: 0.875rem;">x (0.1x-100x range)</span>
+                        <input type="number" id="default-playback-speed" class="setting-input" min="0.1" max="1000" step="0.1" value="1.0">
+                        <span style="color: #9ca3af; font-size: 0.875rem;">x (0.1x-1000x range)</span>
                     </div>
                 </div>
                 <div class="setting-row">
@@ -673,6 +677,7 @@
                             <option value="voice">Voice</option>
                             <option value="music">Music Note</option>
                             <option value="random">Random Sounds</option>
+                            <option value="geiger">Geiger Counter</option>
                         </select>
                     </div>
                 </div>
@@ -879,7 +884,7 @@
         // Settings Management
         const DEFAULT_SETTINGS = {
             autoRefreshEnabled: true,
-            refreshInterval: 60,
+            refreshInterval: 0,  // 0 = instant/fast refresh for Dashboard
             showTooltips: true,
             compactMode: false,
             animationDuration: 750,
@@ -928,14 +933,14 @@
             currentSettings.defaultSoundMode = document.getElementById('default-sound-mode').value;
 
             // Validate
-            if (currentSettings.refreshInterval < 5) currentSettings.refreshInterval = 5;
-            if (currentSettings.refreshInterval > 300) currentSettings.refreshInterval = 300;
+            if (currentSettings.refreshInterval < 0) currentSettings.refreshInterval = 0;
+            if (currentSettings.refreshInterval > 600) currentSettings.refreshInterval = 600;
             if (currentSettings.animationDuration < 0) currentSettings.animationDuration = 0;
             if (currentSettings.animationDuration > 2000) currentSettings.animationDuration = 2000;
             if (currentSettings.audioVolume < 0) currentSettings.audioVolume = 0;
             if (currentSettings.audioVolume > 100) currentSettings.audioVolume = 100;
             if (currentSettings.defaultPlaybackSpeed < 0.1) currentSettings.defaultPlaybackSpeed = 0.1;
-            if (currentSettings.defaultPlaybackSpeed > 100) currentSettings.defaultPlaybackSpeed = 100;
+            if (currentSettings.defaultPlaybackSpeed > 1000) currentSettings.defaultPlaybackSpeed = 1000;
 
             // Save to localStorage
             localStorage.setItem('pas_hmi_settings', JSON.stringify(currentSettings));
@@ -963,6 +968,9 @@
         }
 
         function applySettings() {
+            // Update audio init button visibility
+            updateAudioInitButton();
+
             // This will be overridden by child templates to apply view-specific settings
             if (typeof applyViewSettings === 'function') {
                 applyViewSettings(currentSettings);
@@ -1272,6 +1280,495 @@
             } else {
                 console.warn('⚠ Audio service not available at', AUDIO_SERVICE_URL);
                 console.warn('Start audio service with: ./scripts/start_audio_service.sh');
+            }
+        });
+
+        // ============================================================================
+        // Web Audio API - Client-Side Sound System
+        // ============================================================================
+
+        // Global AudioContext (initialized on user interaction)
+        let audioContext = null;
+        let masterGainNode = null;
+
+        /**
+         * Initialize Web Audio API (call on first user interaction)
+         */
+        function initAudioContext() {
+            if (audioContext) return; // Already initialized
+
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                masterGainNode = audioContext.createGain();
+                masterGainNode.connect(audioContext.destination);
+
+                // Set volume from settings
+                const settings = getSettings();
+                masterGainNode.gain.value = (settings.audioVolume || 70) / 100;
+
+                console.log('✓ Web Audio API initialized');
+            } catch (error) {
+                console.error('Failed to initialize Web Audio API:', error);
+            }
+        }
+
+        /**
+         * Play a musical note using Web Audio API
+         * @param {number} frequency - Frequency in Hz
+         * @param {number} duration - Duration in seconds
+         * @param {string} waveform - 'sine', 'square', 'sawtooth', 'triangle'
+         */
+        function playClientNote(frequency, duration = 0.3, waveform = 'sine') {
+            if (!audioContext) initAudioContext();
+            if (!audioContext) return;
+
+            const settings = getSettings();
+            if (!settings.masterAudioEnabled) return;
+
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.type = waveform;
+            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(masterGainNode);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+
+        /**
+         * Play Geiger counter click sound
+         */
+        function playGeigerClick() {
+            if (!audioContext) initAudioContext();
+            if (!audioContext) return;
+
+            const settings = getSettings();
+            if (!settings.masterAudioEnabled) return;
+
+            // Create short burst of noise (characteristic Geiger click)
+            const bufferSize = audioContext.sampleRate * 0.02; // 20ms click
+            const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            // Generate noise with exponential decay
+            for (let i = 0; i < bufferSize; i++) {
+                const decay = Math.exp(-i / (bufferSize / 8)); // Fast decay
+                data[i] = (Math.random() * 2 - 1) * decay;
+            }
+
+            const source = audioContext.createBufferSource();
+            const gainNode = audioContext.createGain();
+
+            source.buffer = buffer;
+            gainNode.gain.value = 0.15; // Lower volume for clicks
+
+            source.connect(gainNode);
+            gainNode.connect(masterGainNode);
+
+            source.start();
+        }
+
+        /**
+         * Play random sound effect
+         */
+        function playRandomSound() {
+            if (!audioContext) initAudioContext();
+            if (!audioContext) return;
+
+            const settings = getSettings();
+            if (!settings.masterAudioEnabled) return;
+
+            const sounds = [
+                { freq: 440, wave: 'sine' },     // A4
+                { freq: 523, wave: 'sine' },     // C5
+                { freq: 659, wave: 'sine' },     // E5
+                { freq: 784, wave: 'sine' },     // G5
+                { freq: 880, wave: 'triangle' }, // A5
+                { freq: 1047, wave: 'square' }   // C6
+            ];
+
+            const sound = sounds[Math.floor(Math.random() * sounds.length)];
+            playClientNote(sound.freq, 0.15, sound.wave);
+        }
+
+        /**
+         * Play musical note for event (matches MIDI mapping from audio service)
+         * @param {string} eventType - Event type
+         */
+        function playEventNote(eventType) {
+            if (!audioContext) initAudioContext();
+            if (!audioContext) return;
+
+            const settings = getSettings();
+            if (!settings.masterAudioEnabled || !settings.sequencerNotesEnabled) return;
+
+            // MIDI note to frequency conversion (A440 standard)
+            const midiToFreq = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
+
+            const noteMap = {
+                'task_assigned': 60,    // C4 (261.63 Hz)
+                'task_started': 64,     // E4 (329.63 Hz)
+                'task_completed': 72,   // C5 (523.25 Hz)
+                'error': 48,            // C3 (130.81 Hz)
+                'warning': 55,          // G3 (196.00 Hz)
+                'success': 77,          // F5 (698.46 Hz)
+                'heartbeat': 60         // C4
+            };
+
+            const midiNote = noteMap[eventType] || 60;
+            const frequency = midiToFreq(midiNote);
+
+            playClientNote(frequency, 0.3, 'sine');
+        }
+
+        /**
+         * Speak text using Web Speech API (fallback to audio service)
+         * @param {string} text - Text to speak
+         */
+        function speakText(text) {
+            const settings = getSettings();
+            if (!settings.masterAudioEnabled || !settings.agentVoiceEnabled) return;
+
+            // Try Web Speech API first (available in most browsers)
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.2;  // Slightly faster
+                utterance.pitch = 1.0;
+                utterance.volume = (settings.audioVolume || 70) / 100;
+                window.speechSynthesis.speak(utterance);
+            } else {
+                // Fallback to audio service
+                speakStatus(text);
+            }
+        }
+
+        /**
+         * Handle task event sound based on current sound mode
+         * @param {string} eventType - Event type
+         */
+        function handleTaskEventSound(eventType) {
+            if (!audioContext) initAudioContext();
+
+            const settings = getSettings();
+            if (!settings.masterAudioEnabled) return;
+
+            const soundMode = settings.defaultSoundMode || 'none';
+
+            switch (soundMode) {
+                case 'none':
+                    // No sound
+                    break;
+
+                case 'voice':
+                    // Text-to-speech announcement
+                    const voiceMap = {
+                        'task_assigned': 'Task assigned',
+                        'task_started': 'Task started',
+                        'task_completed': 'Task completed',
+                        'error': 'Error occurred',
+                        'warning': 'Warning',
+                        'heartbeat': 'Heartbeat'
+                    };
+                    const text = voiceMap[eventType] || eventType;
+                    speakText(text);
+                    break;
+
+                case 'music':
+                    // Musical notes
+                    playEventNote(eventType);
+                    break;
+
+                case 'random':
+                    // Random sound effects
+                    playRandomSound();
+                    break;
+
+                case 'geiger':
+                    // Geiger counter tick (for any agent activity)
+                    playGeigerClick();
+                    break;
+
+                default:
+                    console.warn('Unknown sound mode:', soundMode);
+            }
+        }
+
+        /**
+         * Start Geiger counter mode (continuous ticking based on activity rate)
+         */
+        let geigerIntervalId = null;
+        let activityRate = 0; // Events per second
+
+        function startGeigerMode() {
+            if (geigerIntervalId) return; // Already running
+
+            const settings = getSettings();
+            if (!settings.masterAudioEnabled) return;
+            if (settings.defaultSoundMode !== 'geiger') return;
+
+            // Base tick rate (when idle)
+            const baseRate = 500; // ms between ticks
+
+            geigerIntervalId = setInterval(() => {
+                // Vary tick rate based on activity (lower interval = faster ticks)
+                const interval = Math.max(50, baseRate - (activityRate * 50));
+
+                if (Math.random() < 0.3 || activityRate > 0) {
+                    playGeigerClick();
+                }
+            }, 200); // Check every 200ms
+
+            console.log('✓ Geiger counter mode started');
+        }
+
+        function stopGeigerMode() {
+            if (geigerIntervalId) {
+                clearInterval(geigerIntervalId);
+                geigerIntervalId = null;
+                console.log('✓ Geiger counter mode stopped');
+            }
+        }
+
+        function updateActivityRate(eventsPerSecond) {
+            activityRate = Math.min(eventsPerSecond, 10); // Cap at 10 events/sec
+        }
+
+        // Update master volume when settings change
+        function updateClientVolume(volume) {
+            if (!audioContext || !masterGainNode) return;
+            masterGainNode.gain.value = volume / 100;
+        }
+
+        // Override handleRealtimeEvent to trigger sounds
+        const originalHandleRealtimeEvent = handleRealtimeEvent;
+        handleRealtimeEvent = function(event) {
+            // Call original handler
+            if (originalHandleRealtimeEvent) {
+                originalHandleRealtimeEvent(event);
+            }
+
+            // Map event types to sound events
+            const soundEventMap = {
+                'job_started': 'task_started',
+                'task_started': 'task_started',
+                'job_completed': 'task_completed',
+                'task_completed': 'task_completed',
+                'error': 'error',
+                'failed': 'error',
+                'heartbeat': 'heartbeat',
+                'warning': 'warning',
+                'blocked': 'warning'
+            };
+
+            const soundEvent = soundEventMap[event.event_type];
+            if (soundEvent) {
+                handleTaskEventSound(soundEvent);
+                updateActivityRate(1); // Increment activity
+            }
+        };
+
+        /**
+         * Manual audio initialization (triggered by button click)
+         */
+        function initAudioManual() {
+            if (!audioContext) {
+                initAudioContext();
+
+                // Start Geiger mode if enabled
+                const settings = getSettings();
+                if (settings.defaultSoundMode === 'geiger') {
+                    startGeigerMode();
+                }
+
+                // Hide the button
+                const btn = document.getElementById('audio-init-button');
+                if (btn) {
+                    btn.style.display = 'none';
+                }
+
+                // Play a confirmation beep
+                playClientNote(523.25, 0.2, 'sine'); // C5
+                console.log('✓ Audio initialized manually');
+            }
+        }
+
+        /**
+         * Show/hide audio init button based on settings
+         */
+        function updateAudioInitButton() {
+            const settings = getSettings();
+            const btn = document.getElementById('audio-init-button');
+
+            if (!btn) return;
+
+            // Show button if master audio is enabled and audio context not initialized
+            if (settings.masterAudioEnabled && !audioContext) {
+                btn.style.display = 'inline-block';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        // Initialize audio on first user interaction (fallback for auto-init)
+        document.addEventListener('click', () => {
+            if (!audioContext) {
+                const settings = getSettings();
+                if (settings.masterAudioEnabled) {
+                    initAudioContext();
+
+                    // Start Geiger mode if enabled
+                    if (settings.defaultSoundMode === 'geiger') {
+                        startGeigerMode();
+                    }
+
+                    // Hide the button
+                    updateAudioInitButton();
+                    console.log('✓ Audio auto-initialized on first click');
+                }
+            }
+        }, { once: true });
+
+        // Monitor sound mode changes
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'pas_hmi_settings') {
+                const settings = getSettings();
+
+                // Update volume
+                if (settings.audioVolume !== undefined) {
+                    updateClientVolume(settings.audioVolume);
+                }
+
+                // Start/stop Geiger mode based on settings
+                if (settings.defaultSoundMode === 'geiger' && settings.masterAudioEnabled) {
+                    startGeigerMode();
+                } else {
+                    stopGeigerMode();
+                }
+            }
+        });
+
+        // Decay activity rate over time
+        setInterval(() => {
+            activityRate = Math.max(0, activityRate * 0.9); // Decay by 10% every second
+        }, 1000);
+
+        // ============================================================================
+        // Demo Control Functions
+        // ============================================================================
+
+        let demoRunning = false;
+
+        async function startDemo() {
+            if (demoRunning) {
+                alert('Demo is already running!');
+                return;
+            }
+
+            const startButton = document.getElementById('start-demo-button');
+            const stopButton = document.getElementById('stop-demo-button');
+
+            try {
+                startButton.disabled = true;
+                startButton.textContent = '⏳ Starting...';
+
+                const response = await fetch('/api/demo/start', { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    demoRunning = true;
+                    startButton.style.display = 'none';
+                    stopButton.style.display = 'inline-block';
+                    console.log('✓ Demo started:', data);
+                    alert('Demo started! Watch the HMI come alive with activity.\n\n' +
+                          'Projects will be created in /tmp/ using local LLMs (free!).\n\n' +
+                          'Enable sound in Sequencer to hear it working!');
+                } else {
+                    throw new Error(data.error || 'Failed to start demo');
+                }
+            } catch (error) {
+                console.error('Failed to start demo:', error);
+                alert('Failed to start demo: ' + error.message);
+                startButton.textContent = '▶️ Start Demo';
+            } finally {
+                startButton.disabled = false;
+            }
+        }
+
+        async function stopDemo() {
+            const startButton = document.getElementById('start-demo-button');
+            const stopButton = document.getElementById('stop-demo-button');
+
+            try {
+                stopButton.disabled = true;
+                stopButton.textContent = '⏳ Stopping...';
+
+                const response = await fetch('/api/demo/stop', { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    demoRunning = false;
+                    stopButton.style.display = 'none';
+                    startButton.style.display = 'inline-block';
+                    startButton.textContent = '▶️ Start Demo';
+                    console.log('✓ Demo stopped:', data);
+                    alert('Demo stopped.');
+                } else {
+                    throw new Error(data.error || 'Failed to stop demo');
+                }
+            } catch (error) {
+                console.error('Failed to stop demo:', error);
+                alert('Failed to stop demo: ' + error.message);
+                stopButton.textContent = '⏹️ Stop Demo';
+            } finally {
+                stopButton.disabled = false;
+            }
+        }
+
+        async function clearDemoData() {
+            if (!confirm('This will delete all demo data including:\n\n' +
+                        '• Projects in /tmp/lnsp_demo/\n' +
+                        '• Event logs\n' +
+                        '• Task history\n\n' +
+                        'Continue?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/demo/clear', { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    console.log('✓ Demo data cleared:', data);
+                    alert('Demo data cleared!\n\nRefresh the page to see updated state.');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    throw new Error(data.error || 'Failed to clear demo data');
+                }
+            } catch (error) {
+                console.error('Failed to clear demo data:', error);
+                alert('Failed to clear demo data: ' + error.message);
+            }
+        }
+
+        // Check demo status on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/api/demo/status');
+                const data = await response.json();
+
+                if (data.running) {
+                    demoRunning = true;
+                    document.getElementById('start-demo-button').style.display = 'none';
+                    document.getElementById('stop-demo-button').style.display = 'inline-block';
+                }
+            } catch (error) {
+                console.error('Failed to check demo status:', error);
             }
         });
     </script>

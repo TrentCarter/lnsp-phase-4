@@ -1,0 +1,29 @@
+{
+  "$id": "service_heartbeat.schema.json",
+  "type": "object",
+  "required": [
+    "service_id",
+    "status"
+  ],
+  "properties": {
+    "service_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "degraded",
+        "down"
+      ]
+    },
+    "p95_ms": {
+      "type": "number"
+    },
+    "queue_depth": {
+      "type": "integer"
+    },
+    "load": {
+      "type": "number"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -x "$REPO_ROOT/.venv/bin/python" ]]; then PY="$REPO_ROOT/.venv/bin/python"; else PY="python3"; fi
+exec "$PY" "$REPO_ROOT/tools/claudia_cli.py" "$@"

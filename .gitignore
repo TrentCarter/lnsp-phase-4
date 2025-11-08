@@ -350,3 +350,4 @@ manifests/
 flask_session/
 training_history.json
 lvm_eval/sessions/
+.aider*

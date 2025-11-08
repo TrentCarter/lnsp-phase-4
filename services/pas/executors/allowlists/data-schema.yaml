@@ -1,0 +1,36 @@
+lane: Data-Schema
+description: DB schema definition, migrations, and verification tasks.
+workspace_roots:
+  - "./"
+  - "db/"
+  - "migrations/"
+file_globs:
+  allow:
+    - "**/*.sql"
+    - "**/*.py"
+    - "**/*.yaml"
+    - "**/*.yml"
+    - "alembic.ini"
+    - "Makefile"
+  deny:
+    - "**/.env*"
+    - "**/secrets/**"
+commands:
+  allow:
+    - ["psql", "-h", "localhost", "-U", "*", "-d", "*", "-f", "*"]  # local only
+    - ["alembic", "revision", "--autogenerate", "-m", "*"]
+    - ["alembic", "upgrade", "head"]
+    - ["pytest", "-q", "tests/db/*"]
+    - ["make", "*"]
+    - ["git", "add", "*"]
+    - ["git", "commit", "-m", "*"]
+  deny:
+    - ["psql", "-h", "*.*.*.*", "*"]  # no remote hosts
+    - ["bash", "-c", "*"]
+network:
+  outbound: false
+limits:
+  max_exec_seconds: 600
+fs_ops:
+  patch_only: true
+  backups: true

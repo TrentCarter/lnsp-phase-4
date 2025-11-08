@@ -1,0 +1,36 @@
+{
+  "$id": "manifest.schema.json",
+  "type": "object",
+  "required": [
+    "run_id",
+    "agent",
+    "env",
+    "files"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "agent": {
+      "type": "string"
+    },
+    "env": {
+      "type": "object"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hashes": {
+      "type": "object"
+    },
+    "cost_receipt": {
+      "type": "object"
+    },
+    "metrics": {
+      "type": "object"
+    }
+  }
+}

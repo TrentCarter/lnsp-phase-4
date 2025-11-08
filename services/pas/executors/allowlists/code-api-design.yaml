@@ -1,0 +1,40 @@
+lane: Code-API-Design
+description: API/interface design, stubs, OpenAPI/Proto generation.
+workspace_roots:
+  - "./"
+  - "api/"
+  - "proto/"
+  - "docs/"
+file_globs:
+  allow:
+    - "**/*.md"
+    - "**/*.yaml"
+    - "**/*.yml"
+    - "**/*.proto"
+    - "**/*.py"
+    - "**/*.ts"
+    - "Makefile"
+  deny:
+    - "**/.env*"
+    - "**/secrets/**"
+commands:
+  allow:
+    - ["openapi-generator-cli", "*"]
+    - ["buf", "lint"]
+    - ["buf", "generate"]
+    - ["protoc", "*"]
+    - ["ruff", "."]
+    - ["pytest", "-q", "*"]
+    - ["make", "*"]
+    - ["git", "add", "*"]
+    - ["git", "commit", "-m", "*"]
+    - ["git", "push"]
+  deny:
+    - ["bash", "-c", "*"]
+network:
+  outbound: false
+limits:
+  max_exec_seconds: 600
+fs_ops:
+  patch_only: true
+  backups: true

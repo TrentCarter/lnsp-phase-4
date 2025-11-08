@@ -78,8 +78,12 @@ def get_services():
         response = requests.get(f'{REGISTRY_URL}/services', timeout=5)
         response.raise_for_status()
         data = response.json()
-        # Transform 'items' to 'services' for frontend compatibility
-        return jsonify({'services': data.get('items', [])})
+
+        # Registry returns {"services": {...}} - convert dict to list
+        services_dict = data.get('services', {})
+        services_list = list(services_dict.values()) if isinstance(services_dict, dict) else []
+
+        return jsonify({'services': services_list})
     except Exception as e:
         logger.error(f"Error fetching services: {e}")
         return jsonify({'error': str(e), 'services': []}), 500
@@ -100,7 +104,11 @@ def get_tree_data():
         # Fetch services from Registry
         response = requests.get(f'{REGISTRY_URL}/services', timeout=5)
         response.raise_for_status()
-        services = response.json().get('items', [])
+        data = response.json()
+
+        # Registry returns {"services": {...}} - convert dict to list
+        services_dict = data.get('services', {})
+        services = list(services_dict.values()) if isinstance(services_dict, dict) else []
 
         # Build tree structure
         tree = build_tree_from_services(services)
@@ -148,23 +156,18 @@ def build_tree_from_services(services: List[Dict[str, Any]]) -> Dict[str, Any]:
     root_children = []
     for service in services:
         service_id = service.get('service_id', '')
-        parent_name = service.get('labels', {}).get('parent', '').strip()
+        # Support both 'parent' and 'parent_id' in labels
+        parent_ref = service.get('labels', {}).get('parent_id') or service.get('labels', {}).get('parent', '')
+        parent_ref = parent_ref.strip() if parent_ref else ''
 
-        if not parent_name or parent_name == 'null':
-            # No parent - add to root
+        if not parent_ref or parent_ref == 'root' or parent_ref == 'null':
+            # No parent or root parent - add to root
             if service_id in nodes:
                 root_children.append(nodes[service_id])
         else:
-            # Find parent by matching name
-            parent_id = None
-            for sid, node in nodes.items():
-                # Match by service_id suffix (e.g., "agent-architect" matches "architect")
-                if sid.endswith(f"-{parent_name}") or node['name'].lower() == parent_name.lower():
-                    parent_id = sid
-                    break
-
-            if parent_id and parent_id in nodes:
-                nodes[parent_id]['children'].append(nodes[service_id])
+            # parent_ref is the direct service_id of the parent
+            if parent_ref in nodes:
+                nodes[parent_ref]['children'].append(nodes[service_id])
             else:
                 # Parent not found, add to root
                 if service_id in nodes:
@@ -463,7 +466,11 @@ def get_sequencer_data():
         # Fetch agents from Registry
         response = requests.get(f'{REGISTRY_URL}/services', timeout=5)
         response.raise_for_status()
-        services = response.json().get('items', [])
+        data = response.json()
+
+        # Registry returns {"services": {...}} - convert dict to list
+        services_dict = data.get('services', {})
+        services = list(services_dict.values()) if isinstance(services_dict, dict) else []
 
         # Format agents for sequencer (sorted by tier: VP -> Directors -> Managers -> Workers)
         tier_order = {'0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5}
@@ -532,7 +539,35 @@ def get_sequencer_data():
                 tasks = list(task_map.values())
         except Exception as e:
             logger.warning(f"Error fetching tasks from event stream: {e}")
-            # Generate mock tasks for demo if event stream is unavailable
+
+        # Also fetch tasks from PAS (if available)
+        try:
+            import time
+            pas_response = requests.get(
+                f'http://localhost:6200/pas/v1/runs/status',
+                params={'run_id': 'run-d63a3969'},
+                timeout=2
+            )
+            if pas_response.status_code == 200:
+                pas_data = pas_response.json()
+                pas_tasks = pas_data.get('tasks', [])
+                base_time = time.time() - 60  # 1 min ago
+
+                for i, pas_task in enumerate(pas_tasks):
+                    tasks.append({
+                        'task_id': pas_task['task_id'],
+                        'agent_id': f"programmer-{i+1:03d}",
+                        'name': pas_task['lane'],
+                        'status': 'done' if pas_task['status'] in ['succeeded', 'failed'] else 'running',
+                        'progress': 1.0 if pas_task['status'] in ['succeeded', 'failed'] else 0.5,
+                        'start_time': base_time + (i * 5),
+                        'end_time': base_time + (i * 5) + 10 if pas_task['status'] in ['succeeded', 'failed'] else None
+                    })
+        except Exception as e:
+            logger.warning(f"Error fetching tasks from PAS: {e}")
+
+        # Generate mock tasks for demo if no tasks found
+        if not tasks:
             import time
             now = time.time()
             for i, agent in enumerate(agents[:5]):  # First 5 agents
@@ -563,11 +598,115 @@ def get_sequencer_data():
 
 @app.route('/api/actions/tasks', methods=['GET'])
 def get_action_tasks():
-    """Get all tasks from action logs"""
+    """Get all tasks from sequencer data (fallback to PAS if available)"""
     try:
-        response = requests.get(f'{REGISTRY_URL}/action_logs/tasks', timeout=5)
-        response.raise_for_status()
-        return jsonify(response.json())
+        # Try PAS first (if available)
+        try:
+            pas_response = requests.get(
+                'http://localhost:6200/pas/v1/runs/status',
+                params={'run_id': 'run-d63a3969'},
+                timeout=2
+            )
+            if pas_response.status_code == 200:
+                data = pas_response.json()
+                tasks = data.get('tasks', [])
+
+                # Enrich with project info
+                for task in tasks:
+                    task['run_id'] = 'run-d63a3969'
+                    task['project_name'] = 'REST API with PostgreSQL Backend'
+
+                return jsonify({'items': tasks, 'count': len(tasks)})
+        except:
+            pass  # PAS not available, fall back to sequencer data
+
+        # Fallback: Use sequencer data (event stream + demo tasks)
+        event_response = requests.get(f'{EVENT_STREAM_URL}/events/recent?limit=100', timeout=5)
+        tasks = []
+
+        if event_response.status_code == 200:
+            events = event_response.json().get('events', [])
+
+            # Build task map from events
+            task_map = {}
+            for event in events:
+                event_type = event.get('event_type', '')
+                service_id = event.get('service_id', '')
+                timestamp = datetime.fromisoformat(event.get('timestamp', datetime.now().isoformat())).timestamp()
+
+                task_id = event.get('task_id') or event.get('run_id') or f"{service_id}_{timestamp}"
+
+                if task_id not in task_map:
+                    task_map[task_id] = {
+                        'task_id': task_id,
+                        'lane': event.get('task_name', event_type),
+                        'status': 'running',
+                        'agent': service_id,
+                        'start_time': timestamp,
+                        'end_time': None,
+                        'run_id': 'demo-run',
+                        'project_name': 'Agent Swarm Activity'
+                    }
+
+                # Update task based on event type
+                task = task_map[task_id]
+                if event_type in ['job_completed', 'task_completed']:
+                    task['end_time'] = timestamp
+                    task['status'] = 'succeeded'
+                elif event_type in ['error', 'failed']:
+                    task['status'] = 'failed'
+                    task['end_time'] = timestamp
+
+            tasks = list(task_map.values())
+
+        # If no tasks from events, add demo tasks
+        if len(tasks) == 0:
+            import time
+            base_time = time.time() - 3600
+            demo_tasks = [
+                {
+                    'task_id': 'demo-1',
+                    'lane': 'Database Setup',
+                    'status': 'succeeded',
+                    'start_time': base_time,
+                    'end_time': base_time + 300,
+                    'action_count': 5,
+                    'agents_involved': ['programmer-001']
+                },
+                {
+                    'task_id': 'demo-2',
+                    'lane': 'API Endpoints',
+                    'status': 'succeeded',
+                    'start_time': base_time + 300,
+                    'end_time': base_time + 900,
+                    'action_count': 8,
+                    'agents_involved': ['programmer-001', 'programmer-002']
+                },
+                {
+                    'task_id': 'demo-3',
+                    'lane': 'Authentication',
+                    'status': 'running',
+                    'start_time': base_time + 900,
+                    'end_time': None,
+                    'action_count': 3,
+                    'agents_involved': ['programmer-002']
+                }
+            ]
+            for task in demo_tasks:
+                task['run_id'] = 'demo-run'
+                task['project_name'] = 'REST API Development'
+                task['agent'] = task['agents_involved'][0] if task['agents_involved'] else 'unknown'
+            tasks = demo_tasks
+
+        # Ensure all tasks have required fields for Actions page
+        for task in tasks:
+            if 'action_count' not in task:
+                task['action_count'] = 1
+            if 'agents_involved' not in task:
+                task['agents_involved'] = [task.get('agent', 'unknown')]
+
+        return jsonify({'items': tasks, 'count': len(tasks)})
+
     except Exception as e:
         logger.error(f"Error fetching action tasks: {e}")
         return jsonify({'error': str(e), 'items': []}), 500
@@ -577,9 +716,169 @@ def get_action_tasks():
 def get_task_actions(task_id):
     """Get hierarchical actions for a specific task"""
     try:
-        response = requests.get(f'{REGISTRY_URL}/action_logs/task/{task_id}', timeout=5)
-        response.raise_for_status()
-        return jsonify(response.json())
+        # Try to fetch from Registry first
+        try:
+            response = requests.get(f'{REGISTRY_URL}/action_logs/task/{task_id}', timeout=2)
+            if response.status_code == 200:
+                return jsonify(response.json())
+        except:
+            pass  # Registry not available or task not found
+
+        # Fallback: Return demo actions for demo tasks
+        if task_id.startswith('demo-'):
+            import time
+            now = time.time()
+
+            demo_actions = {
+                'demo-1': [
+                    {
+                        'log_id': 101,
+                        'task_id': task_id,
+                        'action_type': 'database_setup',
+                        'action_name': 'Initialize Database Schema',
+                        'from_agent': 'manager-001',
+                        'to_agent': 'programmer-001',
+                        'status': 'completed',
+                        'timestamp': now - 3300,
+                        'action_data': {'database': 'postgresql', 'schema_version': '1.0'},
+                        'children': [
+                            {
+                                'log_id': 102,
+                                'task_id': task_id,
+                                'action_type': 'sql_execution',
+                                'action_name': 'Create Tables',
+                                'from_agent': 'programmer-001',
+                                'to_agent': None,
+                                'status': 'completed',
+                                'timestamp': now - 3200,
+                                'action_data': {'tables': ['users', 'posts', 'comments']},
+                                'children': []
+                            },
+                            {
+                                'log_id': 103,
+                                'task_id': task_id,
+                                'action_type': 'sql_execution',
+                                'action_name': 'Create Indexes',
+                                'from_agent': 'programmer-001',
+                                'to_agent': None,
+                                'status': 'completed',
+                                'timestamp': now - 3100,
+                                'action_data': {'indexes': 3},
+                                'children': []
+                            }
+                        ]
+                    },
+                    {
+                        'log_id': 104,
+                        'task_id': task_id,
+                        'action_type': 'test',
+                        'action_name': 'Run Database Tests',
+                        'from_agent': 'programmer-001',
+                        'to_agent': None,
+                        'status': 'completed',
+                        'timestamp': now - 3000,
+                        'action_data': {'tests_passed': 12, 'tests_failed': 0},
+                        'children': []
+                    }
+                ],
+                'demo-2': [
+                    {
+                        'log_id': 201,
+                        'task_id': task_id,
+                        'action_type': 'api_implementation',
+                        'action_name': 'Implement REST Endpoints',
+                        'from_agent': 'manager-001',
+                        'to_agent': 'programmer-001',
+                        'status': 'completed',
+                        'timestamp': now - 2700,
+                        'action_data': {'endpoints': ['/users', '/posts', '/comments']},
+                        'children': [
+                            {
+                                'log_id': 202,
+                                'task_id': task_id,
+                                'action_type': 'code_generation',
+                                'action_name': 'Generate GET /users',
+                                'from_agent': 'programmer-001',
+                                'to_agent': None,
+                                'status': 'completed',
+                                'timestamp': now - 2650,
+                                'action_data': {'method': 'GET', 'route': '/users'},
+                                'children': []
+                            },
+                            {
+                                'log_id': 203,
+                                'task_id': task_id,
+                                'action_type': 'code_generation',
+                                'action_name': 'Generate POST /users',
+                                'from_agent': 'programmer-001',
+                                'to_agent': None,
+                                'status': 'completed',
+                                'timestamp': now - 2600,
+                                'action_data': {'method': 'POST', 'route': '/users'},
+                                'children': []
+                            }
+                        ]
+                    },
+                    {
+                        'log_id': 204,
+                        'task_id': task_id,
+                        'action_type': 'code_review',
+                        'action_name': 'Review API Implementation',
+                        'from_agent': 'programmer-002',
+                        'to_agent': 'programmer-001',
+                        'status': 'completed',
+                        'timestamp': now - 2400,
+                        'action_data': {'comments': 2, 'approved': True},
+                        'children': []
+                    }
+                ],
+                'demo-3': [
+                    {
+                        'log_id': 301,
+                        'task_id': task_id,
+                        'action_type': 'auth_implementation',
+                        'action_name': 'Implement JWT Authentication',
+                        'from_agent': 'manager-001',
+                        'to_agent': 'programmer-002',
+                        'status': 'running',
+                        'timestamp': now - 900,
+                        'action_data': {'auth_type': 'JWT', 'token_expiry': '1h'},
+                        'children': [
+                            {
+                                'log_id': 302,
+                                'task_id': task_id,
+                                'action_type': 'code_generation',
+                                'action_name': 'Generate Login Endpoint',
+                                'from_agent': 'programmer-002',
+                                'to_agent': None,
+                                'status': 'completed',
+                                'timestamp': now - 850,
+                                'action_data': {'route': '/auth/login'},
+                                'children': []
+                            },
+                            {
+                                'log_id': 303,
+                                'task_id': task_id,
+                                'action_type': 'code_generation',
+                                'action_name': 'Generate Token Verification Middleware',
+                                'from_agent': 'programmer-002',
+                                'to_agent': None,
+                                'status': 'running',
+                                'timestamp': now - 300,
+                                'action_data': {'middleware': 'verify_token'},
+                                'children': []
+                            }
+                        ]
+                    }
+                ]
+            }
+
+            actions = demo_actions.get(task_id, [])
+            return jsonify({'task_id': task_id, 'actions': actions})
+
+        # Task not found
+        return jsonify({'error': 'Task not found', 'task_id': task_id, 'actions': []}), 404
+
     except Exception as e:
         logger.error(f"Error fetching actions for task {task_id}: {e}")
         return jsonify({'error': str(e), 'task_id': task_id, 'actions': []}), 500
@@ -595,6 +894,133 @@ def log_action():
         return jsonify(response.json())
     except Exception as e:
         logger.error(f"Error logging action: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# PAS Integration for Tasks
+# ============================================================================
+
+PAS_URL = 'http://localhost:6200'
+
+
+@app.route('/api/demo/start', methods=['POST'])
+def start_demo():
+    """Start the live demo"""
+    try:
+        import subprocess
+        import os
+        import signal
+
+        # Check if demo is already running
+        demo_pid_file = '/tmp/lnsp_demo.pid'
+        if os.path.exists(demo_pid_file):
+            with open(demo_pid_file, 'r') as f:
+                pid = int(f.read().strip())
+                try:
+                    os.kill(pid, 0)  # Check if process exists
+                    return jsonify({'error': 'Demo is already running', 'pid': pid}), 400
+                except OSError:
+                    os.remove(demo_pid_file)
+
+        # Start demo worker in background
+        venv_python = os.path.join(os.path.dirname(__file__), '../../.venv/bin/python')
+        demo_script = '/tmp/lnsp_demo_worker.py'
+
+        process = subprocess.Popen(
+            [venv_python, demo_script],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True
+        )
+
+        # Save PID
+        with open(demo_pid_file, 'w') as f:
+            f.write(str(process.pid))
+
+        return jsonify({'message': 'Demo started', 'pid': process.pid})
+    except Exception as e:
+        logger.error(f"Error starting demo: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/demo/stop', methods=['POST'])
+def stop_demo():
+    """Stop the live demo"""
+    try:
+        import os
+        import signal
+
+        demo_pid_file = '/tmp/lnsp_demo.pid'
+        if not os.path.exists(demo_pid_file):
+            return jsonify({'message': 'Demo is not running'})
+
+        with open(demo_pid_file, 'r') as f:
+            pid = int(f.read().strip())
+
+        try:
+            os.kill(pid, signal.SIGTERM)
+            os.remove(demo_pid_file)
+            return jsonify({'message': 'Demo stopped', 'pid': pid})
+        except ProcessLookupError:
+            os.remove(demo_pid_file)
+            return jsonify({'message': 'Demo was not running (cleaned up stale PID file)'})
+    except Exception as e:
+        logger.error(f"Error stopping demo: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/demo/status', methods=['GET'])
+def demo_status():
+    """Check if demo is running"""
+    try:
+        import os
+
+        demo_pid_file = '/tmp/lnsp_demo.pid'
+        if not os.path.exists(demo_pid_file):
+            return jsonify({'running': False})
+
+        with open(demo_pid_file, 'r') as f:
+            pid = int(f.read().strip())
+
+        try:
+            os.kill(pid, 0)  # Check if process exists
+            return jsonify({'running': True, 'pid': pid})
+        except OSError:
+            os.remove(demo_pid_file)
+            return jsonify({'running': False})
+    except Exception as e:
+        logger.error(f"Error checking demo status: {e}")
+        return jsonify({'running': False, 'error': str(e)})
+
+
+@app.route('/api/demo/clear', methods=['POST'])
+def clear_demo_data():
+    """Clear all demo data"""
+    try:
+        import shutil
+        import os
+        import signal
+
+        # Stop demo if running
+        demo_pid_file = '/tmp/lnsp_demo.pid'
+        if os.path.exists(demo_pid_file):
+            with open(demo_pid_file, 'r') as f:
+                pid = int(f.read().strip())
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except:
+                pass
+            os.remove(demo_pid_file)
+
+        # Delete demo directory
+        demo_dir = '/tmp/lnsp_demo'
+        if os.path.exists(demo_dir):
+            shutil.rmtree(demo_dir)
+
+        return jsonify({'message': 'Demo data cleared'})
+    except Exception as e:
+        logger.error(f"Error clearing demo data: {e}")
         return jsonify({'error': str(e)}), 500
 
 

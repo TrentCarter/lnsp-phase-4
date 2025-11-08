@@ -1,0 +1,66 @@
+{
+  "$id": "heartbeat.schema.json",
+  "type": "object",
+  "required": [
+    "run_id",
+    "agent",
+    "ts",
+    "progress",
+    "status"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "agent": {
+      "type": "string"
+    },
+    "ts": {
+      "type": "string"
+    },
+    "progress": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "status": {
+      "enum": [
+        "queued",
+        "running",
+        "blocked",
+        "waiting_approval",
+        "paused",
+        "error",
+        "done"
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "token_usage": {
+      "type": "object",
+      "properties": {
+        "ctx_used": {
+          "type": "integer"
+        },
+        "ctx_limit": {
+          "type": "integer"
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "cpu": {
+          "type": "number"
+        },
+        "mem_mb": {
+          "type": "number"
+        },
+        "gpu_mem_mb": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

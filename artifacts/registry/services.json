@@ -1,0 +1,199 @@
+{
+  "services": {
+    "architect-001": {
+      "service_id": "architect-001",
+      "name": "Chief Architect",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Architect",
+        "tier": "0-architect",
+        "parent_id": "root",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.300867
+    },
+    "director-code-001": {
+      "service_id": "director-code-001",
+      "name": "Director of Code",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Director",
+        "tier": "1-director",
+        "parent_id": "architect-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.302059
+    },
+    "director-data-001": {
+      "service_id": "director-data-001",
+      "name": "Director of Data",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Director",
+        "tier": "1-director",
+        "parent_id": "architect-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.303116
+    },
+    "manager-code-api-001": {
+      "service_id": "manager-code-api-001",
+      "name": "Code API Manager",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Manager",
+        "tier": "2-manager",
+        "parent_id": "director-code-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.304181
+    },
+    "manager-code-impl-001": {
+      "service_id": "manager-code-impl-001",
+      "name": "Code Impl Manager",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Manager",
+        "tier": "2-manager",
+        "parent_id": "director-code-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.3050282
+    },
+    "manager-data-schema-001": {
+      "service_id": "manager-data-schema-001",
+      "name": "Data Schema Manager",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Manager",
+        "tier": "2-manager",
+        "parent_id": "director-data-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.30581
+    },
+    "manager-narrative-001": {
+      "service_id": "manager-narrative-001",
+      "name": "Narrative Manager",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Manager",
+        "tier": "2-manager",
+        "parent_id": "director-data-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.306716
+    },
+    "programmer-001": {
+      "service_id": "programmer-001",
+      "name": "OpenAPI Designer (LLM)",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Programmer-LLM",
+        "tier": "3-programmer",
+        "parent_id": "manager-code-api-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.307786
+    },
+    "programmer-002": {
+      "service_id": "programmer-002",
+      "name": "Doc Generator (Tool)",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Programmer-Tool",
+        "tier": "3-programmer",
+        "parent_id": "manager-code-api-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.3086772
+    },
+    "programmer-003": {
+      "service_id": "programmer-003",
+      "name": "Backend Developer (LLM)",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Programmer-LLM",
+        "tier": "3-programmer",
+        "parent_id": "manager-code-impl-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.309639
+    },
+    "programmer-004": {
+      "service_id": "programmer-004",
+      "name": "Test Writer (Tool)",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Programmer-Tool",
+        "tier": "3-programmer",
+        "parent_id": "manager-code-impl-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.3106759
+    },
+    "programmer-005": {
+      "service_id": "programmer-005",
+      "name": "Schema Designer (LLM)",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Programmer-LLM",
+        "tier": "3-programmer",
+        "parent_id": "manager-data-schema-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.311736
+    },
+    "programmer-006": {
+      "service_id": "programmer-006",
+      "name": "Migration Builder (Tool)",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Programmer-Tool",
+        "tier": "3-programmer",
+        "parent_id": "manager-data-schema-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.3126929
+    },
+    "programmer-007": {
+      "service_id": "programmer-007",
+      "name": "README Writer (LLM)",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Programmer-LLM",
+        "tier": "3-programmer",
+        "parent_id": "manager-narrative-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.3136199
+    },
+    "programmer-008": {
+      "service_id": "programmer-008",
+      "name": "Deployment Guide Writer (Tool)",
+      "port": 0,
+      "status": "active",
+      "labels": {
+        "agent_role": "Programmer-Tool",
+        "tier": "3-programmer",
+        "parent_id": "manager-narrative-001",
+        "type": "agent"
+      },
+      "last_seen": 1762553065.314576
+    }
+  }
+}

@@ -174,6 +174,7 @@ async def execute_aider(
         "--message", message,
         "--model", AIDER_MODEL,
         "--yes",  # Auto-confirm
+        "--no-show-model-warnings",  # Suppress browser opening for warnings
     ]
 
     if AIDER_EDITOR_MODEL:
@@ -419,10 +420,72 @@ async def invoke(req: InvokeRequest, background_tasks: BackgroundTasks):
         ts=now_iso(),
     )
 
+    # Log action to Registry (async, non-blocking)
+    action_status = "completed" if result.get("status") == "ok" else "error"
+    background_tasks.add_task(
+        log_action_to_registry,
+        task_id=run_id,
+        from_agent="User",
+        to_agent=APP_NAME,
+        action_type="command",
+        action_name=message[:80],  # Truncate message for action name
+        status=action_status,
+        action_data={
+            "files": files,
+            "duration_seconds": round(dt_total / 1000.0, 2),
+            "files_changed": result.get("receipt", {}).get("kpis", {}).get("files_changed", 0),
+            "cost_usd": result.get("receipt", {}).get("cost", {}).get("total_cost", 0.0),
+        },
+    )
+
     return InvokeResponse(
         upstream=UpstreamResponse(outputs=result),
         routing_receipt=routing_receipt,
     )
+
+# ==================== Action Logging ====================
+
+async def log_action_to_registry(
+    task_id: str,
+    from_agent: str,
+    to_agent: str,
+    action_type: str,
+    action_name: str,
+    status: str,
+    action_data: Optional[Dict[str, Any]] = None,
+    parent_log_id: Optional[int] = None,
+):
+    """Log an action to the Registry's action_logs endpoint"""
+    if not REGISTRY_URL:
+        return  # No registry configured, skip logging
+
+    payload = {
+        "task_id": task_id,
+        "from_agent": from_agent,
+        "to_agent": to_agent,
+        "action_type": action_type,
+        "action_name": action_name,
+        "status": status,
+        "tier_from": 0,  # User tier
+        "tier_to": 3,    # Execution tier (Aider-LCO)
+    }
+
+    if action_data:
+        payload["action_data"] = action_data
+    if parent_log_id:
+        payload["parent_log_id"] = parent_log_id
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.post(
+                f"{REGISTRY_URL}/action_logs",
+                json=payload,
+            )
+            response.raise_for_status()
+            return response.json()
+    except Exception as e:
+        print(f"[WARNING] Failed to log action to registry: {e}")
+        return None
 
 # ==================== Main ====================
 

@@ -1,0 +1,69 @@
+lane: Code-Impl
+description: Implementation & refactoring lane for application code.
+workspace_roots:
+  - "./"
+  - "src/"
+  - "apps/"
+  - "services/"
+file_globs:
+  allow:
+    - "**/*.py"
+    - "**/*.ts"
+    - "**/*.tsx"
+    - "**/*.js"
+    - "**/*.java"
+    - "**/*.go"
+    - "**/*.rs"
+    - "**/*.c"
+    - "**/*.cpp"
+    - "**/*.json"
+    - "**/*.yaml"
+    - "**/*.yml"
+    - "**/*.toml"
+    - "Makefile"
+  deny:
+    - "**/.env*"
+    - "**/secrets/**"
+    - "**/*.pem"
+    - "**/*.key"
+commands:
+  allow:
+    - ["pytest", "-q", "*"]
+    - ["ruff", ".", "--exit-non-zero-on-fix?"]
+    - ["mypy", "."]
+    - ["npm", "ci"]
+    - ["npm", "run", "*"]
+    - ["pnpm", "install"]
+    - ["pnpm", "run", "*"]
+    - ["yarn", "install"]
+    - ["yarn", "run", "*"]
+    - ["node", "*"]
+    - ["uv", "run", "*"]
+    - ["python", "-m", "pytest", "*"]
+    - ["go", "build", "./..."]
+    - ["go", "test", "./..."]
+    - ["cargo", "build", "--locked"]
+    - ["cargo", "test", "--locked"]
+    - ["gradle", "test"]
+    - ["mvn", "test"]
+    - ["make", "*"]
+    - ["git", "status"]
+    - ["git", "add", "*"]
+    - ["git", "commit", "-m", "*"]
+    - ["git", "push"]
+  deny:
+    - ["bash", "-c", "*"]        # no raw shell
+    - ["sh", "-c", "*"]
+    - ["curl", "*"]              # outbound blocked in this lane
+    - ["wget", "*"]
+network:
+  outbound: false
+limits:
+  max_cpu_pct: 80
+  max_mem_mb: 8192
+  max_exec_seconds: 900
+  max_parallel: 2
+fs_ops:
+  patch_only: true
+  require_unified_diff: true
+  backups: true

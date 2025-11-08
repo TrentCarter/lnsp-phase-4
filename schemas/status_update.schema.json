@@ -1,0 +1,37 @@
+{
+  "$id": "status_update.schema.json",
+  "type": "object",
+  "required": [
+    "job_id",
+    "agent",
+    "event",
+    "ts"
+  ],
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "agent": {
+      "type": "string"
+    },
+    "event": {
+      "enum": [
+        "accepted",
+        "started",
+        "awaiting_approval",
+        "approved",
+        "rejected",
+        "soft_timeout",
+        "hard_timeout",
+        "escalated",
+        "completed"
+      ]
+    },
+    "ts": {
+      "type": "string"
+    },
+    "details": {
+      "type": "object"
+    }
+  }
+}

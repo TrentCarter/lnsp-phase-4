@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound System Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0e27;
+            color: #e0e0e0;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #fff;
+            margin-bottom: 2rem;
+        }
+        .section {
+            background: linear-gradient(135deg, #1e2747 0%, #2a3558 100%);
+            border: 1px solid #3a4568;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .section h2 {
+            color: #fff;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .secondary {
+            background: #6b7280;
+        }
+        .secondary:hover {
+            background: #4b5563;
+        }
+        .success {
+            background: #10b981;
+        }
+        .success:hover {
+            background: #059669;
+        }
+        .warning {
+            background: #f59e0b;
+        }
+        .warning:hover {
+            background: #d97706;
+        }
+        .error {
+            background: #ef4444;
+        }
+        .error:hover {
+            background: #dc2626;
+        }
+        .info {
+            padding: 1rem;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid #3b82f6;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+        .status {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid #10b981;
+            border-radius: 6px;
+            font-family: monospace;
+        }
+        label {
+            display: block;
+            margin: 1rem 0 0.5rem;
+            color: #d1d5db;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        select {
+            background: #1a1f3a;
+            color: #e0e0e0;
+            border: 1px solid #4a5578;
+            padding: 0.5rem;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔊 Sound System Demo</h1>
+
+    <div class="info">
+        Click "Initialize Audio" first (required by browser security policy). Then test each sound mode!
+    </div>
+
+    <div class="section">
+        <h2>🎛️ Controls</h2>
+        <button onclick="initAudio()" class="success">Initialize Audio</button>
+        <button onclick="stopAllSounds()" class="error">Stop All Sounds</button>
+
+        <label>Master Volume: <span id="volume-display">70%</span></label>
+        <input type="range" id="volume-slider" min="0" max="100" value="70" oninput="updateVolume(this.value)">
+    </div>
+
+    <div class="section">
+        <h2>🎵 Musical Notes</h2>
+        <button onclick="playNote(261.63, 0.3, 'sine')">C4 (Task Assigned)</button>
+        <button onclick="playNote(329.63, 0.3, 'sine')">E4 (Task Started)</button>
+        <button onclick="playNote(523.25, 0.3, 'sine')">C5 (Task Completed)</button>
+        <button onclick="playNote(130.81, 0.3, 'sine')" class="warning">C3 (Error)</button>
+        <button onclick="playNote(196.00, 0.3, 'sine')" class="warning">G3 (Warning)</button>
+        <button onclick="playNote(698.46, 0.3, 'sine')" class="success">F5 (Success)</button>
+    </div>
+
+    <div class="section">
+        <h2>🎲 Random Sounds</h2>
+        <button onclick="playRandomSound()">Play Random Sound</button>
+        <button onclick="playMultipleRandom()">Play 5 Random Sounds</button>
+    </div>
+
+    <div class="section">
+        <h2>☢️ Geiger Counter</h2>
+        <button onclick="playGeigerClick()">Single Click</button>
+        <button onclick="playGeigerBurst()">Burst (5 clicks)</button>
+        <button onclick="startGeiger()" class="success">Start Continuous</button>
+        <button onclick="stopGeiger()" class="error">Stop Continuous</button>
+
+        <label>Activity Rate (affects tick speed):</label>
+        <input type="range" id="activity-slider" min="0" max="10" value="1" oninput="setActivityRate(this.value)">
+        <div style="margin-top: 0.5rem; color: #9ca3af;">
+            Current: <span id="activity-display">1</span> events/sec
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🗣️ Text-to-Speech</h2>
+        <button onclick="speak('Task assigned')">Task Assigned</button>
+        <button onclick="speak('Task started')">Task Started</button>
+        <button onclick="speak('Task completed')" class="success">Task Completed</button>
+        <button onclick="speak('Error occurred')" class="error">Error Occurred</button>
+        <button onclick="speak('Warning')">Warning</button>
+
+        <label>Custom Text:</label>
+        <input type="text" id="custom-text" placeholder="Enter text to speak"
+               style="width: 100%; padding: 0.5rem; background: #1a1f3a; border: 1px solid #4a5578; color: #e0e0e0; border-radius: 6px;">
+        <button onclick="speakCustom()" style="margin-top: 0.5rem;">Speak Custom Text</button>
+    </div>
+
+    <div class="section">
+        <h2>🎭 Sound Mode Demo</h2>
+        <label>Select Mode:</label>
+        <select id="mode-select">
+            <option value="none">None</option>
+            <option value="voice">Voice</option>
+            <option value="music">Music Note</option>
+            <option value="random">Random Sounds</option>
+            <option value="geiger">Geiger Counter</option>
+        </select>
+
+        <div style="margin-top: 1rem;">
+            <button onclick="demoTaskAssigned()">Demo: Task Assigned</button>
+            <button onclick="demoTaskStarted()">Demo: Task Started</button>
+            <button onclick="demoTaskCompleted()" class="success">Demo: Task Completed</button>
+            <button onclick="demoError()" class="error">Demo: Error</button>
+        </div>
+    </div>
+
+    <div class="status" id="status">
+        Status: Not initialized
+    </div>
+
+    <script>
+        let audioContext = null;
+        let masterGain = null;
+        let geigerInterval = null;
+        let activityRate = 1;
+
+        function updateStatus(msg) {
+            document.getElementById('status').textContent = 'Status: ' + msg;
+        }
+
+        function initAudio() {
+            if (audioContext) {
+                updateStatus('Already initialized');
+                return;
+            }
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioContext.createGain();
+            masterGain.connect(audioContext.destination);
+            masterGain.gain.value = 0.7;
+
+            updateStatus('✓ Audio initialized - Ready to play sounds!');
+        }
+
+        function updateVolume(value) {
+            document.getElementById('volume-display').textContent = value + '%';
+            if (masterGain) {
+                masterGain.gain.value = value / 100;
+            }
+        }
+
+        function playNote(frequency, duration, waveform) {
+            if (!audioContext) {
+                updateStatus('❌ Click "Initialize Audio" first!');
+                return;
+            }
+
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.type = waveform;
+            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(masterGain);
+
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + duration);
+
+            updateStatus(`Playing ${frequency.toFixed(2)} Hz for ${duration}s`);
+        }
+
+        function playGeigerClick() {
+            if (!audioContext) {
+                updateStatus('❌ Click "Initialize Audio" first!');
+                return;
+            }
+
+            const bufferSize = audioContext.sampleRate * 0.02;
+            const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < bufferSize; i++) {
+                const decay = Math.exp(-i / (bufferSize / 8));
+                data[i] = (Math.random() * 2 - 1) * decay;
+            }
+
+            const source = audioContext.createBufferSource();
+            const gainNode = audioContext.createGain();
+
+            source.buffer = buffer;
+            gainNode.gain.value = 0.15;
+
+            source.connect(gainNode);
+            gainNode.connect(masterGain);
+
+            source.start();
+
+            updateStatus('☢️ Geiger click played');
+        }
+
+        function playGeigerBurst() {
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => playGeigerClick(), i * 100);
+            }
+        }
+
+        function startGeiger() {
+            if (geigerInterval) {
+                updateStatus('⚠️ Geiger counter already running');
+                return;
+            }
+
+            geigerInterval = setInterval(() => {
+                const baseRate = 500;
+                const interval = Math.max(50, baseRate - (activityRate * 50));
+
+                if (Math.random() < 0.3 || activityRate > 0) {
+                    playGeigerClick();
+                }
+            }, 200);
+
+            updateStatus('✓ Geiger counter started (varies with activity rate)');
+        }
+
+        function stopGeiger() {
+            if (geigerInterval) {
+                clearInterval(geigerInterval);
+                geigerInterval = null;
+                updateStatus('✓ Geiger counter stopped');
+            }
+        }
+
+        function setActivityRate(value) {
+            activityRate = parseInt(value);
+            document.getElementById('activity-display').textContent = activityRate;
+        }
+
+        function playRandomSound() {
+            const sounds = [
+                { freq: 440, wave: 'sine' },
+                { freq: 523, wave: 'sine' },
+                { freq: 659, wave: 'sine' },
+                { freq: 784, wave: 'sine' },
+                { freq: 880, wave: 'triangle' },
+                { freq: 1047, wave: 'square' }
+            ];
+
+            const sound = sounds[Math.floor(Math.random() * sounds.length)];
+            playNote(sound.freq, 0.15, sound.wave);
+        }
+
+        function playMultipleRandom() {
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => playRandomSound(), i * 150);
+            }
+        }
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.2;
+                utterance.pitch = 1.0;
+                utterance.volume = masterGain ? masterGain.gain.value : 0.7;
+                window.speechSynthesis.speak(utterance);
+                updateStatus(`🗣️ Speaking: "${text}"`);
+            } else {
+                updateStatus('❌ Text-to-speech not supported in this browser');
+            }
+        }
+
+        function speakCustom() {
+            const text = document.getElementById('custom-text').value;
+            if (text.trim()) {
+                speak(text);
+            } else {
+                updateStatus('⚠️ Enter text to speak');
+            }
+        }
+
+        function demoTaskAssigned() {
+            const mode = document.getElementById('mode-select').value;
+            handleSoundMode(mode, 'task_assigned');
+        }
+
+        function demoTaskStarted() {
+            const mode = document.getElementById('mode-select').value;
+            handleSoundMode(mode, 'task_started');
+        }
+
+        function demoTaskCompleted() {
+            const mode = document.getElementById('mode-select').value;
+            handleSoundMode(mode, 'task_completed');
+        }
+
+        function demoError() {
+            const mode = document.getElementById('mode-select').value;
+            handleSoundMode(mode, 'error');
+        }
+
+        function handleSoundMode(mode, eventType) {
+            updateStatus(`Mode: ${mode}, Event: ${eventType}`);
+
+            switch (mode) {
+                case 'none':
+                    updateStatus('Mode: None (no sound)');
+                    break;
+
+                case 'voice':
+                    const voiceMap = {
+                        'task_assigned': 'Task assigned',
+                        'task_started': 'Task started',
+                        'task_completed': 'Task completed',
+                        'error': 'Error occurred'
+                    };
+                    speak(voiceMap[eventType] || eventType);
+                    break;
+
+                case 'music':
+                    const noteMap = {
+                        'task_assigned': 261.63,  // C4
+                        'task_started': 329.63,   // E4
+                        'task_completed': 523.25, // C5
+                        'error': 130.81           // C3
+                    };
+                    playNote(noteMap[eventType] || 261.63, 0.3, 'sine');
+                    break;
+
+                case 'random':
+                    playRandomSound();
+                    break;
+
+                case 'geiger':
+                    playGeigerClick();
+                    break;
+
+                default:
+                    updateStatus('Unknown mode: ' + mode);
+            }
+        }
+
+        function stopAllSounds() {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
+            stopGeiger();
+            updateStatus('✓ All sounds stopped');
+        }
+
+        // Initialize on page load
+        updateStatus('Click "Initialize Audio" to begin');
+    </script>
+</body>
+</html>

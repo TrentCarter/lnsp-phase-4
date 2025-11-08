@@ -1,0 +1,25 @@
+lane: Graph-Ops
+description: Code graph extraction / static analysis (tree-sitter/ctags).
+workspace_roots:
+  - "./"
+  - "artifacts/graph/"
+file_globs:
+  allow:
+    - "**/*"
+  deny:
+    - "**/.env*"
+    - "**/secrets/**"
+commands:
+  allow:
+    - ["tree-sitter", "parse", "*"]
+    - ["ctags", "-R", "."]
+    - ["python", "tools/graph/build_graph.py", "*"]
+  deny:
+    - ["bash", "-c", "*"]
+network:
+  outbound: false
+limits:
+  max_exec_seconds: 300
+fs_ops:
+  patch_only: false
+  backups: true

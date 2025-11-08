@@ -1,0 +1,45 @@
+{
+  "run_id": "task-001",
+  "job_id": null,
+  "task": "aider_execution",
+  "status": "ok",
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "thinking_tokens": 0,
+    "total_tokens": 0
+  },
+  "cost": {
+    "input_cost": 0.0,
+    "output_cost": 0.0,
+    "total_cost": 0.0,
+    "model": "ollama/qwen2.5-coder:7b-instruct",
+    "pricing_date": "2025-01-01"
+  },
+  "provider": {
+    "provider": "ollama",
+    "model": "ollama/qwen2.5-coder:7b-instruct",
+    "temperature": 0.7,
+    "max_tokens": 4096,
+    "top_p": null,
+    "top_k": null,
+    "api_base": null,
+    "api_version": null
+  },
+  "kpis": {
+    "test_pass_rate": null,
+    "lint_errors": 0,
+    "type_errors": 0,
+    "files_changed": 1,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "commits_created": 0,
+    "duration_seconds": 15.360991708002985
+  },
+  "timings_ms": {},
+  "created_at": "2025-11-07T19:48:20Z",
+  "completed_at": "2025-11-07T19:48:36Z",
+  "artifacts": [
+    "/var/folders/v4/d3_0mlv15f14q51lt589t10m0000gn/T/tmpy8pp6amc.log"
+  ]
+}

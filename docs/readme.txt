@@ -172,6 +172,8 @@ docs/how_to_use_jxe_and_ielab.md
   ./.venv/bin/pytest tests/test_p4_safeguards.py -v
   ./.venv/bin/pytest tests/test_p4_safeguards.py -v --tb=short
 
+  
+
   2. Check Deployment Readiness
   bash scripts/deployment_gate.sh 9001
 
@@ -277,6 +279,8 @@ API endpoints:
 # Enable reload for all services
 
 ./.venv/bin/python tools/launch_fastapis.py --reload
+
+
 
 # Start a subset
 

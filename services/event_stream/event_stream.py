@@ -32,6 +32,9 @@ MAX_BUFFER_SIZE = 100
 # Connected clients counter
 connected_clients = 0
 
+# Total events counter (lifetime)
+total_events = 0
+
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -42,6 +45,7 @@ def health():
         'port': 6102,
         'connected_clients': connected_clients,
         'buffered_events': len(event_buffer),
+        'total_events': total_events,
         'timestamp': datetime.now().isoformat()
     })
 
@@ -99,8 +103,9 @@ def broadcast_event():
 
 def add_to_buffer(event: Dict[str, Any]):
     """Add event to circular buffer"""
-    global event_buffer
+    global event_buffer, total_events
     event_buffer.append(event)
+    total_events += 1
     if len(event_buffer) > MAX_BUFFER_SIZE:
         event_buffer.pop(0)
 

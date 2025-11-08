@@ -1,0 +1,71 @@
+{
+  "$id": "gateway_invoke_request.schema.json",
+  "type": "object",
+  "required": [
+    "target",
+    "payload"
+  ],
+  "properties": {
+    "target": {
+      "type": "object",
+      "properties": {
+        "service_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "payload": {
+      "type": "object"
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "timeout_s": {
+          "type": "integer"
+        },
+        "prefer": {
+          "type": "string"
+        },
+        "require_caps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

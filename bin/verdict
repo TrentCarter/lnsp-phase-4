@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Verdict launcher - delegates to Python CLI
+# Always uses repo venv Python for consistency
+
+# Get script directory and repo root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Use repo venv Python if it exists, otherwise fall back
+if [ -f "$REPO_ROOT/.venv/bin/python" ]; then
+  PY="$REPO_ROOT/.venv/bin/python"
+elif [ -n "$VIRTUAL_ENV" ]; then
+  PY=python
+else
+  PY=python3
+fi
+
+exec "$PY" "$REPO_ROOT/tools/verdict_cli.py" "$@"

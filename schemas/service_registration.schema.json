@@ -1,0 +1,63 @@
+{
+  "$id": "service_registration.schema.json",
+  "type": "object",
+  "required": [
+    "name",
+    "type",
+    "role",
+    "url",
+    "caps",
+    "heartbeat_interval_s",
+    "ttl_s",
+    "service_id"
+  ],
+  "properties": {
+    "service_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "model",
+        "tool",
+        "agent",
+        "system"
+      ]
+    },
+    "role": {
+      "enum": [
+        "production",
+        "staging",
+        "canary",
+        "experimental",
+        "execution"
+      ]
+    },
+    "url": {
+      "type": "string"
+    },
+    "caps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "labels": {
+      "type": "object"
+    },
+    "ctx_limit": {
+      "type": "integer"
+    },
+    "cost_hint": {
+      "type": "object"
+    },
+    "heartbeat_interval_s": {
+      "type": "integer"
+    },
+    "ttl_s": {
+      "type": "integer"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$id": "service_discovery_query.schema.json",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "cap": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "labels": {
+      "type": "object"
+    }
+  }
+}

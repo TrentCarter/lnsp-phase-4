@@ -342,6 +342,7 @@
                     <option value="voice">Voice</option>
                     <option value="music">Music Note</option>
                     <option value="random">Random Sounds</option>
+                    <option value="geiger">Geiger Counter</option>
                 </select>
             </div>
 
@@ -801,14 +802,43 @@
         setTimeout(startPlayback, 100); // Update every 100ms
     }
 
+    // Track which tasks have already triggered sounds
+    let lastTriggeredTasks = new Set();
+
     function checkTaskEvents() {
-        // Future: Check if playhead crossed task start/end and trigger sound
-        // For now, this is a placeholder for sound integration
-        if (soundMode !== 'none') {
-            // TODO: Implement sound playback based on soundMode
-            // - 'voice': Text-to-speech announcements
-            // - 'music': Musical notes mapped to task events
-            // - 'random': Random sound effects
+        if (soundMode === 'none') return;
+
+        const now = Date.now() / 1000;
+        const currentTime = now - timeRangeSeconds + playheadPosition;
+
+        // Find tasks that the playhead is currently crossing
+        tasks.forEach(task => {
+            const taskStart = task.start_time;
+            const taskEnd = task.end_time || now;
+
+            // Check if playhead is within task boundaries
+            if (currentTime >= taskStart && currentTime <= taskEnd) {
+                const taskKey = `${task.task_id}_${taskStart}`;
+
+                // Only trigger sound once per task
+                if (!lastTriggeredTasks.has(taskKey)) {
+                    lastTriggeredTasks.add(taskKey);
+
+                    // Trigger sound based on task status
+                    const eventType = task.status === 'done' ? 'task_completed' :
+                                     task.status === 'error' ? 'error' :
+                                     task.status === 'blocked' ? 'warning' :
+                                     'task_started';
+
+                    console.log('🔊 Playhead crossed task:', task.name, 'event:', eventType);
+                    handleTaskEventSound(eventType);
+                }
+            }
+        });
+
+        // Clean up old triggered tasks (reset when playhead loops)
+        if (playheadPosition < 1) {
+            lastTriggeredTasks.clear();
         }
     }
 
@@ -853,43 +883,33 @@
     }
 
     /**
-     * Convert slider position (0-100) to playback speed (0.1x-100x) using non-linear scaling.
-     * - 0-50%: 0.1x to 1.0x (linear)
-     * - 50-75%: 1.0x to 10x (exponential)
-     * - 75-100%: 10x to 100x (exponential)
+     * Convert slider position (0-100) to playback speed (0.1x-1000x) using logarithmic scaling.
+     * - Uses logarithmic scale for smooth acceleration across wide range
+     * - 0%: 0.1x (slowest)
+     * - 25%: 1.0x (normal speed)
+     * - 50%: 10x
+     * - 75%: 100x
+     * - 100%: 1000x (fastest)
      */
     function sliderToSpeed(sliderValue) {
         const val = parseFloat(sliderValue);
-        if (val <= 50) {
-            // 0-50%: 0.1x to 1.0x (linear)
-            return 0.1 + (val / 50) * 0.9;
-        } else if (val <= 75) {
-            // 50-75%: 1.0x to 10x (exponential)
-            const t = (val - 50) / 25; // 0 to 1
-            return 1.0 + Math.pow(t, 2) * 9.0;
-        } else {
-            // 75-100%: 10x to 100x (exponential)
-            const t = (val - 75) / 25; // 0 to 1
-            return 10.0 + Math.pow(t, 2) * 90.0;
-        }
+
+        // Logarithmic scale: speed = 0.1 * 10^(val/25)
+        // This gives us: 0.1x at 0%, 1x at 25%, 10x at 50%, 100x at 75%, 1000x at 100%
+        const speed = 0.1 * Math.pow(10, val / 25);
+
+        return speed;
     }
 
     /**
-     * Convert playback speed (0.1x-100x) to slider position (0-100) using inverse function.
+     * Convert playback speed (0.1x-1000x) to slider position (0-100) using inverse logarithmic function.
      */
     function speedToSlider(speed) {
-        if (speed <= 1.0) {
-            // 0.1x-1.0x → 0-50
-            return ((speed - 0.1) / 0.9) * 50;
-        } else if (speed <= 10.0) {
-            // 1.0x-10x → 50-75
-            const t = Math.sqrt((speed - 1.0) / 9.0);
-            return 50 + t * 25;
-        } else {
-            // 10x-100x → 75-100
-            const t = Math.sqrt((speed - 10.0) / 90.0);
-            return 75 + t * 25;
-        }
+        // Inverse: val = 25 * log10(speed / 0.1)
+        const sliderPos = 25 * Math.log10(speed / 0.1);
+
+        // Clamp to valid range
+        return Math.max(0, Math.min(100, sliderPos));
     }
 
     /**

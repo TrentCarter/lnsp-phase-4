@@ -1,3 +1,145 @@
+<!-- One-Page Quick Guide injected 2025-11-07 18:03:12 -->
+# One-Page Quick Guide (Updated)
+
+## ✅ Executive Summary (P0 Ready)
+
+- **Aider-LCO (6150)**: FastAPI RPC wrapper around Aider for multi-file code edits with receipts, heartbeats, allowlist sandbox, redaction, and cost tracking.
+- **HMI Dashboard (6101/6102)**: Real-time tree + sequencer views, metrics, alerts, and WebSocket events.
+- **Test Suite**: 7 core tests passing; schema & heartbeat checks; ready for P1 (Gateway + Registry wiring).
+
+**Core ports**
+| Component | Port | Purpose |
+|---|---:|---|
+| HMI Dashboard | 6101 | Web UI |
+| Event Stream | 6102 | WebSocket events |
+| Gateway | 6120 | Request routing |
+| Registry | 6121 | Service discovery |
+| Aider-LCO | 6150 | Code assistant RPC |
+
+**Security & Ops**
+- Command **allowlist** (blocks `sudo`, `rm -rf`, chaining, subshells, globbing).
+- **Secret redaction** for logs/receipts.
+- **Heartbeats** every ≤60s; **receipts** to `artifacts/costs/`.
+- Context window guardrails (50–75%) → Save-State / Clear / Resume.
+
+---
+
+## 👩‍💻 Quick Start (3 steps)
+
+```bash
+# Activate environment
+cd /Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4
+source .venv/bin/activate
+
+# Start Aider-LCO
+export PAS_PORT=6150
+export AIDER_MODEL="ollama/qwen2.5-coder:7b-instruct"
+./.venv/bin/python tools/aider_rpc/server_enhanced.py &
+
+# Open HMI
+open http://localhost:6101
+```
+
+## 🤖 Aider-LCO RPC (basics)
+
+**Health**
+```bash
+curl -s http://localhost:6150/health | jq
+```
+
+**Invoke (docstrings example)**
+```bash
+curl -s http://localhost:6150/invoke \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "payload": {
+      "message": "Add comprehensive docstrings to all classes and functions",
+      "files": ["mymodule.py"]
+    },
+    "run_id": "doc-update-001",
+    "policy": {"timeout_s": 120}
+  }' | jq
+# Receipt saved to artifacts/costs/doc-update-001.json
+```
+
+**Other common tasks**
+- **Type hints**: set `"message": "Add type hints to all function signatures"`.
+- **Refactor**: `"message": "Extract auth logic into AuthHandler class", "files": ["api/server.py"]`.
+- Disable auto-commit: set `AIDER_AUTO_COMMIT=false` or in YAML.
+
+**Key env**
+```bash
+export PAS_COST_DIR=./artifacts/costs
+export AIDER_MODEL="ollama/qwen2.5-coder:7b-instruct"
+# Optional providers via .env (OpenAI/Anthropic/DeepSeek/Gemini)
+```
+
+## 📊 HMI Dashboard
+
+Open: http://localhost:6101
+
+You’ll see:
+- **Service cards** (status/latency/uptime)
+- **Agent Tree** (hierarchy, load by node size/color)
+- **Sequencer** (activity timeline; thickness ~ token rate)
+- **Metrics & costs** (rolling minute/hour/day)
+
+**API snippets**
+```bash
+curl -s http://localhost:6101/api/metrics | jq
+curl -s http://localhost:6101/api/registry | jq
+```
+
+## ✅ Tests
+
+Run core suite:
+```bash
+pytest tests/aider_rpc/ tests/schemas/ -q
+```
+
+With coverage:
+```bash
+pip install pytest-cov
+pytest tests/aider_rpc/ tests/schemas/ --cov=tools/aider_rpc --cov-report=term-missing
+```
+
+## 🧰 Troubleshooting (fast path)
+
+- **/invoke fails** → verify server: `curl :6150/health`; restart `server_enhanced.py`.
+- **No receipts** → check `PAS_COST_DIR` and file perms; look at `/tmp/pas_*.log`.
+- **HMI shows “down”** → restart services, wait 10s, refresh.
+- **Port in use** → `lsof -i :6150` → `kill -9 <PID>`.
+
+---
+
+## 🗂 Daily Workflow (template)
+
+```bash
+# Start
+source .venv/bin/activate
+./scripts/start_all_pas_services.sh
+open http://localhost:6101
+
+# Make changes via Aider-LCO
+curl -s http://localhost:6150/invoke \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "target": {"name": "Aider-LCO", "role": "execution"},
+    "payload": {"message": "Refactor DB connection", "files": ["src/db.py"]},
+    "run_id": "dev-001"
+  }'
+
+# Validate
+pytest tests/ -q
+
+# Review costs
+cat artifacts/costs/*.json | jq -r '[.run_id, .cost_estimate.usd] | @tsv'
+
+# Stop
+./scripts/stop_all_pas_services.sh
+```
+---
+
 # LNSP End User Guide
 
 **Last Updated**: November 7, 2025
@@ -429,13 +571,16 @@ source .venv/bin/activate
 open http://localhost:6101
 
 # 3. Make code changes via Aider
-curl -s http://localhost:6150/invoke -H 'Content-Type: application/json' -d '{
-  "payload": {
-    "message": "Refactor database connection logic",
-    "files": ["src/db.py"]
-  },
-  "run_id": "dev-001"
-}' | jq
+curl -s http://localhost:6150/invoke \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "target": {"name": "Aider-LCO", "role": "execution"},
+    "payload": {
+      "message": "Refactor database connection logic",
+      "files": ["src/db.py"]
+    },
+    "run_id": "dev-001"
+  }' | jq
 
 # 4. Run tests
 pytest tests/ -v

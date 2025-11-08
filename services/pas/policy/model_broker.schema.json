@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Model Broker Policy",
+  "description": "Policy document specifying which LLM providers and models to use for each lane and task type",
+  "type": "object",
+  "required": ["version", "default_provider", "lane_overrides"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}-\\d{3}$",
+      "description": "Policy version in format YYYY-MM-DD-NNN",
+      "examples": ["2025-11-07-001"]
+    },
+    "default_provider": {
+      "type": "object",
+      "required": ["provider", "model"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["anthropic", "openai", "google", "local_llama"],
+          "description": "Default LLM provider"
+        },
+        "model": {
+          "type": "string",
+          "description": "Default model identifier",
+          "examples": ["sonnet-4.5", "gpt-4o", "gemini-pro", "llama3.1:8b"]
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0.7
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 4096
+        }
+      }
+    },
+    "lane_overrides": {
+      "type": "object",
+      "description": "Lane-specific provider/model overrides",
+      "patternProperties": {
+        "^[A-Za-z-]+$": {
+          "type": "object",
+          "required": ["provider", "model"],
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": ["anthropic", "openai", "google", "local_llama"]
+            },
+            "model": {
+              "type": "string"
+            },
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "max_tokens": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "constraints": {
+              "type": "object",
+              "properties": {
+                "max_cost_per_task_usd": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Max cost per task in USD"
+                },
+                "max_tokens_per_task": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Max total tokens (in+out) per task"
+                },
+                "timeout_seconds": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Timeout for LLM calls in seconds"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "fallback_chain": {
+      "type": "array",
+      "description": "Fallback providers if primary fails",
+      "items": {
+        "type": "object",
+        "required": ["provider", "model"],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": ["anthropic", "openai", "google", "local_llama"]
+          },
+          "model": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "cost_optimization": {
+      "type": "object",
+      "properties": {
+        "budget_cap_usd": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total budget cap across all tasks"
+        },
+        "enable_caching": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable prompt caching when available"
+        },
+        "prefer_local": {
+          "type": "boolean",
+          "default": false,
+          "description": "Prefer local models when quality permits"
+        }
+      }
+    }
+  }
+}

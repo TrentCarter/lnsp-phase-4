@@ -1,0 +1,51 @@
+{
+  "$id": "routing_receipt.schema.json",
+  "type": "object",
+  "required": [
+    "run_id",
+    "resolved",
+    "timings_ms",
+    "status",
+    "ts"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "resolved": {
+      "type": "object",
+      "required": [
+        "service_id",
+        "name",
+        "role",
+        "url"
+      ],
+      "properties": {
+        "service_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "timings_ms": {
+      "type": "object"
+    },
+    "status": {
+      "type": "string"
+    },
+    "cost_estimate": {
+      "type": "object"
+    },
+    "ts": {
+      "type": "string"
+    }
+  }
+}

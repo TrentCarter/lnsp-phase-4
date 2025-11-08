@@ -1,0 +1,71 @@
+{
+  "$id": "job_card.schema.json",
+  "type": "object",
+  "required": [
+    "job_id",
+    "agent",
+    "task",
+    "inputs",
+    "outputs",
+    "priority",
+    "created_at"
+  ],
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "parent_job_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "agent": {
+      "type": "string"
+    },
+    "task": {
+      "type": "string"
+    },
+    "capability": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "inputs": {
+      "type": "object"
+    },
+    "outputs": {
+      "type": "object"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9
+    },
+    "resource_request": {
+      "$ref": "resource_request.schema.json"
+    },
+    "approvals_required": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "deadline_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

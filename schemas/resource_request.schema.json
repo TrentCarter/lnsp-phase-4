@@ -1,0 +1,32 @@
+{
+  "$id": "resource_request.schema.json",
+  "type": "object",
+  "properties": {
+    "cpu": {
+      "type": "number",
+      "minimum": 0
+    },
+    "mem_mb": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "gpu": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "gpu_mem_mb": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "disk_gb": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ports": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    }
+  }
+}

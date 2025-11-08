@@ -1,0 +1,27 @@
+lane: Vector-Ops
+description: LightRAG indexing, refresh, and semantic/graph queries.
+workspace_roots:
+  - "./"
+  - "artifacts/lightrag_code_index/"
+file_globs:
+  allow:
+    - "**/*"
+  deny:
+    - "**/.env*"
+    - "**/secrets/**"
+    - "**/*.pem"
+    - "**/*.key"
+commands:
+  allow:
+    - ["lightrag", "refresh", "--repo", ".", "--out", "artifacts/lightrag_code_index"]
+    - ["lightrag", "query", "--kind", "*", "--payload", "*"]
+    - ["python", "services/vector_ops/refresh_daemon.py", "*"]
+  deny:
+    - ["bash", "-c", "*"]
+network:
+  outbound: false
+limits:
+  max_exec_seconds: 300
+fs_ops:
+  patch_only: false   # indexers may write new files/artifacts
+  backups: true

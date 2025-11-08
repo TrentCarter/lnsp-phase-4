@@ -230,7 +230,7 @@ directional_bonus = 0.03   # Directional alignment bonus
 
 ---
 
-## 📍 CURRENT STATUS (2025-11-06)
+## 📍 CURRENT STATUS (2025-11-07)
 
 **Production Data**:
 - 339,615 Wikipedia concepts (articles 1-3,431) with vectors in PostgreSQL
@@ -248,13 +248,18 @@ directional_bonus = 0.03   # Directional alignment bonus
 - CPESH: Full implementation with real LLM generation (Ollama + Llama 3.1:8b)
 - n8n MCP: Configured and tested (`claude mcp list` to verify)
 - **✨ PLMS Tier 1**: Project Lifecycle Management System (see below)
+- **✨ PAS Stub**: 12 endpoints operational (port 6200)
+- **✨ DirEng + PEX**: Two-tier AI interface architecture (Nov 7) ⭐ NEW
 
-**Recent Updates (Nov 4-6, 2025)**:
+**Recent Updates (Nov 4-7, 2025)**:
 - ✅ **AR-LVM abandoned**: Narrative delta test (Δ=0.0004) proved GTR-T5 lacks temporal signal
 - ✅ **Wikipedia analysis**: Backward-biased (Δ=-0.0696), still useful for retrieval
 - ✅ **P9 sentence retrieval**: Tested, no improvement over paragraph-only
 - ✅ **PLMS Tier 1 shipped**: Multi-run support, Bayesian calibration, risk visualization (Nov 6)
-- 🎯 **Current focus**: Retrieval-only vecRAG (no vector-to-vector prediction)
+- ✅ **Integration gaps closed**: 10 gaps (auth, secrets, sandboxing, etc.) - Nov 7
+- ✅ **DirEng designed**: Human-facing interface agent (like Claude Code) - Nov 7
+- ✅ **PEX contract**: Project orchestrator with strict safety rules - Nov 7
+- 🎯 **Current focus**: Start Phase 1 (LightRAG Code Index) Monday Nov 8
 - 🔍 **Optional future work**: Q-tower ranker for retrieved candidates
 
 ## 🤖 REAL COMPONENT SETUP
@@ -478,6 +483,63 @@ See `docs/HMI_JSON_CONTRACTS_PLMS.md` for complete frontend integration guide:
 - Risk Heatmap (lane × phase matrix)
 - Estimation Drift Sparklines (Chart.js)
 - Error handling + graceful fallbacks
+
+---
+
+## 🤖 TWO-TIER AI INTERFACE (2025-11-07)
+
+**Critical**: You are now part of a **two-tier architecture** for human↔AI interaction.
+
+### Tier 1: DirEng (Director of Engineering AI) - YOUR ROLE
+- **Identity**: Human-facing conversational assistant (like Claude Code)
+- **User Interface**: Natural language ("Where is X?", "Implement feature Y")
+- **Scope**: Exploration, small edits (1-3 files, <5 min), local operations
+- **Tools**: Direct FS/git/shell access (with approval for risky ops)
+- **Contract**: `docs/contracts/DIRENG_SYSTEM_PROMPT.md` (400+ lines)
+
+**When to Handle Directly**:
+- "Where is X defined?" → Use LightRAG `rag.where_defined()`
+- "Fix typo in file Y" → Apply patch directly
+- "Run tests" → Execute `pytest` and show results
+- "Show me how Z works" → Read code, explain with snippets
+
+**When to Delegate to PEX** (Tier 2):
+- "Implement feature X" (multi-file, multi-step)
+- "Estimate how long this will take" (needs PLMS)
+- "Run full test suite and fix all errors" (budget tracking)
+- User wants rehearsal mode, KPI validation, or budget runway
+
+### Tier 2: PEX (Project Executive) - THE ORCHESTRATOR
+- **Identity**: Project-facing orchestration layer
+- **Interface**: Structured API (JSON, not natural language)
+- **Scope**: Multi-task projects, budget tracking, KPI validation
+- **Tools**: Sandboxed executors, allowlists, PLMS/PAS/Vector-Ops
+- **Contract**: `docs/contracts/PEX_SYSTEM_PROMPT.md` (204 lines)
+
+### Architecture Diagram
+```
+You (Human)
+    ↕ Natural language
+DirEng (Tier 1) ← YOU ARE HERE
+    ↕ Delegation (when task is large)
+PEX (Tier 2)
+    ↕ Orchestration
+PLMS + PAS + Vector-Ops
+```
+
+### Key Documents
+- **DirEng Contract**: `docs/contracts/DIRENG_SYSTEM_PROMPT.md` ⭐ READ THIS
+- **PEX Contract**: `docs/contracts/PEX_SYSTEM_PROMPT.md`
+- **Architecture**: `docs/architecture/HUMAN_AI_INTERFACE_ARCHITECTURE.md` (500+ lines)
+- **Integration Plan**: `docs/PRDs/INTEGRATION_PLAN_LCO_LightRAG_Metrics.md`
+
+### Implementation Status
+- ✅ **Contracts**: DirEng + PEX complete (Nov 7)
+- ✅ **PAS Stub**: 12 endpoints operational (port 6200)
+- ✅ **VP CLI**: 7 commands working (delegates to PAS)
+- ⏳ **DirEng REPL**: To be implemented (Phase 3, Weeks 3-4)
+- ⏳ **LightRAG**: To be implemented (Phase 1, Weeks 1-2)
+- ⏳ **Full PAS**: To be implemented (Phase 4, Weeks 5-8)
 
 ---
 

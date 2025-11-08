@@ -1,0 +1,30 @@
+lane: Narrative
+description: Documentation and narrative generation with lint/readability checks.
+workspace_roots:
+  - "./"
+  - "docs/"
+file_globs:
+  allow:
+    - "**/*.md"
+    - "**/*.txt"
+    - "**/*.yaml"
+    - "**/*.yml"
+  deny:
+    - "**/.env*"
+    - "**/secrets/**"
+commands:
+  allow:
+    - ["markdownlint", "**/*.md"]
+    - ["python", "tools/docs/readability_check.py", "*"]
+    - ["make", "docs"]
+    - ["git", "add", "*"]
+    - ["git", "commit", "-m", "*"]
+  deny:
+    - ["bash", "-c", "*"]
+network:
+  outbound: false
+limits:
+  max_exec_seconds: 300
+fs_ops:
+  patch_only: true
+  backups: true

@@ -1,4 +1,4 @@
-.PHONY: install smoke test db-up db-down consultant-eval faiss-setup ingest-10k ingest-all build-faiss api prune slo-snapshot slo-grid gating-snapshot smoketest cpesh-rotate cpesh-index graph-smoke rag-status rag-watch graphrag-track
+.PHONY: install smoke test db-up db-down consultant-eval faiss-setup ingest-10k ingest-all build-faiss api prune slo-snapshot slo-grid gating-snapshot smoketest cpesh-rotate cpesh-index graph-smoke rag-status rag-watch graphrag-track run-pas-stub
 
 install:
 	python3 -m venv .venv && . .venv/bin/activate && pip install --upgrade pip \
@@ -230,3 +230,14 @@ monitor:
 
 clean:
 	rm -rf $(ARTIFACTS)/$(RUN) $(ARTIFACTS)/$(RUN)_soft $(ARTIFACTS)/$(RUN)_hard
+
+# === PAS (Project Agentic System) ===
+
+.PHONY: run-pas-stub
+run-pas-stub:
+	@echo "[PAS Stub] Starting on port 6200..."
+	@./.venv/bin/uvicorn services.pas.stub.app:app --host 127.0.0.1 --port 6200 --reload
+
+.PHONY: pas-health
+pas-health:
+	@curl -s http://localhost:6200/health | jq

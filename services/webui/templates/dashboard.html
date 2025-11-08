@@ -513,6 +513,10 @@
                             <span class="service-info-label">Clients:</span>
                             <span class="service-info-value">${serviceData.connected_clients || 0}</span>
                         </div>
+                        <div class="service-info-row">
+                            <span class="service-info-label">Events:</span>
+                            <span class="service-info-value">${serviceData.total_events || 0}</span>
+                        </div>
                         ` : ''}
                     </div>
                     <div class="last-update">Last check: ${new Date().toLocaleTimeString()}</div>
@@ -557,7 +561,7 @@
                             <span class="service-info-value">${agent.caps?.length || 0} caps</span>
                         </div>
                     </div>
-                    <div class="last-update">Last heartbeat: ${new Date(agent.last_heartbeat_ts).toLocaleTimeString()}</div>
+                    <div class="last-update">Last heartbeat: ${agent.last_heartbeat_ts ? new Date(agent.last_heartbeat_ts * 1000).toLocaleTimeString() : 'Never'}</div>
                 </div>
             `).join('');
 
@@ -579,8 +583,14 @@
 
         // Setup auto-refresh if enabled
         if (settings.autoRefreshEnabled) {
-            const intervalMs = settings.refreshInterval * 1000;
-            console.log('Setting up auto-refresh every', settings.refreshInterval, 'seconds');
+            // 0 = instant/fast (use 500ms minimum), otherwise use specified interval
+            const intervalMs = settings.refreshInterval === 0
+                ? 500
+                : settings.refreshInterval * 1000;
+
+            console.log('Setting up auto-refresh every',
+                settings.refreshInterval === 0 ? '0.5 seconds (instant/fast)' : `${settings.refreshInterval} seconds`);
+
             metricsUpdateInterval = setInterval(() => {
                 fetchMetrics();
                 fetchAgents();
