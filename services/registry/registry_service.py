@@ -23,6 +23,9 @@ DB_PATH = Path("artifacts/registry/registry.db")
 DEFAULT_HEARTBEAT_INTERVAL_S = 60
 DEFAULT_TTL_S = 90
 
+# Event counter (global) - tracks registrations, heartbeats, action logs
+total_events = 0
+
 # ============================================================================
 # Pydantic Models (based on JSON schemas)
 # ============================================================================
@@ -188,6 +191,8 @@ async def register_service(service: ServiceRegistration):
         - service_id (UUID)
         - registered_at (timestamp)
     """
+    global total_events
+
     with get_db() as conn:
         cursor = conn.cursor()
 
@@ -216,6 +221,9 @@ async def register_service(service: ServiceRegistration):
             cursor.execute("SELECT registered_at FROM services WHERE service_id = ?", (service.service_id,))
             row = cursor.fetchone()
 
+            # Increment event counter
+            total_events += 1
+
             return {
                 "service_id": service.service_id,
                 "registered_at": row["registered_at"]
@@ -234,6 +242,8 @@ async def update_heartbeat(heartbeat: ServiceHeartbeat):
         - success: bool
         - ts: timestamp of update
     """
+    global total_events
+
     with get_db() as conn:
         cursor = conn.cursor()
 
@@ -258,6 +268,9 @@ async def update_heartbeat(heartbeat: ServiceHeartbeat):
             raise HTTPException(status_code=404, detail=f"Service {heartbeat.service_id} not found")
 
         conn.commit()
+
+        # Increment event counter
+        total_events += 1
 
         return {
             "success": True,
@@ -446,6 +459,7 @@ async def health():
         - status: 'ok'
         - registered: Total number of services
         - healthy: Number of services with status='ok'
+        - total_events: Total events (registrations + heartbeats + action logs)
     """
     with get_db() as conn:
         cursor = conn.cursor()
@@ -459,7 +473,8 @@ async def health():
         return {
             "status": "ok",
             "registered": total,
-            "healthy": healthy
+            "healthy": healthy,
+            "total_events": total_events
         }
 
 
@@ -545,6 +560,8 @@ async def log_action(action_log: ActionLog):
         - log_id: ID of the created log entry
         - timestamp: Timestamp of the log
     """
+    global total_events
+
     with get_db() as conn:
         cursor = conn.cursor()
 
@@ -567,6 +584,9 @@ async def log_action(action_log: ActionLog):
 
         log_id = cursor.lastrowid
         conn.commit()
+
+        # Increment event counter
+        total_events += 1
 
         return {
             "log_id": log_id,

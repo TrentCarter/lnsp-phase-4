@@ -32,6 +32,9 @@ DEFAULT_QUOTAS = {
     "ports": []          # Ports are checked dynamically
 }
 
+# Event counter (global) - tracks resource allocations/releases
+total_events = 0
+
 # ============================================================================
 # Pydantic Models
 # ============================================================================
@@ -278,6 +281,10 @@ async def reserve_resources(request: ResourceRequest):
 
         conn.commit()
 
+        # Increment event counter
+        global total_events
+        total_events += 1
+
         return {
             "reservation_id": reservation_id,
             "status": "granted",
@@ -358,6 +365,10 @@ async def release_resources(release: ResourceRelease):
         """, (datetime.utcnow().isoformat(), reservation["reservation_id"]))
 
         conn.commit()
+
+        # Increment event counter
+        global total_events
+        total_events += 1
 
         return {
             "success": True,
@@ -556,7 +567,10 @@ async def update_quota(update: QuotaUpdate):
 @app.get("/health")
 async def health():
     """Health check endpoint"""
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "total_events": total_events
+    }
 
 
 # ============================================================================

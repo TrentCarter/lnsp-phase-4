@@ -10,12 +10,17 @@ Features:
 - Alert management
 """
 
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, Response, stream_with_context
 from flask_cors import CORS
 import requests
 import logging
 from datetime import datetime
 from typing import Dict, List, Any
+import json
+import time
+import sqlite3
+import os
+import threading
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +29,7 @@ logger = logging.getLogger(__name__)
 # Initialize Flask app
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'pas-hmi-secret'
+app.config['TEMPLATES_AUTO_RELOAD'] = True  # Auto-reload templates when they change
 CORS(app)
 
 # Service endpoints
@@ -34,6 +40,9 @@ TOKEN_GOVERNOR_URL = 'http://localhost:6105'
 EVENT_STREAM_URL = 'http://localhost:6102'
 PROVIDER_ROUTER_URL = 'http://localhost:6103'
 GATEWAY_URL = 'http://localhost:6120'
+
+# Track server start time for uptime calculation
+SERVER_START_TIME = time.time()
 
 
 @app.route('/')
@@ -63,17 +72,20 @@ def actions_view():
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
+    uptime_seconds = time.time() - SERVER_START_TIME
     return jsonify({
         'status': 'ok',
         'service': 'hmi_app',
         'port': 6101,
-        'timestamp': datetime.now().isoformat()
+        'timestamp': datetime.now().isoformat(),
+        'uptime_seconds': uptime_seconds,
+        'server_start_time': SERVER_START_TIME
     })
 
 
 @app.route('/api/services', methods=['GET'])
 def get_services():
-    """Get all registered services from Registry"""
+    """Get all registered services from Registry, or agents from action_logs if no services"""
     try:
         response = requests.get(f'{REGISTRY_URL}/services', timeout=5)
         response.raise_for_status()
@@ -82,6 +94,52 @@ def get_services():
         # Registry returns {"services": {...}} - convert dict to list
         services_dict = data.get('services', {})
         services_list = list(services_dict.values()) if isinstance(services_dict, dict) else []
+
+        # If no services registered, fetch agents from action_logs
+        if not services_list:
+            try:
+                import sqlite3
+                import os
+                db_path = os.path.join(
+                    os.path.dirname(__file__),
+                    '../../artifacts/registry/registry.db'
+                )
+                if os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    # Get unique agents with their tier and last seen info
+                    cursor.execute("""
+                        SELECT DISTINCT
+                            agent,
+                            tier,
+                            MAX(timestamp) as last_seen
+                        FROM (
+                            SELECT from_agent as agent, tier_from as tier, timestamp
+                            FROM action_logs WHERE from_agent IS NOT NULL AND from_agent != 'user'
+                            UNION ALL
+                            SELECT to_agent as agent, tier_to as tier, timestamp
+                            FROM action_logs WHERE to_agent IS NOT NULL AND to_agent != 'user'
+                        )
+                        GROUP BY agent, tier
+                        ORDER BY tier, agent
+                    """)
+                    rows = cursor.fetchall()
+                    conn.close()
+
+                    # Format as service objects for compatibility
+                    services_list = [
+                        {
+                            'service_id': row[0],
+                            'name': row[0].replace('_', ' ').title(),
+                            'status': 'historical',  # Indicate these are from action logs
+                            'tier': row[1] if row[1] is not None else '?',
+                            'last_seen': row[2],
+                            'from_action_logs': True
+                        }
+                        for row in rows
+                    ]
+            except Exception as e:
+                logger.warning(f"Could not fetch agents from action logs: {e}")
 
         return jsonify({'services': services_list})
     except Exception as e:
@@ -94,26 +152,38 @@ def get_tree_data():
     """
     Get agent hierarchy tree data.
 
+    Query params:
+        - source: 'services' (default) or 'actions'
+        - task_id: Required if source='actions'
+
     Returns tree structure compatible with D3.js:
     {
         "name": "Root",
         "children": [...]
     }
     """
+    source = request.args.get('source', 'services')
+    task_id = request.args.get('task_id', None)
+
     try:
-        # Fetch services from Registry
-        response = requests.get(f'{REGISTRY_URL}/services', timeout=5)
-        response.raise_for_status()
-        data = response.json()
+        if source == 'actions' and task_id:
+            # Build tree from action logs for a specific task
+            tree = build_tree_from_actions(task_id)
+            return jsonify(tree)
+        else:
+            # Default: Build tree from registered services
+            response = requests.get(f'{REGISTRY_URL}/services', timeout=5)
+            response.raise_for_status()
+            data = response.json()
 
-        # Registry returns {"services": {...}} - convert dict to list
-        services_dict = data.get('services', {})
-        services = list(services_dict.values()) if isinstance(services_dict, dict) else []
+            # Registry returns {"services": {...}} - convert dict to list
+            services_dict = data.get('services', {})
+            services = list(services_dict.values()) if isinstance(services_dict, dict) else []
 
-        # Build tree structure
-        tree = build_tree_from_services(services)
+            # Build tree structure
+            tree = build_tree_from_services(services)
 
-        return jsonify(tree)
+            return jsonify(tree)
     except Exception as e:
         logger.error(f"Error building tree: {e}")
         return jsonify({
@@ -183,6 +253,492 @@ def build_tree_from_services(services: List[Dict[str, Any]]) -> Dict[str, Any]:
     return root
 
 
+def build_tree_from_actions(task_id: str) -> Dict[str, Any]:
+    """
+    Build hierarchical tree from action logs for a specific task.
+    Reconstructs agent hierarchy from delegation patterns.
+
+    NEW: Creates bidirectional tree showing complete round-trip:
+    PAS Root → Dirs → Mgrs → Progs → [Results] → Mgrs → [Results] → Dirs → [Results] → Root
+    """
+    try:
+        # Fetch action logs for this task
+        response = requests.get(f'{REGISTRY_URL}/action_logs/task/{task_id}', timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        actions = data.get('actions', [])
+
+        if not actions:
+            return {
+                'name': 'PAS Root',
+                'status': 'idle',
+                'children': []
+            }
+
+        # Extract unique agents and their tier info
+        agent_info = {}
+
+        def extract_agents(action_list):
+            for action in action_list:
+                # Record from_agent
+                if action.get('from_agent') and action['from_agent'] != 'user':
+                    agent_id = action['from_agent']
+                    if agent_id not in agent_info:
+                        agent_info[agent_id] = {
+                            'name': agent_id.replace('_', ' ').title(),
+                            'tier': action.get('tier_from', '?'),
+                            'status': action.get('status', 'unknown'),
+                            'children': []
+                        }
+
+                # Record to_agent
+                if action.get('to_agent') and action['to_agent'] != 'user':
+                    agent_id = action['to_agent']
+                    if agent_id not in agent_info:
+                        agent_info[agent_id] = {
+                            'name': agent_id.replace('_', ' ').title(),
+                            'tier': action.get('tier_to', '?'),
+                            'status': action.get('status', 'unknown'),
+                            'children': []
+                        }
+
+                # Recursively process children
+                if action.get('children'):
+                    extract_agents(action['children'])
+
+        extract_agents(actions)
+
+        # Build FORWARD hierarchy (task assignment: parent → child)
+        # Track parent chain for reverse flow
+        parent_chain_map = {}  # Maps agent_id -> list of parent agents up to root
+
+        def collect_parent_chain(action, chain=[]):
+            """Recursively collect parent chain for each agent"""
+            from_agent = action.get('from_agent')
+            to_agent = action.get('to_agent')
+
+            if to_agent and to_agent not in ['user', None]:
+                # Build chain: current agent's parents
+                new_chain = [from_agent] + chain if from_agent and from_agent not in ['user', 'pas_root', None] else chain
+                parent_chain_map[to_agent] = new_chain
+
+            # Recurse for children
+            for child in action.get('children', []):
+                new_chain_for_child = [to_agent] + (parent_chain_map.get(to_agent, [])) if to_agent and to_agent not in ['user', None] else chain
+                collect_parent_chain(child, new_chain_for_child)
+
+        # First pass: collect all parent chains
+        for action in actions:
+            collect_parent_chain(action, [])
+
+        def build_forward_hierarchy(action_list, depth=0):
+            """Recursively build forward delegation tree"""
+            nodes = []
+            for action in action_list:
+                if action.get('to_agent') and action['to_agent'] in agent_info:
+                    to_agent = action['to_agent']
+
+                    # Recurse to build children
+                    forward_children = build_forward_hierarchy(action.get('children', []), depth + 1)
+
+                    # Add result/status node at leaf (programmers)
+                    if not forward_children and depth >= 2:  # Leaf node (programmer level)
+                        # Get parent chain for this agent
+                        parent_chain = parent_chain_map.get(to_agent, [])
+
+                        result_node = {
+                            'name': f"✓ Result: {action.get('action_name', 'Task')[:30]}...",
+                            'agent_id': f"{to_agent}_result",
+                            'tier': 'result',
+                            'status': action.get('status', 'done'),
+                            'children': build_reverse_hierarchy(parent_chain)  # Start reverse flow
+                        }
+                        forward_children = [result_node]
+
+                    # Only show status for result/error nodes, not for regular agents
+                    status = action.get('status', 'unknown')
+                    agent_node = {
+                        'name': agent_info[to_agent]['name'],
+                        'agent_id': to_agent,
+                        'tier': agent_info[to_agent]['tier'],
+                        'status': status if status in ['error', 'failed'] else 'running',  # Hide status noise
+                        'children': forward_children
+                    }
+                    nodes.append(agent_node)
+            return nodes
+
+        # Build REVERSE hierarchy (results flow back: child → parent)
+        def build_reverse_hierarchy(parent_chain):
+            """
+            Build reverse flow showing results going back up the chain.
+            parent_chain is a list of parent agents from immediate parent to root.
+            """
+            if not parent_chain:
+                # Reached root - create final result node
+                return [{
+                    'name': '✅ Final Report',
+                    'agent_id': 'pas_root_final_report',
+                    'tier': 'report',
+                    'status': 'completed',
+                    'children': []
+                }]
+
+            # Build reverse chain: start from immediate parent, go up to root
+            current_node = None
+            for i, parent_id in enumerate(parent_chain):
+                if parent_id not in agent_info:
+                    continue
+
+                parent_name = agent_info[parent_id]['name']
+                parent_tier = agent_info[parent_id]['tier']
+
+                # Create review/aggregation node for this parent (hide status noise)
+                review_node = {
+                    'name': f"📊 {parent_name} Review",
+                    'agent_id': f"{parent_id}_review",
+                    'tier': parent_tier,
+                    'status': 'running',  # Hide status noise - only show errors/results
+                    'children': [current_node] if current_node else []
+                }
+
+                # If this is the last parent (highest level), add final report
+                if i == len(parent_chain) - 1:
+                    final_report = {
+                        'name': '✅ Report to PAS Root',
+                        'agent_id': f"{parent_id}_final_report",
+                        'tier': 'report',
+                        'status': 'completed',
+                        'children': []
+                    }
+                    review_node['children'] = [final_report]
+
+                current_node = review_node
+
+            return [current_node] if current_node else []
+
+        # Find root action (usually from 'user' or 'pas_root')
+        root_children = []
+        for action in actions:
+            if action.get('from_agent') in ['user', None]:
+                root_children.extend(build_forward_hierarchy([action]))
+
+        # Create root node
+        root = {
+            'name': 'PAS Agent Swarm',
+            'status': 'running',
+            'children': root_children
+        }
+
+        return root
+
+    except Exception as e:
+        logger.error(f"Error building tree from actions: {e}")
+        return {
+            'name': 'PAS Root',
+            'status': 'error',
+            'children': [],
+            'error': str(e)
+        }
+
+
+def apply_deduplication(tasks: list, mode: str = 'smart') -> list:
+    """
+    Apply deduplication logic to tasks based on the selected mode.
+
+    Modes:
+    - 'none': No deduplication (raw transparency)
+    - 'smart': Dedup at programmer level only (keep manager coordination visible)
+    - 'full': Dedup all duplicate tasks (most aggressive)
+
+    Returns deduplicated task list.
+    """
+    if mode == 'none':
+        return tasks  # Return raw tasks unchanged
+
+    # Build deduplication key: (agent_id, task_name)
+    seen_tasks = {}
+    deduplicated = []
+
+    for task in tasks:
+        # Extract agent tier (prog_* = programmer, mgr_* = manager, dir_* = director)
+        agent_id = task.get('agent_id', '')
+        is_programmer = agent_id.startswith('prog_')
+        is_manager = agent_id.startswith('mgr_')
+
+        # Create dedup key
+        dedup_key = (agent_id, task.get('name', ''))
+
+        # Apply mode-specific logic
+        if mode == 'smart':
+            # Option 2: Only dedup programmers, keep manager coordination visible
+            if is_programmer:
+                if dedup_key not in seen_tasks:
+                    seen_tasks[dedup_key] = task
+                    deduplicated.append(task)
+                # else: skip duplicate programmer task
+            else:
+                # Keep all manager/director tasks (shows coordination overhead)
+                deduplicated.append(task)
+
+        elif mode == 'full':
+            # Option 1: Dedup everything (most efficient)
+            if dedup_key not in seen_tasks:
+                seen_tasks[dedup_key] = task
+                deduplicated.append(task)
+            # else: skip duplicate
+
+    logger.info(f"[DEDUP] Mode={mode}, Original={len(tasks)}, Deduplicated={len(deduplicated)}")
+    return deduplicated
+
+
+def build_sequencer_from_actions(task_id: str) -> Dict[str, Any]:
+    """
+    Build sequencer timeline data from action logs for a specific task.
+    Reconstructs agents and their task timeline from action history.
+    """
+    logger.info(f"[DEBUG] build_sequencer_from_actions called for task_id={task_id}")
+    try:
+        # Fetch action logs for this task
+        response = requests.get(f'{REGISTRY_URL}/action_logs/task/{task_id}', timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        actions = data.get('actions', [])
+
+        if not actions:
+            return {
+                'agents': [],
+                'tasks': []
+            }
+
+        # Extract unique agents and build agent list
+        agent_map = {}
+        tier_order = {'0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5}
+
+        def extract_agents_recursive(action_list):
+            for action in action_list:
+                # Extract from_agent
+                if action.get('from_agent') and action['from_agent'] not in ['user', None]:
+                    agent_id = action['from_agent']
+                    if agent_id not in agent_map:
+                        agent_map[agent_id] = {
+                            'service_id': agent_id,
+                            'name': agent_id.replace('_', ' ').title(),
+                            'tier': action.get('tier_from', '?'),
+                            'status': action.get('status', 'unknown'),
+                            'agent_role': 'unknown'
+                        }
+
+                # Extract to_agent
+                if action.get('to_agent') and action['to_agent'] not in ['user', None]:
+                    agent_id = action['to_agent']
+                    if agent_id not in agent_map:
+                        agent_map[agent_id] = {
+                            'service_id': agent_id,
+                            'name': agent_id.replace('_', ' ').title(),
+                            'tier': action.get('tier_to', '?'),
+                            'status': action.get('status', 'unknown'),
+                            'agent_role': 'unknown'
+                        }
+
+                # Recursively process children
+                if action.get('children'):
+                    extract_agents_recursive(action['children'])
+
+        extract_agents_recursive(actions)
+
+        # Sort agents by tier
+        agents = sorted(agent_map.values(), key=lambda a: tier_order.get(str(a['tier']), 99))
+
+        # Build task timeline from actions by matching delegate/report pairs
+        tasks = []
+        task_counter = {}
+
+        # First pass: collect all actions in flat list
+        all_actions = []
+
+        def collect_actions_recursive(action_list):
+            for action in action_list:
+                all_actions.append(action)
+                if action.get('children'):
+                    collect_actions_recursive(action['children'])
+
+        collect_actions_recursive(actions)
+
+        # Helper to parse timestamp
+        def parse_timestamp(timestamp_value):
+            try:
+                if isinstance(timestamp_value, (int, float)):
+                    return float(timestamp_value)
+                else:
+                    return datetime.fromisoformat(str(timestamp_value).replace('Z', '+00:00')).timestamp()
+            except Exception as e:
+                logger.warning(f"Error parsing timestamp {timestamp_value}: {e}")
+                return datetime.now().timestamp()
+
+        # Build index of report actions by (from_agent, to_agent) for fast lookup
+        report_actions = {}
+        for action in all_actions:
+            if action.get('action_type') == 'report':
+                from_agent = action.get('from_agent')
+                to_agent = action.get('to_agent')
+                if from_agent and to_agent:
+                    key = (from_agent, to_agent)
+                    timestamp = parse_timestamp(action.get('timestamp'))
+                    # Keep the latest report timestamp for this agent pair
+                    if key not in report_actions or timestamp > report_actions[key]['timestamp']:
+                        report_actions[key] = {
+                            'timestamp': timestamp,
+                            'status': action.get('status', 'completed'),
+                            'action': action
+                        }
+
+        logger.info(f"Found {len(report_actions)} unique report actions")
+
+        # Second pass: create tasks from delegate/code_generation actions
+        # Match each with corresponding report action
+        for action in all_actions:
+            action_type = action.get('action_type', '')
+            from_agent = action.get('from_agent')
+            to_agent = action.get('to_agent')
+
+            # Skip non-task actions (only process delegate/code_generation)
+            # Don't create tasks from report actions - those are used for end_time matching only
+            if not to_agent or to_agent == 'user' or action_type == 'report':
+                continue
+
+            # This action represents a task assignment to to_agent
+            agent_id = to_agent
+            action_name = action.get('action_name', action_type or 'Unknown')
+
+            if agent_id not in task_counter:
+                task_counter[agent_id] = 0
+            task_counter[agent_id] += 1
+
+            # Start time: when task was delegated
+            start_time = parse_timestamp(action.get('timestamp', datetime.now().timestamp()))
+
+            # End time: find matching report action (from child back to parent)
+            end_time = None
+            status = action.get('status', 'running')
+            progress = 0.5
+            default_duration = 8.0
+
+            # Look for report from agent_id back to from_agent
+            if from_agent:
+                report_key = (agent_id, from_agent)
+                if report_key in report_actions:
+                    report_info = report_actions[report_key]
+                    report_timestamp = report_info['timestamp']
+
+                    # Only use report if it comes AFTER delegation
+                    if report_timestamp >= start_time:
+                        end_time = report_timestamp
+                        status = report_info['status']
+                        progress = 1.0
+                        logger.debug(f"Matched report for {agent_id}: duration={end_time - start_time:.1f}s")
+
+            # If no end_time found, apply defaults based on status
+            if end_time is None:
+                import time
+                time_since_action = abs(time.time() - start_time)
+
+                if status == 'completed':
+                    end_time = start_time + default_duration
+                    progress = 1.0
+                    status = 'done'
+                elif status == 'error':
+                    end_time = start_time + default_duration
+                    progress = 1.0
+                elif status == 'running' and time_since_action > 60:
+                    # Stale running task
+                    end_time = start_time + default_duration
+                    progress = 0.8
+                else:
+                    # Active running task: no end_time
+                    end_time = None
+                    progress = 0.5
+            else:
+                # We found actual end_time from report action
+                if status == 'completed':
+                    status = 'done'
+                    progress = 1.0
+
+            tasks.append({
+                'task_id': f"{agent_id}_{task_counter[agent_id]}",
+                'agent_id': agent_id,
+                'name': action_name,
+                'status': status,
+                'progress': progress,
+                'start_time': start_time,
+                'end_time': end_time,
+                'from_agent': from_agent,
+                'to_agent': to_agent,
+                'action_type': action_type
+            })
+
+        # POST-PROCESSING: Calculate actual durations based on sequential timing
+        # Group tasks by agent_id and sort by start_time
+        tasks_by_agent = {}
+        for task in tasks:
+            agent_id = task['agent_id']
+            if agent_id not in tasks_by_agent:
+                tasks_by_agent[agent_id] = []
+            tasks_by_agent[agent_id].append(task)
+
+        # For each agent, calculate actual durations by measuring gaps between task starts
+        duration_adjustments = 0
+        for agent_id, agent_tasks in tasks_by_agent.items():
+            # Sort by start_time (when task was delegated)
+            agent_tasks.sort(key=lambda t: t['start_time'])
+
+            if len(agent_tasks) > 1:
+                logger.debug(f"[Duration] Agent {agent_id}: {len(agent_tasks)} tasks")
+
+            # Adjust end_times based on when next task starts
+            for i, task in enumerate(agent_tasks):
+                # Only adjust completed/error tasks (those with end_time already set)
+                if task['end_time'] is not None:
+                    old_duration = task['end_time'] - task['start_time']
+
+                    # Look ahead to find next task
+                    if i + 1 < len(agent_tasks):
+                        next_task = agent_tasks[i + 1]
+                        # Duration is from this task's start to next task's start
+                        # This represents the actual time this task occupied the agent
+                        actual_duration = next_task['start_time'] - task['start_time']
+                        # Clamp duration to reasonable range (0.1s to 300s)
+                        actual_duration = max(0.1, min(actual_duration, 300.0))
+                        # Update end_time to reflect actual duration
+                        task['end_time'] = task['start_time'] + actual_duration
+
+                        if abs(actual_duration - old_duration) > 0.1:
+                            duration_adjustments += 1
+                            logger.debug(f"[Duration] {agent_id} '{task['name'][:30]}': {old_duration:.1f}s → {actual_duration:.1f}s")
+                    else:
+                        # Last task in sequence: keep default_duration (already set)
+                        logger.debug(f"[Duration] {agent_id} '{task['name'][:30]}': {old_duration:.1f}s (last task, keeping default)")
+
+        logger.info(f"Built {len(tasks)} tasks from action logs with sequential duration calculation ({duration_adjustments} durations adjusted)")
+
+        # Apply deduplication if requested (will be controlled by frontend setting)
+        # For now, return both deduplicated and raw data
+        deduplicated_tasks = apply_deduplication(tasks, mode='smart')  # Mode: 'none', 'smart', 'full'
+
+        return {
+            'agents': agents,
+            'tasks': tasks,  # Raw tasks (Option 3: Transparency)
+            'tasks_deduplicated': deduplicated_tasks  # Deduplicated tasks (Options 1 & 2)
+        }
+
+    except Exception as e:
+        logger.error(f"Error building sequencer from actions: {e}")
+        return {
+            'agents': [],
+            'tasks': [],
+            'error': str(e)
+        }
+
+
 @app.route('/api/metrics', methods=['GET'])
 def get_metrics():
     """Get aggregated metrics from all services"""
@@ -237,10 +793,40 @@ def get_metrics():
         total_services = len(metrics['services'])
         healthy_services = sum(1 for s in metrics['services'].values() if s.get('status') == 'ok')
 
+        # Count unique agents from action logs (for historical data)
+        total_agents = 0
+        try:
+            import sqlite3
+            import os
+            db_path = os.path.join(
+                os.path.dirname(__file__),
+                '../../artifacts/registry/registry.db'
+            )
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT COUNT(DISTINCT agent) FROM (
+                        SELECT from_agent as agent FROM action_logs WHERE from_agent IS NOT NULL AND from_agent != 'user'
+                        UNION
+                        SELECT to_agent as agent FROM action_logs WHERE to_agent IS NOT NULL AND to_agent != 'user'
+                    )
+                """)
+                total_agents = cursor.fetchone()[0]
+                conn.close()
+        except Exception as e:
+            logger.warning(f"Could not count agents from action logs: {e}")
+
+        # Calculate uptime
+        uptime_seconds = time.time() - SERVER_START_TIME
+
         metrics['summary'] = {
             'total_services': total_services,
             'healthy_services': healthy_services,
-            'health_percentage': (healthy_services / total_services * 100) if total_services > 0 else 0
+            'health_percentage': (healthy_services / total_services * 100) if total_services > 0 else 0,
+            'total_agents': total_agents,  # Add agent count from action logs
+            'uptime_seconds': uptime_seconds,
+            'server_start_time': SERVER_START_TIME
         }
 
         return jsonify(metrics)
@@ -442,6 +1028,10 @@ def get_sequencer_data():
     """
     Get sequencer timeline data (agents and tasks).
 
+    Query params:
+        - source: 'services' (default) or 'actions'
+        - task_id: Required if source='actions'
+
     Returns:
     {
         "agents": [
@@ -462,30 +1052,38 @@ def get_sequencer_data():
         ]
     }
     """
+    source = request.args.get('source', 'services')
+    task_id = request.args.get('task_id', None)
+
     try:
-        # Fetch agents from Registry
-        response = requests.get(f'{REGISTRY_URL}/services', timeout=5)
-        response.raise_for_status()
-        data = response.json()
+        if source == 'actions' and task_id:
+            # Build sequencer data from action logs
+            return jsonify(build_sequencer_from_actions(task_id))
+        else:
+            # Default: Build from registered services
+            # Fetch agents from Registry
+            response = requests.get(f'{REGISTRY_URL}/services', timeout=5)
+            response.raise_for_status()
+            data = response.json()
 
-        # Registry returns {"services": {...}} - convert dict to list
-        services_dict = data.get('services', {})
-        services = list(services_dict.values()) if isinstance(services_dict, dict) else []
+            # Registry returns {"services": {...}} - convert dict to list
+            services_dict = data.get('services', {})
+            services = list(services_dict.values()) if isinstance(services_dict, dict) else []
 
-        # Format agents for sequencer (sorted by tier: VP -> Directors -> Managers -> Workers)
-        tier_order = {'0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5}
-        agents = []
-        for service in services:
-            agents.append({
-                'service_id': service.get('service_id', ''),
-                'name': service.get('name', 'Unknown'),
-                'tier': service.get('labels', {}).get('tier', '?'),
-                'status': service.get('status', 'unknown'),
-                'agent_role': service.get('labels', {}).get('agent_role', 'unknown')
-            })
+            # Format agents for sequencer (sorted by tier: VP -> Directors -> Managers -> Workers)
+            tier_order = {'0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5}
+            agents = []
+            for service in services:
+                agents.append({
+                    'service_id': service.get('service_id', ''),
+                    'name': service.get('name', 'Unknown'),
+                    'tier': service.get('labels', {}).get('tier', '?'),
+                    'status': service.get('status', 'unknown'),
+                    'agent_role': service.get('labels', {}).get('agent_role', 'unknown')
+                })
 
-        # Sort by tier (VP at top, Workers at bottom)
-        agents.sort(key=lambda a: tier_order.get(a['tier'], 99))
+            # Sort by tier (VP at top, Workers at bottom)
+            agents.sort(key=lambda a: tier_order.get(a['tier'], 99))
 
         # Fetch tasks from Event Stream (recent events)
         tasks = []
@@ -598,9 +1196,22 @@ def get_sequencer_data():
 
 @app.route('/api/actions/tasks', methods=['GET'])
 def get_action_tasks():
-    """Get all tasks from sequencer data (fallback to PAS if available)"""
+    """Get all tasks from Registry action_logs (with fallbacks to PAS and demo data)"""
     try:
-        # Try PAS first (if available)
+        # Try Registry action_logs FIRST (source of truth)
+        try:
+            registry_response = requests.get(f'{REGISTRY_URL}/action_logs/tasks', timeout=5)
+            if registry_response.status_code == 200:
+                data = registry_response.json()
+                tasks = data.get('items', [])
+
+                # Return Registry data if available
+                if len(tasks) > 0:
+                    return jsonify({'items': tasks, 'count': len(tasks)})
+        except Exception as e:
+            logger.warning(f"Registry action_logs unavailable: {e}")
+
+        # Try PAS second (if available)
         try:
             pas_response = requests.get(
                 'http://localhost:6200/pas/v1/runs/status',
@@ -618,7 +1229,7 @@ def get_action_tasks():
 
                 return jsonify({'items': tasks, 'count': len(tasks)})
         except:
-            pass  # PAS not available, fall back to sequencer data
+            pass  # PAS not available, fall back to event stream
 
         # Fallback: Use sequencer data (event stream + demo tasks)
         event_response = requests.get(f'{EVENT_STREAM_URL}/events/recent?limit=100', timeout=5)
@@ -659,8 +1270,11 @@ def get_action_tasks():
 
             tasks = list(task_map.values())
 
-        # If no tasks from events, add demo tasks
-        if len(tasks) == 0:
+        # Only show demo tasks if explicitly requested (not when DB is just empty)
+        # Check if demo mode is enabled via query param
+        show_demo = request.args.get('demo', 'false').lower() == 'true'
+
+        if len(tasks) == 0 and show_demo:
             import time
             base_time = time.time() - 3600
             demo_tasks = [
@@ -699,11 +1313,18 @@ def get_action_tasks():
             tasks = demo_tasks
 
         # Ensure all tasks have required fields for Actions page
+        import time
+        current_time = time.time()
         for task in tasks:
             if 'action_count' not in task:
                 task['action_count'] = 1
             if 'agents_involved' not in task:
                 task['agents_involved'] = [task.get('agent', 'unknown')]
+            # Ensure timestamps are valid (not None, not string, not invalid)
+            if not task.get('start_time') or not isinstance(task.get('start_time'), (int, float)):
+                task['start_time'] = current_time
+            if task.get('end_time') is not None and not isinstance(task.get('end_time'), (int, float)):
+                task['end_time'] = None  # Reset invalid end_time to None
 
         return jsonify({'items': tasks, 'count': len(tasks)})
 
@@ -724,8 +1345,9 @@ def get_task_actions(task_id):
         except:
             pass  # Registry not available or task not found
 
-        # Fallback: Return demo actions for demo tasks
-        if task_id.startswith('demo-'):
+        # Only return demo actions if demo mode is enabled
+        show_demo = request.args.get('demo', 'false').lower() == 'true'
+        if task_id.startswith('demo-') and show_demo:
             import time
             now = time.time()
 
@@ -897,6 +1519,58 @@ def log_action():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/actions/projects', methods=['GET'])
+def get_projects():
+    """Get list of all unique task_ids (projects) with metadata"""
+    try:
+        import sqlite3
+        import os
+
+        db_path = os.path.join(
+            os.path.dirname(__file__),
+            '../../artifacts/registry/registry.db'
+        )
+
+        if not os.path.exists(db_path):
+            return jsonify({'projects': []})
+
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Get unique task_ids with metadata (most recent timestamp, action count)
+        cursor.execute("""
+            SELECT
+                task_id,
+                MIN(timestamp) as first_action,
+                MAX(timestamp) as last_action,
+                COUNT(*) as action_count,
+                MAX(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as is_running
+            FROM action_logs
+            GROUP BY task_id
+            ORDER BY last_action DESC
+        """)
+
+        projects = []
+        for row in cursor.fetchall():
+            task_id, first_action, last_action, action_count, is_running = row
+            projects.append({
+                'task_id': task_id,
+                'first_action': first_action,
+                'last_action': last_action,
+                'action_count': action_count,
+                'is_running': bool(is_running),
+                'status': 'running' if is_running else 'completed'
+            })
+
+        conn.close()
+
+        return jsonify({'projects': projects, 'count': len(projects)})
+
+    except Exception as e:
+        logger.error(f"Error fetching projects: {e}")
+        return jsonify({'error': str(e), 'projects': []}), 500
+
+
 # ============================================================================
 # PAS Integration for Tasks
 # ============================================================================
@@ -923,12 +1597,11 @@ def start_demo():
                 except OSError:
                     os.remove(demo_pid_file)
 
-        # Start demo worker in background
-        venv_python = os.path.join(os.path.dirname(__file__), '../../.venv/bin/python')
-        demo_script = '/tmp/lnsp_demo_worker.py'
+        # Start LLM-driven hierarchical demo in background
+        demo_script = '/tmp/lnsp_llm_driven_demo.py'
 
         process = subprocess.Popen(
-            [venv_python, demo_script],
+            ['python3', demo_script],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             start_new_session=True
@@ -970,6 +1643,79 @@ def stop_demo():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/demo/master-stop', methods=['POST'])
+def master_stop_demo():
+    """MASTER STOP: Forcefully kill all demo processes immediately"""
+    try:
+        import os
+        import signal
+        import subprocess
+
+        demo_pid_file = '/tmp/lnsp_demo.pid'
+        killed_pids = []
+
+        # Step 1: Kill the main demo process if running
+        if os.path.exists(demo_pid_file):
+            with open(demo_pid_file, 'r') as f:
+                main_pid = int(f.read().strip())
+
+            try:
+                # Kill entire process group (parent + all children)
+                os.killpg(os.getpgid(main_pid), signal.SIGKILL)
+                killed_pids.append(main_pid)
+                logger.info(f"MASTER STOP: Killed process group for PID {main_pid}")
+            except ProcessLookupError:
+                logger.warning(f"MASTER STOP: Process {main_pid} not found")
+            except Exception as e:
+                logger.error(f"MASTER STOP: Error killing process group {main_pid}: {e}")
+                # Fallback: try to kill just the main process
+                try:
+                    os.kill(main_pid, signal.SIGKILL)
+                    killed_pids.append(main_pid)
+                except ProcessLookupError:
+                    pass
+
+            # Clean up PID file
+            os.remove(demo_pid_file)
+
+        # Step 2: Find and kill any stray Python processes related to demo
+        try:
+            result = subprocess.run(
+                ['pgrep', '-f', 'lnsp_llm_driven_demo.py'],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if result.stdout.strip():
+                stray_pids = [int(pid) for pid in result.stdout.strip().split('\n')]
+                for pid in stray_pids:
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                        killed_pids.append(pid)
+                        logger.info(f"MASTER STOP: Killed stray demo process {pid}")
+                    except ProcessLookupError:
+                        pass
+        except subprocess.TimeoutExpired:
+            logger.warning("MASTER STOP: pgrep timeout")
+        except FileNotFoundError:
+            # pgrep not available on this system, skip
+            pass
+        except Exception as e:
+            logger.error(f"MASTER STOP: Error finding stray processes: {e}")
+
+        if killed_pids:
+            return jsonify({
+                'message': 'MASTER STOP: All demo processes forcefully terminated',
+                'killed_pids': killed_pids
+            })
+        else:
+            return jsonify({'message': 'MASTER STOP: No demo processes found'})
+
+    except Exception as e:
+        logger.error(f"MASTER STOP error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/demo/status', methods=['GET'])
 def demo_status():
     """Check if demo is running"""
@@ -996,7 +1742,7 @@ def demo_status():
 
 @app.route('/api/demo/clear', methods=['POST'])
 def clear_demo_data():
-    """Clear all demo data"""
+    """Clear all demo data (files only, not database)"""
     try:
         import shutil
         import os
@@ -1018,12 +1764,387 @@ def clear_demo_data():
         if os.path.exists(demo_dir):
             shutil.rmtree(demo_dir)
 
-        return jsonify({'message': 'Demo data cleared'})
+        return jsonify({'message': 'Demo files cleared'})
     except Exception as e:
         logger.error(f"Error clearing demo data: {e}")
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/admin/clear-all', methods=['POST'])
+def clear_all_data():
+    """Clear all project/task data from Registry (action_logs + services tables)"""
+    try:
+        import sqlite3
+        import os
+        import signal
+
+        db_path = os.path.join(
+            os.path.dirname(__file__),
+            '../../artifacts/registry/registry.db'
+        )
+
+        if not os.path.exists(db_path):
+            return jsonify({'error': 'Registry database not found'}), 404
+
+        # Stop demo if running
+        demo_pid_file = '/tmp/lnsp_demo.pid'
+        if os.path.exists(demo_pid_file):
+            with open(demo_pid_file, 'r') as f:
+                pid = int(f.read().strip())
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except:
+                pass
+            os.remove(demo_pid_file)
+
+        # Clear action_logs and services tables
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Get counts before deletion
+        cursor.execute("SELECT COUNT(*) FROM action_logs")
+        action_logs_count = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM services")
+        services_count = cursor.fetchone()[0]
+
+        # Delete all data
+        cursor.execute("DELETE FROM action_logs")
+        cursor.execute("DELETE FROM services")
+
+        conn.commit()
+        conn.close()
+
+        # Reset in-memory state
+        global last_known_log_id
+        last_known_log_id = 0
+
+        logger.info(f"Cleared {action_logs_count} action logs and {services_count} services")
+
+        return jsonify({
+            'message': 'All data cleared',
+            'action_logs_deleted': action_logs_count,
+            'services_deleted': services_count
+        })
+    except Exception as e:
+        logger.error(f"Error clearing all data: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/admin/restart-services', methods=['POST'])
+def restart_services():
+    """Restart all HMI backend services"""
+    try:
+        import subprocess
+        import os
+
+        # Find and execute restart script
+        script_path = os.path.join(
+            os.path.dirname(__file__),
+            '../../scripts/restart_all_services.sh'
+        )
+
+        if not os.path.exists(script_path):
+            return jsonify({'error': 'Restart script not found'}), 404
+
+        # Reset SERVER_START_TIME
+        global SERVER_START_TIME
+        SERVER_START_TIME = time.time()
+
+        # Execute restart script in background
+        subprocess.Popen(['bash', script_path],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL)
+
+        logger.info("Services restart initiated, uptime counter reset")
+
+        return jsonify({
+            'message': 'Services restart initiated',
+            'note': 'Services will restart in a few seconds',
+            'uptime_reset': True
+        })
+    except Exception as e:
+        logger.error(f"Error restarting services: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# Real-time Updates via Server-Sent Events (SSE)
+# ============================================================================
+
+# Global state for tracking action_log updates
+action_log_subscribers = []  # List of subscriber generators
+action_log_lock = threading.Lock()
+last_known_log_id = 0  # Track last processed log ID
+
+
+def get_db_path():
+    """Get the path to the Registry database"""
+    return os.path.join(
+        os.path.dirname(__file__),
+        '../../artifacts/registry/registry.db'
+    )
+
+
+def poll_action_logs():
+    """
+    Background thread that polls action_logs table for new entries.
+    When new entries are found, notifies all SSE subscribers.
+    """
+    global last_known_log_id
+
+    db_path = get_db_path()
+    if not os.path.exists(db_path):
+        logger.warning(f"Registry database not found at {db_path}")
+        return
+
+    while True:
+        try:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            # Get new action_logs since last check
+            cursor.execute("""
+                SELECT * FROM action_logs
+                WHERE log_id > ?
+                ORDER BY log_id ASC
+                LIMIT 100
+            """, (last_known_log_id,))
+
+            new_logs = cursor.fetchall()
+            conn.close()
+
+            if new_logs:
+                # Update last known log ID
+                last_known_log_id = new_logs[-1]['log_id']
+
+                # Convert rows to dicts
+                new_actions = []
+                for row in new_logs:
+                    action_dict = dict(row)
+                    # Parse JSON fields
+                    if action_dict.get('action_data'):
+                        try:
+                            action_dict['action_data'] = json.loads(action_dict['action_data'])
+                        except:
+                            pass
+                    new_actions.append(action_dict)
+
+                # Notify all subscribers
+                with action_log_lock:
+                    for subscriber_queue in action_log_subscribers[:]:  # Copy to avoid modification during iteration
+                        try:
+                            subscriber_queue.put({
+                                'type': 'new_actions',
+                                'data': new_actions
+                            })
+                        except:
+                            # Remove dead subscribers
+                            action_log_subscribers.remove(subscriber_queue)
+
+            # Poll every 1 second
+            time.sleep(1)
+
+        except Exception as e:
+            logger.error(f"Error polling action_logs: {e}")
+            time.sleep(5)  # Back off on error
+
+
+@app.route('/api/stream/action_logs', methods=['GET'])
+def stream_action_logs():
+    """
+    Server-Sent Events endpoint for real-time action_log updates.
+
+    Query params:
+        - task_id: Filter updates to a specific task (optional)
+
+    Returns SSE stream:
+        event: new_actions
+        data: [{"log_id": ..., "task_id": ..., ...}, ...]
+    """
+    task_id_filter = request.args.get('task_id')
+
+    def generate():
+        """SSE generator function"""
+        import queue
+
+        # Create a queue for this client
+        subscriber_queue = queue.Queue(maxsize=100)
+
+        # Register subscriber
+        with action_log_lock:
+            action_log_subscribers.append(subscriber_queue)
+
+        try:
+            # Send initial connection event
+            yield f"event: connected\ndata: {json.dumps({'status': 'ok', 'task_id': task_id_filter})}\n\n"
+
+            # Keep connection alive and send updates
+            while True:
+                try:
+                    # Wait for new data (with timeout to send keep-alive)
+                    try:
+                        message = subscriber_queue.get(timeout=15)
+                    except queue.Empty:
+                        # Send keep-alive ping
+                        yield f"event: ping\ndata: {json.dumps({'timestamp': datetime.now().isoformat()})}\n\n"
+                        continue
+
+                    # Filter by task_id if specified
+                    if message['type'] == 'new_actions':
+                        actions = message['data']
+
+                        if task_id_filter:
+                            actions = [a for a in actions if a.get('task_id') == task_id_filter]
+
+                        if actions:
+                            yield f"event: new_actions\ndata: {json.dumps(actions)}\n\n"
+
+                except GeneratorExit:
+                    break
+
+        finally:
+            # Unregister subscriber
+            with action_log_lock:
+                if subscriber_queue in action_log_subscribers:
+                    action_log_subscribers.remove(subscriber_queue)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+
+@app.route('/api/stream/tree/<task_id>', methods=['GET'])
+def stream_tree_updates(task_id):
+    """
+    SSE endpoint for real-time tree updates for a specific task.
+    Returns simplified tree node updates (not full tree rebuild).
+
+    Event types:
+        - new_node: New agent/action node added
+        - update_node: Existing node status changed
+        - new_edge: New delegation edge added
+    """
+    def generate():
+        """SSE generator function"""
+        import queue
+
+        # Create a queue for this client
+        subscriber_queue = queue.Queue(maxsize=100)
+
+        # Register subscriber
+        with action_log_lock:
+            action_log_subscribers.append(subscriber_queue)
+
+        try:
+            # Send initial connection event
+            yield f"event: connected\ndata: {json.dumps({'status': 'ok', 'task_id': task_id})}\n\n"
+
+            # Track seen agents and edges to only send new ones
+            seen_agents = set()
+            seen_edges = set()
+
+            while True:
+                try:
+                    # Wait for new data
+                    try:
+                        message = subscriber_queue.get(timeout=15)
+                    except queue.Empty:
+                        # Send keep-alive
+                        yield f"event: ping\ndata: {json.dumps({'timestamp': datetime.now().isoformat()})}\n\n"
+                        continue
+
+                    if message['type'] == 'new_actions':
+                        actions = [a for a in message['data'] if a.get('task_id') == task_id]
+
+                        for action in actions:
+                            from_agent = action.get('from_agent')
+                            to_agent = action.get('to_agent')
+
+                            # New agent nodes
+                            if from_agent and from_agent not in seen_agents and from_agent != 'user':
+                                seen_agents.add(from_agent)
+                                yield f"event: new_node\ndata: {json.dumps({
+                                    'agent_id': from_agent,
+                                    'name': from_agent.replace('_', ' ').title(),
+                                    'tier': action.get('tier_from', '?'),
+                                    'status': action.get('status', 'unknown')
+                                })}\n\n"
+
+                            if to_agent and to_agent not in seen_agents and to_agent != 'user':
+                                seen_agents.add(to_agent)
+                                yield f"event: new_node\ndata: {json.dumps({
+                                    'agent_id': to_agent,
+                                    'name': to_agent.replace('_', ' ').title(),
+                                    'tier': action.get('tier_to', '?'),
+                                    'status': action.get('status', 'unknown')
+                                })}\n\n"
+
+                            # New delegation edge
+                            if from_agent and to_agent:
+                                edge_key = f"{from_agent}->{to_agent}"
+                                if edge_key not in seen_edges:
+                                    seen_edges.add(edge_key)
+                                    yield f"event: new_edge\ndata: {json.dumps({
+                                        'from': from_agent,
+                                        'to': to_agent,
+                                        'action_type': action.get('action_type', 'unknown')
+                                    })}\n\n"
+
+                            # Node status update
+                            if to_agent and action.get('status'):
+                                yield f"event: update_node\ndata: {json.dumps({
+                                    'agent_id': to_agent,
+                                    'status': action.get('status'),
+                                    'action_name': action.get('action_name', '')
+                                })}\n\n"
+
+                except GeneratorExit:
+                    break
+
+        finally:
+            # Unregister subscriber
+            with action_log_lock:
+                if subscriber_queue in action_log_subscribers:
+                    action_log_subscribers.remove(subscriber_queue)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+
 if __name__ == '__main__':
     logger.info("Starting Flask HMI App on port 6101...")
+
+    # Initialize last_known_log_id from database
+    try:
+        db_path = get_db_path()
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT MAX(log_id) FROM action_logs")
+            result = cursor.fetchone()
+            conn.close()
+            if result and result[0]:
+                last_known_log_id = result[0]
+                logger.info(f"Initialized last_known_log_id to {last_known_log_id}")
+    except Exception as e:
+        logger.warning(f"Could not initialize last_known_log_id: {e}")
+
+    # Start background polling thread for action_logs
+    polling_thread = threading.Thread(target=poll_action_logs, daemon=True)
+    polling_thread.start()
+    logger.info("Started background action_logs polling thread")
+
     app.run(host='127.0.0.1', port=6101, debug=True)

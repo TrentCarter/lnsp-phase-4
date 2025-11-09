@@ -55,6 +55,42 @@
         }
     }
 
+    /* New node pulse animation */
+    @keyframes pulse-glow {
+        0% {
+            filter: drop-shadow(0 0 0px rgba(74, 222, 128, 0));
+        }
+        50% {
+            filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.8));
+        }
+        100% {
+            filter: drop-shadow(0 0 0px rgba(74, 222, 128, 0));
+        }
+    }
+
+    .node.new-node circle {
+        animation: pulse-glow 1.5s ease-in-out 3;
+    }
+
+    /* New edge highlight animation */
+    .link.new-edge {
+        stroke: #4ade80;
+        stroke-width: 3px;
+        stroke-opacity: 1;
+        animation: pulse-edge 1.5s ease-in-out 2;
+    }
+
+    @keyframes pulse-edge {
+        0%, 100% {
+            stroke-opacity: 1;
+            stroke-width: 3px;
+        }
+        50% {
+            stroke-opacity: 0.4;
+            stroke-width: 2px;
+        }
+    }
+
     .tooltip {
         position: absolute;
         padding: 0.75rem 1rem;
@@ -188,6 +224,9 @@
         </div>
 
         <div class="controls">
+            <select id="project-selector" class="control-button" onchange="changeProject()" style="cursor: pointer; padding: 0.5rem 0.75rem; min-width: 200px; max-width: 300px;" title="Select a prime directive (top-level human request to PAS Root)">
+                <option value="">Loading prime directives...</option>
+            </select>
             <button class="control-button" onclick="centerTree()">🎯 Center</button>
             <button class="control-button" onclick="expandAll()">➕ Expand All</button>
             <button class="control-button" onclick="collapseAll()">➖ Collapse All</button>
@@ -197,6 +236,13 @@
                 <option value="left">➡️ Left</option>
                 <option value="right">⬅️ Right</option>
                 <option value="bottom">⬆️ Bottom</option>
+            </select>
+            <select id="filter-select" class="control-button" onchange="changeFilter(this.value)" style="cursor: pointer; padding: 0.5rem 0.75rem; min-width: 220px;">
+                <option value="all">📋 Show All</option>
+                <option value="assignments">📤 Assignments Only</option>
+                <option value="completions">✅ Completions Only</option>
+                <option value="assignments-completions">🔄 Assignments + Completions</option>
+                <option value="work">⚙️ Work Only</option>
             </select>
         </div>
     </div>
@@ -215,6 +261,8 @@
     const height = window.innerHeight - 150;
     let autoRefreshTimer = null;
     let currentOrientation = 'top';  // Default orientation
+    let currentFilter = 'all';  // Filter mode: 'all', 'assignments', 'completions', 'work'
+    let rawTreeData = null;  // Store unfiltered data
 
     // Status colors
     const statusColors = {
@@ -298,7 +346,49 @@
 
     async function fetchTreeData() {
         try {
-            const response = await fetch('/api/tree');
+            // Check if a task is selected from URL params
+            const urlParams = new URLSearchParams(window.location.search);
+            let taskId = urlParams.get('task_id');
+
+            // If no task_id provided, try to get current or last task
+            if (!taskId) {
+                try {
+                    // First try to get current running task
+                    const currentResp = await fetch('/api/current-task');
+                    if (currentResp.ok) {
+                        const currentData = await currentResp.json();
+                        if (currentData.task_id) {
+                            taskId = currentData.task_id;
+                            console.log('Using current running task:', taskId);
+                        }
+                    }
+
+                    // If no current task, get the most recent task from action logs
+                    if (!taskId) {
+                        const tasksResp = await fetch('/api/actions/tasks?limit=1');
+                        if (tasksResp.ok) {
+                            const tasksData = await tasksResp.json();
+                            if (tasksData.items && tasksData.items.length > 0) {
+                                taskId = tasksData.items[0].task_id;
+                                console.log('Using last task from history:', taskId);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch current/last task:', e);
+                }
+            }
+
+            let url = '/api/tree';
+            if (taskId) {
+                url = `/api/tree?source=actions&task_id=${taskId}`;
+                // Update URL without reloading page
+                if (!urlParams.get('task_id')) {
+                    window.history.replaceState({}, '', `?task_id=${taskId}`);
+                }
+            }
+
+            const response = await fetch(url);
             const data = await response.json();
             console.log('Fetched tree data:', data);
             return data;
@@ -352,6 +442,23 @@
             .on('mouseenter', (event, d) => showTooltip(event, d))
             .on('mouseleave', hideTooltip);
 
+        /**
+         * Truncate long text in the middle (e.g., "This is long...xt here")
+         * @param {string} text - Full text
+         * @param {number} maxLength - Maximum total length
+         * @returns {string} Truncated text with "..." in the middle
+         */
+        function truncateMiddle(text, maxLength = 25) {  // Reduced from 40 to 25
+            if (!text || text.length <= maxLength) return text;
+
+            const ellipsis = '...';
+            const charsToShow = maxLength - ellipsis.length;
+            const frontChars = Math.ceil(charsToShow / 2);
+            const backChars = Math.floor(charsToShow / 2);
+
+            return text.substring(0, frontChars) + ellipsis + text.substring(text.length - backChars);
+        }
+
         nodeEnter.append('circle')
             .attr('r', 1e-6)
             .style('fill', d => d._children ? '#4a5578' : '#fff')
@@ -380,7 +487,7 @@
                     return 'middle';
                 }
             })
-            .text(d => d.data.name)
+            .text(d => truncateMiddle(d.data.name, 25))  // Truncate long names
             .style('fill', '#e0e0e0')
             .style('fill-opacity', 1e-6);
 
@@ -400,6 +507,7 @@
             .style('stroke-width', 2);
 
         nodeUpdate.select('text')
+            .text(d => truncateMiddle(d.data.name, 25))  // Update text with truncation
             .style('fill-opacity', 1);
 
         // Remove exiting nodes
@@ -552,6 +660,133 @@
     }
 
     /**
+     * Change filter mode and reapply to tree
+     * @param {string} filter - One of: 'all', 'assignments', 'completions', 'work'
+     */
+    function changeFilter(filter) {
+        console.log('🔍 [FILTER] Changing filter to:', filter);
+        currentFilter = filter;
+
+        // Save to localStorage
+        localStorage.setItem('pas_tree_filter', filter);
+
+        // Reapply filter to existing data
+        if (!rawTreeData) {
+            console.warn('⚠️ [FILTER] No raw tree data available yet!');
+            return;
+        }
+
+        console.log('🔍 [FILTER] Raw data before filter:', countNodes(rawTreeData), 'nodes');
+        const filteredData = applyFilter(rawTreeData, filter);
+
+        // Handle case where all nodes are filtered out
+        if (!filteredData) {
+            console.warn('⚠️ [FILTER] Filter removed all nodes! Showing unfiltered data.');
+            root = d3.hierarchy(rawTreeData, d => d.children);
+        } else {
+            console.log(`✅ [FILTER] Filter "${filter}" applied: ${countNodes(rawTreeData)} → ${countNodes(filteredData)} nodes`);
+            root = d3.hierarchy(filteredData, d => d.children);
+        }
+
+        root.x0 = 0;
+        root.y0 = 0;
+
+        // Expand all nodes after filtering (so user can see what's left)
+        if (root.children) {
+            function expandRecursive(d) {
+                if (d.children) {
+                    d.children.forEach(expandRecursive);
+                }
+            }
+            root.children.forEach(expandRecursive);
+        }
+
+        console.log('🔍 [FILTER] Re-rendering tree with', countNodes(filteredData), 'nodes');
+        // Re-render tree with filtered data
+        update(root);
+    }
+
+    /**
+     * Check if a node matches the filter criteria
+     * @param {Object} node - Tree node to check
+     * @param {string} filter - Filter mode
+     * @returns {boolean} True if node matches filter
+     */
+    function nodeMatchesFilter(node, filter) {
+        if (filter === 'all') {
+            return true;  // Show everything
+        }
+
+        const name = node.name?.toLowerCase() || '';
+        const actionType = node.action_type;
+
+        if (filter === 'assignments') {
+            return name.startsWith('assign:') || actionType === 'delegate';
+        } else if (filter === 'completions') {
+            return name.startsWith('completed ') || actionType === 'report';
+        } else if (filter === 'assignments-completions') {
+            return name.startsWith('assign:') ||
+                   name.startsWith('completed ') ||
+                   actionType === 'delegate' ||
+                   actionType === 'report';
+        } else if (filter === 'work') {
+            return actionType === 'code_generation';
+        }
+
+        return false;
+    }
+
+    /**
+     * Apply filter to tree data (recursively)
+     * Keeps parent nodes that have matching descendants
+     * @param {Object} data - Tree data node
+     * @param {string} filter - Filter mode
+     * @returns {Object|null} Filtered tree data, or null if node and all descendants filtered out
+     */
+    function applyFilter(data, filter) {
+        // Always show root node (PAS Agent Swarm)
+        if (!data.children || data.children.length === 0) {
+            // Leaf node - check if it matches filter
+            if (filter === 'all' || nodeMatchesFilter(data, filter)) {
+                return { ...data };
+            }
+            return null;  // Filtered out
+        }
+
+        // Recursively filter children
+        const filteredChildren = data.children
+            .map(child => applyFilter(child, filter))
+            .filter(child => child !== null);  // Remove filtered-out nodes
+
+        // Keep this node if:
+        // 1. It has filtered children (parent of matching nodes)
+        // 2. OR it matches the filter itself
+        if (filteredChildren.length > 0 || nodeMatchesFilter(data, filter)) {
+            return {
+                ...data,
+                children: filteredChildren
+            };
+        }
+
+        // No matching children and node doesn't match - filter out
+        return null;
+    }
+
+    /**
+     * Count total nodes in tree data (for debugging)
+     * @param {Object} data - Tree data node
+     * @returns {number} Total node count
+     */
+    function countNodes(data) {
+        if (!data) return 0;
+        let count = 1;  // Count this node
+        if (data.children) {
+            count += data.children.reduce((sum, child) => sum + countNodes(child), 0);
+        }
+        return count;
+    }
+
+    /**
      * Center the tree view based on current orientation
      */
     function centerTree() {
@@ -611,24 +846,44 @@
         const data = await fetchTreeData();
         console.log('Building tree from data:', data);
 
-        root = d3.hierarchy(data);
+        // Store raw data for filtering
+        rawTreeData = data;
+
+        // Apply current filter
+        const filteredData = applyFilter(data, currentFilter);
+
+        // Handle case where all nodes are filtered out (shouldn't happen with root, but be safe)
+        if (!filteredData) {
+            console.warn('Filter removed all nodes! Showing unfiltered data.');
+            root = d3.hierarchy(data);
+        } else {
+            console.log(`Applied filter "${currentFilter}", nodes before: ${countNodes(data)}, after: ${countNodes(filteredData)}`);
+            root = d3.hierarchy(filteredData);
+        }
         root.x0 = 0;
         root.y0 = 0;
 
-        // Initially collapse all children except root
-        if (root.children) {
-            root.children.forEach(collapseNode);
-        }
-
-        // Restore the saved state (expansion & position)
-        if (savedState) {
+        // Default to "Expand All" - expand all nodes on first load
+        if (!savedState) {
+            // First load: expand everything
+            if (root.children) {
+                function expandRecursive(d) {
+                    if (d.children) {
+                        d.children.forEach(expandRecursive);
+                    }
+                }
+                root.children.forEach(expandRecursive);
+            }
+            console.log('First load: expanded all nodes');
+        } else {
+            // Subsequent loads: restore saved state
             restoreTreeState(savedState);
             console.log('Restored tree state:', savedState.expandedPaths.size, 'expanded nodes');
         }
 
         update(root);
 
-        // Only center if this is the first load (no saved state)
+        // Always center tree (ensure it's centered on load and after updates)
         if (!savedState) {
             centerTree();
         }
@@ -736,7 +991,269 @@
         }
     }
 
-    // Initialize on page load
+    // ========================================================================
+    // Project Selector Functions
+    // ========================================================================
+
+    async function loadProjects() {
+        try {
+            const response = await fetch('/api/actions/projects');
+
+            // Handle non-200 responses gracefully
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            const selector = document.getElementById('project-selector');
+            selector.innerHTML = '';  // Clear loading message
+
+            if (data.projects && data.projects.length > 0) {
+                // Add projects sorted by most recent first (already sorted by backend)
+                data.projects.forEach((project, index) => {
+                    const option = document.createElement('option');
+                    option.value = project.task_id;
+
+                    // Format display name with status indicator
+                    const statusEmoji = project.is_running ? '▶️' : '⏸️';
+                    const firstAction = new Date(project.first_action).toLocaleString();
+                    option.textContent = `${statusEmoji} ${project.task_id.substring(0, 12)}... (${project.action_count} actions, ${firstAction})`;
+
+                    // Select current task if it matches
+                    const params = new URLSearchParams(window.location.search);
+                    const currentTaskId = params.get('task_id');
+                    if (currentTaskId === project.task_id) {
+                        option.selected = true;
+                    } else if (index === 0 && !currentTaskId) {
+                        // Select first (most recent) project if no task_id in URL
+                        option.selected = true;
+                    }
+
+                    selector.appendChild(option);
+                });
+            } else {
+                // No projects found
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No prime directives found';
+                selector.appendChild(option);
+            }
+        } catch (error) {
+            console.error('Failed to load projects:', error);
+            const selector = document.getElementById('project-selector');
+            selector.innerHTML = '<option value="">Failed to load projects</option>';
+        }
+    }
+
+    function changeProject() {
+        const selector = document.getElementById('project-selector');
+        const selectedTaskId = selector.value;
+
+        if (selectedTaskId) {
+            // Update URL and reload tree data
+            const url = new URL(window.location);
+            url.searchParams.set('task_id', selectedTaskId);
+            window.history.pushState({}, '', url);
+
+            currentTaskId = selectedTaskId;
+            refreshTree();  // Reload with new task_id
+        }
+    }
+
+    // ========================================================================
+    // Real-time Updates via SSE
+    // ========================================================================
+
+    let sseConnection = null;
+    let currentTaskId = null;
+
+    function connectSSE() {
+        // Close existing connection if any
+        if (sseConnection) {
+            sseConnection.close();
+        }
+
+        // Get current task ID from URL or localStorage
+        const params = new URLSearchParams(window.location.search);
+        currentTaskId = params.get('task_id');
+
+        if (!currentTaskId) {
+            console.log('No task_id specified, SSE updates disabled');
+            return;
+        }
+
+        console.log('Connecting to SSE stream for task:', currentTaskId);
+
+        // Connect to SSE endpoint
+        sseConnection = new EventSource(`/api/stream/tree/${currentTaskId}`);
+
+        sseConnection.addEventListener('connected', (e) => {
+            const data = JSON.parse(e.data);
+            console.log('SSE connected:', data);
+        });
+
+        sseConnection.addEventListener('new_node', (e) => {
+            const nodeData = JSON.parse(e.data);
+            console.log('New node:', nodeData);
+            handleNewNode(nodeData);
+        });
+
+        sseConnection.addEventListener('new_edge', (e) => {
+            const edgeData = JSON.parse(e.data);
+            console.log('New edge:', edgeData);
+            handleNewEdge(edgeData);
+        });
+
+        sseConnection.addEventListener('update_node', (e) => {
+            const updateData = JSON.parse(e.data);
+            console.log('Node update:', updateData);
+            handleNodeUpdate(updateData);
+        });
+
+        sseConnection.addEventListener('ping', (e) => {
+            // Keep-alive ping, do nothing
+        });
+
+        sseConnection.onerror = (error) => {
+            console.error('SSE connection error:', error);
+            // Attempt to reconnect after 5 seconds
+            setTimeout(() => {
+                console.log('Attempting to reconnect SSE...');
+                connectSSE();
+            }, 5000);
+        };
+    }
+
+    function handleNewNode(nodeData) {
+        // Add new node to the tree dynamically
+        if (!root) return;
+
+        // Find parent node (or add to root if no parent found)
+        // For now, we'll trigger a full refresh with animation
+        const savedState = saveTreeState();
+
+        // Fetch fresh tree data
+        fetch(`/api/tree?source=actions&task_id=${currentTaskId}`)
+            .then(response => response.json())
+            .then(data => {
+                root = d3.hierarchy(data);
+                root.x0 = height / 2;
+                root.y0 = 0;
+
+                // Restore expansion state
+                restoreTreeState(savedState);
+
+                // Update with animation
+                updateTree(root);
+
+                // Apply new-node animation class
+                setTimeout(() => {
+                    const nodeSelection = svg.selectAll('g.node')
+                        .filter(d => d.data.agent_id === nodeData.agent_id);
+
+                    nodeSelection.classed('new-node', true);
+
+                    // Remove animation class after it completes (1.5s * 3 iterations = 4.5s)
+                    setTimeout(() => {
+                        nodeSelection.classed('new-node', false);
+                    }, 5000);
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Error refreshing tree after new node:', error);
+            });
+    }
+
+    function handleNewEdge(edgeData) {
+        // New delegation edge - trigger refresh
+        const savedState = saveTreeState();
+
+        fetch(`/api/tree?source=actions&task_id=${currentTaskId}`)
+            .then(response => response.json())
+            .then(data => {
+                root = d3.hierarchy(data);
+                root.x0 = height / 2;
+                root.y0 = 0;
+
+                restoreTreeState(savedState);
+                updateTree(root);
+
+                // Apply new-edge animation class
+                setTimeout(() => {
+                    // Find links connecting from -> to
+                    const linkSelection = svg.selectAll('path.link')
+                        .filter(d => {
+                            const source = d.source.data.agent_id || d.source.data.service_id;
+                            const target = d.target.data.agent_id || d.target.data.service_id;
+                            return source === edgeData.from && target === edgeData.to;
+                        });
+
+                    linkSelection.classed('new-edge', true);
+
+                    // Remove animation class after it completes (1.5s * 2 iterations = 3s)
+                    setTimeout(() => {
+                        linkSelection.classed('new-edge', false);
+                    }, 3500);
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Error refreshing tree after new edge:', error);
+            });
+    }
+
+    function handleNodeUpdate(updateData) {
+        // Update node status/label without full refresh
+        if (!root) return;
+
+        // Find the node in the tree
+        let targetNode = null;
+        root.each(node => {
+            if (node.data.agent_id === updateData.agent_id) {
+                targetNode = node;
+            }
+        });
+
+        if (targetNode) {
+            // Update node data
+            targetNode.data.status = updateData.status;
+            if (updateData.action_name) {
+                targetNode.data.current_action = updateData.action_name;
+            }
+
+            // Re-render the node
+            const nodeSelection = svg.selectAll('g.node')
+                .filter(d => d.data.agent_id === updateData.agent_id);
+
+            // Update circle color based on status
+            nodeSelection.select('circle')
+                .transition()
+                .duration(300)
+                .attr('fill', getNodeColor({ data: targetNode.data }));
+
+            // Flash the node briefly
+            highlightNode(updateData.agent_id);
+        }
+    }
+
+    function highlightNode(agentId) {
+        // Briefly highlight a node with a pulse animation
+        const nodeSelection = svg.selectAll('g.node')
+            .filter(d => d.data.agent_id === agentId);
+
+        nodeSelection.select('circle')
+            .transition()
+            .duration(200)
+            .attr('r', 8)
+            .transition()
+            .duration(200)
+            .attr('r', 6);
+    }
+
+    // ========================================================================
+    // Page Initialization
+    // ========================================================================
+
     document.addEventListener('DOMContentLoaded', async () => {
         console.log('Initializing tree view...');
 
@@ -752,14 +1269,41 @@
 
         console.log('Loaded orientation:', currentOrientation);
 
+        // Load saved filter from localStorage
+        currentFilter = localStorage.getItem('pas_tree_filter') || 'all';
+
+        // Update filter dropdown to match saved filter
+        const filterSelect = document.getElementById('filter-select');
+        if (filterSelect) {
+            filterSelect.value = currentFilter;
+        }
+
+        console.log('Loaded filter:', currentFilter);
+
         initializeTree();
+
+        // Load projects first, then refresh tree
+        await loadProjects();
         await refreshTree();
+
+        // Connect to SSE for real-time updates
+        connectSSE();
 
         // Settings will be loaded by base.html, which will call applyViewSettings()
         // Default auto-refresh (will be overridden by settings)
         setTimeout(() => {
             applyViewSettings(settings);
         }, 100);
+
+        // Reload projects every 5 seconds to catch new ones
+        setInterval(loadProjects, 5000);
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (sseConnection) {
+            sseConnection.close();
+        }
     });
 
     // Handle window resize

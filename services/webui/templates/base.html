@@ -455,6 +455,35 @@
             transform: translateX(24px);
         }
 
+        .setting-button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+        }
+
+        .setting-button.danger {
+            background-color: #ef4444;
+        }
+
+        .setting-button.danger:hover {
+            background-color: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .setting-button.warning {
+            background-color: #f59e0b;
+        }
+
+        .setting-button.warning:hover {
+            background-color: #d97706;
+            transform: translateY(-1px);
+        }
+
         .settings-footer {
             display: flex;
             justify-content: flex-end;
@@ -524,7 +553,8 @@
             <a href="/actions" {% if request.path == '/actions' %}class="active"{% endif %}>Actions</a>
             <button id="start-demo-button" class="settings-button" onclick="startDemo()" style="background: #10b981;">▶️ Start Demo</button>
             <button id="stop-demo-button" class="settings-button" onclick="stopDemo()" style="background: #ef4444; display: none;">⏹️ Stop Demo</button>
-            <button class="settings-button" onclick="clearDemoData()" style="background: #f59e0b;">🗑️ Clear Data</button>
+            <button id="master-stop-button" class="settings-button" onclick="masterStopDemo()" style="background: #dc2626; display: none; font-weight: bold; border: 2px solid #fbbf24;" title="EMERGENCY: Force kill ALL demo processes immediately">🛑 MASTER STOP</button>
+            <button class="settings-button" onclick="clearAllData()" style="background: #ef4444;">🗑️ Clear All Data</button>
             <button id="audio-init-button" class="settings-button" onclick="initAudioManual()" style="display: none;">🔊 Enable Sound</button>
             <button class="settings-button" onclick="openSettings()">⚙️ Settings</button>
         </nav>
@@ -679,6 +709,29 @@
                             <option value="random">Random Sounds</option>
                             <option value="geiger">Geiger Counter</option>
                         </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Admin Settings -->
+            <div class="settings-section">
+                <h3>🛠️ System Administration</h3>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Clear All Data</div>
+                        <div class="setting-description">Delete all action logs and service registrations (⚠️ Cannot be undone!)</div>
+                    </div>
+                    <div class="setting-control">
+                        <button class="setting-button danger" onclick="clearAllDataConfirm()">🗑️ Clear All Data</button>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Restart HMI Services</div>
+                        <div class="setting-description">Stop and restart all HMI backend services</div>
+                    </div>
+                    <div class="setting-control">
+                        <button class="setting-button warning" onclick="restartHMI()">🔄 Restart Services</button>
                     </div>
                 </div>
             </div>
@@ -1672,6 +1725,7 @@
 
             const startButton = document.getElementById('start-demo-button');
             const stopButton = document.getElementById('stop-demo-button');
+            const masterStopButton = document.getElementById('master-stop-button');
 
             try {
                 startButton.disabled = true;
@@ -1684,6 +1738,7 @@
                     demoRunning = true;
                     startButton.style.display = 'none';
                     stopButton.style.display = 'inline-block';
+                    masterStopButton.style.display = 'inline-block';
                     console.log('✓ Demo started:', data);
                     alert('Demo started! Watch the HMI come alive with activity.\n\n' +
                           'Projects will be created in /tmp/ using local LLMs (free!).\n\n' +
@@ -1716,6 +1771,7 @@
                     stopButton.style.display = 'none';
                     startButton.style.display = 'inline-block';
                     startButton.textContent = '▶️ Start Demo';
+                    document.getElementById('master-stop-button').style.display = 'none';
                     console.log('✓ Demo stopped:', data);
                     alert('Demo stopped.');
                 } else {
@@ -1730,12 +1786,49 @@
             }
         }
 
+        async function masterStopDemo() {
+            // Confirmation dialog with warning
+            if (!confirm('⚠️ MASTER STOP: This will FORCE KILL all demo processes immediately!\n\nThis is an EMERGENCY measure - use only if regular Stop fails.\n\nContinue?')) {
+                return;
+            }
+
+            const startButton = document.getElementById('start-demo-button');
+            const stopButton = document.getElementById('stop-demo-button');
+            const masterStopButton = document.getElementById('master-stop-button');
+
+            try {
+                masterStopButton.disabled = true;
+                masterStopButton.textContent = '⏳ KILLING...';
+
+                const response = await fetch('/api/demo/master-stop', { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    demoRunning = false;
+                    stopButton.style.display = 'none';
+                    masterStopButton.style.display = 'none';
+                    startButton.style.display = 'inline-block';
+                    startButton.textContent = '▶️ Start Demo';
+                    console.log('✓ MASTER STOP executed:', data);
+                    if (data.killed_pids && data.killed_pids.length > 0) {
+                        alert(`✅ MASTER STOP: Killed ${data.killed_pids.length} process(es)\nPIDs: ${data.killed_pids.join(', ')}`);
+                    } else {
+                        alert('✅ MASTER STOP: ' + data.message);
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to execute MASTER STOP');
+                }
+            } catch (error) {
+                console.error('Failed to execute MASTER STOP:', error);
+                alert('❌ MASTER STOP failed: ' + error.message);
+                masterStopButton.textContent = '🛑 MASTER STOP';
+            } finally {
+                masterStopButton.disabled = false;
+            }
+        }
+
         async function clearDemoData() {
-            if (!confirm('This will delete all demo data including:\n\n' +
-                        '• Projects in /tmp/lnsp_demo/\n' +
-                        '• Event logs\n' +
-                        '• Task history\n\n' +
-                        'Continue?')) {
+            if (!confirm('This will delete demo files in /tmp/lnsp_demo/\n\nContinue?')) {
                 return;
             }
 
@@ -1744,15 +1837,72 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    console.log('✓ Demo data cleared:', data);
-                    alert('Demo data cleared!\n\nRefresh the page to see updated state.');
+                    console.log('✓ Demo files cleared:', data);
+                    alert('Demo files cleared!');
+                } else {
+                    console.error('✗ Failed to clear demo:', data);
+                    alert('Failed to clear demo: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error clearing demo:', error);
+                alert('Error clearing demo: ' + error.message);
+            }
+        }
+
+        async function clearAllData() {
+            if (!confirm('⚠️ WARNING: This will PERMANENTLY delete:\n\n' +
+                        '• All action logs\n' +
+                        '• All service registrations\n' +
+                        '• All task history\n' +
+                        '• All demo files\n\n' +
+                        'This CANNOT be undone!\n\n' +
+                        'Continue?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/clear-all', { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    console.log('✓ All data cleared:', data);
+                    alert(`All data cleared!\n\n${data.action_logs_deleted} action logs deleted\n${data.services_deleted} services deleted\n\nRefresh the page to see updated state.`);
                     setTimeout(() => window.location.reload(), 1000);
                 } else {
                     throw new Error(data.error || 'Failed to clear demo data');
                 }
             } catch (error) {
-                console.error('Failed to clear demo data:', error);
-                alert('Failed to clear demo data: ' + error.message);
+                console.error('Failed to clear all data:', error);
+                alert('Failed to clear all data: ' + error.message);
+            }
+        }
+
+        function clearAllDataConfirm() {
+            clearAllData();
+        }
+
+        async function restartHMI() {
+            if (!confirm('This will restart all HMI backend services.\n\nThe page will temporarily disconnect.\n\nContinue?')) {
+                return;
+            }
+
+            try {
+                alert('Restarting services...\n\nThe page will reconnect automatically.');
+                const response = await fetch('/api/admin/restart-services', { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    console.log('✓ Services restarting:', data);
+                    setTimeout(() => {
+                        alert('Services restarted! Reloading page...');
+                        window.location.reload();
+                    }, 5000);
+                } else {
+                    alert('Failed to restart services: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error restarting services:', error);
+                alert('Error restarting services: ' + error.message);
             }
         }
 
@@ -1766,6 +1916,7 @@
                     demoRunning = true;
                     document.getElementById('start-demo-button').style.display = 'none';
                     document.getElementById('stop-demo-button').style.display = 'inline-block';
+                    document.getElementById('master-stop-button').style.display = 'inline-block';
                 }
             } catch (error) {
                 console.error('Failed to check demo status:', error);

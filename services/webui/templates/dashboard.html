@@ -185,6 +185,11 @@
                     <div class="subtext">Responding to heartbeats</div>
                 </div>
                 <div class="metric-card">
+                    <h3>System Uptime</h3>
+                    <div class="value" id="system-uptime">-</div>
+                    <div class="subtext" id="system-uptime-since">Last restart: -</div>
+                </div>
+                <div class="metric-card">
                     <h3>Connected Clients</h3>
                     <div class="value" id="connected-clients">-</div>
                     <div class="subtext">WebSocket connections</div>
@@ -384,6 +389,38 @@
                 ? `${Math.round(summary.health_percentage)}%`
                 : '-';
 
+            // Update system uptime
+            if (summary.uptime_seconds !== undefined) {
+                const uptimeSeconds = summary.uptime_seconds;
+                const days = Math.floor(uptimeSeconds / 86400);
+                const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+                const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+
+                let uptimeText = '';
+                if (days > 0) {
+                    uptimeText = `${days}d ${hours}h ${minutes}m`;
+                } else if (hours > 0) {
+                    uptimeText = `${hours}h ${minutes}m`;
+                } else {
+                    uptimeText = `${minutes}m`;
+                }
+
+                document.getElementById('system-uptime').textContent = uptimeText;
+
+                // Format restart time
+                if (summary.server_start_time) {
+                    const startDate = new Date(summary.server_start_time * 1000);
+                    const timeStr = startDate.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    document.getElementById('system-uptime-since').textContent = `Last restart: ${timeStr}`;
+                }
+            } else {
+                document.getElementById('system-uptime').textContent = '-';
+                document.getElementById('system-uptime-since').textContent = 'Last restart: -';
+            }
+
             // Update system health badge
             const healthBadge = document.getElementById('system-health-badge');
             if (summary.health_percentage >= 80) {
@@ -513,6 +550,8 @@
                             <span class="service-info-label">Clients:</span>
                             <span class="service-info-value">${serviceData.connected_clients || 0}</span>
                         </div>
+                        ` : ''}
+                        ${serviceData.total_events !== undefined ? `
                         <div class="service-info-row">
                             <span class="service-info-label">Events:</span>
                             <span class="service-info-value">${serviceData.total_events || 0}</span>
@@ -533,37 +572,79 @@
 
             const container = document.getElementById('agents-container');
 
-            // Update agents badge count
-            document.getElementById('agents-badge').textContent = agents.length;
+            // Update agents badge count from metrics (includes historical agents from action logs)
+            try {
+                const metricsResp = await fetch('/api/metrics');
+                const metricsData = await metricsResp.json();
+                const totalAgents = metricsData.summary?.total_agents || agents.length;
+                document.getElementById('agents-badge').textContent = totalAgents;
+            } catch {
+                document.getElementById('agents-badge').textContent = agents.length;
+            }
 
             if (agents.length === 0) {
                 container.innerHTML = '<div class="loading"><p>No agents registered yet</p></div>';
                 return;
             }
 
-            container.innerHTML = agents.map(agent => `
-                <div class="service-card" data-service-id="${agent.service_id}">
-                    <div class="service-header">
-                        <div class="service-name">${agent.name}</div>
-                        <div class="service-status ${agent.status === 'ok' ? 'healthy' : 'unhealthy'}"></div>
-                    </div>
-                    <div class="service-info">
-                        <div class="service-info-row">
-                            <span class="service-info-label">Type:</span>
-                            <span class="service-info-value">${agent.labels?.agent_role || 'unknown'}</span>
-                        </div>
-                        <div class="service-info-row">
-                            <span class="service-info-label">Tier:</span>
-                            <span class="service-info-value">Tier ${agent.labels?.tier || '?'}</span>
-                        </div>
-                        <div class="service-info-row">
-                            <span class="service-info-label">Capabilities:</span>
-                            <span class="service-info-value">${agent.caps?.length || 0} caps</span>
+            // Check if showing historical agents from action logs
+            const isHistorical = agents.length > 0 && agents[0].from_action_logs;
+
+            if (isHistorical) {
+                container.innerHTML = `
+                    <div style="background: #1f2937; padding: 12px; margin-bottom: 16px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 18px;">ℹ️</span>
+                            <span style="color: #93c5fd; font-size: 14px;">Showing historical agents from action logs (no live services registered)</span>
                         </div>
                     </div>
-                    <div class="last-update">Last heartbeat: ${agent.last_heartbeat_ts ? new Date(agent.last_heartbeat_ts * 1000).toLocaleTimeString() : 'Never'}</div>
-                </div>
-            `).join('');
+                ` + agents.map(agent => `
+                    <div class="service-card" data-service-id="${agent.service_id}">
+                        <div class="service-header">
+                            <div class="service-name">${agent.name}</div>
+                            <div class="service-status" style="background: #6b7280;" title="Historical"></div>
+                        </div>
+                        <div class="service-info">
+                            <div class="service-info-row">
+                                <span class="service-info-label">Type:</span>
+                                <span class="service-info-value">Historical</span>
+                            </div>
+                            <div class="service-info-row">
+                                <span class="service-info-label">Tier:</span>
+                                <span class="service-info-value">Tier ${agent.tier || '?'}</span>
+                            </div>
+                            <div class="service-info-row">
+                                <span class="service-info-label">Last Seen:</span>
+                                <span class="service-info-value">${new Date(agent.last_seen).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = agents.map(agent => `
+                    <div class="service-card" data-service-id="${agent.service_id}">
+                        <div class="service-header">
+                            <div class="service-name">${agent.name}</div>
+                            <div class="service-status ${agent.status === 'ok' ? 'healthy' : 'unhealthy'}"></div>
+                        </div>
+                        <div class="service-info">
+                            <div class="service-info-row">
+                                <span class="service-info-label">Type:</span>
+                                <span class="service-info-value">${agent.labels?.agent_role || 'unknown'}</span>
+                            </div>
+                            <div class="service-info-row">
+                                <span class="service-info-label">Tier:</span>
+                                <span class="service-info-value">Tier ${agent.labels?.tier || '?'}</span>
+                            </div>
+                            <div class="service-info-row">
+                                <span class="service-info-label">Capabilities:</span>
+                                <span class="service-info-value">${agent.caps?.length || 0} caps</span>
+                            </div>
+                        </div>
+                        <div class="last-update">Last heartbeat: ${agent.last_heartbeat_ts ? new Date(agent.last_heartbeat_ts * 1000).toLocaleTimeString() : 'Never'}</div>
+                    </div>
+                `).join('');
+            }
 
         } catch (error) {
             console.error('Error fetching agents:', error);

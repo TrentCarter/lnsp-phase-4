@@ -25,6 +25,9 @@ SUMMARIES_DIR = Path("docs/runs")
 DEFAULT_TARGET_RATIO = 0.50  # Target 50% context usage
 DEFAULT_HARD_MAX_RATIO = 0.75  # Hard max 75% context usage
 
+# Event counter (global) - tracks context tracking and summarization events
+total_events = 0
+
 # ============================================================================
 # Pydantic Models
 # ============================================================================
@@ -269,6 +272,10 @@ async def track_context(track: ContextTrack):
 
         conn.commit()
 
+    # Increment event counter
+    global total_events
+    total_events += 1
+
     response = {
         "agent": track.agent,
         "ctx_used": track.ctx_used,
@@ -386,6 +393,10 @@ async def summarize_context(request: SummarizeRequest):
 
     print(f"✓ Summarized context for {request.agent}: {ctx_before} → 0 tokens")
 
+    # Increment event counter
+    global total_events
+    total_events += 1
+
     return {
         "summary_id": summary_id,
         "agent": request.agent,
@@ -490,7 +501,10 @@ async def clear_agent_context(agent: str):
 @app.get("/health")
 async def health():
     """Health check endpoint"""
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "total_events": total_events
+    }
 
 
 # ============================================================================

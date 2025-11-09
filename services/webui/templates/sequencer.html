@@ -29,8 +29,29 @@
     #sequencer-canvas-wrapper {
         flex: 1;
         position: relative;
-        overflow: auto;
+        overflow-x: auto;  /* Horizontal scroll for timeline */
+        overflow-y: scroll; /* ALWAYS show vertical scrollbar */
         background: #0a0e27;
+    }
+
+    /* Style the scrollbar */
+    #sequencer-canvas-wrapper::-webkit-scrollbar {
+        width: 14px;
+        height: 14px;
+    }
+
+    #sequencer-canvas-wrapper::-webkit-scrollbar-track {
+        background: rgba(30, 39, 71, 0.5);
+    }
+
+    #sequencer-canvas-wrapper::-webkit-scrollbar-thumb {
+        background: rgba(59, 130, 246, 0.6);
+        border-radius: 7px;
+        border: 2px solid rgba(30, 39, 71, 0.5);
+    }
+
+    #sequencer-canvas-wrapper::-webkit-scrollbar-thumb:hover {
+        background: rgba(59, 130, 246, 0.8);
     }
 
     #sequencer-canvas {
@@ -85,6 +106,36 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+    }
+
+    .project-selector {
+        padding: 0.5rem 1rem;
+        background: rgba(30, 39, 71, 0.95);
+        border: 1px solid #4a5578;
+        border-radius: 6px;
+        color: #e0e0e0;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        min-width: 200px;
+        max-width: 300px;
+    }
+
+    .project-selector:hover {
+        background: rgba(59, 130, 246, 0.2);
+        border-color: #3b82f6;
+    }
+
+    .project-selector:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    }
+
+    .project-selector option {
+        background: #1a1f3a;
+        color: #e0e0e0;
+        padding: 0.5rem;
     }
 
     .toolbar-button {
@@ -154,10 +205,10 @@
 
     .legend {
         position: absolute;
-        top: 1rem;
+        bottom: 1rem;
         right: 1rem;
-        background: rgba(30, 39, 71, 0.95);
-        border: 1px solid #4a5578;
+        background: rgba(30, 39, 71, 0.65);
+        border: 1px solid rgba(74, 85, 120, 0.5);
         border-radius: 8px;
         padding: 1rem;
         color: #e0e0e0;
@@ -316,6 +367,14 @@
     <div id="sequencer-container">
         <!-- Toolbar -->
         <div id="sequencer-toolbar">
+            <!-- Prime Directive Selector (leftmost) -->
+            <div class="toolbar-group">
+                <span class="toolbar-label">Prime Directive</span>
+                <select id="project-selector" class="project-selector" onchange="changeProject()" title="Select a prime directive (top-level human request to PAS Root)">
+                    <option value="">Loading prime directives...</option>
+                </select>
+            </div>
+
             <div class="toolbar-group">
                 <span class="toolbar-label">Playback</span>
                 <button id="play-pause-btn" class="toolbar-button" onclick="togglePlayPause()">
@@ -324,16 +383,7 @@
                 <button class="toolbar-button" onclick="resetPlayhead()">⏹️ Stop</button>
             </div>
 
-            <div class="toolbar-group">
-                <span class="toolbar-label">Playback Speed</span>
-                <div class="zoom-control">
-                    <input type="range" id="playback-speed-top" class="speed-slider"
-                           min="0" max="100" step="1" value="50"
-                           style="width: 120px;"
-                           oninput="updatePlaybackSpeedFromSlider(this.value, 'top')">
-                    <span id="speed-value-top" class="speed-value" style="min-width: 50px; padding: 0.25rem 0.75rem;">1.0x</span>
-                </div>
-            </div>
+            <!-- Playback Speed moved to bottom for wider slider -->
 
             <div class="toolbar-group">
                 <span class="toolbar-label">Sound</span>
@@ -346,14 +396,7 @@
                 </select>
             </div>
 
-            <div class="toolbar-group">
-                <span class="toolbar-label">Zoom</span>
-                <div class="zoom-control">
-                    <button class="zoom-button" onclick="zoomOut()">−</button>
-                    <span id="zoom-level">100%</span>
-                    <button class="zoom-button" onclick="zoomIn()">+</button>
-                </div>
-            </div>
+            <!-- Zoom moved to bottom as slider -->
 
             <div class="toolbar-group">
                 <span class="toolbar-label">Time Range</span>
@@ -372,6 +415,27 @@
             </div>
 
             <div class="toolbar-group">
+                <span class="toolbar-label">ARROWS</span>
+                <select id="arrow-display-mode" class="project-selector" style="min-width: 180px;" onchange="changeArrowMode(this.value)">
+                    <option value="all">Show All Arrows</option>
+                    <option value="start-only">Start Only (Blue ↓)</option>
+                    <option value="end-only" selected>End Only (Green ↑)</option>
+                    <option value="start-end">Start & End</option>
+                    <option value="none">No Arrows</option>
+                </select>
+            </div>
+
+            <div class="toolbar-group">
+                <span class="toolbar-label">DEDUP</span>
+                <select id="dedup-mode-select" class="project-selector" style="min-width: 150px;" onchange="changeDedupMode(this.value)">
+                    <option value="none">Raw (No Dedup)</option>
+                    <option value="smart" selected>Smart (Prog Only)</option>
+                    <option value="full">Full Dedup</option>
+                </select>
+            </div>
+
+            <div class="toolbar-group">
+                <button class="toolbar-button" onclick="fitAll()">📐 Fit All</button>
                 <button class="toolbar-button" onclick="refreshSequencer()">🔄 Refresh</button>
             </div>
         </div>
@@ -384,8 +448,8 @@
             </div>
         </div>
 
-        <!-- Bottom Playback Speed Control -->
-        <div class="playback-speed-container">
+        <!-- Bottom Controls: Playback Speed + Zoom (Wide Sliders) -->
+        <div class="playback-speed-container" style="gap: 2rem;">
             <div class="speed-slider-group">
                 <span class="speed-label">Playback Speed</span>
                 <input type="range" id="playback-speed-bottom" class="speed-slider"
@@ -393,13 +457,27 @@
                        oninput="updatePlaybackSpeedFromSlider(this.value, 'bottom')">
                 <span id="speed-value-bottom" class="speed-value">1.0x</span>
             </div>
+            <div class="speed-slider-group">
+                <span class="speed-label">Horiz Zoom</span>
+                <input type="range" id="zoom-slider" class="speed-slider"
+                       min="0" max="100" step="1" value="50"
+                       oninput="updateZoomFromSlider(this.value)">
+                <span id="zoom-level" class="speed-value">100%</span>
+            </div>
+            <div class="speed-slider-group">
+                <span class="speed-label">Task Zoom</span>
+                <input type="range" id="vertical-zoom-slider" class="speed-slider"
+                       min="0" max="100" step="1" value="50"
+                       oninput="updateVerticalZoomFromSlider(this.value)">
+                <span id="vertical-zoom-value" class="speed-value">100%</span>
+            </div>
         </div>
 
         <!-- Legend -->
         <div class="legend">
             <div class="legend-title">Status Colors</div>
             <div class="legend-item">
-                <div class="legend-color" style="background-color: #3b82f6;"></div>
+                <div class="legend-color" style="background-color: #60a5fa;"></div>
                 <span>Running (0-25%)</span>
             </div>
             <div class="legend-item">
@@ -407,23 +485,23 @@
                 <span>Running (25-75%)</span>
             </div>
             <div class="legend-item">
-                <div class="legend-color" style="background-color: #10b981;"></div>
+                <div class="legend-color" style="background-color: #34d399;"></div>
                 <span>Running (75-100%)</span>
             </div>
             <div class="legend-item">
-                <div class="legend-color" style="background-color: #f59e0b;"></div>
+                <div class="legend-color" style="background-color: #fb923c;"></div>
                 <span>Blocked/Waiting</span>
             </div>
             <div class="legend-item">
-                <div class="legend-color" style="background-color: #a855f7;"></div>
+                <div class="legend-color" style="background-color: #c084fc;"></div>
                 <span>Awaiting Approval</span>
             </div>
             <div class="legend-item">
-                <div class="legend-color" style="background-color: #ef4444;"></div>
+                <div class="legend-color" style="background-color: #f87171;"></div>
                 <span>Stuck/Error</span>
             </div>
             <div class="legend-item">
-                <div class="legend-color" style="background-color: #6b7280;"></div>
+                <div class="legend-color" style="background-color: #9ca3af;"></div>
                 <span>Done/Idle</span>
             </div>
         </div>
@@ -439,32 +517,38 @@
     let canvas, ctx;
     let isPlaying = false;
     let playheadPosition = 0;
-    let zoomLevel = 1.0;
-    let timeRangeSeconds = 3600; // 1 hour default
+    let zoomLevel = parseFloat(localStorage.getItem('sequencer_zoomLevel')) || 1.0;
+    let timeRangeSeconds = parseInt(localStorage.getItem('sequencer_timeRange')) || 300; // Default: 5 min
     let playbackSpeed = 1.0; // Playback speed multiplier (0.1x to 5.0x)
     let soundMode = 'none'; // none, voice, music, random
+    let verticalZoom = parseFloat(localStorage.getItem('sequencer_verticalZoom')) || 1.0;
     let agents = [];
     let tasks = [];
     let autoRefreshTimer = null;
+    let timelineOffset = 0; // Pan offset in seconds (for timeline dragging)
+    let verticalOffset = 0; // NEW: Vertical pan offset in pixels (for scrolling up/down)
+    let projectName = 'Project Timeline'; // Project/task name for header
+    let projectTaskId = null; // Current task ID
 
     // Layout constants
+    const HEADER_HEIGHT = 60; // Height for project header bar
     const ROW_HEIGHT = 40;
     const ROW_PADDING = 5;
     const AGENT_LABEL_WIDTH = 150;
     const PIXELS_PER_SECOND = 2; // Base: 2 pixels = 1 second
 
-    // Color mapping
+    // Color mapping (VIBRANT colors for better visibility)
     const statusColors = {
-        'running_0_25': '#3b82f6',     // Blue
-        'running_25_75': '#fbbf24',    // Yellow
-        'running_75_100': '#10b981',   // Green
-        'blocked': '#f59e0b',          // Orange
-        'waiting': '#f59e0b',          // Orange
-        'awaiting_approval': '#a855f7', // Purple
-        'stuck': '#ef4444',            // Red
-        'error': '#ef4444',            // Red
-        'done': '#6b7280',             // Gray
-        'idle': '#6b7280'              // Gray
+        'running_0_25': '#60a5fa',     // Bright Blue (lighter)
+        'running_25_75': '#fbbf24',    // Bright Yellow
+        'running_75_100': '#34d399',   // Bright Green (lighter)
+        'blocked': '#fb923c',          // Bright Orange
+        'waiting': '#fb923c',          // Bright Orange
+        'awaiting_approval': '#c084fc', // Bright Purple (lighter)
+        'stuck': '#f87171',            // Bright Red (lighter)
+        'error': '#f87171',            // Bright Red (lighter)
+        'done': '#9ca3af',             // Light Gray (more visible)
+        'idle': '#9ca3af'              // Light Gray (more visible)
     };
 
     function initializeSequencer() {
@@ -480,11 +564,63 @@
         canvas.addEventListener('mousemove', handleCanvasHover);
         canvas.addEventListener('mouseleave', hideTooltip);
 
+        // Mouse wheel for zoom control
+        canvas.addEventListener('wheel', handleMouseWheel, { passive: false });
+
         // Draggable playhead
         initializePlayheadDrag();
     }
 
     let isDraggingPlayhead = false;
+    let isDraggingTimeline = false;
+    let dragStartX = 0;
+    let dragStartOffset = 0;
+
+    /**
+     * Handle mouse wheel events for zoom/scroll control
+     * - Shift+Wheel: Vertical scroll (pan up/down)
+     * - Ctrl+Wheel: Vertical zoom (row height)
+     * - Wheel alone: Horizontal zoom (time axis)
+     */
+    function handleMouseWheel(event) {
+        event.preventDefault(); // Prevent page scroll
+
+        const delta = -Math.sign(event.deltaY); // Invert: scroll up = zoom in, scroll down = zoom out
+        const zoomFactor = 1.1; // 10% change per scroll step
+
+        if (event.shiftKey) {
+            // SHIFT + WHEEL: Vertical pan (scroll up/down through agents)
+            const scrollAmount = event.deltaY; // Use raw delta for smooth scrolling
+            verticalOffset = Math.max(0, verticalOffset + scrollAmount);
+
+            // Clamp to prevent scrolling beyond bottom
+            const totalHeight = agents.length * ROW_HEIGHT * verticalZoom;
+            const maxOffset = Math.max(0, totalHeight - canvas.height + HEADER_HEIGHT);
+            verticalOffset = Math.min(verticalOffset, maxOffset);
+
+            drawSequencer();
+        } else if (event.ctrlKey || event.metaKey) {
+            // CTRL/CMD + WHEEL: Vertical zoom (row height)
+            let newVerticalZoom;
+            if (delta > 0) {
+                newVerticalZoom = Math.min(verticalZoom * zoomFactor, 3.0); // Max 3x row height
+            } else {
+                newVerticalZoom = Math.max(verticalZoom / zoomFactor, 0.3); // Min 0.3x row height
+            }
+            verticalZoom = newVerticalZoom;
+            localStorage.setItem('sequencer_verticalZoom', verticalZoom); // Persist vertical zoom
+            drawSequencer();
+        } else {
+            // WHEEL ALONE: Horizontal zoom (time axis)
+            let newZoom;
+            if (delta > 0) {
+                newZoom = Math.min(zoomLevel * zoomFactor, 20.0);
+            } else {
+                newZoom = Math.max(zoomLevel / zoomFactor, 0.1);
+            }
+            updateZoom(newZoom);
+        }
+    }
 
     function initializePlayheadDrag() {
         const playheadHandle = document.getElementById('playhead-handle');
@@ -493,41 +629,288 @@
         playheadHandle.addEventListener('mousedown', (e) => {
             isDraggingPlayhead = true;
             e.preventDefault();
+            e.stopPropagation();
+        });
+
+        // Sync scrollbar with vertical offset
+        canvasWrapper.addEventListener('scroll', (e) => {
+            // Update verticalOffset from scrollbar position
+            verticalOffset = e.target.scrollTop;
+            drawSequencer();
+        });
+
+        // Canvas dragging for timeline panning
+        canvas.addEventListener('mousedown', (e) => {
+            // Don't start timeline drag if clicking on playhead
+            if (isDraggingPlayhead) return;
+
+            isDraggingTimeline = true;
+            dragStartX = e.clientX;
+            dragStartOffset = timelineOffset;
+            canvas.style.cursor = 'grabbing';
+            e.preventDefault();
         });
 
         document.addEventListener('mousemove', (e) => {
-            if (!isDraggingPlayhead) return;
+            if (isDraggingPlayhead) {
+                const wrapperRect = canvasWrapper.getBoundingClientRect();
+                const x = e.clientX - wrapperRect.left;
 
-            const wrapperRect = canvasWrapper.getBoundingClientRect();
-            const x = e.clientX - wrapperRect.left;
+                // Calculate playhead position (simple pixel-to-time conversion, no timeline offset)
+                const clickedTime = (x - AGENT_LABEL_WIDTH) / (PIXELS_PER_SECOND * zoomLevel);
+                playheadPosition = Math.max(0, clickedTime);
 
-            // Calculate playhead position from x coordinate
-            const clickedTime = (x - AGENT_LABEL_WIDTH) / (PIXELS_PER_SECOND * zoomLevel);
-            playheadPosition = Math.max(0, Math.min(clickedTime, timeRangeSeconds));
+                updatePlayhead();
+                updateCurrentTime();
+            } else if (isDraggingTimeline) {
+                const deltaX = dragStartX - e.clientX;
+                const deltaTime = deltaX / (PIXELS_PER_SECOND * zoomLevel);
+                timelineOffset = Math.max(0, dragStartOffset + deltaTime);
 
-            updatePlayhead();
-            updateCurrentTime();
+                drawSequencer();
+                updatePlayhead();
+            }
         });
 
         document.addEventListener('mouseup', () => {
             isDraggingPlayhead = false;
+            if (isDraggingTimeline) {
+                isDraggingTimeline = false;
+                canvas.style.cursor = 'grab';
+            }
         });
+
+        // Set initial cursor
+        canvas.style.cursor = 'grab';
+    }
+
+    /**
+     * Allocate lanes for overlapping tasks
+     * Creates sub-rows (lanes) when an agent has overlapping tasks
+     * Updates agents array with lane information
+     */
+    function allocateLanes() {
+        // Group tasks by agent
+        const tasksByAgent = {};
+        tasks.forEach(task => {
+            if (!tasksByAgent[task.agent_id]) {
+                tasksByAgent[task.agent_id] = [];
+            }
+            tasksByAgent[task.agent_id].push(task);
+        });
+
+        // For each agent, allocate lanes for overlapping tasks
+        const expandedAgents = [];
+        agents.forEach(agent => {
+            const agentTasks = tasksByAgent[agent.service_id] || [];
+
+            // Sort tasks by start time
+            agentTasks.sort((a, b) => a.start_time - b.start_time);
+
+            // Allocate lanes using greedy algorithm with delegation-time-based concurrency detection
+            const lanes = [];
+            const DELEGATION_WINDOW = 15; // Seconds - tasks delegated within this window are considered concurrent
+
+            agentTasks.forEach(task => {
+                const taskStart = task.start_time;
+                const taskEnd = task.end_time || (taskStart + 30); // Estimate 30s for running tasks
+
+                // Find first available lane (no overlapping tasks OR recent delegation)
+                let assignedLane = -1;
+                for (let i = 0; i < lanes.length; i++) {
+                    const lane = lanes[i];
+                    const lastTaskInLane = lane[lane.length - 1];
+                    const lastTaskEnd = lastTaskInLane.end_time || (lastTaskInLane.start_time + 30);
+                    const lastTaskDelegationTime = lastTaskInLane.start_time;
+
+                    // Check if this task can fit in this lane
+                    // Two conditions must BOTH be true:
+                    // 1. No temporal overlap: this task starts after previous task ends
+                    // 2. Not concurrently delegated: tasks were not delegated within same time window
+                    const noTemporalOverlap = (taskStart >= lastTaskEnd);
+                    const notConcurrentlyDelegated = (taskStart - lastTaskDelegationTime) >= DELEGATION_WINDOW;
+
+                    if (noTemporalOverlap && notConcurrentlyDelegated) {
+                        assignedLane = i;
+                        break;
+                    }
+                }
+
+                // If no available lane, create a new one
+                if (assignedLane === -1) {
+                    assignedLane = lanes.length;
+                    lanes.push([]);
+                }
+
+                // Assign task to lane
+                task._lane = assignedLane;
+                lanes[assignedLane].push(task);
+            });
+
+            // Create agent rows (one per lane)
+            const numLanes = lanes.length;
+            if (numLanes === 0) {
+                // Agent has no tasks, still show one row
+                expandedAgents.push({
+                    ...agent,
+                    _laneCount: 1,
+                    _laneIndex: 0,
+                    _isParent: false
+                });
+            } else if (numLanes === 1) {
+                // Agent has only one lane (no overlaps), show single row
+                expandedAgents.push({
+                    ...agent,
+                    _laneCount: 1,
+                    _laneIndex: 0,
+                    _isParent: false
+                });
+            } else {
+                // Agent has multiple lanes (overlapping tasks), create sub-rows
+                for (let i = 0; i < numLanes; i++) {
+                    expandedAgents.push({
+                        ...agent,
+                        name: i === 0 ? agent.name : `  └─ Lane ${i + 1}`,
+                        _laneCount: numLanes,
+                        _laneIndex: i,
+                        _isParent: i === 0,
+                        _parentAgent: agent.service_id
+                    });
+                }
+            }
+        });
+
+        // Replace agents array with expanded version
+        agents = expandedAgents;
+
+        // Log lane allocation summary
+        const agentsWithMultipleLanes = expandedAgents.filter(a => a._isParent && a._laneCount > 1);
+        const totalSubLanes = expandedAgents.filter(a => a._laneIndex > 0).length;
+
+        console.log(`[LANES] Allocated ${agents.length} rows (${totalSubLanes} sub-lanes)`);
+        if (agentsWithMultipleLanes.length > 0) {
+            console.log(`[LANES] Agents with overlapping tasks:`);
+            agentsWithMultipleLanes.forEach(a => {
+                console.log(`  - ${a.name}: ${a._laneCount} parallel lanes`);
+            });
+        } else {
+            console.log(`[LANES] No overlapping tasks detected - all agents have single lanes`);
+        }
     }
 
     function resizeCanvas() {
         const wrapper = document.getElementById('sequencer-canvas-wrapper');
-        canvas.width = Math.max(wrapper.clientWidth, 2000);
-        canvas.height = Math.max(wrapper.clientHeight, agents.length * ROW_HEIGHT + 100);
+
+        // Calculate minimum width based on time range
+        const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
+        const timelineWidth = AGENT_LABEL_WIDTH + (timeRangeSeconds * pixelsPerSecond);
+        const minWidth = Math.max(timelineWidth, 2000);
+
+        // Calculate total height needed for all agent rows (with vertical zoom applied)
+        const rowHeight = ROW_HEIGHT * verticalZoom;
+        const totalContentHeight = HEADER_HEIGHT + (agents.length * rowHeight) + 100;
+
+        // Set canvas dimensions
+        // Width: Allow horizontal scrolling for wide timelines
+        canvas.width = Math.max(wrapper.clientWidth, minWidth);
+
+        // Height: ALWAYS use content height (not viewport height) to enable scrolling
+        // This ensures the scrollbar appears when content exceeds viewport
+        canvas.height = totalContentHeight;
+
+        // Reset verticalOffset if scrolling is needed
+        const maxOffset = Math.max(0, totalContentHeight - wrapper.clientHeight);
+        if (verticalOffset > maxOffset) {
+            verticalOffset = maxOffset;
+        }
+
         drawSequencer();
     }
 
     async function fetchSequencerData() {
         try {
-            const response = await fetch('/api/sequencer');
+            // Check if a task is selected from URL params
+            const urlParams = new URLSearchParams(window.location.search);
+            let taskId = urlParams.get('task_id');
+            let isCurrentTask = false;
+
+            // If no task_id provided, try to get current or last task
+            if (!taskId) {
+                try {
+                    // First try to get current running task
+                    const currentResp = await fetch('/api/current-task');
+                    if (currentResp.ok) {
+                        const currentData = await currentResp.json();
+                        if (currentData.task_id) {
+                            taskId = currentData.task_id;
+                            isCurrentTask = true;
+                            console.log('Using current running task:', taskId);
+                        }
+                    }
+
+                    // If no current task, get the most recent task from action logs
+                    if (!taskId) {
+                        const tasksResp = await fetch('/api/actions/tasks?limit=1');
+                        if (tasksResp.ok) {
+                            const tasksData = await tasksResp.json();
+                            if (tasksData.items && tasksData.items.length > 0) {
+                                taskId = tasksData.items[0].task_id;
+                                console.log('Using last task from history:', taskId);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch current/last task:', e);
+                }
+            }
+
+            let url = '/api/sequencer';
+            if (taskId) {
+                url = `/api/sequencer?source=actions&task_id=${taskId}`;
+                // Update URL without reloading page
+                if (!urlParams.get('task_id')) {
+                    window.history.replaceState({}, '', `?task_id=${taskId}`);
+                }
+            }
+
+            const response = await fetch(url);
             const data = await response.json();
             console.log('Fetched sequencer data:', data);
             agents = data.agents || [];
-            tasks = data.tasks || [];
+
+            // Use deduplicated tasks if mode is set, otherwise use raw tasks
+            const dedupMode = window.sequencerSettings?.dedupMode || 'smart';
+            if (dedupMode === 'none') {
+                tasks = data.tasks || [];  // Raw tasks (Option 3: Transparency)
+            } else {
+                tasks = data.tasks_deduplicated || data.tasks || [];  // Deduplicated tasks
+            }
+            console.log(`[DEDUP] Using mode="${dedupMode}", task count=${tasks.length}`);
+
+            // Detect real-time task changes and trigger sounds (for Start Demo)
+            detectRealtimeTaskChanges(data.tasks || []);
+
+            // Allocate lanes for overlapping tasks (NEW!)
+            allocateLanes();
+
+            // Set project name from data (or use task_id as fallback)
+            projectTaskId = taskId;
+            projectName = data.project_name || data.task_name || (taskId ? `Task ${taskId}` : 'Project Timeline');
+
+            // Auto-play if this is a current running task at 1x speed
+            // Otherwise start at beginning (playhead at 0, stopped)
+            if (isCurrentTask && !isPlaying) {
+                console.log('Auto-playing current task at 1x speed');
+                // Set playback speed to 1x
+                updatePlaybackSpeed(1.0, 'auto');
+                // Start playing after a short delay
+                setTimeout(togglePlayPause, 500);
+            } else if (!isCurrentTask) {
+                // Reset to beginning for historical tasks
+                playheadPosition = 0;
+                console.log('Historical task - starting at beginning (stopped)');
+            }
+
             drawSequencer();
         } catch (error) {
             console.error('Error fetching sequencer data:', error);
@@ -540,6 +923,9 @@
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        // Draw project header bar (top)
+        drawProjectHeader();
+
         // Draw timeline grid
         drawTimelineGrid();
 
@@ -548,107 +934,663 @@
 
         // Draw task blocks
         drawTaskBlocks();
+
+        // Draw arrows (parent→child, child→parent)
+        // Always call drawTaskArrows - it will check individual arrow type settings
+        drawTaskArrows();
+
+        // Draw NOW line (current real-world time marker)
+        drawNowLine();
+    }
+
+    /**
+     * Draw the NOW line - vertical line showing current PLAYBACK time
+     * This is the point where sounds should be triggered (when tasks cross it during playback)
+     *
+     * CRITICAL: NOW line represents the playback cursor position (playheadPosition),
+     * NOT real-world time (Date.now()). Time 0 = left edge of timeline.
+     */
+    function drawNowLine() {
+        const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
+
+        // 🔴 FIX: Use playheadPosition (playback cursor), NOT Date.now() (real-world time)
+        // playheadPosition starts at 0 and increases during playback
+        const nowOffset = playheadPosition; // Seconds from timeline start (time 0)
+        const nowX = AGENT_LABEL_WIDTH + ((nowOffset - timelineOffset) * pixelsPerSecond);
+
+        // 🔍 Debug: Log NOW line position (throttled to avoid console spam)
+        if (Math.random() < 0.01) { // Log 1% of the time
+            console.log(`📍 [NOW LINE] playheadPosition=${playheadPosition.toFixed(1)}s, nowX=${nowX.toFixed(0)}px, visible=${nowX >= AGENT_LABEL_WIDTH && nowX <= canvas.width}`);
+        }
+
+        // Only draw if NOW is visible on canvas
+        if (nowX >= AGENT_LABEL_WIDTH && nowX <= canvas.width) {
+            // Draw vertical NOW line (bright yellow/gold)
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 3;
+            ctx.globalAlpha = 0.8;
+            ctx.setLineDash([10, 5]); // Dashed line
+            ctx.beginPath();
+            ctx.moveTo(nowX, HEADER_HEIGHT);
+            ctx.lineTo(nowX, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset dash
+            ctx.globalAlpha = 1.0;
+
+            // Draw NOW label
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('NOW', nowX, HEADER_HEIGHT + 35);
+            ctx.textAlign = 'left';
+        }
+    }
+
+    function drawProjectHeader() {
+        // Calculate project duration
+        let earliestTime = Infinity;
+        let latestTime = -Infinity;
+        let hasRunningTasks = false;
+
+        tasks.forEach(task => {
+            if (task.start_time < earliestTime) earliestTime = task.start_time;
+
+            // Check if task is still running (no end_time)
+            if (!task.end_time && ['running', 'blocked', 'waiting'].includes(task.status)) {
+                hasRunningTasks = true;
+            }
+
+            const endTime = task.end_time || (Date.now() / 1000); // Use current time for running tasks
+            if (endTime > latestTime) latestTime = endTime;
+        });
+
+        // If no tasks, use current time as reference
+        if (earliestTime === Infinity) {
+            earliestTime = Date.now() / 1000;
+            latestTime = earliestTime + 60; // Default 1 minute span
+        }
+
+        const startTime = earliestTime;
+        const duration = latestTime - earliestTime;
+        const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
+
+        // Calculate header bar position and width
+        const x = AGENT_LABEL_WIDTH + ((0 - timelineOffset) * pixelsPerSecond); // Start at timeline 0
+        const width = duration * pixelsPerSecond;
+
+        // Draw header background (gradient for visual appeal)
+        const gradient = ctx.createLinearGradient(x, 0, x + width, 0);
+        gradient.addColorStop(0, '#3b82f6');   // Blue
+        gradient.addColorStop(0.5, '#8b5cf6'); // Purple
+        gradient.addColorStop(1, '#ec4899');   // Pink
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, 0, width, HEADER_HEIGHT);
+
+        // Draw border
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, 0, width, HEADER_HEIGHT);
+
+        // Draw project name text (centered in header)
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Truncate text if needed
+        const maxTextWidth = width - 20;
+        let displayName = projectName;
+        let textWidth = ctx.measureText(displayName).width;
+
+        if (textWidth > maxTextWidth) {
+            while (ctx.measureText(displayName + '...').width > maxTextWidth && displayName.length > 0) {
+                displayName = displayName.slice(0, -1);
+            }
+            displayName += '...';
+        }
+
+        // Draw text in center of header bar
+        ctx.fillText(displayName, x + width / 2, HEADER_HEIGHT / 2);
+
+        // Draw duration label (bottom right of header)
+        const durationText = formatDuration(duration);
+        ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(`Duration: ${durationText}`, x + width - 10, HEADER_HEIGHT - 10);
+
+        // Reset text align
+        ctx.textAlign = 'left';
+
+        // Store startTime globally for use by other draw functions
+        window._sequencerStartTime = startTime;
     }
 
     function drawTimelineGrid() {
-        const now = Date.now() / 1000;
-        const startTime = now - timeRangeSeconds;
+        // FIX: Show timeline from task start (earliest action) to present
+        // This makes the timeline show relative time from task beginning (t=0 at left edge)
         const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
-        const timelineWidth = timeRangeSeconds * pixelsPerSecond;
+
+        // Find earliest task start time to use as timeline origin (t=0)
+        let earliestTime = Infinity;
+        let latestTime = -Infinity;
+        tasks.forEach(task => {
+            if (task.start_time < earliestTime) earliestTime = task.start_time;
+            // FIX: Don't use Date.now() for old tasks - estimate 30s for running tasks
+            const hasRunningStatus = ['running', 'blocked', 'waiting'].includes(task.status);
+            const endTime = task.end_time || (hasRunningStatus ? (task.start_time + 30) : (task.start_time + 30));
+            if (endTime > latestTime) latestTime = endTime;
+        });
+
+        // If no tasks, use current time as reference
+        if (earliestTime === Infinity) {
+            earliestTime = Date.now() / 1000;
+            latestTime = earliestTime + timeRangeSeconds;
+        }
+
+        const startTime = earliestTime;  // Left edge of timeline
+        const actualDuration = latestTime - earliestTime;
+        const displayDuration = Math.max(actualDuration, 60);  // At least 1 minute visible
 
         // Draw vertical grid lines (every 5 minutes)
         ctx.strokeStyle = 'rgba(74, 85, 120, 0.3)';
         ctx.lineWidth = 1;
 
         const interval = 300; // 5 minutes in seconds
-        for (let t = 0; t <= timeRangeSeconds; t += interval) {
-            const x = AGENT_LABEL_WIDTH + (t * pixelsPerSecond);
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, canvas.height);
-            ctx.stroke();
+        const maxTime = Math.max(displayDuration, timeRangeSeconds) + timelineOffset;
 
-            // Time label
-            const timeFromStart = startTime + t;
-            const date = new Date(timeFromStart * 1000);
-            const timeStr = date.toLocaleTimeString('en-US', { hour12: false });
+        // Start drawing from timelineOffset (accounting for pan)
+        const startT = Math.floor(timelineOffset / interval) * interval;
 
-            ctx.fillStyle = '#9ca3af';
-            ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-            ctx.fillText(timeStr, x + 5, 15);
+        for (let t = startT; t <= maxTime; t += interval) {
+            const x = AGENT_LABEL_WIDTH + ((t - timelineOffset) * pixelsPerSecond);
+
+            // Only draw if visible on canvas
+            if (x >= AGENT_LABEL_WIDTH && x <= canvas.width) {
+                ctx.beginPath();
+                ctx.moveTo(x, HEADER_HEIGHT); // Start below header
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+
+                // Time label (show relative time from task start)
+                const minutesFromStart = Math.floor(t / 60);
+                const secondsRemainder = Math.floor(t % 60);
+                const timeStr = t === 0 ? '0:00' :
+                               `${minutesFromStart}:${secondsRemainder.toString().padStart(2, '0')}`;
+
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                ctx.fillText(timeStr, x + 5, HEADER_HEIGHT + 15); // Below header
+            }
         }
+
+        // Store startTime globally for use by other draw functions
+        window._sequencerStartTime = startTime;
     }
 
     function drawAgentRows() {
         ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
         agents.forEach((agent, index) => {
-            const y = index * ROW_HEIGHT;
+            const rowHeight = ROW_HEIGHT * verticalZoom; // Apply vertical zoom
+            const y = HEADER_HEIGHT + (index * rowHeight) - verticalOffset; // Apply vertical offset
 
-            // Row background (alternating)
-            ctx.fillStyle = index % 2 === 0 ? 'rgba(30, 39, 71, 0.3)' : 'rgba(30, 39, 71, 0.5)';
-            ctx.fillRect(0, y, canvas.width, ROW_HEIGHT);
+            // Skip if row is not visible on screen
+            if (y + rowHeight < HEADER_HEIGHT || y > canvas.height) return;
 
-            // Agent label
-            ctx.fillStyle = '#e0e0e0';
-            ctx.fillText(agent.name, 10, y + ROW_HEIGHT / 2 + 5);
+            // Determine if this is a sub-lane row
+            const isSubLane = agent._laneIndex > 0;
+            const isParentWithLanes = agent._isParent && agent._laneCount > 1;
 
-            // Horizontal separator
-            ctx.strokeStyle = 'rgba(74, 85, 120, 0.5)';
-            ctx.lineWidth = 1;
+            // Row background (different styling for sub-lanes)
+            if (isSubLane) {
+                // Sub-lane: slightly darker background
+                ctx.fillStyle = 'rgba(20, 25, 50, 0.5)';
+            } else if (isParentWithLanes) {
+                // Parent with lanes: highlighted
+                ctx.fillStyle = index % 2 === 0 ? 'rgba(40, 50, 90, 0.4)' : 'rgba(40, 50, 90, 0.6)';
+            } else {
+                // Normal row: alternating
+                ctx.fillStyle = index % 2 === 0 ? 'rgba(30, 39, 71, 0.3)' : 'rgba(30, 39, 71, 0.5)';
+            }
+            ctx.fillRect(0, y, canvas.width, rowHeight);
+
+            // Agent label with lane count indicator
+            if (isParentWithLanes) {
+                // Parent agent with lanes: show lane count
+                ctx.fillStyle = '#60a5fa'; // Blue for parent
+                ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                ctx.fillText(`${agent.name} (${agent._laneCount} lanes)`, 10, y + rowHeight / 2 + 5);
+                ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            } else if (isSubLane) {
+                // Sub-lane: indented with tree connector
+                ctx.fillStyle = '#9ca3af'; // Grey for sub-lanes
+                ctx.fillText(agent.name, 10, y + rowHeight / 2 + 5);
+            } else {
+                // Normal agent
+                ctx.fillStyle = '#e0e0e0';
+                ctx.fillText(agent.name, 10, y + rowHeight / 2 + 5);
+            }
+
+            // Horizontal separator (thicker for parent lanes)
+            ctx.strokeStyle = isParentWithLanes ? 'rgba(96, 165, 250, 0.5)' : 'rgba(74, 85, 120, 0.5)';
+            ctx.lineWidth = isParentWithLanes ? 2 : 1;
             ctx.beginPath();
-            ctx.moveTo(0, y + ROW_HEIGHT);
-            ctx.lineTo(canvas.width, y + ROW_HEIGHT);
+            ctx.moveTo(0, y + rowHeight);
+            ctx.lineTo(canvas.width, y + rowHeight);
             ctx.stroke();
         });
     }
 
     function drawTaskBlocks() {
         const now = Date.now() / 1000;
-        const startTime = now - timeRangeSeconds;
+        // FIX: Use timeline start time from drawTimelineGrid()
+        const startTime = window._sequencerStartTime || now;
         const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
 
         tasks.forEach(task => {
-            const agentIndex = agents.findIndex(a => a.service_id === task.agent_id);
-            if (agentIndex === -1) return;
+            // Find the correct agent row for this task (considering lanes)
+            const taskLane = task._lane || 0;
+            let agentIndex = -1;
 
-            const y = agentIndex * ROW_HEIGHT + ROW_PADDING;
-            const blockHeight = ROW_HEIGHT - (2 * ROW_PADDING);
+            // Find agent row with matching agent_id and lane index
+            for (let i = 0; i < agents.length; i++) {
+                const agent = agents[i];
+                if (agent.service_id === task.agent_id && agent._laneIndex === taskLane) {
+                    agentIndex = i;
+                    break;
+                }
+            }
+
+            if (agentIndex === -1) {
+                // Fallback: if lane not found, use first row for this agent
+                agentIndex = agents.findIndex(a => a.service_id === task.agent_id);
+                if (agentIndex === -1) return;
+            }
+
+            const rowHeight = ROW_HEIGHT * verticalZoom; // Apply vertical zoom
+            const y = HEADER_HEIGHT + (agentIndex * rowHeight) - verticalOffset + ROW_PADDING; // Apply vertical offset
+            const blockHeight = rowHeight - (2 * ROW_PADDING);
+
+            // Skip if task block is not visible on screen
+            if (y + blockHeight < HEADER_HEIGHT || y > canvas.height) return;
 
             // Calculate x position and width
             const taskStartTime = task.start_time;
-            const taskEndTime = task.end_time || now;
-            const duration = taskEndTime - taskStartTime;
+            // FIX: For running tasks (no end_time), use current playhead position + duration estimate
+            // For completed tasks, use actual end_time
+            const taskEndTime = task.end_time || (taskStartTime + 30); // Default 30s for running tasks
+            const duration = Math.max(taskEndTime - taskStartTime, 0.1); // Ensure positive, min 0.1s
 
-            const x = AGENT_LABEL_WIDTH + ((taskStartTime - startTime) * pixelsPerSecond);
-            const width = Math.max(duration * pixelsPerSecond, 2); // Min 2px width
+            // x position is relative to timeline start (earliest task) minus timeline offset
+            const relativeStart = taskStartTime - startTime;
+            const x = AGENT_LABEL_WIDTH + ((relativeStart - timelineOffset) * pixelsPerSecond);
+            const width = Math.max(duration * pixelsPerSecond, 2); // Min 2px width, scales with duration
 
             // Determine color based on status/progress
             const color = getTaskColor(task);
-            const opacity = task.progress || 0.5;
 
-            // Draw block
+            // Draw block (FULL OPACITY - no transparency)
             ctx.fillStyle = color;
-            ctx.globalAlpha = Math.min(Math.max(opacity, 0.4), 1.0);
+            ctx.globalAlpha = 1.0;
             ctx.fillRect(x, y, width, blockHeight);
 
-            // Draw border for active tasks
-            if (!task.end_time) {
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
-                ctx.globalAlpha = 1.0;
-                ctx.strokeRect(x, y, width, blockHeight);
-            }
+            // Draw border for ALL tasks (makes them more visible)
+            // Use colored border for multi-lane tasks to show lane assignment
+            const agent = agents[agentIndex];
+            const isMultiLane = agent && agent._laneCount > 1;
 
-            // Reset alpha
+            if (isMultiLane) {
+                // Color-code lanes: Lane 1 = blue, Lane 2 = green, Lane 3 = orange, etc.
+                const laneColors = ['#60a5fa', '#34d399', '#fb923c', '#c084fc', '#fbbf24'];
+                ctx.strokeStyle = laneColors[taskLane % laneColors.length];
+                ctx.lineWidth = 2;
+            } else {
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = !task.end_time ? 3 : 1; // Thicker border for active tasks
+            }
+            ctx.strokeRect(x, y, width, blockHeight);
+
+            // Reset alpha (already 1.0 but good practice)
             ctx.globalAlpha = 1.0;
+
+            // Draw task text (if block is wide enough)
+            if (width > 60) {
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+
+                // Truncate text if needed
+                const maxWidth = width - 10;
+                let text = task.name || 'Task';
+                const textWidth = ctx.measureText(text).width;
+
+                if (textWidth > maxWidth) {
+                    // Truncate with ellipsis
+                    while (ctx.measureText(text + '...').width > maxWidth && text.length > 0) {
+                        text = text.slice(0, -1);
+                    }
+                    text += '...';
+                }
+
+                // Draw text
+                ctx.fillText(text, x + 5, y + blockHeight / 2);
+            }
 
             // Store block bounds for click detection
             task._bounds = { x, y, width, height: blockHeight };
         });
     }
 
+    /**
+     * Draw MINIMAL arrows showing ONLY completion reports flowing up the hierarchy
+     *
+     * SIMPLIFIED RULES:
+     * - ONLY draw completion arrows (green UP) when child completes
+     * - Arrow points VERTICALLY to parent's receive_report task
+     * - NO delegation arrows (reduces clutter)
+     * - NO generic arrows (only explicit completions)
+     */
+    function drawTaskArrows() {
+        if (!tasks || tasks.length === 0) {
+            console.log('[Arrows] No tasks to draw arrows for');
+            return;
+        }
+
+        console.log(`[Arrows] Starting arrow rendering for ${tasks.length} tasks`);
+
+        // Build agent row Y-position map for arrow endpoints
+        // CRITICAL: Map by (service_id, laneIndex) to handle multi-lane agents
+        const agentRowMap = {};
+        agents.forEach((agent, idx) => {
+            const rowHeight = ROW_HEIGHT * verticalZoom; // Apply vertical zoom
+            const yCenter = HEADER_HEIGHT + (idx * rowHeight) - verticalOffset + (rowHeight / 2);
+
+            // Primary key: service_id only (for single-lane agents)
+            if (!agentRowMap[agent.service_id]) {
+                agentRowMap[agent.service_id] = yCenter;
+            }
+
+            // Secondary key: service_id + laneIndex (for multi-lane agents)
+            const laneKey = `${agent.service_id}_lane${agent._laneIndex || 0}`;
+            agentRowMap[laneKey] = yCenter;
+        });
+
+        console.log(`[Arrows] Built agentRowMap for ${Object.keys(agentRowMap).length} agent rows (including lanes)`);
+
+        // Get animation offset for dashed lines (creates moving effect)
+        const animOffset = (Date.now() / 50) % 10;  // Cycle every 500ms
+
+        // Build a map of tasks by agent_id for quick lookup
+        const tasksByAgent = {};
+        tasks.forEach(task => {
+            if (!tasksByAgent[task.agent_id]) {
+                tasksByAgent[task.agent_id] = [];
+            }
+            tasksByAgent[task.agent_id].push(task);
+        });
+
+        console.log(`[Arrows] Grouped tasks by agent_id:`, Object.keys(tasksByAgent).map(aid => `${aid}(${tasksByAgent[aid].length})`).join(', '));
+
+        // Helper: Check if two tasks overlap in time
+        function tasksOverlap(task1, task2) {
+            const t1Start = task1.start_time;
+            const t1End = task1.end_time || (t1Start + 9999); // Running task = infinite end
+            const t2Start = task2.start_time;
+            const t2End = task2.end_time || (t2Start + 9999);
+
+            return t1Start < t2End && t2Start < t1End;
+        }
+
+        // Helper: Find parent task for a child task
+        // REWRITTEN: Use most recent task on from_agent BEFORE child starts (sequential relationship)
+        // Old logic required temporal overlap, but tasks are actually sequential (parent finishes, then child starts)
+        function findParentTaskAtTime(fromAgent, childTask, timePoint) {
+            const fromAgentTasks = tasksByAgent[fromAgent] || [];
+
+            // Find the most recent task on from_agent that starts BEFORE this child task
+            let bestParent = null;
+            let bestTimeDiff = Infinity;
+
+            for (const parentTask of fromAgentTasks) {
+                // CRITICAL: Skip tasks without bounds (not rendered/visible on canvas)
+                if (!parentTask._bounds) continue;
+
+                // Skip if same task
+                if (parentTask.task_id === childTask.task_id) continue;
+
+                const pStart = parentTask.start_time;
+                const cStart = childTask.start_time;
+
+                // Parent should start BEFORE or AT THE SAME TIME as child
+                // (allows both sequential and overlapping relationships)
+                if (pStart <= cStart) {
+                    const timeDiff = cStart - pStart;
+
+                    // Find the closest parent (smallest time difference)
+                    if (timeDiff < bestTimeDiff) {
+                        bestTimeDiff = timeDiff;
+                        bestParent = parentTask;
+                    }
+                }
+            }
+
+            return bestParent;
+        }
+
+        // Track tasks without arrows for debugging
+        let tasksWithoutArrows = 0;
+        let tasksWithoutRelationships = 0;
+
+        // Draw arrows for each task
+        let arrowsDrawn = 0;
+        console.log('🎯 [Arrow Mode] Starting arrow drawing with settings:', {
+            showAssignmentArrows: window.sequencerSettings?.showAssignmentArrows,
+            showCompletionArrows: window.sequencerSettings?.showCompletionArrows,
+            totalTasks: tasks.length
+        });
+        tasks.forEach((task, idx) => {
+            if (!task.from_agent || !task.to_agent) {
+                tasksWithoutRelationships++;
+                // Log ALL tasks without relationships (not just first 5)
+                if (task.name.includes('Auth 001') || task.name.includes('Prog 002') || task.name.includes('Implement') || task.name.includes('Configure') || task.name.includes('Set up') || task.name.includes('Design')) {
+                    console.warn(`⚠️ [Arrow Skip] "${task.name}" - Missing from_agent or to_agent (from=${task.from_agent}, to=${task.to_agent}, agent_id=${task.agent_id})`);
+                }
+                return;  // Skip if no relationship data
+            }
+            if (task.from_agent === 'user' || task.to_agent === 'user') {
+                if (idx < 5) console.log(`[Arrow Skip] "${task.name}" - User interaction (from=${task.from_agent}, to=${task.to_agent})`);
+                return;  // Skip user interactions
+            }
+            if (!task._bounds) {
+                if (idx < 5) console.log(`[Arrow Skip] "${task.name}" - No bounds (not rendered)`);
+                return;
+            }
+
+            if (idx < 5) console.log(`[Arrow Check] Task "${task.name}": from=${task.from_agent}, to=${task.to_agent}, action_type=${task.action_type}, status=${task.status}`);
+
+            // Get Y positions for from/to agents (use lane-specific position if available)
+            // For child task (to_agent), use the task's actual lane assignment
+            const childLaneKey = `${task.to_agent}_lane${task._lane || 0}`;
+            const toY = agentRowMap[childLaneKey] || agentRowMap[task.to_agent];
+
+            // For parent task (from_agent), we'll use the parent task's lane after finding it
+            // (set below when parent is found)
+            let fromY = agentRowMap[task.from_agent]; // Default fallback
+
+            if (toY === undefined) return;  // Skip if agent not in visible agents list
+
+            const taskStartX = task._bounds.x;  // Left edge of child task
+            const taskEndX = task._bounds.x + task._bounds.width;  // Right edge
+            const taskY = task._bounds.y + (task._bounds.height / 2); // Middle of task block
+
+            // Determine task type (delegation vs report)
+            const isReportAction = task.action_type === 'report' || task.action_type === 'receive_report' || task.name.toLowerCase().startsWith('completed ') || task.name.toLowerCase().includes('processing completion');
+
+            // Skip report/receive_report tasks - they don't get delegation arrows
+            if (isReportAction) {
+                return;
+            }
+
+            // 🔥 UNIFIED ARROW LOGIC: Draw arrows for ALL parent→child tasks (regardless of action_type)
+            // - Assignment arrow (blue/purple): from parent to child at task START
+            // - Completion arrow (green): from child to parent at task END
+
+            // ASSIGNMENT ARROW (parent → child at task START)
+            if (task.from_agent !== task.to_agent && window.sequencerSettings?.showAssignmentArrows !== false) {
+                const parentTask = findParentTaskAtTime(task.from_agent, task, task.start_time);
+
+                // Log ALL delegation tasks without parent (not just first 5)
+                if (!parentTask) {
+                    const taskName = task.name;
+                    // Log if task is a visible worker task (Implement, Configure, Design, Set up, Create)
+                    if (taskName.includes('Implement') || taskName.includes('Configure') || taskName.includes('Design') || taskName.includes('Set up') || taskName.includes('Create')) {
+                        console.warn(`⚠️ [Arrow Skip] Delegation: "${task.name}" - No parent found on agent "${task.from_agent}" at time ${task.start_time}`);
+                        const tasksOnFromAgent = tasksByAgent[task.from_agent] || [];
+                        console.warn(`  → Agent "${task.from_agent}" has ${tasksOnFromAgent.length} tasks:`, tasksOnFromAgent.map(t => `"${t.name}" (${t.start_time}-${t.end_time || 'running'})`));
+                    }
+                }
+
+                if (parentTask && parentTask._bounds) {
+                    // Use parent task's lane-specific Y position
+                    const parentLaneKey = `${task.from_agent}_lane${parentTask._lane || 0}`;
+                    const parentY = agentRowMap[parentLaneKey] || agentRowMap[task.from_agent];
+                    const actualParentY = parentTask._bounds.y + (parentTask._bounds.height / 2);
+
+                    // Verify parent Y position matches expected (within ±30px tolerance)
+                    const yDiff = Math.abs(actualParentY - parentY);
+
+                    if (yDiff < 30) {
+                        // Arrow at LEFT edge of child task (start time)
+                        const arrowX = taskStartX + 5;  // Slightly inside task block
+
+                        drawArrow(
+                            arrowX,
+                            actualParentY,  // From parent task (manager) - use actual rendered Y
+                            arrowX,         // VERTICAL - same X
+                            taskY,          // To child task (worker)
+                            '#3b82f6',      // Blue
+                            'solid',
+                            'down',
+                            animOffset
+                        );
+                        arrowsDrawn++;
+                        if (arrowsDrawn <= 3) console.log(`✅ [Arrow] Delegation arrow drawn for "${task.name}" (parent lane=${parentTask._lane || 0})`);
+                    } else {
+                        console.log(`[Arrow Skip] Delegation: "${task.name}" - Parent Y mismatch: expected=${parentY}, actual=${actualParentY}, diff=${yDiff}px (parent lane=${parentTask._lane || 0})`);
+                    }
+                }
+            }
+
+            // COMPLETION ARROW (child → parent at task END)
+            if ((task.status === 'done' || task.status === 'completed') && task.from_agent !== task.to_agent && window.sequencerSettings?.showCompletionArrows !== false) {
+                const endTime = task.end_time || task.start_time;
+
+                // Find parent's "receive_report" task at the same time (or shortly after)
+                const receiveReportTask = allTasks.find(t =>
+                    t.to_agent === task.from_agent &&  // Task assigned to parent agent
+                    (t.name?.includes('Processing completion') || t.action_type === 'receive_report') &&
+                    Math.abs((t.start_time || 0) - endTime) < 2.0  // Within 2 seconds
+                );
+
+                if (receiveReportTask && receiveReportTask._bounds) {
+                    const receiveY = receiveReportTask._bounds.y + (receiveReportTask._bounds.height / 2);
+                    const arrowX = taskEndX - 5;  // Right edge of child task
+
+                    // VERTICAL arrow (same X coordinate)
+                    drawArrow(
+                        arrowX,
+                        taskY,          // Start: child task middle
+                        arrowX,         // End: SAME X (vertical)
+                        receiveY,       // End: parent's receive_report task
+                        '#10b981',      // Green
+                        'dashed',
+                        'up',
+                        animOffset
+                    );
+                    arrowsDrawn++;
+                    if (arrowsDrawn <= 10) console.log(`✅ [Arrow] Completion arrow: "${task.name}" → "${receiveReportTask.name}"`);
+                }
+            }
+        });
+
+        // Log summary
+        console.log(`🎯 [Arrows] Summary: ${arrowsDrawn} arrows drawn, ${tasksWithoutRelationships} tasks without relationships`, {
+            showAssignmentArrows: window.sequencerSettings?.showAssignmentArrows,
+            showCompletionArrows: window.sequencerSettings?.showCompletionArrows
+        });
+        if (tasksWithoutRelationships > 0) {
+            console.warn(`⚠️ [Arrows] ${tasksWithoutRelationships}/${tasks.length} tasks missing from_agent/to_agent (no arrows drawn)`);
+        }
+        if (arrowsDrawn === 0 && tasks.length > 0) {
+            console.error(`🔴 [Arrows] ZERO arrows drawn despite having ${tasks.length} tasks! Check arrow logic.`);
+        }
+    }
+
+    /**
+     * Draw a single arrow with optional animation
+     * @param {number} x1 - Start X coordinate
+     * @param {number} y1 - Start Y coordinate
+     * @param {number} x2 - End X coordinate
+     * @param {number} y2 - End Y coordinate
+     * @param {string} color - Arrow color
+     * @param {string} style - 'solid' or 'dashed'
+     * @param {string} direction - 'up' or 'down' (for arrowhead)
+     * @param {number} animOffset - Animation offset for dashed lines
+     */
+    function drawArrow(x1, y1, x2, y2, color, style, direction, animOffset) {
+        ctx.save();
+
+        // Set line style
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;  // Keep original thickness
+        ctx.globalAlpha = 0.8;  // Slightly more opaque than before (was 0.6)
+
+        if (style === 'dashed') {
+            ctx.setLineDash([5, 5]);
+            ctx.lineDashOffset = -animOffset;  // Animated dashes
+        } else {
+            ctx.setLineDash([]);
+        }
+
+        // Draw line
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // Draw arrowhead
+        const arrowSize = 8;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.8;  // More opaque arrowhead
+
+        ctx.beginPath();
+        if (direction === 'down') {
+            // Downward arrow (▼)
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - arrowSize / 2, y2 - arrowSize);
+            ctx.lineTo(x2 + arrowSize / 2, y2 - arrowSize);
+        } else {
+            // Upward arrow (▲)
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - arrowSize / 2, y2 + arrowSize);
+            ctx.lineTo(x2 + arrowSize / 2, y2 + arrowSize);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+    }
+
     function getTaskColor(task) {
+        // DEBUG: Log task status and progress for first few tasks
+        if (window._debugColorCounter === undefined) window._debugColorCounter = 0;
+        if (window._debugColorCounter < 5) {
+            console.log(`[DEBUG] Task "${task.name}" - status: "${task.status}", progress: ${task.progress}`);
+            window._debugColorCounter++;
+        }
+
         if (task.status === 'error' || task.status === 'stuck') {
             return statusColors.error;
         } else if (task.status === 'blocked' || task.status === 'waiting') {
@@ -682,10 +1624,11 @@
             console.log('Clicked task:', clickedTask);
             showTaskDetails(clickedTask, event);
         } else {
-            // Clicked on timeline - move playhead
+            // Clicked on timeline - move playhead (no timeline offset when stopped)
             const clickedTime = (x - AGENT_LABEL_WIDTH) / (PIXELS_PER_SECOND * zoomLevel);
-            playheadPosition = clickedTime;
+            playheadPosition = Math.max(0, clickedTime);
             updatePlayhead();
+            updateCurrentTime();
         }
     }
 
@@ -728,7 +1671,10 @@
             content += `<div class="tooltip-row"><span class="tooltip-label">Ended:</span><span class="tooltip-value">${end.toLocaleTimeString()}</span></div>`;
         }
 
-        const duration = (task.end_time || Date.now() / 1000) - task.start_time;
+        // FIX: Don't use Date.now() for old tasks - estimate 30s for running tasks
+        const hasRunningStatus = ['running', 'blocked', 'waiting'].includes(task.status);
+        const estimatedEnd = hasRunningStatus ? (task.start_time + 30) : (task.start_time + 30);
+        const duration = (task.end_time || estimatedEnd) - task.start_time;
         content += `<div class="tooltip-row"><span class="tooltip-label">Duration:</span><span class="tooltip-value">${formatDuration(duration)}</span></div>`;
 
         tooltip.innerHTML = content;
@@ -747,9 +1693,11 @@
     }
 
     function formatDuration(seconds) {
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        const secs = Math.floor(seconds % 60);
+        // FIX: Ensure seconds is positive (handle negative durations)
+        const absSecs = Math.abs(seconds);
+        const hours = Math.floor(absSecs / 3600);
+        const minutes = Math.floor((absSecs % 3600) / 60);
+        const secs = Math.floor(absSecs % 60);
 
         if (hours > 0) {
             return `${hours}h ${minutes}m ${secs}s`;
@@ -762,8 +1710,11 @@
 
     function updatePlayhead() {
         const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
-        const x = AGENT_LABEL_WIDTH + (playheadPosition * pixelsPerSecond);
-        document.getElementById('playhead').style.left = `${x}px`;
+
+        // FIXED: Playhead stays at a fixed position (centered at 25% of canvas width)
+        // Timeline scrolls left during playback (via timelineOffset in drawSequencer)
+        const fixedPlayheadX = AGENT_LABEL_WIDTH + (canvas.width * 0.25);
+        document.getElementById('playhead').style.left = `${fixedPlayheadX}px`;
     }
 
     function togglePlayPause() {
@@ -789,10 +1740,29 @@
 
         // Advance by 0.1 seconds * playback speed
         playheadPosition += (0.1 * playbackSpeed);
-        if (playheadPosition > timeRangeSeconds) {
-            playheadPosition = 0;
+        timelineOffset += (0.1 * playbackSpeed); // Pan timeline (tasks slide right to left)
+
+        // Check if we've scrolled past the maximum time (relative to timeline start)
+        if (tasks.length > 0) {
+            const earliestTime = Math.min(...tasks.map(t => t.start_time));
+            // FIX: Don't use Date.now() for old tasks - estimate 30s for running tasks
+            const latestTime = Math.max(...tasks.map(t => {
+                if (t.end_time) return t.end_time;
+                const hasRunningStatus = ['running', 'blocked', 'waiting'].includes(t.status);
+                return hasRunningStatus ? (t.start_time + 30) : (t.start_time + 30);
+            }));
+            const maxTime = latestTime - earliestTime;
+
+            if (playheadPosition > maxTime) {
+                playheadPosition = 0;
+                timelineOffset = 0;
+                lastTriggeredTaskStarts.clear(); // Reset sound triggers
+                lastTriggeredTaskEnds.clear();
+                lastPlayheadPosition = 0;
+            }
         }
 
+        drawSequencer(); // Redraw entire scene (tasks will shift left)
         updatePlayhead();
         updateCurrentTime();
 
@@ -802,52 +1772,330 @@
         setTimeout(startPlayback, 100); // Update every 100ms
     }
 
-    // Track which tasks have already triggered sounds
-    let lastTriggeredTasks = new Set();
+    // Track which task boundaries have been crossed (start and end separately)
+    let lastTriggeredTaskStarts = new Set();
+    let lastTriggeredTaskEnds = new Set();
+    let lastPlayheadPosition = 0;
+    let previousTaskStates = new Map(); // Track previous task states for real-time sound triggering
 
-    function checkTaskEvents() {
-        if (soundMode === 'none') return;
+    /**
+     * Detect real-time task status changes and trigger sounds immediately.
+     * This runs when new task data is fetched (during Start Demo execution).
+     */
+    function detectRealtimeTaskChanges(newTasks) {
+        // Check if sound is enabled
+        const settings = typeof getSettings === 'function' ? getSettings() : {};
+        const effectiveSoundMode = soundMode !== 'none' ? soundMode : (settings.defaultSoundMode || 'none');
 
-        const now = Date.now() / 1000;
-        const currentTime = now - timeRangeSeconds + playheadPosition;
+        if (effectiveSoundMode === 'none') {
+            return; // Sound disabled
+        }
 
-        // Find tasks that the playhead is currently crossing
-        tasks.forEach(task => {
-            const taskStart = task.start_time;
-            const taskEnd = task.end_time || now;
+        // Check each task for status changes
+        newTasks.forEach(task => {
+            const taskId = task.task_id;
+            const currentState = {
+                status: task.status,
+                hasEndTime: !!task.end_time
+            };
 
-            // Check if playhead is within task boundaries
-            if (currentTime >= taskStart && currentTime <= taskEnd) {
-                const taskKey = `${task.task_id}_${taskStart}`;
+            const previousState = previousTaskStates.get(taskId);
 
-                // Only trigger sound once per task
-                if (!lastTriggeredTasks.has(taskKey)) {
-                    lastTriggeredTasks.add(taskKey);
+            if (!previousState) {
+                // New task detected - trigger "task started" sound
+                console.log(`🔊 [REALTIME] New task detected: "${task.name}" (status=${task.status})`);
+                queueSound('task_started', task);
+                previousTaskStates.set(taskId, currentState);
+            } else {
+                // Check for status changes
+                const statusChanged = (previousState.status !== currentState.status);
+                const justCompleted = (!previousState.hasEndTime && currentState.hasEndTime);
 
-                    // Trigger sound based on task status
+                if (statusChanged || justCompleted) {
+                    // Task status changed - trigger appropriate sound
                     const eventType = task.status === 'done' ? 'task_completed' :
                                      task.status === 'error' ? 'error' :
                                      task.status === 'blocked' ? 'warning' :
-                                     'task_started';
+                                     'task_completed';
 
-                    console.log('🔊 Playhead crossed task:', task.name, 'event:', eventType);
-                    handleTaskEventSound(eventType);
+                    console.log(`🔊 [REALTIME] Task status changed: "${task.name}" (${previousState.status} → ${task.status})`);
+                    queueSound(eventType, task);
+                    previousTaskStates.set(taskId, currentState);
                 }
             }
         });
 
-        // Clean up old triggered tasks (reset when playhead loops)
-        if (playheadPosition < 1) {
-            lastTriggeredTasks.clear();
+        // Clean up old tasks that no longer exist (garbage collection)
+        const currentTaskIds = new Set(newTasks.map(t => t.task_id));
+        for (const taskId of previousTaskStates.keys()) {
+            if (!currentTaskIds.has(taskId)) {
+                previousTaskStates.delete(taskId);
+            }
         }
     }
 
+    function checkTaskEvents() {
+        // Check if sound is enabled (from settings or local dropdown)
+        const settings = typeof getSettings === 'function' ? getSettings() : {};
+        const effectiveSoundMode = soundMode !== 'none' ? soundMode : (settings.defaultSoundMode || 'none');
+
+        if (effectiveSoundMode === 'none') {
+            // DEBUG: Log first time only
+            if (!window._soundDebugLogged) {
+                console.log('🔇 [SOUND] Sound mode is "none", no sounds will play');
+                window._soundDebugLogged = true;
+            }
+            return;
+        }
+
+        // 🔴 FIX: Use playheadPosition (playback cursor position in timeline)
+        // NOT Date.now() (real-world time)!
+        //
+        // The playheadPosition represents where we are in the RECORDED timeline,
+        // measured in seconds from the earliest task start time.
+        //
+        // Tasks have absolute timestamps (task.start_time, task.end_time).
+        // We need to convert playheadPosition to absolute timeline coordinates.
+
+        const startTime = window._sequencerStartTime || 0;
+        const currentPlaybackTime = startTime + playheadPosition; // Absolute time on timeline
+        const previousPlaybackTime = startTime + (lastPlayheadPosition || 0);
+
+        // DEBUG: Log first call only
+        if (!window._soundCheckDebugLogged) {
+            console.log(`🔊 [SOUND] Enabled! mode="${effectiveSoundMode}", checking ${tasks.length} tasks for events`);
+            console.log(`🔊 [SOUND] Timeline start: ${new Date(startTime * 1000).toLocaleTimeString()}`);
+            console.log(`🔊 [SOUND] Playhead position: ${playheadPosition.toFixed(1)}s`);
+            console.log(`🔊 [SOUND] Current playback time: ${new Date(currentPlaybackTime * 1000).toLocaleTimeString()}`);
+            console.log(`🔊 [SOUND] Sounds trigger when task timestamps match playhead position`);
+            window._soundCheckDebugLogged = true;
+        }
+
+        let soundsTriggered = 0;
+
+        // Find tasks that crossed the playhead since last frame
+        tasks.forEach(task => {
+            const taskStart = task.start_time;
+            const hasRunningStatus = ['running', 'blocked', 'waiting'].includes(task.status);
+            const taskEnd = task.end_time || (hasRunningStatus ? (task.start_time + 30) : (task.start_time + 30));
+
+            const taskStartKey = `${task.task_id}_start`;
+            const taskEndKey = `${task.task_id}_end`;
+
+            // Check if playhead crossed task START
+            // This happens when: previousPlaybackTime < taskStart <= currentPlaybackTime
+            if (previousPlaybackTime < taskStart && taskStart <= currentPlaybackTime && !lastTriggeredTaskStarts.has(taskStartKey)) {
+                lastTriggeredTaskStarts.add(taskStartKey);
+                soundsTriggered++;
+
+                const eventType = 'task_started';
+                console.log(`🔊 [SOUND] Task STARTED: "${task.name}" at playhead=${playheadPosition.toFixed(1)}s (task time: ${new Date(taskStart * 1000).toLocaleTimeString()})`);
+
+                // Queue sound (don't play immediately if another is playing)
+                queueSound(eventType, task);
+            }
+
+            // Check if playhead crossed task END
+            if (previousPlaybackTime < taskEnd && taskEnd <= currentPlaybackTime && !lastTriggeredTaskEnds.has(taskEndKey)) {
+                lastTriggeredTaskEnds.add(taskEndKey);
+                soundsTriggered++;
+
+                const eventType = task.status === 'done' ? 'task_completed' :
+                                 task.status === 'error' ? 'error' :
+                                 task.status === 'blocked' ? 'warning' :
+                                 'task_completed';
+
+                console.log(`🔊 [SOUND] Task ENDED: "${task.name}" status=${task.status} at playhead=${playheadPosition.toFixed(1)}s (task time: ${new Date(taskEnd * 1000).toLocaleTimeString()})`);
+
+                // Queue sound
+                queueSound(eventType, task);
+            }
+        });
+
+        // Update last position for next frame
+        lastPlayheadPosition = playheadPosition;
+
+        // Clean up triggered tasks when playhead loops back to start
+        if (playheadPosition < 1) {
+            lastTriggeredTaskStarts.clear();
+            lastTriggeredTaskEnds.clear();
+        }
+    }
+
+    // Sound queue to prevent overlapping sounds
+    let soundQueue = [];
+    let currentlyPlaying = false;
+
+    function queueSound(eventType, task) {
+        soundQueue.push({ eventType, task, timestamp: Date.now() });
+
+        // Start processing queue if not already playing
+        if (!currentlyPlaying) {
+            processNextSound();
+        }
+    }
+
+    function processNextSound() {
+        if (soundQueue.length === 0) {
+            currentlyPlaying = false;
+            return;
+        }
+
+        currentlyPlaying = true;
+        const { eventType, task } = soundQueue.shift();
+
+        // Call the sound handler (defined in base.html)
+        if (typeof handleTaskEventSound === 'function') {
+            handleTaskEventSound(eventType);
+        }
+
+        // Wait for sound duration before playing next (adjust based on actual sound length)
+        const soundDuration = 200; // 200ms per sound (adjust as needed)
+        setTimeout(() => {
+            processNextSound();
+        }, soundDuration);
+    }
+
+    // Track stop button clicks for double-click rewind
+    let lastStopClickTime = 0;
+    const DOUBLE_CLICK_THRESHOLD = 500; // 500ms
+
     function resetPlayhead() {
-        playheadPosition = 0;
+        const now = Date.now();
+        const timeSinceLastClick = now - lastStopClickTime;
+
+        // Check if this is a double-click (within 500ms)
+        if (timeSinceLastClick < DOUBLE_CLICK_THRESHOLD) {
+            // REWIND: Reset to beginning (time 0)
+            playheadPosition = 0;
+            timelineOffset = 0;
+            lastTriggeredTaskStarts.clear();
+            lastTriggeredTaskEnds.clear();
+            lastPlayheadPosition = 0;
+            console.log('⏪ [REWIND] Double-click detected - rewinding to start');
+            lastStopClickTime = 0; // Reset to prevent triple-click
+        } else {
+            // Single click: Just stop playback
+            console.log('⏸️ [STOP] Single click - stopping playback');
+        }
+
+        // Always stop playback
         isPlaying = false;
         document.getElementById('play-icon').textContent = '▶️';
         document.getElementById('play-text').textContent = 'Play';
         document.getElementById('play-pause-btn').classList.remove('active');
+
+        // Update last click time
+        lastStopClickTime = now;
+
+        updatePlayhead();
+        updateCurrentTime();
+        drawSequencer(); // Redraw to show new position
+    }
+
+    /**
+     * Toggle arrow visibility
+     */
+    /**
+     * Change arrow display mode
+     * @param {string} mode - 'all', 'start-only', 'end-only', 'start-end', or 'none'
+     */
+    function changeArrowMode(mode) {
+        if (!window.sequencerSettings) window.sequencerSettings = {};
+
+        // Set flags based on mode
+        switch (mode) {
+            case 'all':
+                window.sequencerSettings.showAssignmentArrows = true;
+                window.sequencerSettings.showCompletionArrows = true;
+                break;
+            case 'start-only':
+                window.sequencerSettings.showAssignmentArrows = true;
+                window.sequencerSettings.showCompletionArrows = false;
+                break;
+            case 'end-only':
+                window.sequencerSettings.showAssignmentArrows = false;
+                window.sequencerSettings.showCompletionArrows = true;
+                break;
+            case 'start-end':
+                // Show both but maybe we want a different behavior?
+                // For now, same as 'all'
+                window.sequencerSettings.showAssignmentArrows = true;
+                window.sequencerSettings.showCompletionArrows = true;
+                break;
+            case 'none':
+                window.sequencerSettings.showAssignmentArrows = false;
+                window.sequencerSettings.showCompletionArrows = false;
+                break;
+            default:
+                window.sequencerSettings.showAssignmentArrows = true;
+                window.sequencerSettings.showCompletionArrows = true;
+        }
+
+        console.log('🎯🎯🎯 ARROW MODE CHANGED TO:', mode, {
+            showAssignmentArrows: window.sequencerSettings.showAssignmentArrows,
+            showCompletionArrows: window.sequencerSettings.showCompletionArrows,
+            timestamp: new Date().toISOString()
+        });
+
+        drawSequencer();  // Redraw with new settings
+    }
+
+    /**
+     * Change deduplication mode
+     */
+    function changeDedupMode(mode) {
+        if (!window.sequencerSettings) window.sequencerSettings = {};
+        window.sequencerSettings.dedupMode = mode;
+
+        // Reload data with new dedup mode
+        const taskId = document.getElementById('project-select')?.value;
+        if (taskId) {
+            loadSequencerData(taskId, false);  // Reload with new mode
+        }
+    }
+
+    function fitAll() {
+        // Reset timeline offset and zoom to show all tasks
+        timelineOffset = 0;
+        playheadPosition = 0;
+
+        // Calculate total duration to determine optimal zoom
+        if (tasks.length > 0) {
+            const earliestTime = Math.min(...tasks.map(t => t.start_time));
+            // FIX: For completed demos, use actual end times (not Date.now())
+            // For running tasks without end_time, estimate 30s after start
+            const latestTime = Math.max(...tasks.map(t => {
+                if (t.end_time) return t.end_time;
+                // Only use Date.now() if task is actually running (no end_time)
+                // Otherwise estimate 30s duration for display purposes
+                const hasRunningStatus = ['running', 'blocked', 'waiting'].includes(t.status);
+                return hasRunningStatus ? (Date.now() / 1000) : (t.start_time + 30);
+            }));
+            const totalDuration = latestTime - earliestTime;
+
+            // Calculate zoom to fit all tasks in viewport
+            const canvasWrapper = document.getElementById('sequencer-canvas-wrapper');
+            const availableWidth = canvasWrapper.clientWidth - AGENT_LABEL_WIDTH - 50; // 50px padding
+            const requiredPixels = totalDuration * PIXELS_PER_SECOND;
+
+            if (requiredPixels > availableWidth) {
+                // Zoom out to fit
+                zoomLevel = availableWidth / requiredPixels;
+            } else {
+                // Zoom in to fill viewport
+                zoomLevel = Math.min(availableWidth / requiredPixels, 3.0); // Max 3x zoom
+            }
+
+            zoomLevel = Math.max(0.1, Math.min(zoomLevel, 10.0)); // Clamp between 0.1x and 10x
+            document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+        } else {
+            // No tasks, reset to default zoom
+            zoomLevel = 1.0;
+            document.getElementById('zoom-level').textContent = '100%';
+        }
+
+        drawSequencer();
         updatePlayhead();
         updateCurrentTime();
     }
@@ -859,20 +2107,67 @@
         document.getElementById('current-time').textContent = date.toLocaleTimeString('en-US', { hour12: false });
     }
 
-    function zoomIn() {
-        zoomLevel = Math.min(zoomLevel * 1.5, 10.0);
-        document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+    /**
+     * Convert slider position (0-100) to zoom level (0.1x-20x) using logarithmic scaling.
+     * - 0%: 0.1x (10%, zoomed out)
+     * - 50%: 1.0x (100%, normal)
+     * - 100%: 20x (2000%, zoomed in)
+     */
+    function sliderToZoom(sliderValue) {
+        const val = parseFloat(sliderValue);
+        // Logarithmic scale: zoom = 0.1 * 10^(val/33.33)
+        // At val=0: zoom = 0.1 * 10^0 = 0.1
+        // At val=33.33: zoom = 0.1 * 10^1 = 1.0
+        // At val=66.66: zoom = 0.1 * 10^2 = 10.0
+        // At val=100: zoom = 0.1 * 10^3 = 100.0 (capped at 20)
+        const zoom = 0.1 * Math.pow(10, val / 33.33);
+        return Math.min(zoom, 20.0); // Cap at 20x
+    }
+
+    /**
+     * Convert zoom level to slider position (inverse logarithmic)
+     */
+    function zoomToSlider(zoom) {
+        const sliderPos = 33.33 * Math.log10(zoom / 0.1);
+        return Math.max(0, Math.min(100, sliderPos));
+    }
+
+    /**
+     * Update zoom from slider input (logarithmic scaling)
+     */
+    function updateZoomFromSlider(sliderValue) {
+        const zoom = sliderToZoom(sliderValue);
+        updateZoom(zoom);
+    }
+
+    /**
+     * Update zoom level directly
+     */
+    function updateZoom(zoom) {
+        zoomLevel = parseFloat(zoom);
+        localStorage.setItem('sequencer_zoomLevel', zoomLevel); // Persist zoom level
+
+        // Update slider and display
+        const slider = document.getElementById('zoom-slider');
+        const display = document.getElementById('zoom-level');
+
+        slider.value = zoomToSlider(zoomLevel);
+        display.textContent = Math.round(zoomLevel * 100) + '%';
+
         resizeCanvas();
     }
 
+    function zoomIn() {
+        updateZoom(Math.min(zoomLevel * 1.5, 20.0));
+    }
+
     function zoomOut() {
-        zoomLevel = Math.max(zoomLevel / 1.5, 0.1);
-        document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
-        resizeCanvas();
+        updateZoom(Math.max(zoomLevel / 1.5, 0.1));
     }
 
     function changeTimeRange() {
         timeRangeSeconds = parseInt(document.getElementById('time-range').value);
+        localStorage.setItem('sequencer_timeRange', timeRangeSeconds); // Persist selection
         playheadPosition = 0;
         updatePlayhead();
         fetchSequencerData();
@@ -926,18 +2221,11 @@
     function updatePlaybackSpeed(speed, source) {
         playbackSpeed = parseFloat(speed);
 
-        // Update both sliders and both displays
-        const topSlider = document.getElementById('playback-speed-top');
+        // Update slider and display (only bottom control now)
         const bottomSlider = document.getElementById('playback-speed-bottom');
-        const topValue = document.getElementById('speed-value-top');
         const bottomValue = document.getElementById('speed-value-bottom');
 
         const sliderPos = speedToSlider(playbackSpeed);
-
-        if (source !== 'top') {
-            topSlider.value = sliderPos;
-            topValue.textContent = formatSpeed(playbackSpeed);
-        }
 
         if (source !== 'bottom') {
             bottomSlider.value = sliderPos;
@@ -958,6 +2246,53 @@
         } else {
             return Math.round(speed) + 'x';
         }
+    }
+
+    /**
+     * Update vertical scroll from slider (0-100 maps to scroll range)
+     */
+    function updateVerticalScrollFromSlider(sliderValue) {
+        const percentage = parseInt(sliderValue);
+
+        // Calculate max vertical scroll (total height - viewport height)
+        const rowHeight = ROW_HEIGHT * verticalZoom;
+        const totalHeight = agents.length * rowHeight;
+        const viewportHeight = canvas.height - HEADER_HEIGHT;
+        const maxScroll = Math.max(0, totalHeight - viewportHeight);
+
+        // Map slider (0-100) to scroll range (0-maxScroll)
+        verticalOffset = (percentage / 100) * maxScroll;
+
+        // Update display
+        document.getElementById('vertical-scroll-value').textContent = percentage + '%';
+
+        // Redraw
+        drawSequencer();
+    }
+
+    /**
+     * Update vertical zoom from slider (0-100 maps to 0.3x - 3.0x)
+     */
+    function updateVerticalZoomFromSlider(sliderValue) {
+        const percentage = parseInt(sliderValue);
+
+        // Map slider (0-100) to zoom range (0.3 - 3.0)
+        // At 0%: 0.3x, At 50%: 1.0x, At 100%: 3.0x
+        // Use logarithmic scale similar to playback speed
+        const minZoom = 0.3;
+        const maxZoom = 3.0;
+        const range = maxZoom - minZoom;
+
+        // Linear interpolation for simplicity
+        verticalZoom = minZoom + (percentage / 100) * range;
+        localStorage.setItem('sequencer_verticalZoom', verticalZoom); // Persist vertical zoom
+
+        // Update display
+        const displayValue = Math.round(verticalZoom * 100);
+        document.getElementById('vertical-zoom-value').textContent = displayValue + '%';
+
+        // Redraw
+        drawSequencer();
     }
 
     function changeSoundMode() {
@@ -1021,10 +2356,123 @@
         }
     }
 
+    // Poll for new tasks when demo is running
+    async function pollForActiveTasks() {
+        try {
+            // Check if demo is running
+            const demoResponse = await fetch('/api/demo/status');
+            const demoData = await demoResponse.json();
+
+            if (demoData.running) {
+                // Demo is active - refresh sequencer data
+                await refreshSequencer();
+            }
+        } catch (error) {
+            console.error('Error polling for active tasks:', error);
+        }
+    }
+
+    // Load projects into dropdown
+    async function loadProjects() {
+        try {
+            const response = await fetch('/api/actions/projects');
+
+            // FIX: Handle non-200 responses gracefully
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            const selector = document.getElementById('project-selector');
+            selector.innerHTML = '';  // Clear loading message
+
+            if (data.projects && data.projects.length > 0) {
+                // Add projects sorted by most recent first (already sorted by backend)
+                data.projects.forEach((project, index) => {
+                    const option = document.createElement('option');
+                    option.value = project.task_id;
+
+                    // Format display name with status indicator
+                    const statusIcon = project.is_running ? '🟢' : '⚪';
+                    const timestamp = new Date(project.last_action).toLocaleString();
+                    option.textContent = `${statusIcon} ${project.task_id} (${project.action_count} actions)`;
+                    option.title = `Last action: ${timestamp}`;
+
+                    selector.appendChild(option);
+
+                    // Set first (most recent) as default
+                    if (index === 0 && !getTaskIdFromUrl()) {
+                        option.selected = true;
+                        currentTaskId = project.task_id;
+                    }
+                });
+
+                // If URL has task_id, select it
+                const urlTaskId = getTaskIdFromUrl();
+                if (urlTaskId) {
+                    selector.value = urlTaskId;
+                    currentTaskId = urlTaskId;
+                }
+            } else {
+                // No projects found - this is OK, just show placeholder
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No projects found';
+                selector.appendChild(option);
+            }
+        } catch (error) {
+            console.error('Error loading projects:', error);
+            const selector = document.getElementById('project-selector');
+            // FIX: Don't permanently show error - allow retrying by showing a temporary message
+            selector.innerHTML = '<option value="">⚠ Could not load projects (retrying...)</option>';
+
+            // Retry after 5 seconds
+            setTimeout(() => {
+                console.log('[Retry] Attempting to reload projects...');
+                loadProjects();
+            }, 5000);
+        }
+    }
+
+    // Handle project selection change
+    function changeProject() {
+        const selector = document.getElementById('project-selector');
+        const selectedTaskId = selector.value;
+
+        if (selectedTaskId) {
+            // Update URL and reload sequencer data
+            const url = new URL(window.location);
+            url.searchParams.set('task_id', selectedTaskId);
+            window.history.pushState({}, '', url);
+
+            currentTaskId = selectedTaskId;
+            fetchSequencerData();  // Reload with new task_id
+        }
+    }
+
+    // Get task_id from URL query parameter
+    function getTaskIdFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('task_id') || params.get('source') === 'actions' ? params.get('task_id') : null;
+    }
+
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', async () => {
         console.log('Initializing sequencer view...');
         initializeSequencer();
+
+        // Set persisted time range in dropdown
+        const timeRangeSelect = document.getElementById('time-range');
+        if (timeRangeSelect) {
+            timeRangeSelect.value = timeRangeSeconds.toString();
+        }
+
+        // Initialize arrow display mode to "end-only" (show only completion arrows)
+        changeArrowMode('end-only');
+
+        // Load projects first, then load sequencer data
+        await loadProjects();
         await fetchSequencerData();
 
         // Settings will be loaded by base.html
@@ -1035,6 +2483,22 @@
 
         // Update current time every second
         setInterval(updateCurrentTime, 1000);
+
+        // Poll for active tasks every 3 seconds (fast updates when demo is running)
+        setInterval(pollForActiveTasks, 3000);
+
+        // Reload projects every 5 seconds to catch new ones
+        setInterval(loadProjects, 5000);
+
+        // Redraw canvas every second to update live duration counter for running tasks
+        setInterval(() => {
+            const hasRunningTasks = tasks.some(t =>
+                !t.end_time && ['running', 'blocked', 'waiting'].includes(t.status)
+            );
+            if (hasRunningTasks) {
+                drawSequencer(); // Redraw to update duration display
+            }
+        }, 1000);
     });
 </script>
 {% endblock %}

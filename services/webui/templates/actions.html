@@ -157,6 +157,8 @@
         font-size: 0.875rem;
         transition: all 0.2s;
         white-space: nowrap;
+        text-decoration: none;
+        display: inline-block;
     }
 
     .expand-button:hover {
@@ -171,6 +173,15 @@
 
     .expand-button.collapse:hover {
         background: rgba(107, 114, 128, 1);
+    }
+
+    .expand-button.view-tree {
+        background: rgba(168, 85, 247, 0.8);
+        border-color: #a855f7;
+    }
+
+    .expand-button.view-tree:hover {
+        background: rgba(168, 85, 247, 1);
     }
 
     .action-tree {
@@ -223,6 +234,26 @@
         align-items: center;
         gap: 0.75rem;
         flex: 1;
+    }
+
+    .prime-directive-badge {
+        padding: 0.4rem 0.8rem;
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        border: 2px solid #f59e0b;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #1a1f3a;
+        white-space: nowrap;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+        animation: prime-directive-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes prime-directive-pulse {
+        0%, 100% { box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4); }
+        50% { box-shadow: 0 4px 16px rgba(245, 158, 11, 0.6); }
     }
 
     .agent-badge {
@@ -372,14 +403,14 @@
 
 {% block content %}
 <div class="actions-container">
-    <!-- Tasks Sidebar -->
+    <!-- Prime Directives Sidebar -->
     <div class="tasks-sidebar">
         <div class="tasks-header">
-            <div class="tasks-title">Tasks</div>
+            <div class="tasks-title">Prime Directives</div>
             <button class="refresh-button" onclick="refreshTasks()">🔄 Refresh</button>
         </div>
 
-        <input type="text" class="search-box" id="task-search" placeholder="Search tasks..." oninput="filterTasks()">
+        <input type="text" class="search-box" id="task-search" placeholder="Search prime directives..." oninput="filterTasks()">
 
         <div id="task-list" class="task-list">
             <div class="loading">
@@ -396,6 +427,8 @@
                 <div class="actions-subtitle" id="selected-task-subtitle"></div>
             </div>
             <div class="actions-header-controls" id="expand-controls" style="display: none;">
+                <a class="expand-button view-tree" id="view-tree-btn" href="#">🌳 View Tree</a>
+                <a class="expand-button view-tree" id="view-sequencer-btn" href="#">📊 Sequencer</a>
                 <button class="expand-button" onclick="expandAll()">⬇️ Expand All</button>
                 <button class="expand-button collapse" onclick="collapseAll()">⬆️ Collapse All</button>
             </div>
@@ -404,7 +437,11 @@
         <div id="actions-tree" class="action-tree">
             <div class="empty-state">
                 <div class="empty-state-icon">📋</div>
-                <div class="empty-state-text">Select a task from the list to view its action flow</div>
+                <div class="empty-state-text">Select a prime directive to view its delegation chain</div>
+                <div style="color: #6b7280; font-size: 0.75rem; margin-top: 0.5rem;">
+                    <strong>Prime Directive:</strong> Human → PAS Root (VPE)<br>
+                    <strong>Tasks:</strong> VPE → Directors → Managers → Programmers
+                </div>
             </div>
         </div>
     </div>
@@ -440,7 +477,10 @@ function renderTaskList() {
         taskListEl.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">📭</div>
-                <div class="empty-state-text">No tasks yet</div>
+                <div class="empty-state-text">No prime directives yet</div>
+                <div style="color: #6b7280; font-size: 0.75rem; margin-top: 0.5rem;">
+                    Prime directives are top-level requests from humans to PAS Root (VPE)
+                </div>
             </div>
         `;
         return;
@@ -500,6 +540,10 @@ async function selectTask(taskId) {
     document.getElementById('selected-task-title').textContent = `Task: ${taskId}`;
     document.getElementById('selected-task-subtitle').textContent = 'Loading actions...';
 
+    // Update tree view and sequencer links
+    document.getElementById('view-tree-btn').href = `/tree?task_id=${taskId}`;
+    document.getElementById('view-sequencer-btn').href = `/sequencer?task_id=${taskId}`;
+
     // Show loading
     document.getElementById('actions-tree').innerHTML = `
         <div class="loading">
@@ -553,6 +597,7 @@ function renderActionTree(actions, parentEl = null) {
                     ${hasChildren ? '<span class="expand-icon" id="icon-' + action.log_id + '">▶</span>' : '<span class="expand-icon"></span>'}
 
                     <div class="action-flow">
+                        ${action.from_agent === 'user' ? '<span class="prime-directive-badge" title="Prime Directive: Human → PAS Root">⭐ PRIME DIRECTIVE</span>' : ''}
                         ${action.from_agent ? `<span class="agent-badge">${action.from_agent}</span>` : ''}
                         ${action.from_agent && action.to_agent ? '<span class="flow-arrow">→</span>' : ''}
                         ${action.to_agent ? `<span class="agent-badge">${action.to_agent}</span>` : ''}
@@ -607,6 +652,7 @@ function renderChildActions(children) {
                     ${hasChildren ? '<span class="expand-icon" id="icon-' + action.log_id + '">▶</span>' : '<span class="expand-icon"></span>'}
 
                     <div class="action-flow">
+                        ${action.from_agent === 'user' ? '<span class="prime-directive-badge" title="Prime Directive: Human → PAS Root">⭐ PRIME DIRECTIVE</span>' : ''}
                         ${action.from_agent ? `<span class="agent-badge">${action.from_agent}</span>` : ''}
                         ${action.from_agent && action.to_agent ? '<span class="flow-arrow">→</span>' : ''}
                         ${action.to_agent ? `<span class="agent-badge">${action.to_agent}</span>` : ''}
@@ -710,8 +756,21 @@ function getStatusClass(status) {
 }
 
 function formatTimestamp(timestamp) {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
+    // Handle missing, null, or invalid timestamps
+    if (!timestamp || typeof timestamp !== 'number') {
+        return 'N/A';
+    }
+
+    // FIX: Convert Unix seconds to milliseconds for JavaScript Date
+    // Database stores timestamps as Unix seconds (e.g., 1762618131.642257)
+    // JavaScript Date expects milliseconds, so multiply by 1000
+    const date = new Date(timestamp * 1000);
+
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+        return 'Invalid';
+    }
+
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);

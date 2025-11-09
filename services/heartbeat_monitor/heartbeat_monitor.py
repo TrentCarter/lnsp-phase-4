@@ -25,6 +25,9 @@ CHECK_INTERVAL_S = 30  # Check every 30 seconds
 MAX_MISSES_BEFORE_DOWN = 2  # Mark 'down' after 2 missed heartbeats
 MAX_MISSES_BEFORE_DEREGISTER = 3  # Deregister after 3 missed heartbeats
 
+# Event counter (global)
+total_events = 0
+
 # ============================================================================
 # Models
 # ============================================================================
@@ -77,6 +80,8 @@ def emit_alert(alert: HeartbeatAlert):
     Args:
         alert: HeartbeatAlert instance
     """
+    global total_events
+
     EVENTS_DIR.mkdir(parents=True, exist_ok=True)
 
     # Append to today's event log
@@ -84,6 +89,9 @@ def emit_alert(alert: HeartbeatAlert):
 
     with open(log_file, "a") as f:
         f.write(alert.json() + "\n")
+
+    # Increment event counter
+    total_events += 1
 
     # Also print to console for debugging
     print(f"⚠️  ALERT: {alert.alert_type} — {alert.service_name} (missed {alert.missed_beats} beats) → {alert.action}")
@@ -317,12 +325,14 @@ async def health():
         - status: 'ok'
         - check_interval_s: Interval between checks
         - max_misses_before_down: Threshold for marking service down
+        - total_events: Total events (alerts) emitted
     """
     return {
         "status": "ok",
         "check_interval_s": CHECK_INTERVAL_S,
         "max_misses_before_down": MAX_MISSES_BEFORE_DOWN,
-        "max_misses_before_deregister": MAX_MISSES_BEFORE_DEREGISTER
+        "max_misses_before_deregister": MAX_MISSES_BEFORE_DEREGISTER,
+        "total_events": total_events
     }
 
 
