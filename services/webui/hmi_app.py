@@ -673,7 +673,9 @@ def build_sequencer_from_actions(task_id: str) -> Dict[str, Any]:
                 'end_time': end_time,
                 'from_agent': from_agent,
                 'to_agent': to_agent,
-                'action_type': action_type
+                'action_type': action_type,
+                'log_id': action.get('log_id'),  # Include log_id for arrow drawing
+                'parent_log_id': action.get('parent_log_id')  # Include parent relationship
             })
 
         # POST-PROCESSING: Calculate actual durations based on sequential timing

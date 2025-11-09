@@ -417,9 +417,9 @@
             <div class="toolbar-group">
                 <span class="toolbar-label">ARROWS</span>
                 <select id="arrow-display-mode" class="project-selector" style="min-width: 180px;" onchange="changeArrowMode(this.value)">
-                    <option value="all">Show All Arrows</option>
+                    <option value="all" selected>Show All Arrows</option>
                     <option value="start-only">Start Only (Blue ↓)</option>
-                    <option value="end-only" selected>End Only (Green ↑)</option>
+                    <option value="end-only">End Only (Green ↑)</option>
                     <option value="start-end">Start & End</option>
                     <option value="none">No Arrows</option>
                 </select>
@@ -1333,6 +1333,15 @@
 
         console.log(`[Arrows] Grouped tasks by agent_id:`, Object.keys(tasksByAgent).map(aid => `${aid}(${tasksByAgent[aid].length})`).join(', '));
 
+        // 🔥 NEW: Build lookup table for tasks by log_id (for direct parent→child relationships)
+        const tasksByLogId = {};
+        tasks.forEach(task => {
+            if (task.log_id) {
+                tasksByLogId[task.log_id] = task;
+            }
+        });
+        console.log(`[Arrows] Indexed ${Object.keys(tasksByLogId).length} tasks by log_id`);
+
         // Helper: Check if two tasks overlap in time
         function tasksOverlap(task1, task2) {
             const t1Start = task1.start_time;
@@ -1439,17 +1448,30 @@
 
             // ASSIGNMENT ARROW (parent → child at task START)
             if (task.from_agent !== task.to_agent && window.sequencerSettings?.showAssignmentArrows !== false) {
-                const parentTask = findParentTaskAtTime(task.from_agent, task, task.start_time);
+                // 🔥 NEW: Use parent_log_id for DIRECT parent lookup (no heuristics!)
+                let parentTask = null;
+                if (task.parent_log_id && tasksByLogId[task.parent_log_id]) {
+                    parentTask = tasksByLogId[task.parent_log_id];
+                } else {
+                    // Fallback: Use heuristic matching (old behavior)
+                    parentTask = findParentTaskAtTime(task.from_agent, task, task.start_time);
+                }
 
-                // Log ALL delegation tasks without parent (not just first 5)
-                if (!parentTask) {
-                    const taskName = task.name;
-                    // Log if task is a visible worker task (Implement, Configure, Design, Set up, Create)
-                    if (taskName.includes('Implement') || taskName.includes('Configure') || taskName.includes('Design') || taskName.includes('Set up') || taskName.includes('Create')) {
-                        console.warn(`⚠️ [Arrow Skip] Delegation: "${task.name}" - No parent found on agent "${task.from_agent}" at time ${task.start_time}`);
-                        const tasksOnFromAgent = tasksByAgent[task.from_agent] || [];
-                        console.warn(`  → Agent "${task.from_agent}" has ${tasksOnFromAgent.length} tasks:`, tasksOnFromAgent.map(t => `"${t.name}" (${t.start_time}-${t.end_time || 'running'})`));
-                    }
+                // Debug logging for parent lookup
+                if (idx < 20) {
+                    console.log(`[Arrow Debug ${idx}] Task "${task.name}":`, {
+                        log_id: task.log_id,
+                        parent_log_id: task.parent_log_id,
+                        foundParent: !!parentTask,
+                        parentHasBounds: parentTask?._bounds ? 'YES' : 'NO',
+                        parentName: parentTask?.name
+                    });
+                }
+
+                if (!parentTask && idx < 10) {
+                    console.warn(`⚠️ [Arrow Skip] "${task.name}" - No parent found (parent_log_id=${task.parent_log_id})`);
+                } else if (parentTask && !parentTask._bounds && idx < 10) {
+                    console.warn(`⚠️ [Arrow Skip] "${task.name}" - Parent "${parentTask.name}" has no _bounds`);
                 }
 
                 if (parentTask && parentTask._bounds) {
@@ -1458,59 +1480,66 @@
                     const parentY = agentRowMap[parentLaneKey] || agentRowMap[task.from_agent];
                     const actualParentY = parentTask._bounds.y + (parentTask._bounds.height / 2);
 
-                    // Verify parent Y position matches expected (within ±30px tolerance)
-                    const yDiff = Math.abs(actualParentY - parentY);
+                    // VERTICAL arrow at LEFT edge of child task (start time)
+                    const arrowX = taskStartX + 5;  // Slightly inside left edge of child task block
 
-                    if (yDiff < 30) {
-                        // Arrow at LEFT edge of child task (start time)
-                        const arrowX = taskStartX + 5;  // Slightly inside task block
-
-                        drawArrow(
-                            arrowX,
-                            actualParentY,  // From parent task (manager) - use actual rendered Y
-                            arrowX,         // VERTICAL - same X
-                            taskY,          // To child task (worker)
-                            '#3b82f6',      // Blue
-                            'solid',
-                            'down',
-                            animOffset
-                        );
-                        arrowsDrawn++;
-                        if (arrowsDrawn <= 3) console.log(`✅ [Arrow] Delegation arrow drawn for "${task.name}" (parent lane=${parentTask._lane || 0})`);
-                    } else {
-                        console.log(`[Arrow Skip] Delegation: "${task.name}" - Parent Y mismatch: expected=${parentY}, actual=${actualParentY}, diff=${yDiff}px (parent lane=${parentTask._lane || 0})`);
-                    }
+                    drawArrow(
+                        arrowX,        // VERTICAL - same X coordinate
+                        actualParentY, // From: parent task Y (use actual bounds Y, not agentRowMap)
+                        arrowX,        // VERTICAL - same X coordinate
+                        taskY,         // To: child task Y
+                        '#3b82f6',     // Blue
+                        'solid',
+                        'down',        // Downward arrow
+                        animOffset
+                    );
+                    arrowsDrawn++;
+                    if (arrowsDrawn <= 3) console.log(`✅ [Arrow] Vertical delegation arrow: "${parentTask.name}" → "${task.name}"`);
                 }
             }
 
             // COMPLETION ARROW (child → parent at task END)
-            if ((task.status === 'done' || task.status === 'completed') && task.from_agent !== task.to_agent && window.sequencerSettings?.showCompletionArrows !== false) {
-                const endTime = task.end_time || task.start_time;
+            const isCompleted = (task.status === 'done' || task.status === 'completed');
+            const hasParentAgent = task.from_agent !== task.to_agent;
+            const showCompletionEnabled = window.sequencerSettings?.showCompletionArrows !== false;
 
-                // Find parent's "receive_report" task at the same time (or shortly after)
-                const receiveReportTask = allTasks.find(t =>
-                    t.to_agent === task.from_agent &&  // Task assigned to parent agent
-                    (t.name?.includes('Processing completion') || t.action_type === 'receive_report') &&
-                    Math.abs((t.start_time || 0) - endTime) < 2.0  // Within 2 seconds
-                );
+            if (idx < 10) {
+                console.log(`[Completion Check ${idx}] "${task.name}": status=${task.status}, isCompleted=${isCompleted}, hasParentAgent=${hasParentAgent}, showEnabled=${showCompletionEnabled}`);
+            }
 
-                if (receiveReportTask && receiveReportTask._bounds) {
-                    const receiveY = receiveReportTask._bounds.y + (receiveReportTask._bounds.height / 2);
+            if (isCompleted && hasParentAgent && showCompletionEnabled) {
+                // Use same parent lookup as assignment arrow (parent_log_id)
+                let parentTask = null;
+                if (task.parent_log_id && tasksByLogId[task.parent_log_id]) {
+                    parentTask = tasksByLogId[task.parent_log_id];
+                } else {
+                    // Fallback: Use heuristic matching
+                    parentTask = findParentTaskAtTime(task.from_agent, task, task.start_time);
+                }
+
+                if (idx < 10) {
+                    console.log(`[Completion Parent ${idx}] "${task.name}": parent_log_id=${task.parent_log_id}, foundParent=${!!parentTask}, parentName=${parentTask?.name}`);
+                }
+
+                if (parentTask && parentTask._bounds) {
+                    const actualParentY = parentTask._bounds.y + (parentTask._bounds.height / 2);
                     const arrowX = taskEndX - 5;  // Right edge of child task
 
-                    // VERTICAL arrow (same X coordinate)
+                    // VERTICAL arrow from child back up to parent
                     drawArrow(
-                        arrowX,
-                        taskY,          // Start: child task middle
-                        arrowX,         // End: SAME X (vertical)
-                        receiveY,       // End: parent's receive_report task
-                        '#10b981',      // Green
+                        arrowX,        // VERTICAL - same X coordinate
+                        taskY,         // From: child task Y
+                        arrowX,        // VERTICAL - same X coordinate
+                        actualParentY, // To: parent task Y
+                        '#10b981',     // Green
                         'dashed',
-                        'up',
+                        'up',          // Upward arrow
                         animOffset
                     );
                     arrowsDrawn++;
-                    if (arrowsDrawn <= 10) console.log(`✅ [Arrow] Completion arrow: "${task.name}" → "${receiveReportTask.name}"`);
+                    console.log(`✅ [Arrow] GREEN COMPLETION: "${task.name}" → "${parentTask.name}"`);
+                } else if (idx < 10) {
+                    console.warn(`⚠️ [Arrow Skip] Completion: "${task.name}" - parent=${!!parentTask}, bounds=${!!parentTask?._bounds}`);
                 }
             }
         });
@@ -1571,11 +1600,21 @@
             ctx.moveTo(x2, y2);
             ctx.lineTo(x2 - arrowSize / 2, y2 - arrowSize);
             ctx.lineTo(x2 + arrowSize / 2, y2 - arrowSize);
-        } else {
+        } else if (direction === 'up') {
             // Upward arrow (▲)
             ctx.moveTo(x2, y2);
             ctx.lineTo(x2 - arrowSize / 2, y2 + arrowSize);
             ctx.lineTo(x2 + arrowSize / 2, y2 + arrowSize);
+        } else if (direction === 'right') {
+            // Rightward arrow (▶)
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - arrowSize, y2 - arrowSize / 2);
+            ctx.lineTo(x2 - arrowSize, y2 + arrowSize / 2);
+        } else if (direction === 'left') {
+            // Leftward arrow (◀)
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 + arrowSize, y2 - arrowSize / 2);
+            ctx.lineTo(x2 + arrowSize, y2 + arrowSize / 2);
         }
         ctx.closePath();
         ctx.fill();
@@ -2018,8 +2057,6 @@
                 window.sequencerSettings.showCompletionArrows = true;
                 break;
             case 'start-end':
-                // Show both but maybe we want a different behavior?
-                // For now, same as 'all'
                 window.sequencerSettings.showAssignmentArrows = true;
                 window.sequencerSettings.showCompletionArrows = true;
                 break;
@@ -2032,10 +2069,13 @@
                 window.sequencerSettings.showCompletionArrows = true;
         }
 
-        console.log('🎯🎯🎯 ARROW MODE CHANGED TO:', mode, {
+        // Save to localStorage
+        window.sequencerSettings.arrowMode = mode;
+        localStorage.setItem('sequencerSettings', JSON.stringify(window.sequencerSettings));
+
+        console.log('🎯 ARROW MODE CHANGED TO:', mode, {
             showAssignmentArrows: window.sequencerSettings.showAssignmentArrows,
-            showCompletionArrows: window.sequencerSettings.showCompletionArrows,
-            timestamp: new Date().toISOString()
+            showCompletionArrows: window.sequencerSettings.showCompletionArrows
         });
 
         drawSequencer();  // Redraw with new settings
@@ -2059,41 +2099,67 @@
         // Reset timeline offset and zoom to show all tasks
         timelineOffset = 0;
         playheadPosition = 0;
+        verticalOffset = 0;
 
-        // Calculate total duration to determine optimal zoom
-        if (tasks.length > 0) {
-            const earliestTime = Math.min(...tasks.map(t => t.start_time));
-            // FIX: For completed demos, use actual end times (not Date.now())
-            // For running tasks without end_time, estimate 30s after start
-            const latestTime = Math.max(...tasks.map(t => {
-                if (t.end_time) return t.end_time;
-                // Only use Date.now() if task is actually running (no end_time)
-                // Otherwise estimate 30s duration for display purposes
-                const hasRunningStatus = ['running', 'blocked', 'waiting'].includes(t.status);
-                return hasRunningStatus ? (Date.now() / 1000) : (t.start_time + 30);
-            }));
-            const totalDuration = latestTime - earliestTime;
-
-            // Calculate zoom to fit all tasks in viewport
-            const canvasWrapper = document.getElementById('sequencer-canvas-wrapper');
-            const availableWidth = canvasWrapper.clientWidth - AGENT_LABEL_WIDTH - 50; // 50px padding
-            const requiredPixels = totalDuration * PIXELS_PER_SECOND;
-
-            if (requiredPixels > availableWidth) {
-                // Zoom out to fit
-                zoomLevel = availableWidth / requiredPixels;
-            } else {
-                // Zoom in to fill viewport
-                zoomLevel = Math.min(availableWidth / requiredPixels, 3.0); // Max 3x zoom
-            }
-
-            zoomLevel = Math.max(0.1, Math.min(zoomLevel, 10.0)); // Clamp between 0.1x and 10x
-            document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
-        } else {
+        if (tasks.length === 0) {
             // No tasks, reset to default zoom
             zoomLevel = 1.0;
+            verticalZoom = 1.0;
             document.getElementById('zoom-level').textContent = '100%';
+            document.getElementById('vertical-zoom-value').textContent = '100%';
+            drawSequencer();
+            updatePlayhead();
+            updateCurrentTime();
+            return;
         }
+
+        // HORIZONTAL ZOOM: Fit all tasks in viewport width
+        const taskTimes = tasks.flatMap(t => [t.start_time, t.end_time || t.start_time]);
+        const earliestTime = Math.min(...taskTimes);
+        const latestTime = Math.max(...taskTimes);
+        const totalDuration = latestTime - earliestTime || 300; // Default 5 min if no duration
+
+        const canvasWrapper = document.getElementById('sequencer-canvas-wrapper');
+        const availableWidth = canvasWrapper.clientWidth - AGENT_LABEL_WIDTH - 50; // 50px padding
+        const requiredPixels = totalDuration * PIXELS_PER_SECOND;
+
+        if (requiredPixels > availableWidth) {
+            // Zoom out to fit
+            zoomLevel = availableWidth / requiredPixels;
+        } else {
+            // Zoom in to fill viewport (but don't over-zoom)
+            zoomLevel = Math.min(availableWidth / requiredPixels, 2.0); // Max 2x zoom for fit
+        }
+
+        // VERTICAL ZOOM: Fit all agents in viewport height
+        const availableHeight = canvasWrapper.clientHeight - HEADER_HEIGHT - 50; // 50px padding
+        const requiredHeight = agents.length * ROW_HEIGHT;
+        
+        if (requiredHeight > availableHeight) {
+            // Zoom out to fit all agents
+            verticalZoom = availableHeight / requiredHeight;
+        } else {
+            // Zoom in to fill viewport (but don't over-zoom)
+            verticalZoom = Math.min(availableHeight / requiredHeight, 2.0); // Max 2x zoom for fit
+        }
+
+        // Clamp zoom levels
+        zoomLevel = Math.max(0.1, Math.min(zoomLevel, 10.0)); // Clamp between 0.1x and 10x
+        verticalZoom = Math.max(0.3, Math.min(verticalZoom, 3.0)); // Clamp between 0.3x and 3.0x
+
+        // Update displays
+        document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+        document.getElementById('vertical-zoom-value').textContent = Math.round(verticalZoom * 100) + '%';
+        
+        // Update sliders
+        const zoomSlider = document.getElementById('zoom-slider');
+        const verticalSlider = document.getElementById('vertical-zoom-slider');
+        zoomSlider.value = zoomToSlider(zoomLevel);
+        verticalSlider.value = (verticalZoom - 0.3) / (3.0 - 0.3) * 100; // Map to 0-100 range
+
+        // Persist settings
+        localStorage.setItem('sequencer_zoomLevel', zoomLevel);
+        localStorage.setItem('sequencer_verticalZoom', verticalZoom);
 
         drawSequencer();
         updatePlayhead();
@@ -2401,10 +2467,17 @@
 
                     selector.appendChild(option);
 
-                    // Set first (most recent) as default
+                    // Set first (most recent) as default and load it
                     if (index === 0 && !getTaskIdFromUrl()) {
                         option.selected = true;
                         currentTaskId = project.task_id;
+                        // Update URL with task_id and auto-load
+                        const url = new URL(window.location);
+                        url.searchParams.set('task_id', project.task_id);
+                        window.history.replaceState({}, '', url);
+                        // Auto-load the most recent task immediately
+                        console.log(`[Auto-load] Loading most recent task: ${project.task_id}`);
+                        fetchSequencerData();
                     }
                 });
 
@@ -2468,18 +2541,22 @@
             timeRangeSelect.value = timeRangeSeconds.toString();
         }
 
-        // Initialize arrow display mode to "end-only" (show only completion arrows)
-        changeArrowMode('end-only');
+        // Load settings first
+        const settings = getSettings();
+        applyViewSettings(settings);
 
-        // Load projects first, then load sequencer data
+        // Restore arrow mode from localStorage (default to 'all')
+        const savedArrowMode = settings.arrowMode || 'all';
+        const arrowModeSelect = document.getElementById('arrow-display-mode');
+        if (arrowModeSelect) {
+            arrowModeSelect.value = savedArrowMode;
+        }
+        changeArrowMode(savedArrowMode);
+
+        // Load projects list (this will auto-select and load the most recent)
         await loadProjects();
-        await fetchSequencerData();
 
-        // Settings will be loaded by base.html
-        setTimeout(() => {
-            const settings = getSettings();
-            applyViewSettings(settings);
-        }, 100);
+        // fetchSequencerData() will be called by loadProjects when it selects the first project
 
         // Update current time every second
         setInterval(updateCurrentTime, 1000);
