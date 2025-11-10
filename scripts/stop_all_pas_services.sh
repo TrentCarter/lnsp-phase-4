@@ -11,6 +11,12 @@ lsof -ti:6105 | xargs kill -9 2>/dev/null && echo "  ✓ Token Governor stopped"
 
 echo ""
 
+# Stop HMI
+echo "HMI:"
+lsof -ti:6101 | xargs kill -9 2>/dev/null && echo "  ✓ HMI Web Dashboard stopped" || echo "  (HMI Web Dashboard not running)"
+
+echo ""
+
 # Stop Phase 0
 echo "Phase 0:"
 lsof -ti:6121 | xargs kill -9 2>/dev/null && echo "  ✓ Registry stopped" || echo "  (Registry not running)"

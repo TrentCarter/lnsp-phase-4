@@ -16,7 +16,9 @@ Health: curl http://localhost:6200/health
 """
 
 import asyncio
+import json
 import random
+import requests
 import threading
 import time
 import uuid
@@ -218,6 +220,7 @@ def _execute_task_synthetic(task_id: str, lane: str, payload: Dict) -> tuple:
 
 def _execute_run(run_id: str):
     """Background worker to execute a run (topological order)."""
+    start_time = time.time()
     tasks = DAG[run_id]
 
     for task_id in tasks:
@@ -248,6 +251,75 @@ def _execute_run(run_id: str):
     else:
         RUNS[run_id]["status"] = "completed"
         RUNS[run_id]["validation_pass"] = True
+
+    # 🆕 Notify HMI of Prime Directive completion
+    duration = time.time() - start_time
+    _notify_directive_complete(run_id, duration, tasks, failed_tasks)
+
+
+def _notify_directive_complete(
+    run_id: str, duration: float, tasks: List[str], failed_tasks: List[str]
+):
+    """
+    Send Prime Directive completion signal to HMI via Registry action_logs.
+
+    This creates a special action log entry with:
+    - action_type: "directive_complete"
+    - from_agent: "PAS_ROOT"
+    - action_data: JSON with run summary
+
+    The HMI will detect this entry and:
+    1. Stop timeline auto-scroll
+    2. Show "END OF PROJECT" banner
+    3. Display final report
+    """
+    try:
+        run = RUNS[run_id]
+
+        completion_log = {
+            "task_id": run_id,  # Use run_id as pseudo-task for grouping
+            "parent_log_id": None,
+            "timestamp": datetime.utcnow().isoformat(),
+            "from_agent": "PAS_ROOT",
+            "to_agent": "HMI",
+            "action_type": "directive_complete",
+            "action_name": "Prime Directive Complete",
+            "action_data": json.dumps(
+                {
+                    "run_id": run_id,
+                    "project_id": run["project_id"],
+                    "tasks_total": len(tasks),
+                    "tasks_succeeded": len(tasks) - len(failed_tasks),
+                    "tasks_failed": len(failed_tasks),
+                    "duration_seconds": round(duration, 2),
+                    "validation_pass": run["validation_pass"],
+                    "status": run["status"],
+                }
+            ),
+            "status": "done",
+            "tier_from": 0,  # PAS ROOT is tier 0 (above all agents)
+            "tier_to": None,
+        }
+
+        # POST to Registry action_logs endpoint
+        response = requests.post(
+            "http://localhost:6121/action_logs",
+            json=completion_log,
+            timeout=2,
+        )
+        response.raise_for_status()
+
+        print(f"✅ [PAS] Notified HMI of Prime Directive completion: {run_id}")
+        print(
+            f"   Tasks: {len(tasks) - len(failed_tasks)}/{len(tasks)} succeeded, "
+            f"Duration: {duration:.1f}s, Validation: {run['validation_pass']}"
+        )
+
+    except requests.exceptions.RequestException as e:
+        # Log warning but don't fail the run (notification is non-critical)
+        print(f"⚠️ [PAS] Failed to notify HMI of completion (Registry unavailable): {e}")
+    except Exception as e:
+        print(f"⚠️ [PAS] Failed to notify HMI of completion (unexpected error): {e}")
 
 
 # ============================================================================

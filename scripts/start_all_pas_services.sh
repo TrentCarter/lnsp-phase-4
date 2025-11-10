@@ -22,6 +22,15 @@ echo "Starting Phase 1 services..."
 ./scripts/start_phase1_services.sh
 
 echo ""
+echo "Waiting 5s for Phase 1 to stabilize..."
+sleep 5
+echo ""
+
+# Start HMI Service
+echo "Starting HMI Service..."
+./scripts/start_hmi_server.sh &
+
+echo ""
 echo "=========================================="
 echo "All PAS Services Running!"
 echo "=========================================="
@@ -33,6 +42,12 @@ echo ""
 echo "Phase 1 (Management Agents):"
 echo "  Resource Manager:   http://localhost:6104"
 echo "  Token Governor:     http://localhost:6105"
+echo ""
+echo "HMI (Web Dashboard):"
+echo "  Main Dashboard:     http://localhost:6101/"
+echo "  Tree View:          http://localhost:6101/tree"
+echo "  Sequencer:          http://localhost:6101/sequencer"
+echo "  Actions:            http://localhost:6101/actions"
 echo ""
 echo "Interactive API Docs:"
 echo "  http://localhost:6121/docs  (Registry)"

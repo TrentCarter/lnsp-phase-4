@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Arrow Direction Test</title>
+    <style>
+        canvas { border: 1px solid black; }
+        .test-info { margin: 10px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h2>Arrow Direction Test</h2>
+    <div class="test-info">Testing horizontal vs vertical arrow directions</div>
+    <canvas id="arrowCanvas" width="600" height="400"></canvas>
+    
+    <script>
+        const canvas = document.getElementById('arrowCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function drawArrow(x1, y1, x2, y2, color, style, direction, animOffset) {
+            ctx.save();
+            
+            // Set line style
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.8;
+            
+            if (style === 'dashed') {
+                ctx.setLineDash([5, 5]);
+                ctx.lineDashOffset = -animOffset;
+            } else {
+                ctx.setLineDash([]);
+            }
+            
+            // Draw line
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            
+            // Draw arrowhead
+            const arrowSize = 8;
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.8;
+            
+            ctx.beginPath();
+            if (direction === 'down') {
+                // Downward arrow (▼)
+                ctx.moveTo(x2, y2);
+                ctx.lineTo(x2 - arrowSize / 2, y2 - arrowSize);
+                ctx.lineTo(x2 + arrowSize / 2, y2 - arrowSize);
+            } else if (direction === 'up') {
+                // Upward arrow (▲)
+                ctx.moveTo(x2, y2);
+                ctx.lineTo(x2 - arrowSize / 2, y2 + arrowSize);
+                ctx.lineTo(x2 + arrowSize / 2, y2 + arrowSize);
+            } else if (direction === 'right') {
+                // Rightward arrow (▶)
+                ctx.moveTo(x2, y2);
+                ctx.lineTo(x2 - arrowSize, y2 - arrowSize / 2);
+                ctx.lineTo(x2 - arrowSize, y2 + arrowSize / 2);
+            } else if (direction === 'left') {
+                // Leftward arrow (◀)
+                ctx.moveTo(x2, y2);
+                ctx.lineTo(x2 + arrowSize, y2 - arrowSize / 2);
+                ctx.lineTo(x2 + arrowSize, y2 + arrowSize / 2);
+            }
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        // Test different arrow directions
+        const animOffset = 0;
+        
+        // Old style: Vertical arrows
+        drawArrow(100, 50, 100, 150, '#ff0000', 'solid', 'down', animOffset);
+        drawArrow(200, 150, 200, 50, '#ff0000', 'solid', 'up', animOffset);
+        
+        // New style: Horizontal arrows
+        drawArrow(300, 100, 400, 100, '#0000ff', 'solid', 'right', animOffset);
+        drawArrow(500, 100, 400, 100, '#0000ff', 'solid', 'left', animOffset);
+        
+        // Labels
+        ctx.font = '12px monospace';
+        ctx.fillStyle = '#000';
+        ctx.fillText('OLD: Vertical ↓', 80, 30);
+        ctx.fillText('OLD: Vertical ↑', 180, 30);
+        ctx.fillText('NEW: Horizontal →', 300, 30);
+        ctx.fillText('NEW: Horizontal ←', 450, 30);
+        
+        // Task blocks example
+        ctx.fillStyle = '#e0e0e0';
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        
+        // Parent task
+        ctx.fillRect(50, 200, 100, 40);
+        ctx.strokeRect(50, 200, 100, 40);
+        ctx.fillText('PAS_ROOT', 70, 225);
+        
+        // Child task
+        ctx.fillRect(250, 200, 100, 40);
+        ctx.strokeRect(250, 200, 100, 40);
+        ctx.fillText('DIR_CODE', 270, 225);
+        
+        // Horizontal delegation arrow (NEW)
+        drawArrow(150, 220, 250, 220, '#3b82f6', 'solid', 'right', animOffset);
+        
+        // More child tasks
+        ctx.fillRect(450, 200, 100, 40);
+        ctx.strokeRect(450, 200, 100, 40);
+        ctx.fillText('MGR_BACKEND', 460, 225);
+        
+        ctx.fillRect(650, 200, 80, 40);
+        ctx.strokeRect(650, 200, 80, 40);
+        ctx.fillText('PROG_001', 655, 225);
+        
+        // Horizontal arrows showing delegation chain
+        drawArrow(350, 220, 450, 220, '#3b82f6', 'solid', 'right', animOffset);
+        drawArrow(550, 220, 650, 220, '#3b82f6', 'solid', 'right', animOffset);
+        
+        // Completion arrow (dashed, going back)
+        drawArrow(730, 220, 630, 220, '#10b981', 'dashed', 'left', animOffset);
+        
+        ctx.fillText('Delegation Chain (Horizontal Arrows):', 50, 300);
+        ctx.fillText('PAS_ROOT → DIR_CODE → MGR_BACKEND → PROG_001', 50, 320);
+        ctx.fillText('Blue solid: Assignment arrows', 50, 340);
+        ctx.fillText('Green dashed: Completion arrows', 50, 360);
+    </script>
+</body>
+</html>

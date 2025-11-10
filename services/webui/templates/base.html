@@ -776,6 +776,16 @@
                         <span id="volume-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 40px;">70%</span>
                     </div>
                 </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Note Duration</div>
+                        <div class="setting-description">Duration of musical notes in milliseconds (50-500ms)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="range" id="note-duration" class="setting-input" min="50" max="500" value="150" step="10" style="width: 120px;">
+                        <span id="note-duration-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 50px;">150ms</span>
+                    </div>
+                </div>
             </div>
 
             <div class="settings-footer">
@@ -945,6 +955,7 @@
             sequencerNotesEnabled: false,
             agentVoiceEnabled: false,
             audioVolume: 70,
+            sequencerNoteDuration: 150,  // milliseconds (50-500)
             timezone: 'America/New_York',  // EST as default
             treeOrientation: 'top',
             hideScrollbars: true,
@@ -979,6 +990,7 @@
             currentSettings.sequencerNotesEnabled = document.getElementById('sequencer-notes-toggle').classList.contains('active');
             currentSettings.agentVoiceEnabled = document.getElementById('agent-voice-toggle').classList.contains('active');
             currentSettings.audioVolume = parseInt(document.getElementById('audio-volume').value);
+            currentSettings.sequencerNoteDuration = parseInt(document.getElementById('note-duration').value);
             currentSettings.timezone = document.getElementById('timezone-select').value;
             currentSettings.treeOrientation = document.getElementById('tree-orientation').value;
             currentSettings.hideScrollbars = document.getElementById('hide-scrollbars-toggle').classList.contains('active');
@@ -1045,6 +1057,8 @@
             document.getElementById('animation-duration').value = currentSettings.animationDuration;
             document.getElementById('audio-volume').value = currentSettings.audioVolume;
             document.getElementById('volume-display').textContent = currentSettings.audioVolume + '%';
+            document.getElementById('note-duration').value = currentSettings.sequencerNoteDuration;
+            document.getElementById('note-duration-display').textContent = currentSettings.sequencerNoteDuration + 'ms';
             document.getElementById('timezone-select').value = currentSettings.timezone;
             document.getElementById('tree-orientation').value = currentSettings.treeOrientation;
             document.getElementById('default-playback-speed').value = currentSettings.defaultPlaybackSpeed;
@@ -1088,14 +1102,22 @@
             document.getElementById('hide-scrollbars-toggle').classList.toggle('active');
         }
 
-        // Update volume display as slider moves
+        // Update volume and note duration displays as sliders move
         document.addEventListener('DOMContentLoaded', () => {
             const volumeSlider = document.getElementById('audio-volume');
             const volumeDisplay = document.getElementById('volume-display');
+            const noteDurationSlider = document.getElementById('note-duration');
+            const noteDurationDisplay = document.getElementById('note-duration-display');
 
             if (volumeSlider && volumeDisplay) {
                 volumeSlider.addEventListener('input', (e) => {
                     volumeDisplay.textContent = e.target.value + '%';
+                });
+            }
+
+            if (noteDurationSlider && noteDurationDisplay) {
+                noteDurationSlider.addEventListener('input', (e) => {
+                    noteDurationDisplay.textContent = e.target.value + 'ms';
                 });
             }
         });
@@ -1481,6 +1503,93 @@
         }
 
         /**
+         * Play hierarchical musical note based on agent tier
+         * Higher tier (VP/Director) = lower pitch, Lower tier (Programmer) = higher pitch
+         * Parallel agents at same tier get slightly offset pitches for clarity
+         *
+         * @param {string} eventType - Event type
+         * @param {Object} task - Task object with agent_id
+         */
+        function playEventNoteHierarchical(eventType, task = null) {
+            if (!audioContext) initAudioContext();
+            if (!audioContext) return;
+
+            const settings = getSettings();
+            if (!settings.masterAudioEnabled || !settings.sequencerNotesEnabled) return;
+
+            // Get note duration from settings (default 150ms)
+            const noteDuration = (settings.sequencerNoteDuration || 150) / 1000; // Convert ms to seconds
+
+            // MIDI note to frequency conversion (A440 standard)
+            const midiToFreq = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
+
+            // Base MIDI notes by event type (lower octave for hierarchy headroom)
+            const eventBaseNotes = {
+                'task_assigned': 48,    // C3 (lower for hierarchy range)
+                'task_started': 52,     // E3
+                'task_completed': 60,   // C4
+                'error': 36,            // C2 (very low)
+                'warning': 43,          // G2
+                'success': 65,          // F4
+                'heartbeat': 48         // C3
+            };
+
+            let baseMidi = eventBaseNotes[eventType] || 48;
+
+            // Calculate tier-based pitch offset
+            // Tier 0 (VP) = +0 semitones (deepest/lowest)
+            // Tier 1 (Director) = +4 semitones
+            // Tier 2 (Manager) = +7 semitones
+            // Tier 3 (Programmer) = +12 semitones (highest)
+            // Tier 4+ (Workers) = +15 semitones
+            let tierOffset = 0;
+            let agentTier = '?';
+            let agentId = '';
+
+            if (task && task.agent_id && typeof agents !== 'undefined' && agents.length > 0) {
+                agentId = task.agent_id;
+                const agent = agents.find(a => a.service_id === agentId);
+                if (agent) {
+                    agentTier = agent.tier;
+                    const tier = parseInt(agentTier) || 3; // Default to tier 3 if unknown
+
+                    // Tier mapping (inverted: higher tier number = higher pitch)
+                    const tierPitchMap = {
+                        '0': 0,    // VP (lowest/deepest)
+                        '1': 4,    // Director (+4 semitones)
+                        '2': 7,    // Manager (+7 semitones)
+                        '3': 12,   // Programmer (+12 semitones = 1 octave up)
+                        '4': 15,   // Worker (+15 semitones)
+                        '5': 17    // Lowest tier (+17 semitones)
+                    };
+
+                    tierOffset = tierPitchMap[String(tier)] || 12;
+                } else {
+                    console.warn(`[Sound] Agent not found for agent_id: ${agentId}`);
+                }
+            }
+
+            // Calculate per-agent offset for parallel agents at same tier
+            // Use agent_id hash to generate consistent pitch offset (+0 to +2 semitones)
+            let agentOffset = 0;
+            if (agentId) {
+                // Simple hash: sum char codes modulo 3
+                const hash = agentId.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+                agentOffset = (hash % 3); // 0, 1, or 2 semitones
+            }
+
+            const finalMidi = baseMidi + tierOffset + agentOffset;
+            const frequency = midiToFreq(finalMidi);
+
+            // Debug log (throttled)
+            if (Math.random() < 0.1) { // Log 10% of notes
+                console.log(`🎵 [Sound] ${eventType} - tier=${agentTier}, base=${baseMidi}, tier+${tierOffset}, agent+${agentOffset}, final=${finalMidi} (${Math.round(frequency)}Hz), duration=${noteDuration}s`);
+            }
+
+            playClientNote(frequency, noteDuration, 'sine');
+        }
+
+        /**
          * Speak text using Web Speech API (fallback to audio service)
          * @param {string} text - Text to speak
          */
@@ -1504,8 +1613,9 @@
         /**
          * Handle task event sound based on current sound mode
          * @param {string} eventType - Event type
+         * @param {Object} task - Task object (optional, for hierarchical pitch calculation)
          */
-        function handleTaskEventSound(eventType) {
+        function handleTaskEventSound(eventType, task = null) {
             if (!audioContext) initAudioContext();
 
             const settings = getSettings();
@@ -1533,8 +1643,8 @@
                     break;
 
                 case 'music':
-                    // Musical notes
-                    playEventNote(eventType);
+                    // Musical notes with hierarchical pitch
+                    playEventNoteHierarchical(eventType, task);
                     break;
 
                 case 'random':
