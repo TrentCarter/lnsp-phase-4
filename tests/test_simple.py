@@ -1,5 +1,4 @@
-# Test Suite for Simple Functions
-
+# Testing PAS hierarchy. Repo root is /Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4.
 """
 This file contains unit tests for basic arithmetic operations.
 """
