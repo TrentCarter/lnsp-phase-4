@@ -70,6 +70,19 @@
         box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
     }
 
+    .playhead::before {
+        content: 'NOW';
+        position: absolute;
+        top: 65px;
+        left: 6px;
+        font-size: 14px;
+        font-weight: bold;
+        color: #ef4444;
+        text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+        white-space: nowrap;
+        pointer-events: none;
+    }
+
     .playhead-handle {
         position: absolute;
         top: -8px;
@@ -359,6 +372,34 @@
         background: rgba(30, 39, 71, 0.8);
         border-radius: 6px;
     }
+
+    /* 🆕 Prime Directive Completion Banner Animations */
+    @keyframes slideDown {
+        from {
+            transform: translate(-50%, -150%);
+            opacity: 0;
+        }
+        to {
+            transform: translate(-50%, -50%);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translate(-50%, -50%);
+            opacity: 1;
+        }
+        to {
+            transform: translate(-50%, -150%);
+            opacity: 0;
+        }
+    }
+
+    #end-of-project-banner button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
+    }
 </style>
 {% endblock %}
 
@@ -517,6 +558,7 @@
     let canvas, ctx;
     let isPlaying = false;
     let playheadPosition = 0;
+    let projectComplete = false;  // Track if Prime Directive is complete
     let zoomLevel = parseFloat(localStorage.getItem('sequencer_zoomLevel')) || 1.0;
     let timeRangeSeconds = parseInt(localStorage.getItem('sequencer_timeRange')) || 300; // Default: 5 min
     let playbackSpeed = 1.0; // Playback speed multiplier (0.1x to 5.0x)
@@ -529,6 +571,13 @@
     let verticalOffset = 0; // NEW: Vertical pan offset in pixels (for scrolling up/down)
     let projectName = 'Project Timeline'; // Project/task name for header
     let projectTaskId = null; // Current task ID
+
+    // Console flood protection
+    let frameCounter = 0;
+    const LOG_EVERY_N_FRAMES = 100; // Only log every 100th frame (every 10 seconds at 100ms/frame)
+
+    // Initialize sequencer start time (prevents undefined errors)
+    window._sequencerStartTime = 0;
 
     // Layout constants
     const HEADER_HEIGHT = 60; // Height for project header bar
@@ -666,6 +715,10 @@
                 const deltaX = dragStartX - e.clientX;
                 const deltaTime = deltaX / (PIXELS_PER_SECOND * zoomLevel);
                 timelineOffset = Math.max(0, dragStartOffset + deltaTime);
+
+                // CRITICAL: Keep playheadPosition synchronized with timelineOffset
+                // This ensures sounds/flashes trigger at the correct visual position
+                playheadPosition = timelineOffset;
 
                 drawSequencer();
                 updatePlayhead();
@@ -887,11 +940,29 @@
             }
             console.log(`[DEDUP] Using mode="${dedupMode}", task count=${tasks.length}`);
 
+            // 🆕 Check for Prime Directive completion signal
+            const completionTask = tasks.find(t =>
+                t.action_type === 'directive_complete' &&
+                t.from_agent === 'PAS_ROOT'
+            );
+
+            if (completionTask && !projectComplete) {
+                handleDirectiveComplete(completionTask);
+            }
+
             // Detect real-time task changes and trigger sounds (for Start Demo)
             detectRealtimeTaskChanges(data.tasks || []);
 
             // Allocate lanes for overlapping tasks (NEW!)
             allocateLanes();
+
+            // IMPORTANT: Don't clear lastTriggeredTaskStarts during refresh if playing
+            // This prevents duplicate sounds when data refreshes mid-playback
+            if (!isPlaying) {
+                console.log('[Refresh] Not playing - safe to clear triggered tasks on next playback');
+            } else {
+                console.log('[Refresh] Playing - preserving triggered tasks to prevent duplicate sounds');
+            }
 
             // Set project name from data (or use task_id as fallback)
             projectTaskId = taskId;
@@ -906,12 +977,27 @@
                 // Start playing after a short delay
                 setTimeout(togglePlayPause, 500);
             } else if (!isCurrentTask) {
-                // Reset to beginning for historical tasks
-                playheadPosition = 0;
-                console.log('Historical task - starting at beginning (stopped)');
+                // CRITICAL: Preserve playback position during refreshes
+                // Only reset if we're at the very beginning and not playing
+                if (playheadPosition === 0 && !isPlaying) {
+                    console.log('Historical task - starting at beginning (stopped)');
+                } else {
+                    console.log('Historical task - preserving playback state during refresh');
+                }
+                // Don't reset playheadPosition during refresh!
             }
 
             drawSequencer();
+            
+            // 🆕 Auto-fit zoom to screen on initial data load (with delay to avoid race condition)
+            if (!window._sequencerInitialZoomFit) {
+                console.log('🎯 [AUTO-FIT] Scheduling initial zoom to fit screen after delay');
+                setTimeout(() => {
+                    console.log('🎯 [AUTO-FIT] Applying delayed zoom to fit screen');
+                    fitAll();
+                    window._sequencerInitialZoomFit = true;
+                }, 500); // Wait 500ms for canvas to be properly sized
+            }
         } catch (error) {
             console.error('Error fetching sequencer data:', error);
         }
@@ -939,51 +1025,8 @@
         // Always call drawTaskArrows - it will check individual arrow type settings
         drawTaskArrows();
 
-        // Draw NOW line (current real-world time marker)
-        drawNowLine();
-    }
-
-    /**
-     * Draw the NOW line - vertical line showing current PLAYBACK time
-     * This is the point where sounds should be triggered (when tasks cross it during playback)
-     *
-     * CRITICAL: NOW line represents the playback cursor position (playheadPosition),
-     * NOT real-world time (Date.now()). Time 0 = left edge of timeline.
-     */
-    function drawNowLine() {
-        const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
-
-        // 🔴 FIX: Use playheadPosition (playback cursor), NOT Date.now() (real-world time)
-        // playheadPosition starts at 0 and increases during playback
-        const nowOffset = playheadPosition; // Seconds from timeline start (time 0)
-        const nowX = AGENT_LABEL_WIDTH + ((nowOffset - timelineOffset) * pixelsPerSecond);
-
-        // 🔍 Debug: Log NOW line position (throttled to avoid console spam)
-        if (Math.random() < 0.01) { // Log 1% of the time
-            console.log(`📍 [NOW LINE] playheadPosition=${playheadPosition.toFixed(1)}s, nowX=${nowX.toFixed(0)}px, visible=${nowX >= AGENT_LABEL_WIDTH && nowX <= canvas.width}`);
-        }
-
-        // Only draw if NOW is visible on canvas
-        if (nowX >= AGENT_LABEL_WIDTH && nowX <= canvas.width) {
-            // Draw vertical NOW line (bright yellow/gold)
-            ctx.strokeStyle = '#fbbf24';
-            ctx.lineWidth = 3;
-            ctx.globalAlpha = 0.8;
-            ctx.setLineDash([10, 5]); // Dashed line
-            ctx.beginPath();
-            ctx.moveTo(nowX, HEADER_HEIGHT);
-            ctx.lineTo(nowX, canvas.height);
-            ctx.stroke();
-            ctx.setLineDash([]); // Reset dash
-            ctx.globalAlpha = 1.0;
-
-            // Draw NOW label
-            ctx.fillStyle = '#fbbf24';
-            ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('NOW', nowX, HEADER_HEIGHT + 35);
-            ctx.textAlign = 'left';
-        }
+        // NOTE: Red playhead (HTML element) is positioned at left edge (AGENT_LABEL_WIDTH)
+        // Sounds trigger when tasks cross the playhead during timeline scrolling
     }
 
     function drawProjectHeader() {
@@ -1188,6 +1231,11 @@
         const startTime = window._sequencerStartTime || now;
         const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
 
+        // DEBUG: Log flash set size at start of draw (throttled to prevent crash)
+        if (currentlyPlayingTasks.size > 0 && frameCounter % 50 === 0) { // Only log every 50th frame
+            console.log(`🎨 [DRAW] Drawing ${tasks.length} tasks, currentlyPlayingTasks.size=${currentlyPlayingTasks.size}`);
+        }
+
         tasks.forEach(task => {
             // Find the correct agent row for this task (considering lanes)
             const taskLane = task._lane || 0;
@@ -1212,8 +1260,11 @@
             const y = HEADER_HEIGHT + (agentIndex * rowHeight) - verticalOffset + ROW_PADDING; // Apply vertical offset
             const blockHeight = rowHeight - (2 * ROW_PADDING);
 
-            // Skip if task block is not visible on screen
-            if (y + blockHeight < HEADER_HEIGHT || y > canvas.height) return;
+            // Check if task is currently playing sound (needs flash even if off-screen)
+            const shouldFlash = currentlyPlayingTasks.has(task.task_id);
+
+            // Skip if task block is not visible on screen AND not currently flashing
+            if (!shouldFlash && (y + blockHeight < HEADER_HEIGHT || y > canvas.height)) return;
 
             // Calculate x position and width
             const taskStartTime = task.start_time;
@@ -1276,6 +1327,27 @@
 
                 // Draw text
                 ctx.fillText(text, x + 5, y + blockHeight / 2);
+            }
+
+            // Draw bright flash overlay if task is currently playing sound
+            // (shouldFlash already computed earlier at line 1203)
+            if (shouldFlash) {
+                // Only log first few flashes to prevent spam
+                if (frameCounter < 10) {
+                    console.log(`✨ [FLASH RENDER] Drawing flash for "${task.name}" (id=${task.task_id})`);
+                }
+
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'; // Bright white overlay
+                ctx.fillRect(x, y, width, blockHeight);
+
+                // Add glowing border
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 4;
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 15;
+                ctx.strokeRect(x, y, width, blockHeight);
+                ctx.shadowBlur = 0; // Reset shadow
             }
 
             // Store block bounds for click detection
@@ -1409,15 +1481,15 @@
                 return;  // Skip if no relationship data
             }
             if (task.from_agent === 'user' || task.to_agent === 'user') {
-                if (idx < 5) console.log(`[Arrow Skip] "${task.name}" - User interaction (from=${task.from_agent}, to=${task.to_agent})`);
+                if (idx < 2 && frameCounter % 1000 === 0) console.log(`[Arrow Skip] "${task.name}" - User interaction (from=${task.from_agent}, to=${task.to_agent})`);
                 return;  // Skip user interactions
             }
             if (!task._bounds) {
-                if (idx < 5) console.log(`[Arrow Skip] "${task.name}" - No bounds (not rendered)`);
+                if (idx < 2 && frameCounter % 1000 === 0) console.log(`[Arrow Skip] "${task.name}" - No bounds (not rendered)`);
                 return;
             }
 
-            if (idx < 5) console.log(`[Arrow Check] Task "${task.name}": from=${task.from_agent}, to=${task.to_agent}, action_type=${task.action_type}, status=${task.status}`);
+            if (idx < 2 && frameCounter % 1000 === 0) console.log(`[Arrow Check] Task "${task.name}": from=${task.from_agent}, to=${task.to_agent}, action_type=${task.action_type}, status=${task.status}`);
 
             // Get Y positions for from/to agents (use lane-specific position if available)
             // For child task (to_agent), use the task's actual lane assignment
@@ -1457,8 +1529,8 @@
                     parentTask = findParentTaskAtTime(task.from_agent, task, task.start_time);
                 }
 
-                // Debug logging for parent lookup
-                if (idx < 20) {
+                // Debug logging for parent lookup (severely throttled to prevent crash)
+                if (idx < 3 && frameCounter % 1000 === 0) { // Only first 3 tasks, every 1000 frames
                     console.log(`[Arrow Debug ${idx}] Task "${task.name}":`, {
                         log_id: task.log_id,
                         parent_log_id: task.parent_log_id,
@@ -1503,7 +1575,7 @@
             const hasParentAgent = task.from_agent !== task.to_agent;
             const showCompletionEnabled = window.sequencerSettings?.showCompletionArrows !== false;
 
-            if (idx < 10) {
+            if (idx < 3 && frameCounter % 1000 === 0) { // Only first 3 tasks, every 1000 frames
                 console.log(`[Completion Check ${idx}] "${task.name}": status=${task.status}, isCompleted=${isCompleted}, hasParentAgent=${hasParentAgent}, showEnabled=${showCompletionEnabled}`);
             }
 
@@ -1517,7 +1589,7 @@
                     parentTask = findParentTaskAtTime(task.from_agent, task, task.start_time);
                 }
 
-                if (idx < 10) {
+                if (idx < 3 && frameCounter % 1000 === 0) { // Only first 3 tasks, every 1000 frames
                     console.log(`[Completion Parent ${idx}] "${task.name}": parent_log_id=${task.parent_log_id}, foundParent=${!!parentTask}, parentName=${parentTask?.name}`);
                 }
 
@@ -1537,7 +1609,10 @@
                         animOffset
                     );
                     arrowsDrawn++;
-                    console.log(`✅ [Arrow] GREEN COMPLETION: "${task.name}" → "${parentTask.name}"`);
+                    // Only log first few completion arrows to prevent spam
+                    if (arrowsDrawn <= 5) {
+                        console.log(`✅ [Arrow] GREEN COMPLETION: "${task.name}" → "${parentTask.name}"`);
+                    }
                 } else if (idx < 10) {
                     console.warn(`⚠️ [Arrow Skip] Completion: "${task.name}" - parent=${!!parentTask}, bounds=${!!parentTask?._bounds}`);
                 }
@@ -1750,9 +1825,10 @@
     function updatePlayhead() {
         const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
 
-        // FIXED: Playhead stays at a fixed position (centered at 25% of canvas width)
-        // Timeline scrolls left during playback (via timelineOffset in drawSequencer)
-        const fixedPlayheadX = AGENT_LABEL_WIDTH + (canvas.width * 0.25);
+        // FIXED: Playhead at LEFT edge (like music sequencers)
+        // Tasks scroll right-to-left past the playhead during playback
+        // Sounds trigger when tasks cross this line
+        const fixedPlayheadX = AGENT_LABEL_WIDTH;
         document.getElementById('playhead').style.left = `${fixedPlayheadX}px`;
     }
 
@@ -1763,19 +1839,52 @@
         const btn = document.getElementById('play-pause-btn');
 
         if (isPlaying) {
+            // Reset frame counter at playback start
+            frameCounter = 0;
+
             icon.textContent = '⏸️';
             text.textContent = 'Pause';
             btn.classList.add('active');
-            startPlayback();
+
+            console.log('▶️ [PLAY] Starting playback for task:', projectTaskId);
+
+            // Immediate refresh on play to get latest task data
+            fetchSequencerData().then(() => {
+                console.log('✅ [PLAY] Data refreshed before playback');
+                startPlayback();
+            });
         } else {
             icon.textContent = '▶️';
             text.textContent = 'Play';
             btn.classList.remove('active');
+
+            console.log('⏸️ [PAUSE] Pausing playback');
+
+            // CRITICAL: Clear the playback timer when pausing
+            if (playbackTimer) {
+                clearTimeout(playbackTimer);
+                playbackTimer = null;
+            }
         }
     }
 
+    // Playback timer reference (so we can cancel it)
+    let playbackTimer = null;
+
     function startPlayback() {
-        if (!isPlaying) return;
+        // CRITICAL: Clear any existing timer first
+        if (playbackTimer) {
+            clearTimeout(playbackTimer);
+            playbackTimer = null;
+        }
+
+        // Check if still playing (user might have paused)
+        if (!isPlaying) {
+            return; // Exit cleanly, no more scheduling
+        }
+
+        // Increment frame counter for console protection
+        frameCounter++;
 
         // Advance by 0.1 seconds * playback speed
         playheadPosition += (0.1 * playbackSpeed);
@@ -1784,20 +1893,50 @@
         // Check if we've scrolled past the maximum time (relative to timeline start)
         if (tasks.length > 0) {
             const earliestTime = Math.min(...tasks.map(t => t.start_time));
-            // FIX: Don't use Date.now() for old tasks - estimate 30s for running tasks
+            // FIX: Don't use Date.now() for old tasks - use actual task times
             const latestTime = Math.max(...tasks.map(t => {
                 if (t.end_time) return t.end_time;
-                const hasRunningStatus = ['running', 'blocked', 'waiting'].includes(t.status);
-                return hasRunningStatus ? (t.start_time + 30) : (t.start_time + 30);
+                // For running tasks, use a reasonable estimate based on start_time
+                // Don't use current playback position as it causes resets
+                return t.start_time + 300; // 5 minutes estimate for running tasks
             }));
             const maxTime = latestTime - earliestTime;
 
-            if (playheadPosition > maxTime) {
-                playheadPosition = 0;
-                timelineOffset = 0;
-                lastTriggeredTaskStarts.clear(); // Reset sound triggers
-                lastTriggeredTaskEnds.clear();
-                lastPlayheadPosition = 0;
+            // Log position every N frames to reduce console spam (increased from 100 to 500)
+            if (frameCounter % 100 === 0) { // More frequent logging to debug the reset issue
+                console.log(`▶️ [PLAYBACK] Position: ${playheadPosition.toFixed(1)}s / ${maxTime.toFixed(1)}s (${((playheadPosition/maxTime)*100).toFixed(0)}%)`);
+            }
+
+            // DEBUG: Log when approaching potential reset point
+            if (playheadPosition > 50 && playheadPosition < 65) {
+                console.log(`🔍 [PLAYBACK DEBUG] Approaching 1min mark: playheadPosition=${playheadPosition.toFixed(1)}s, maxTime=${maxTime.toFixed(1)}s, earliestTime=${earliestTime}, latestTime=${latestTime}`);
+            }
+
+            // FIX: Stop playback when reaching end instead of looping
+            if (playheadPosition >= maxTime) {
+                // CRITICAL: Set isPlaying = false AND clear timer BEFORE returning
+                isPlaying = false;
+                if (playbackTimer) {
+                    clearTimeout(playbackTimer);
+                    playbackTimer = null;
+                }
+
+                console.log('🏁 [PLAYBACK] Reached end - stopping');
+
+                document.getElementById('play-icon').textContent = '▶️';
+                document.getElementById('play-text').textContent = 'Play';
+                document.getElementById('play-pause-btn').classList.remove('active');
+
+                // Keep playhead at the end position (don't reset to 0)
+                playheadPosition = maxTime;
+                timelineOffset = maxTime;
+
+                // Final redraw at end position
+                drawSequencer();
+                updatePlayhead();
+                updateCurrentTime();
+
+                return; // Exit cleanly, no more scheduling
             }
         }
 
@@ -1808,7 +1947,10 @@
         // Check if playhead crossed any task boundaries for sound
         checkTaskEvents();
 
-        setTimeout(startPlayback, 100); // Update every 100ms
+        // Schedule next frame ONLY if still playing
+        if (isPlaying) {
+            playbackTimer = setTimeout(startPlayback, 100); // Update every 100ms
+        }
     }
 
     // Track which task boundaries have been crossed (start and end separately)
@@ -1816,6 +1958,7 @@
     let lastTriggeredTaskEnds = new Set();
     let lastPlayheadPosition = 0;
     let previousTaskStates = new Map(); // Track previous task states for real-time sound triggering
+    let currentlyPlayingTasks = new Set(); // Track tasks currently playing sound (for visual flash)
 
     /**
      * Detect real-time task status changes and trigger sounds immediately.
@@ -1842,7 +1985,7 @@
 
             if (!previousState) {
                 // New task detected - trigger "task started" sound
-                console.log(`🔊 [REALTIME] New task detected: "${task.name}" (status=${task.status})`);
+                // Reduced logging to prevent Chrome crash
                 queueSound('task_started', task);
                 previousTaskStates.set(taskId, currentState);
             } else {
@@ -1857,7 +2000,7 @@
                                      task.status === 'blocked' ? 'warning' :
                                      'task_completed';
 
-                    console.log(`🔊 [REALTIME] Task status changed: "${task.name}" (${previousState.status} → ${task.status})`);
+                    // Reduced logging to prevent Chrome crash
                     queueSound(eventType, task);
                     previousTaskStates.set(taskId, currentState);
                 }
@@ -1874,68 +2017,71 @@
     }
 
     function checkTaskEvents() {
+        // CRITICAL: Only check for sound events during active playback
+        if (!isPlaying) {
+            return; // Don't trigger sounds when paused/stopped
+        }
+
         // Check if sound is enabled (from settings or local dropdown)
         const settings = typeof getSettings === 'function' ? getSettings() : {};
         const effectiveSoundMode = soundMode !== 'none' ? soundMode : (settings.defaultSoundMode || 'none');
 
         if (effectiveSoundMode === 'none') {
-            // DEBUG: Log first time only
-            if (!window._soundDebugLogged) {
-                console.log('🔇 [SOUND] Sound mode is "none", no sounds will play');
-                window._soundDebugLogged = true;
-            }
-            return;
+            return; // Sound disabled (no logging needed)
         }
 
         // 🔴 FIX: Use playheadPosition (playback cursor position in timeline)
         // NOT Date.now() (real-world time)!
-        //
-        // The playheadPosition represents where we are in the RECORDED timeline,
-        // measured in seconds from the earliest task start time.
-        //
-        // Tasks have absolute timestamps (task.start_time, task.end_time).
-        // We need to convert playheadPosition to absolute timeline coordinates.
-
         const startTime = window._sequencerStartTime || 0;
         const currentPlaybackTime = startTime + playheadPosition; // Absolute time on timeline
         const previousPlaybackTime = startTime + (lastPlayheadPosition || 0);
 
-        // DEBUG: Log first call only
-        if (!window._soundCheckDebugLogged) {
-            console.log(`🔊 [SOUND] Enabled! mode="${effectiveSoundMode}", checking ${tasks.length} tasks for events`);
-            console.log(`🔊 [SOUND] Timeline start: ${new Date(startTime * 1000).toLocaleTimeString()}`);
-            console.log(`🔊 [SOUND] Playhead position: ${playheadPosition.toFixed(1)}s`);
-            console.log(`🔊 [SOUND] Current playback time: ${new Date(currentPlaybackTime * 1000).toLocaleTimeString()}`);
-            console.log(`🔊 [SOUND] Sounds trigger when task timestamps match playhead position`);
-            window._soundCheckDebugLogged = true;
-        }
-
         let soundsTriggered = 0;
 
         // Find tasks that crossed the playhead since last frame
+        // CRITICAL: Only trigger sounds for tasks that are VISIBLE near the NOW line
+        const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
+        const nowX = AGENT_LABEL_WIDTH; // NOW line is at left edge
+        
         tasks.forEach(task => {
             const taskStart = task.start_time;
             const hasRunningStatus = ['running', 'blocked', 'waiting'].includes(task.status);
-            const taskEnd = task.end_time || (hasRunningStatus ? (task.start_time + 30) : (task.start_time + 30));
+            // CRITICAL: Use actual end_time if available, don't default to 30 seconds
+            const taskEnd = task.end_time;
+
+            // DEBUG: Log first few tasks to check time data (more detailed)
+            if (frameCounter < 10) {
+                console.log(`🕐 [TIME DEBUG] Task "${task.name}": start_time=${task.start_time}, end_time=${task.end_time}, status=${task.status}, hasRunning=${hasRunningStatus}`);
+            }
+
+            // Skip tasks without valid timing
+            if (!taskStart || (!taskEnd && !hasRunningStatus)) {
+                return;
+            }
 
             const taskStartKey = `${task.task_id}_start`;
             const taskEndKey = `${task.task_id}_end`;
 
-            // Check if playhead crossed task START
+            // Check if playhead crossed task START (simple time-based check)
             // This happens when: previousPlaybackTime < taskStart <= currentPlaybackTime
-            if (previousPlaybackTime < taskStart && taskStart <= currentPlaybackTime && !lastTriggeredTaskStarts.has(taskStartKey)) {
+            const hasMoved = Math.abs(currentPlaybackTime - previousPlaybackTime) > 0.01; // Moved at least 10ms
+            const crossedStart = previousPlaybackTime < taskStart && taskStart <= currentPlaybackTime;
+            const notYetTriggered = !lastTriggeredTaskStarts.has(taskStartKey);
+
+            if (crossedStart && notYetTriggered && hasMoved) {
                 lastTriggeredTaskStarts.add(taskStartKey);
                 soundsTriggered++;
 
                 const eventType = 'task_started';
-                console.log(`🔊 [SOUND] Task STARTED: "${task.name}" at playhead=${playheadPosition.toFixed(1)}s (task time: ${new Date(taskStart * 1000).toLocaleTimeString()})`);
-
-                // Queue sound (don't play immediately if another is playing)
+                // Only log sound triggers every N frames OR first 3 triggers (reduced from 5)
+                if (frameCounter % 1000 === 0 || soundsTriggered <= 3) {
+                    console.log(`🎵 Task started: "${task.name}"`);
+                }
                 queueSound(eventType, task);
             }
 
-            // Check if playhead crossed task END
-            if (previousPlaybackTime < taskEnd && taskEnd <= currentPlaybackTime && !lastTriggeredTaskEnds.has(taskEndKey)) {
+            // Check if playhead crossed task END (only if task has an end_time)
+            if (taskEnd && previousPlaybackTime < taskEnd && taskEnd <= currentPlaybackTime && !lastTriggeredTaskEnds.has(taskEndKey) && hasMoved) {
                 lastTriggeredTaskEnds.add(taskEndKey);
                 soundsTriggered++;
 
@@ -1944,9 +2090,10 @@
                                  task.status === 'blocked' ? 'warning' :
                                  'task_completed';
 
-                console.log(`🔊 [SOUND] Task ENDED: "${task.name}" status=${task.status} at playhead=${playheadPosition.toFixed(1)}s (task time: ${new Date(taskEnd * 1000).toLocaleTimeString()})`);
-
-                // Queue sound
+                // Only log sound triggers every N frames OR first 3 triggers (reduced from 5)
+                if (frameCounter % 1000 === 0 || soundsTriggered <= 3) {
+                    console.log(`🎵 Task ended: "${task.name}" (${eventType})`);
+                }
                 queueSound(eventType, task);
             }
         });
@@ -1958,6 +2105,7 @@
         if (playheadPosition < 1) {
             lastTriggeredTaskStarts.clear();
             lastTriggeredTaskEnds.clear();
+            currentlyPlayingTasks.clear(); // Clear visual flashes on loop
         }
     }
 
@@ -1975,24 +2123,51 @@
     }
 
     function processNextSound() {
+        // CRITICAL: Check if queue is empty FIRST
         if (soundQueue.length === 0) {
             currentlyPlaying = false;
-            return;
+            return; // EXIT - do NOT schedule another call
         }
 
+        // Mark as playing to prevent duplicate processing
         currentlyPlaying = true;
+
         const { eventType, task } = soundQueue.shift();
 
-        // Call the sound handler (defined in base.html)
-        if (typeof handleTaskEventSound === 'function') {
-            handleTaskEventSound(eventType);
+        // Add task to currently playing set for visual flash
+        if (task && task.task_id) {
+            currentlyPlayingTasks.add(task.task_id);
+
+            // Get note duration from settings (default 150ms)
+            const settings = typeof getSettings === 'function' ? getSettings() : {};
+            const noteDuration = settings.sequencerNoteDuration || 150;
+
+            // Remove from set after note duration + small buffer
+            setTimeout(() => {
+                currentlyPlayingTasks.delete(task.task_id);
+                drawSequencer(); // Redraw to remove flash
+            }, noteDuration + 50); // 50ms buffer
+
+            // Trigger immediate redraw to show flash
+            drawSequencer();
+        } else {
+            console.warn(`⚠️ [FLASH] Task missing task_id:`, task);
         }
 
-        // Wait for sound duration before playing next (adjust based on actual sound length)
-        const soundDuration = 200; // 200ms per sound (adjust as needed)
-        setTimeout(() => {
-            processNextSound();
-        }, soundDuration);
+        // Call the sound handler (defined in base.html) - pass task for pitch calculation
+        if (typeof handleTaskEventSound === 'function') {
+            handleTaskEventSound(eventType, task);
+        }
+
+        // CRITICAL: Only schedule next call if queue still has items
+        if (soundQueue.length > 0) {
+            setTimeout(() => {
+                processNextSound(); // Process next item in queue
+            }, 10); // Small delay to avoid blocking
+        } else {
+            // Queue is empty - mark as not playing
+            currentlyPlaying = false;
+        }
     }
 
     // Track stop button clicks for double-click rewind
@@ -2010,16 +2185,32 @@
             timelineOffset = 0;
             lastTriggeredTaskStarts.clear();
             lastTriggeredTaskEnds.clear();
+            currentlyPlayingTasks.clear(); // Clear visual flashes
             lastPlayheadPosition = 0;
+            frameCounter = 0; // Reset frame counter
             console.log('⏪ [REWIND] Double-click detected - rewinding to start');
             lastStopClickTime = 0; // Reset to prevent triple-click
+
+            // Immediate refresh on rewind to get latest data
+            fetchSequencerData().then(() => {
+                console.log('✅ [REWIND] Data refreshed');
+                drawSequencer();
+            });
         } else {
             // Single click: Just stop playback
-            console.log('⏸️ [STOP] Single click - stopping playback');
+            console.log('⏹️ [STOP] Single click - stopping playback');
         }
 
         // Always stop playback
         isPlaying = false;
+
+        // CRITICAL: Cancel the playback timer
+        if (playbackTimer) {
+            clearTimeout(playbackTimer);
+            playbackTimer = null;
+            console.log('✅ [STOP] Playback timer cleared');
+        }
+
         document.getElementById('play-icon').textContent = '▶️';
         document.getElementById('play-text').textContent = 'Play';
         document.getElementById('play-pause-btn').classList.remove('active');
@@ -2030,6 +2221,132 @@
         updatePlayhead();
         updateCurrentTime();
         drawSequencer(); // Redraw to show new position
+    }
+
+    /**
+     * Handle Prime Directive completion signal from PAS ROOT
+     */
+    function handleDirectiveComplete(completionTask) {
+        console.log('🎯 [PRIME DIRECTIVE COMPLETE]', completionTask);
+
+        projectComplete = true;
+
+        // 1. Stop playback and auto-scroll
+        isPlaying = false;
+        document.getElementById('play-icon').textContent = '▶️';
+        document.getElementById('play-text').textContent = 'Play';
+        document.getElementById('play-pause-btn').classList.remove('active');
+
+        // 2. Stop polling for updates
+        if (refreshIntervalId) {
+            clearInterval(refreshIntervalId);
+            refreshIntervalId = null;
+            console.log('⏸️ [COMPLETION] Stopped auto-refresh');
+        }
+
+        // 3. Parse completion data
+        let completionData = {};
+        try {
+            completionData = JSON.parse(completionTask.action_data || '{}');
+        } catch (e) {
+            console.warn('Could not parse completion data:', e);
+        }
+
+        // 4. Show END OF PROJECT banner
+        showEndOfProjectBanner(completionData);
+
+        // 5. Scroll to end of timeline (show final state)
+        setTimeout(() => {
+            scrollToTimelineEnd();
+        }, 500);
+    }
+
+    function showEndOfProjectBanner(data) {
+        // Remove old banner if exists
+        const oldBanner = document.getElementById('end-of-project-banner');
+        if (oldBanner) oldBanner.remove();
+
+        // Create banner overlay
+        const banner = document.createElement('div');
+        banner.id = 'end-of-project-banner';
+        banner.style.cssText = `
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 60px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            animation: slideDown 0.5s ease-out;
+        `;
+
+        const passIcon = data.validation_pass ? '✅' : '⚠️';
+        const statusText = data.validation_pass ? 'Completed Successfully' : 'Completed with Issues';
+
+        banner.innerHTML = `
+            <div style="font-size: 72px; margin-bottom: 20px;">🏁</div>
+            <h1 style="font-size: 48px; margin: 0 0 10px 0; font-weight: bold;">
+                END OF PROJECT
+            </h1>
+            <p style="font-size: 24px; margin: 10px 0; opacity: 0.9;">
+                ${passIcon} ${statusText}
+            </p>
+            <div style="margin-top: 30px; font-size: 18px; opacity: 0.8;">
+                <div>Tasks: ${data.tasks_succeeded || 0} succeeded, ${data.tasks_failed || 0} failed (${data.tasks_total || 0} total)</div>
+                <div>Duration: ${data.duration_seconds || 0}s</div>
+            </div>
+            <button onclick="closeEndOfProjectBanner()" style="
+                margin-top: 30px;
+                padding: 15px 40px;
+                font-size: 18px;
+                background: white;
+                color: #667eea;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                font-weight: bold;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            ">
+                View Final State
+            </button>
+        `;
+
+        document.body.appendChild(banner);
+    }
+
+    function closeEndOfProjectBanner() {
+        const banner = document.getElementById('end-of-project-banner');
+        if (banner) {
+            banner.style.animation = 'slideUp 0.3s ease-in';
+            setTimeout(() => banner.remove(), 300);
+        }
+
+        // Scroll to show final state
+        scrollToTimelineEnd();
+    }
+
+    function scrollToTimelineEnd() {
+        // Find last task time
+        if (tasks.length === 0) return;
+
+        const lastTask = tasks.reduce((latest, task) => {
+            const taskEnd = task.end_time || task.start_time;
+            const latestEnd = latest.end_time || latest.start_time;
+            return taskEnd > latestEnd ? task : latest;
+        });
+
+        const lastTime = lastTask.end_time || lastTask.start_time;
+        const startTime = window._sequencerStartTime || Date.now() / 1000;
+
+        // Scroll to show last 30 seconds
+        timelineOffset = Math.max(0, lastTime - startTime - 30);
+        updatePlayhead();
+        drawSequencer();
     }
 
     /**
@@ -2167,10 +2484,17 @@
     }
 
     function updateCurrentTime() {
-        const now = Date.now() / 1000;
-        const currentTime = now - timeRangeSeconds + playheadPosition;
-        const date = new Date(currentTime * 1000);
-        document.getElementById('current-time').textContent = date.toLocaleTimeString('en-US', { hour12: false });
+        // Show current NOW position in timeline (not real-world clock)
+        const startTime = window._sequencerStartTime || 0;
+        const currentTimelineTime = startTime + playheadPosition; // Current NOW position
+        
+        // Format as relative time from start (e.g., "+00:45" = 45 seconds into timeline)
+        const relativeTime = currentTimelineTime - startTime;
+        const minutes = Math.floor(relativeTime / 60);
+        const seconds = Math.floor(relativeTime % 60);
+        
+        const timeString = `+${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        document.getElementById('current-time').textContent = timeString;
     }
 
     /**
@@ -2293,10 +2617,11 @@
 
         const sliderPos = speedToSlider(playbackSpeed);
 
+        // Always update the display text, regardless of source
         if (source !== 'bottom') {
             bottomSlider.value = sliderPos;
-            bottomValue.textContent = formatSpeed(playbackSpeed);
         }
+        bottomValue.textContent = formatSpeed(playbackSpeed); // Update display text for all sources
 
         console.log('Playback speed set to:', playbackSpeed + 'x (slider position:', sliderPos + ')');
     }
@@ -2481,11 +2806,13 @@
                     }
                 });
 
-                // If URL has task_id, select it
+                // If URL has task_id, select it and load data
                 const urlTaskId = getTaskIdFromUrl();
                 if (urlTaskId) {
                     selector.value = urlTaskId;
                     currentTaskId = urlTaskId;
+                    console.log(`[Auto-load] Loading task from URL: ${urlTaskId}`);
+                    fetchSequencerData(); // Load the selected task
                 }
             } else {
                 // No projects found - this is OK, just show placeholder
