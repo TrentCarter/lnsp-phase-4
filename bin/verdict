@@ -15,4 +15,4 @@ else
   PY=python3
 fi
 
-exec "$PY" "$REPO_ROOT/tools/verdict_cli.py" "$@"
+exec "$PY" "$REPO_ROOT/tools/verdict_cli_p0.py" "$@"

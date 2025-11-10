@@ -1,0 +1,91 @@
+# Filesystem Allowlist for Aider-LCO RPC
+# Version: 1.0
+# Date: 2025-11-10
+
+# Allowed root directories (must be absolute paths)
+roots:
+  - "/Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4"
+
+# Allowed file patterns (glob syntax)
+allow:
+  # Python files
+  - "**/*.py"
+  - "**/*.pyi"
+
+  # Documentation
+  - "docs/**/*.md"
+  - "docs/**/*.txt"
+  - "README.md"
+  - "*.md"
+
+  # Configuration
+  - "configs/**/*.yaml"
+  - "configs/**/*.yml"
+  - "configs/**/*.json"
+  - "configs/**/*.toml"
+
+  # Services
+  - "services/**/*.py"
+  - "services/**/*.html"
+  - "services/**/*.js"
+  - "services/**/*.css"
+
+  # Tools & Scripts
+  - "tools/**/*.py"
+  - "scripts/**/*.sh"
+  - "scripts/**/*.py"
+  - "bin/*"
+
+  # Tests
+  - "tests/**/*.py"
+
+  # Data files (limited)
+  - "data/**/*.json"
+  - "data/**/*.jsonl"
+  - "data/**/*.csv"
+
+  # Artifacts (output only)
+  - "artifacts/**/*.json"
+  - "artifacts/**/*.txt"
+  - "artifacts/**/*.log"
+
+# Denied file patterns (takes precedence over allow)
+deny:
+  # SSH keys
+  - "**/.ssh/**"
+  - "**/*.pem"
+  - "**/*.key"
+  - "**/id_rsa"
+  - "**/id_rsa.pub"
+  - "**/id_ed25519"
+  - "**/id_ed25519.pub"
+
+  # Environment secrets
+  - "**/.env"
+  - "**/.env.*"
+  - "**/secrets.*"
+  - "**/credentials.*"
+
+  # System directories
+  - "/etc/**"
+  - "/var/**"
+  - "/usr/**"
+  - "/bin/**"
+  - "/sbin/**"
+  - "/System/**"
+  - "/Library/**"
+
+  # Package managers
+  - "**/node_modules/**"
+  - "**/.venv/**"
+  - "**/venv/**"
+  - "**/__pycache__/**"
+  - "**/*.pyc"
+
+  # Git internals
+  - "**/.git/**"
+
+  # Sensitive data
+  - "**/artifacts/registry/**"  # SQLite DB with sensitive data
+  - "**/backups/**"
+  - "**/dumps/**"

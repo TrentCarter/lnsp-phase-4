@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Verdict: PAS-wrapped Aider CLI (RPC client)
+Verdict: PAS Gateway CLI (P0 Production Scaffold)
 
 Usage:
     verdict --help
     verdict health
-    verdict invoke --message "Refactor DB conn" --files src/db.py --run-id dev-001
-    verdict describe
+    verdict send --title "..." --goal "..." --entry-file "..."
+    verdict status --run-id <uuid>
+    verdict list
 """
 import argparse
 import json
@@ -17,7 +18,8 @@ import urllib.request
 import urllib.error
 import webbrowser
 
-DEFAULT_RPC = os.environ.get("VERDICT_RPC", "http://127.0.0.1:6150")
+# P0: Use Gateway as default endpoint
+DEFAULT_GATEWAY = os.environ.get("PAS_GATEWAY_URL", "http://127.0.0.1:6120")
 COST_DIR = pathlib.Path(os.environ.get("PAS_COST_DIR", "artifacts/costs"))
 HMI_URL = os.environ.get("PAS_HMI_URL", "http://localhost:6101")
 

@@ -1580,6 +1580,122 @@ def get_projects():
 PAS_URL = 'http://localhost:6200'
 
 
+@app.route('/api/demo/prime-directive', methods=['POST'])
+def start_prime_directive():
+    """Send a Prime Directive to PAS Root (real operational flow)"""
+    try:
+        import time
+        import uuid
+        import requests
+        
+        data = request.get_json() or {}
+        project_prompt = data.get('prompt', '')
+        
+        if not project_prompt:
+            # Clever default prompt - same scope as current demo but operational
+            project_prompt = """Build a comprehensive REST API system with the following requirements:
+
+CORE FEATURES:
+- User authentication with JWT tokens
+- Role-based access control (admin, user, moderator)
+- RESTful endpoints for CRUD operations
+- PostgreSQL database with proper migrations
+- Input validation and error handling
+- API documentation with OpenAPI/Swagger
+- Unit and integration tests
+- Docker containerization
+- CI/CD pipeline configuration
+
+TECHNICAL STACK:
+- Backend: FastAPI or Express.js
+- Database: PostgreSQL with SQLAlchemy/Prisma
+- Authentication: JWT with refresh tokens
+- Testing: pytest/Jest with coverage reports
+- Documentation: OpenAPI 3.0 spec
+- Deployment: Docker with docker-compose
+
+DELIVERABLES:
+1. Complete source code with modular architecture
+2. Database schema and migration scripts
+3. API documentation and testing suite
+4. Docker configuration and deployment scripts
+5. CI/CD pipeline setup (GitHub Actions/GitLab CI)
+
+The system should be production-ready, secure, and scalable."""
+
+        # Generate unique run ID
+        import uuid
+        run_id = f"run-{uuid.uuid4().hex[:8]}"
+        
+        # Prepare Prime Directive payload for PAS Root
+        payload = {
+            "project_id": 42,
+            "run_id": run_id,
+            "prime_directive": {
+                "title": "REST API with Authentication & Testing",
+                "description": project_prompt,
+                "priority": "high",
+                "requirements": [
+                    "User authentication system",
+                    "REST API endpoints", 
+                    "Database integration",
+                    "Testing coverage",
+                    "Documentation",
+                    "Containerization"
+                ]
+            },
+            "execution_profile": {
+                "mode": "hierarchical",
+                "max_parallel_tasks": 8,
+                "timeout_minutes": 30,
+                "auto_approve": True
+            },
+            "metadata": {
+                "source": "hmi_demo",
+                "timestamp": time.time(),
+                "user": "demo_user"
+            }
+        }
+        
+        # Send to PAS Root (port 6200)
+        logger.info(f"🚀 Sending Prime Directive to PAS Root: {run_id}")
+        response = requests.post(
+            f'{PAS_URL}/pas/v1/runs/start',
+            json=payload,
+            headers={
+                'Content-Type': 'application/json',
+                'Idempotency-Key': str(uuid.uuid4())
+            },
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            logger.info(f"✅ Prime Directive accepted: {result}")
+            return jsonify({
+                'message': 'Prime Directive sent to PAS Root',
+                'run_id': run_id,
+                'pas_response': result,
+                'prompt_preview': project_prompt[:200] + '...' if len(project_prompt) > 200 else project_prompt
+            })
+        else:
+            logger.error(f"❌ PAS Root rejected: {response.status_code} - {response.text}")
+            return jsonify({
+                'error': f'PAS Root error: {response.status_code}',
+                'details': response.text
+            }), response.status_code
+            
+    except requests.exceptions.ConnectionError:
+        logger.error("❌ Cannot connect to PAS Root on port 6200")
+        return jsonify({
+            'error': 'PAS Root not available',
+            'details': 'Ensure PAS services are running on port 6200'
+        }), 503
+    except Exception as e:
+        logger.error(f"❌ Prime Directive error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/demo/start', methods=['POST'])
 def start_demo():
     """Start the live demo"""

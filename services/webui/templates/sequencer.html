@@ -841,14 +841,8 @@
         const totalSubLanes = expandedAgents.filter(a => a._laneIndex > 0).length;
 
         console.log(`[LANES] Allocated ${agents.length} rows (${totalSubLanes} sub-lanes)`);
-        if (agentsWithMultipleLanes.length > 0) {
-            console.log(`[LANES] Agents with overlapping tasks:`);
-            agentsWithMultipleLanes.forEach(a => {
-                console.log(`  - ${a.name}: ${a._laneCount} parallel lanes`);
-            });
-        } else {
-            console.log(`[LANES] No overlapping tasks detected - all agents have single lanes`);
-        }
+        // DEBUG: Removed excessive lane allocation logging
+        // Lane allocation info moved to summary only if needed
     }
 
     function resizeCanvas() {
@@ -1372,7 +1366,7 @@
             return;
         }
 
-        console.log(`[Arrows] Starting arrow rendering for ${tasks.length} tasks`);
+        // DEBUG: Removed excessive arrow rendering start message
 
         // Build agent row Y-position map for arrow endpoints
         // CRITICAL: Map by (service_id, laneIndex) to handle multi-lane agents
@@ -1391,7 +1385,7 @@
             agentRowMap[laneKey] = yCenter;
         });
 
-        console.log(`[Arrows] Built agentRowMap for ${Object.keys(agentRowMap).length} agent rows (including lanes)`);
+        // DEBUG: Removed excessive agentRowMap logging
 
         // Get animation offset for dashed lines (creates moving effect)
         const animOffset = (Date.now() / 50) % 10;  // Cycle every 500ms
@@ -1405,7 +1399,7 @@
             tasksByAgent[task.agent_id].push(task);
         });
 
-        console.log(`[Arrows] Grouped tasks by agent_id:`, Object.keys(tasksByAgent).map(aid => `${aid}(${tasksByAgent[aid].length})`).join(', '));
+        // DEBUG: Removed excessive task grouping logging
 
         // 🔥 NEW: Build lookup table for tasks by log_id (for direct parent→child relationships)
         const tasksByLogId = {};
@@ -1414,7 +1408,7 @@
                 tasksByLogId[task.log_id] = task;
             }
         });
-        console.log(`[Arrows] Indexed ${Object.keys(tasksByLogId).length} tasks by log_id`);
+        // DEBUG: Removed excessive task indexing logging
 
         // Helper: Check if two tasks overlap in time
         function tasksOverlap(task1, task2) {
@@ -1468,11 +1462,7 @@
 
         // Draw arrows for each task
         let arrowsDrawn = 0;
-        console.log('🎯 [Arrow Mode] Starting arrow drawing with settings:', {
-            showAssignmentArrows: window.sequencerSettings?.showAssignmentArrows,
-            showCompletionArrows: window.sequencerSettings?.showCompletionArrows,
-            totalTasks: tasks.length
-        });
+        // DEBUG: Removed excessive arrow mode start logging
         tasks.forEach((task, idx) => {
             if (!task.from_agent || !task.to_agent) {
                 tasksWithoutRelationships++;
@@ -1483,15 +1473,15 @@
                 return;  // Skip if no relationship data
             }
             if (task.from_agent === 'user' || task.to_agent === 'user') {
-                if (idx < 2 && frameCounter % 1000 === 0) console.log(`[Arrow Skip] "${task.name}" - User interaction (from=${task.from_agent}, to=${task.to_agent})`);
+                // DEBUG: Removed excessive arrow skip logging
                 return;  // Skip user interactions
             }
             if (!task._bounds) {
-                if (idx < 2 && frameCounter % 1000 === 0) console.log(`[Arrow Skip] "${task.name}" - No bounds (not rendered)`);
+                // DEBUG: Removed excessive arrow bounds logging
                 return;
             }
 
-            if (idx < 2 && frameCounter % 1000 === 0) console.log(`[Arrow Check] Task "${task.name}": from=${task.from_agent}, to=${task.to_agent}, action_type=${task.action_type}, status=${task.status}`);
+            // DEBUG: Removed excessive arrow check logging
 
             // Get Y positions for from/to agents (use lane-specific position if available)
             // For child task (to_agent), use the task's actual lane assignment
@@ -1531,17 +1521,6 @@
                     parentTask = findParentTaskAtTime(task.from_agent, task, task.start_time);
                 }
 
-                // Debug logging for parent lookup (severely throttled to prevent crash)
-                if (idx < 3 && frameCounter % 1000 === 0) { // Only first 3 tasks, every 1000 frames
-                    console.log(`[Arrow Debug ${idx}] Task "${task.name}":`, {
-                        log_id: task.log_id,
-                        parent_log_id: task.parent_log_id,
-                        foundParent: !!parentTask,
-                        parentHasBounds: parentTask?._bounds ? 'YES' : 'NO',
-                        parentName: parentTask?.name
-                    });
-                }
-
                 if (!parentTask && idx < 10) {
                     console.warn(`⚠️ [Arrow Skip] "${task.name}" - No parent found (parent_log_id=${task.parent_log_id})`);
                 } else if (parentTask && !parentTask._bounds && idx < 10) {
@@ -1568,7 +1547,7 @@
                         animOffset
                     );
                     arrowsDrawn++;
-                    if (arrowsDrawn <= 3) console.log(`✅ [Arrow] Vertical delegation arrow: "${parentTask.name}" → "${task.name}"`);
+                    // DEBUG: Removed excessive arrow success logging
                 }
             }
 
@@ -1577,9 +1556,7 @@
             const hasParentAgent = task.from_agent !== task.to_agent;
             const showCompletionEnabled = window.sequencerSettings?.showCompletionArrows !== false;
 
-            if (idx < 3 && frameCounter % 1000 === 0) { // Only first 3 tasks, every 1000 frames
-                console.log(`[Completion Check ${idx}] "${task.name}": status=${task.status}, isCompleted=${isCompleted}, hasParentAgent=${hasParentAgent}, showEnabled=${showCompletionEnabled}`);
-            }
+            // DEBUG: Removed excessive completion check logging
 
             if (isCompleted && hasParentAgent && showCompletionEnabled) {
                 // Use same parent lookup as assignment arrow (parent_log_id)
@@ -1591,9 +1568,7 @@
                     parentTask = findParentTaskAtTime(task.from_agent, task, task.start_time);
                 }
 
-                if (idx < 3 && frameCounter % 1000 === 0) { // Only first 3 tasks, every 1000 frames
-                    console.log(`[Completion Parent ${idx}] "${task.name}": parent_log_id=${task.parent_log_id}, foundParent=${!!parentTask}, parentName=${parentTask?.name}`);
-                }
+                // DEBUG: Removed excessive completion arrow logging
 
                 if (parentTask && parentTask._bounds) {
                     const actualParentY = parentTask._bounds.y + (parentTask._bounds.height / 2);
@@ -1611,21 +1586,20 @@
                         animOffset
                     );
                     arrowsDrawn++;
-                    // Only log first few completion arrows to prevent spam
-                    if (arrowsDrawn <= 5) {
-                        console.log(`✅ [Arrow] GREEN COMPLETION: "${task.name}" → "${parentTask.name}"`);
-                    }
-                } else if (idx < 10) {
-                    console.warn(`⚠️ [Arrow Skip] Completion: "${task.name}" - parent=${!!parentTask}, bounds=${!!parentTask?._bounds}`);
+                    // DEBUG: Removed excessive completion arrow success logging
                 }
+                // DEBUG: Removed excessive completion arrow skip logging
             }
         });
 
-        // Log summary
-        console.log(`🎯 [Arrows] Summary: ${arrowsDrawn} arrows drawn, ${tasksWithoutRelationships} tasks without relationships`, {
-            showAssignmentArrows: window.sequencerSettings?.showAssignmentArrows,
-            showCompletionArrows: window.sequencerSettings?.showCompletionArrows
-        });
+        // Log summary (throttled to prevent spam during playback)
+        if (!window._lastArrowSummaryTime || Date.now() - window._lastArrowSummaryTime > 5000) {
+            console.log(`🎯 [Arrows] Summary: ${arrowsDrawn} arrows drawn, ${tasksWithoutRelationships} tasks without relationships`, {
+                showAssignmentArrows: window.sequencerSettings?.showAssignmentArrows,
+                showCompletionArrows: window.sequencerSettings?.showCompletionArrows
+            });
+            window._lastArrowSummaryTime = Date.now();
+        }
         if (tasksWithoutRelationships > 0) {
             console.warn(`⚠️ [Arrows] ${tasksWithoutRelationships}/${tasks.length} tasks missing from_agent/to_agent (no arrows drawn)`);
         }

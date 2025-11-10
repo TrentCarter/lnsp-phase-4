@@ -1,0 +1,123 @@
+# Command Allowlist for Aider-LCO RPC
+# Version: 1.0
+# Date: 2025-11-10
+
+# Allowed commands (glob patterns)
+allow:
+  # Git read operations
+  - "git status"
+  - "git status *"
+  - "git diff"
+  - "git diff *"
+  - "git log"
+  - "git log *"
+  - "git show *"
+  - "git branch"
+  - "git branch *"
+
+  # Git write operations (safe)
+  - "git add *"
+  - "git commit *"
+  - "git checkout -b *"
+  - "git checkout *"
+  - "git merge *"
+  - "git stash"
+  - "git stash *"
+
+  # Testing
+  - "pytest"
+  - "pytest *"
+  - "python -m pytest *"
+  - "./.venv/bin/pytest *"
+
+  # Linting & formatting
+  - "ruff *"
+  - "ruff check *"
+  - "ruff format *"
+  - "black *"
+  - "mypy *"
+  - "pylint *"
+
+  # Python execution (limited)
+  - "python *"
+  - "python3 *"
+  - "./.venv/bin/python *"
+  - "./.venv/bin/python3 *"
+
+  # FastAPI/Uvicorn (local only)
+  - "uvicorn *"
+  - "./.venv/bin/uvicorn *"
+
+  # File operations (safe)
+  - "ls"
+  - "ls *"
+  - "cat *"
+  - "head *"
+  - "tail *"
+  - "grep *"
+  - "find *"
+
+  # Package management (limited)
+  - "pip list"
+  - "pip show *"
+  - "./.venv/bin/pip list"
+  - "./.venv/bin/pip show *"
+
+# Denied commands (takes precedence over allow)
+deny:
+  # Destructive git operations
+  - "git push --force"
+  - "git push -f"
+  - "git push --force-with-lease"
+  - "git reset --hard"
+  - "git clean -fd"
+  - "git filter-branch *"
+  - "git rebase -i *"
+
+  # Destructive file operations
+  - "rm -rf *"
+  - "rm -r *"
+  - "rmdir *"
+  - "mv * /dev/null"
+  - "dd *"
+  - "shred *"
+
+  # Network operations (external)
+  - "curl *"
+  - "wget *"
+  - "nc *"
+  - "netcat *"
+  - "ssh *"
+  - "scp *"
+  - "rsync *"
+
+  # System operations
+  - "sudo *"
+  - "su *"
+  - "chmod +x *"
+  - "chown *"
+  - "kill *"
+  - "killall *"
+  - "pkill *"
+
+  # Package installation
+  - "pip install *"
+  - "pip uninstall *"
+  - "./.venv/bin/pip install *"
+  - "npm install *"
+  - "npm uninstall *"
+  - "brew install *"
+  - "apt install *"
+  - "yum install *"
+
+  # Cloud metadata endpoints
+  - "curl *metadata*"
+  - "curl *169.254.169.254*"
+  - "wget *metadata*"
+  - "wget *169.254.169.254*"
+
+  # Shell operations
+  - "eval *"
+  - "exec *"
+  - "source *"
+  - ". *"
