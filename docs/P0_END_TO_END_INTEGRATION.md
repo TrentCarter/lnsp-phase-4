@@ -65,6 +65,47 @@ This document describes the **Production P0 scaffold** that connects all compone
 
 ---
 
+## 🔑 Key Insight: "Verdict = Aider Re-skinned"
+
+**Question**: *"Is Verdict just Aider re-branded with guardrails?"*
+
+**Answer**: ✅ **YES, EXACTLY!**
+
+**The Tool Access Path**:
+```
+Verdict (CLI brand name - user interface)
+  ↓
+Gateway (routing layer - entry point)
+  ↓
+PAS Root (orchestration - no AI)
+  ↓
+Aider-LCO RPC (guardrail wrapper - safety checks)
+  ↓
+Aider CLI (actual AI tool - Claude/GPT/Gemini/Llama)
+  ↓
+Git/Filesystem Operations (with allowlists enforced)
+```
+
+**Breakdown**:
+- **Verdict** = Brand name, user-facing CLI (`./bin/verdict send`)
+- **Aider-LCO** = Safety wrapper with allowlists, timeout, secrets redaction
+- **Aider CLI** = Real AI-powered code editor (installed via `pipx install aider-chat`)
+
+**Why This Design?**
+- **Separation of Concerns**: UI (Verdict) vs Safety (Aider-LCO) vs Execution (Aider)
+- **Auditability**: Every operation logged, receipts generated
+- **Safety**: Multiple layers prevent unauthorized access
+- **Flexibility**: Can swap Aider for other tools (Cursor, Cody, etc.) later
+
+**Analogy**: Verdict is like a "valet service" for Aider:
+- You (user) hand keys (Prime Directive) to valet (Gateway)
+- Valet checks credentials (PAS Root)
+- Security guard checks ID (Aider-LCO allowlists)
+- Driver (Aider CLI) operates vehicle (filesystem/git)
+- You get car back with report (artifacts in `artifacts/runs/`)
+
+---
+
 ## 📋 Component Responsibilities
 
 ### 1. Gateway (Port 6120)
@@ -182,9 +223,35 @@ deny:
 
 ## 🚀 Quick Start (30 seconds)
 
+### 0. **Understanding What You're Installing**
+
+**TL;DR**: You're installing **Aider** (the AI tool) and wrapping it with **Verdict** (safety guardrails).
+
+- **Aider** = Open-source AI pair programmer (like GitHub Copilot CLI)
+- **Verdict** = Your brand name for "Aider + safety controls"
+- **This repo** = The wrapper code (Gateway, PAS Root, Aider-LCO RPC)
+
+**What gets installed**:
+```
+Aider CLI (external tool)  ← You install this with pipx
+    ↓
+Aider-LCO RPC (this repo)  ← Safety wrapper around Aider
+    ↓
+PAS Root (this repo)       ← Orchestration layer
+    ↓
+Gateway (this repo)        ← Entry point
+    ↓
+Verdict CLI (this repo)    ← Your user interface
+```
+
+**Result**: You type `verdict send --goal "..."` and Aider safely edits your files!
+
+---
+
 ### 1. Install Dependencies
 ```bash
 # Install Aider CLI (one-time)
+# This is the REAL tool that does AI-powered code editing
 pipx install aider-chat
 
 # Verify installation

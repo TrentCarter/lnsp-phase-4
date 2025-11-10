@@ -230,7 +230,7 @@ directional_bonus = 0.03   # Directional alignment bonus
 
 ---
 
-## 📍 CURRENT STATUS (2025-11-07)
+## 📍 CURRENT STATUS (2025-11-10)
 
 **Production Data**:
 - 339,615 Wikipedia concepts (articles 1-3,431) with vectors in PostgreSQL
@@ -248,10 +248,10 @@ directional_bonus = 0.03   # Directional alignment bonus
 - CPESH: Full implementation with real LLM generation (Ollama + Llama 3.1:8b)
 - n8n MCP: Configured and tested (`claude mcp list` to verify)
 - **✨ PLMS Tier 1**: Project Lifecycle Management System (see below)
-- **✨ PAS Stub**: 12 endpoints operational (port 6200)
-- **✨ DirEng + PEX**: Two-tier AI interface architecture (Nov 7) ⭐ NEW
+- **✨ P0 End-to-End Integration**: Gateway → PAS Root → Aider-LCO → Aider CLI (Nov 10) ⭐ NEW
+- **✨ DirEng + PEX**: Two-tier AI interface architecture (Nov 7)
 
-**Recent Updates (Nov 4-7, 2025)**:
+**Recent Updates (Nov 4-10, 2025)**:
 - ✅ **AR-LVM abandoned**: Narrative delta test (Δ=0.0004) proved GTR-T5 lacks temporal signal
 - ✅ **Wikipedia analysis**: Backward-biased (Δ=-0.0696), still useful for retrieval
 - ✅ **P9 sentence retrieval**: Tested, no improvement over paragraph-only
@@ -259,7 +259,8 @@ directional_bonus = 0.03   # Directional alignment bonus
 - ✅ **Integration gaps closed**: 10 gaps (auth, secrets, sandboxing, etc.) - Nov 7
 - ✅ **DirEng designed**: Human-facing interface agent (like Claude Code) - Nov 7
 - ✅ **PEX contract**: Project orchestrator with strict safety rules - Nov 7
-- 🎯 **Current focus**: Start Phase 1 (LightRAG Code Index) Monday Nov 8
+- ✅ **P0 End-to-End Integration**: Gateway + PAS Root + Aider-LCO complete (Nov 10) ⭐ NEW
+- 🎯 **Current focus**: Test P0 stack, then start Phase 1 (LightRAG Code Index)
 - 🔍 **Optional future work**: Q-tower ranker for retrieved candidates
 
 ## 🤖 REAL COMPONENT SETUP
@@ -483,6 +484,90 @@ See `docs/HMI_JSON_CONTRACTS_PLMS.md` for complete frontend integration guide:
 - Risk Heatmap (lane × phase matrix)
 - Estimation Drift Sparklines (Chart.js)
 - Error handling + graceful fallbacks
+
+---
+
+## 🚀 P0 END-TO-END INTEGRATION (2025-11-10)
+
+**Status**: ✅ Production Ready
+**Doc**: `docs/P0_END_TO_END_INTEGRATION.md`
+
+### What is P0 Integration?
+
+The complete production scaffold connecting user requests to filesystem/git operations through a safe, auditable pipeline.
+
+### Key Insight: "Verdict = Aider Re-skinned"
+
+**Question**: *"What is the path for AI to get filesystem/tool access?"*
+
+**Answer**: Verdict (your CLI) wraps Aider (open-source AI pair programmer) with safety guardrails.
+
+```
+Verdict CLI (user interface)
+  ↓
+Gateway (port 6120 - entry point)
+  ↓
+PAS Root (port 6100 - orchestration, no AI)
+  ↓
+Aider-LCO RPC (port 6130 - safety wrapper)
+  ↓
+Aider CLI (external tool - real AI editing)
+  ↓
+Git/Filesystem (with allowlists enforced)
+```
+
+### Quick Start
+
+```bash
+# 1. Install Aider (one-time)
+pipx install aider-chat
+export ANTHROPIC_API_KEY=your_key_here  # or OPENAI_API_KEY
+
+# 2. Start all services
+bash scripts/run_stack.sh
+
+# Expected output:
+# [Aider-LCO] ✓ Started on http://127.0.0.1:6130
+# [PAS Root]  ✓ Started on http://127.0.0.1:6100
+# [Gateway]   ✓ Started on http://127.0.0.1:6120
+
+# 3. Test via CLI
+./bin/verdict health
+./bin/verdict send \
+  --title "Add docstrings" \
+  --goal "Add docstrings to all functions in services/gateway/app.py" \
+  --entry-file "services/gateway/app.py"
+
+# 4. Check status
+./bin/verdict status --run-id <uuid>
+
+# 5. View artifacts
+cat artifacts/runs/<uuid>/aider_stdout.txt
+```
+
+### Safety Layers
+
+| Layer | What It Does | Example Block |
+|-------|--------------|---------------|
+| **FS Allowlist** | Only workspace files | ❌ `/etc/passwd`, `~/.ssh/`, `.env` |
+| **CMD Allowlist** | Only safe commands | ❌ `rm -rf`, `git push --force` |
+| **Env Isolation** | Redact secrets | ❌ `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` |
+| **Timeout** | Kill runaway processes | ⏱️ 900s default (15 min) |
+
+### Components Implemented
+
+- **Gateway** (`services/gateway/app.py`): Port 6120
+- **PAS Root** (`services/pas/root/app.py`): Port 6100
+- **Aider-LCO RPC** (`services/tools/aider_rpc/app.py`): Port 6130
+- **Verdict CLI** (`tools/verdict_cli_p0.py`, `bin/verdict`)
+- **Config** (`configs/pas/*.yaml`): Allowlists (FS + CMD)
+- **Launcher** (`scripts/run_stack.sh`): One-command startup
+
+### Key Files
+
+- **Architecture**: `docs/P0_END_TO_END_INTEGRATION.md` (500+ lines)
+- **Tool Access Path**: `docs/OPTIONS_SENDING_PRIME_DIRECTIVES.md` (Q0 section)
+- **Configs**: `configs/pas/fs_allowlist.yaml`, `configs/pas/cmd_allowlist.yaml`
 
 ---
 
