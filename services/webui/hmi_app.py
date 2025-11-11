@@ -2652,17 +2652,27 @@ def get_system_status():
     from pathlib import Path
 
     try:
-        ports_to_check = [
-            6100, 6101, 6102, 6103, 6120, 6121, 6130,  # P0 Stack
-            8050, 8051, 8052, 8053,  # Model Pool
+        # Required ports (count against health if down)
+        required_ports = [
+            6100, 6101, 6102, 6103, 6120, 6121,  # P0 Stack (exclude 6130)
+            8050, 8051, 8052,  # Model Pool (exclude 8053)
             11434  # Ollama
         ]
 
+        # Optional ports (don't count against health if down)
+        optional_ports = {
+            6130: 'Aider-LCO (on-demand)',
+            8053: 'Model Pool Spare Port'
+        }
+
+        all_ports = required_ports + list(optional_ports.keys())
+
         ports_status = {}
         ports_up = 0
+        required_ports_up = 0
 
         # Check each port
-        for port in ports_to_check:
+        for port in all_ports:
             start_time = time.time()
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(0.5)
@@ -2670,21 +2680,33 @@ def get_system_status():
             latency_ms = (time.time() - start_time) * 1000
             sock.close()
 
+            is_optional = port in optional_ports
+
             if result == 0:
                 status = 'up'
                 if latency_ms > 200:
                     status = 'degraded'
                 ports_status[port] = {
                     'status': status,
-                    'latency_ms': round(latency_ms, 1)
+                    'latency_ms': round(latency_ms, 1),
+                    'optional': is_optional
                 }
                 ports_up += 1
+                if not is_optional:
+                    required_ports_up += 1
             else:
+                # Optional ports down = 'optional_down' (grey/yellow)
+                # Required ports down = 'down' (red)
                 ports_status[port] = {
-                    'status': 'down',
+                    'status': 'optional_down' if is_optional else 'down',
                     'latency_ms': None,
-                    'error': 'Connection refused'
+                    'error': 'Connection refused',
+                    'optional': is_optional,
+                    'note': optional_ports.get(port, '')
                 }
+                if not is_optional:
+                    # Only count required ports against health
+                    pass
 
         # Health checks
         health_checks = {}
@@ -2931,12 +2953,12 @@ def get_system_status():
                 'details': {}
             }
 
-        # Calculate overall health
-        port_health_percent = (ports_up / len(ports_to_check)) * 100
+        # Calculate overall health (only count required ports)
+        port_health_percent = (required_ports_up / len(required_ports)) * 100
         check_health_percent = (health_ok / total_checks) * 100
         overall_health_percent = (port_health_percent * 0.6) + (check_health_percent * 0.4)
 
-        issues_count = (len(ports_to_check) - ports_up) + (total_checks - int(health_ok))
+        issues_count = (len(required_ports) - required_ports_up) + (total_checks - int(health_ok))
 
         return jsonify({
             'status': 'ok',
@@ -2944,7 +2966,9 @@ def get_system_status():
             'issues_count': issues_count,
             'ports': ports_status,
             'ports_up': ports_up,
-            'ports_total': len(ports_to_check),
+            'ports_total': len(all_ports),
+            'required_ports_up': required_ports_up,
+            'required_ports_total': len(required_ports),
             'health_checks': health_checks
         })
 

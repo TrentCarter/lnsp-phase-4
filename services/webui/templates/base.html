@@ -3136,12 +3136,14 @@ The system should be production-ready, secure, and scalable.`;
                     'up': '#10b981',
                     'down': '#ef4444',
                     'degraded': '#f59e0b',
+                    'optional_down': '#6b7280',  // Grey for optional ports that are down
                     'unknown': '#6b7280'
                 };
                 const statusIcons = {
                     'up': '✓',
                     'down': '✗',
                     'degraded': '⚠',
+                    'optional_down': '○',  // Empty circle for optional ports that are down
                     'unknown': '?'
                 };
                 const bgColor = statusColors[portStatus.status] || '#6b7280';
@@ -3155,6 +3157,7 @@ The system should be production-ready, secure, and scalable.`;
                         data-port-status="${portStatus.status}"
                         data-port-latency="${portStatus.latency_ms || 'N/A'}"
                         data-port-error="${portStatus.error || ''}"
+                        data-port-note="${portStatus.note || ''}"
                         onmouseenter="showPortTooltip(event, this)"
                         onmouseleave="hidePortTooltip()"
                         style="
@@ -3184,6 +3187,7 @@ The system should be production-ready, secure, and scalable.`;
             const status = element.dataset.portStatus;
             const latency = element.dataset.portLatency;
             const error = element.dataset.portError;
+            const note = element.dataset.portNote;
 
             // Build tooltip content
             let content = `
@@ -3197,7 +3201,7 @@ The system should be production-ready, secure, and scalable.`;
                         <div style="font-weight: 600;">${service}</div>
 
                         <div style="color: #9ca3af;">Status:</div>
-                        <div style="font-weight: 600; text-transform: uppercase;">${status}</div>
+                        <div style="font-weight: 600; text-transform: uppercase;">${status === 'optional_down' ? 'OPTIONAL (DOWN)' : status}</div>
             `;
 
             if (latency !== 'N/A') {
@@ -3207,7 +3211,14 @@ The system should be production-ready, secure, and scalable.`;
                 `;
             }
 
-            if (error) {
+            if (note) {
+                content += `
+                        <div style="color: #9ca3af;">Note:</div>
+                        <div style="font-weight: 600; color: #fbbf24;">${note}</div>
+                `;
+            }
+
+            if (error && !note) {
                 content += `
                         <div style="color: #9ca3af;">Error:</div>
                         <div style="font-weight: 600; color: #ef4444;">${error}</div>
@@ -3249,10 +3260,16 @@ The system should be production-ready, secure, and scalable.`;
                 summary += '--- PORTS ---\\n';
                 for (const portDef of PORT_DEFINITIONS) {
                     const portStatus = data.ports[portDef.port] || { status: 'unknown' };
-                    const icon = portStatus.status === 'up' ? '✓' : portStatus.status === 'down' ? '✗' : '⚠';
-                    summary += `${icon} Port ${portDef.port} (${portDef.name}): ${portStatus.status.toUpperCase()}`;
+                    const icon = portStatus.status === 'up' ? '✓' :
+                                portStatus.status === 'down' ? '✗' :
+                                portStatus.status === 'optional_down' ? '○' : '⚠';
+                    const statusText = portStatus.status === 'optional_down' ? 'OPTIONAL (DOWN)' : portStatus.status.toUpperCase();
+                    summary += `${icon} Port ${portDef.port} (${portDef.name}): ${statusText}`;
                     if (portStatus.latency_ms !== null && portStatus.latency_ms !== undefined) {
                         summary += ` - ${portStatus.latency_ms}ms`;
+                    }
+                    if (portStatus.note) {
+                        summary += ` [${portStatus.note}]`;
                     }
                     summary += '\\n';
                 }

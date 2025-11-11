@@ -1015,18 +1015,16 @@
             }
 
             drawSequencer();
-            
-            // 🆕 Auto-fit zoom to screen on initial data load (after canvas resize)
-            if (!window._sequencerInitialZoomFit) {
-                console.log('🎯 [AUTO-FIT] Scheduling initial zoom to fit screen after canvas resize');
-                // Wait for next frame to ensure canvas is properly resized
-                requestAnimationFrame(() => {
-                    console.log('🎯 [AUTO-FIT] Applying initial zoom to fit screen');
-                    resizeCanvas(); // Ensure canvas is properly sized first
-                    fitAll();
-                    window._sequencerInitialZoomFit = true;
-                });
-            }
+
+            // 🆕 Auto-fit zoom to screen whenever new data is loaded
+            // This ensures fitAll() is called both on page load AND when selecting a different Prime Directive
+            console.log('🎯 [AUTO-FIT] Scheduling zoom to fit screen after canvas resize');
+            // Wait for next frame to ensure canvas is properly resized
+            requestAnimationFrame(() => {
+                console.log('🎯 [AUTO-FIT] Applying zoom to fit screen');
+                resizeCanvas(); // Ensure canvas is properly sized first
+                fitAll();
+            });
         } catch (error) {
             console.error('Error fetching sequencer data:', error);
         }

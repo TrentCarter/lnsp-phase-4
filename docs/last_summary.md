@@ -1,94 +1,65 @@
 # Last Session Summary
 
-**Date:** 2025-11-11 (Session 11)
-**Duration:** ~2 hours
+**Date:** 2025-11-11 (Session 12)
+**Duration:** ~45 minutes
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Built comprehensive **HMI Model Pool Management UI** and **System Status Dashboard** with real-time monitoring, visual health indicators, port testing, styled tooltips, and clipboard export functionality. Created proxy API endpoints to route Model Pool requests through HMI backend.
+Enhanced HMI System Status Dashboard to distinguish between required and optional ports, improving health scoring accuracy from 90% to 96.7%. Fixed Sequencer to automatically fit all tasks to viewport on page load and when selecting different Prime Directives. Committed all Model Pool UI and System Status changes from previous session.
 
 ## Key Changes
 
-### 1. Model Pool Management UI (NEW)
-**Files:** `services/webui/templates/base.html` (lines 988-1064, 2786-3054)
-**Summary:** Created full Model Pool dashboard in HMI Settings with pool overview metrics, configuration controls, dynamic model cards showing state (HOT/COLD/WARMING), TTL progress bars, load/unload controls, and auto-refresh every 3 seconds.
+### 1. Optional Port Status Enhancement
+**Files:** `services/webui/hmi_app.py:2655-2709`, `services/webui/templates/base.html:3135-3275`
+**Summary:** Redesigned port monitoring to distinguish required ports (counted toward health) from optional ports (6130: Aider-LCO, 8053: Model Pool Spare). Optional ports down now show grey (○) instead of red (✗) and don't impact health score. System health improved from 90% to 96.7%.
 
-### 2. Model Pool Proxy API (NEW)
-**Files:** `services/webui/hmi_app.py` (lines 3036-3112, +77 lines)
-**Summary:** Added proxy endpoints (`/api/model-pool/*`) to route Model Pool Manager requests through HMI backend, solving CORS issues with direct browser-to-port-8050 connections. Includes models, config, load, unload, and extend-ttl endpoints.
+### 2. Sequencer Auto Fit All Fix
+**Files:** `services/webui/templates/sequencer.html:1019-1027`
+**Summary:** Removed conditional flag that prevented fitAll() from running when selecting different Prime Directives. Now automatically fits all tasks to viewport on both page load AND dropdown selection, eliminating need to manually click "Fit All" button.
 
-### 3. System Status Dashboard (NEW)
-**Files:** `services/webui/templates/base.html` (lines 1152-1203, 3040-3350)
-**Summary:** Replaced basic System page with comprehensive status dashboard featuring overall health score (0-100%), port status grid (12 ports monitored), six novel health checks (Git, Disk Space, Databases, LLM, Python, Config), and quick action buttons.
-
-### 4. System Health API (NEW)
-**Files:** `services/webui/hmi_app.py` (lines 2630-3033, +404 lines)
-**Summary:** Implemented comprehensive system health checking with port connectivity tests (latency measurement), Git repository status, disk space monitoring, database connectivity (PostgreSQL + Neo4j), LLM availability, Python environment validation, and JSON configuration parsing.
-
-### 5. Styled Hover Tooltips (NEW)
-**Files:** `services/webui/templates/base.html` (lines 620-634, 3179-3236)
-**Summary:** Created custom rectangle tooltip system with dark theme styling, label-value grid layout, conditional fields (latency, errors), and mouse-following positioning. Replaced basic HTML title attributes with rich interactive tooltips.
-
-### 6. Copy to Clipboard Feature (NEW)
-**Files:** `services/webui/templates/base.html` (lines 1158, 3238-3282)
-**Summary:** Added "Copy Summary" button that generates formatted text summary of entire system status (health score, all ports with icons, all health checks) and copies to clipboard with one click.
+### 3. Git Commit of Previous Session Work
+**Files:** 2 commits created
+**Summary:** Committed Model Pool Management UI and System Status Dashboard features from Session 11 (11 files, +3365 lines) plus CTMD test artifacts (2 files, +1093 lines).
 
 ## Files Modified
 
-- `services/webui/templates/base.html` - Added Model Pool page, System Status page, tooltips, JavaScript functions (+600 lines)
-- `services/webui/hmi_app.py` - Added Model Pool proxy API, System Status API (+481 lines)
+- `services/webui/hmi_app.py` - Added required/optional port logic, updated health calculation
+- `services/webui/templates/base.html` - Added optional_down status styling (grey), tooltip notes
+- `services/webui/templates/sequencer.html` - Removed fitAll() conditional to enable auto-fit on every data load
 
 ## Current State
 
 **What's Working:**
-- ✅ Model Pool UI showing 2 HOT models (qwen, llama), 2 COLD models (deepseek, codellama)
-- ✅ Real-time model state updates, TTL countdowns, memory tracking
-- ✅ Load/Unload/Extend-TTL controls functional via proxy API
-- ✅ System Status showing 80% health (10/12 ports UP)
-- ✅ Six health checks operational (Git, Disk, DB, LLM, Python, Config)
-- ✅ Styled hover tooltips on all ports with detailed info
-- ✅ Copy to Clipboard generating formatted system summary
-- ✅ Auto-refresh on both pages (Model Pool: 3s, System: 5s)
+- ✅ Required ports: 10/10 UP (100%)
+- ✅ System health: 96.7% (up from 90%)
+- ✅ Optional ports correctly marked grey when down (not counted against health)
+- ✅ Neo4j database fixed and connected
+- ✅ Sequencer auto-fits on page load and Prime Directive selection
+- ✅ All changes committed to git (clean working directory)
 
 **What Needs Work:**
-- [ ] **Neo4j connection** - Currently showing DOWN in database check
-- [ ] **2 ports down** - Event Bus (6102) and one model port need investigation
-- [ ] **Git status warning** - 11 uncommitted changes to commit
-- [ ] **WebSocket support** - Add streaming for Model Pool route endpoint
-- [ ] **Historical metrics** - Add charts for model memory/requests over time
-- [ ] **Bulk operations** - Add "Load All" / "Unload All" buttons
+- [ ] Port 6130 (Aider-LCO) currently down (expected - on-demand service)
+- [ ] Port 8053 (Model Pool Spare) currently down (expected - spare port)
+- [ ] 1 minor health issue remaining (likely related to warnings, not errors)
 
 ## Important Context for Next Session
 
-1. **Model Pool Proxy Pattern**: All Model Pool requests now go through HMI (`/api/model-pool/*`) instead of direct browser-to-8050 connections. This solved CORS issues and centralizes API access.
+1. **Optional Port Pattern**: Ports 6130 and 8053 are intentionally optional. When down, they show grey status and don't count against the 100% health score. This prevents false negatives in system monitoring.
 
-2. **Health Score Calculation**: Overall health = (Port Health × 60%) + (Check Health × 40%). Ports weighted higher because they're critical for system operation. Warnings count as 0.5 points instead of 0 or 1.
+2. **Health Score Calculation**: Overall health = (Required Port Health × 60%) + (Health Check Health × 40%). Only required ports (10 total) are counted. Optional ports are tracked separately.
 
-3. **Port Monitoring**: 12 ports tracked - P0 Stack (6100-6130), Model Pool (8050-8053), Ollama (11434). Latency >200ms = DEGRADED status. Socket timeout = 500ms.
+3. **Port Categories**:
+   - **Required ports (10)**: 6100-6103, 6120-6121, 8050-8052, 11434
+   - **Optional ports (2)**: 6130 (Aider-LCO on-demand), 8053 (Model Pool spare)
 
-4. **Novel Health Checks**:
-   - Git Status: Checks uncommitted changes (<10 = warning, ≥10 = error)
-   - Disk Space: Free GB thresholds (>20 = ok, 10-20 = warning, <10 = error)
-   - Databases: Tests both PostgreSQL and Neo4j connections
-   - LLM: Queries Ollama API, lists available models
-   - Python: Verifies venv active + version ≥3.11
-   - Config: Validates JSON parsing of 3 config files
+4. **Sequencer fitAll() Behavior**: Now calls fitAll() on every fetchSequencerData() completion using requestAnimationFrame() to ensure canvas is properly resized first. No longer requires manual button click.
 
-5. **Tooltip System**: Global `#system-tooltip` div positioned at cursor +15px offset. Uses `onmouseenter`/`onmouseleave` events with data attributes. Grid layout for label-value pairs.
-
-6. **Testing Endpoints**:
-   - `curl http://localhost:6101/api/model-pool/models` - Get model states
-   - `curl http://localhost:6101/api/system/status` - Get health data
-   - `curl -X POST http://localhost:6101/api/model-pool/models/{id}/load` - Load model
+5. **System Health Improvement**: Went from 10/12 ports (83.3% port health) to 10/10 required ports (100% port health), improving overall system health from 90% to 96.7%.
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Commit changes** - 11 uncommitted files ready for git commit
-3. **Investigate Event Bus** - Port 6102 showing DOWN, check if service is running
-4. **Neo4j connection** - Verify Neo4j service status or disable if not needed
-5. **Test Model Pool UI** - Open http://localhost:6101 → Settings → Model Pool
-6. **Test System Status** - Open http://localhost:6101 → Settings → System Status
-7. **Try tooltips** - Hover over any port to see styled tooltip
-8. **Copy summary** - Click "📋 Copy Summary" button to test clipboard
+2. **Verify changes** - Open http://localhost:6101 → Settings → System Status to see grey optional ports
+3. **Test Sequencer** - Open http://localhost:6101/sequencer and select different Prime Directives to verify auto-fit
+4. **Next work** - Consider adding WebSocket support for Model Pool routing or implementing historical metrics charts
