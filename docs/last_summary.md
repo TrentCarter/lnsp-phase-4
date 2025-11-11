@@ -1,68 +1,81 @@
 # Last Session Summary
 
-**Date:** 2025-11-11 (Session 6)
-**Duration:** ~2 hours
+**Date:** 2025-11-11 (Session 7)
+**Duration:** ~1.5 hours
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Implemented two HMI enhancements via conversational task intake (`/pas-task`): fixed empty tree view with automatic fallback to live services, and added configurable polling to Sequencer that auto-detects new tasks and starts playback. Initial P0 stack submission failed due to Aider-LCO HTML file restrictions, pivoted to direct Tier 1 implementation.
+Implemented dynamic LLM model selection system with per-agent-class configuration (Architect, Director, Manager, Programmer). Added local LLM health detection for FastAPI endpoints with real-time status indicators (OK/ERR/OFFLINE). Created comprehensive Settings UI with model dropdowns including fallback chains, and parsed .env file to auto-detect available API models.
 
 ## Key Changes
 
-### 1. Tree View Fix - Empty Display Issue
-**Files:** `services/webui/templates/tree.html:347-435`, `services/webui/hmi_app.py:419-424`
-**Summary:** Fixed empty tree view by adding automatic fallback from action logs to live services tree when data unavailable, and corrected backend root action detection to recognize Gateway as valid root agent (was only looking for 'user').
+### 1. Local LLM Health Detection System
+**Files:** `services/webui/hmi_app.py:2326-2360`, `configs/pas/local_llms.yaml` (NEW, 1.9KB)
+**Summary:** Added health check system for local LLM endpoints (Ollama, custom FastAPI) with 30-second caching. Returns OK/ERR/OFFLINE status for each endpoint. Configuration file defines host/port/endpoint for each local model.
 
-### 2. Sequencer New Task Polling
-**Files:** `services/webui/templates/sequencer.html:597-598, 2793-2842, 2751-2767`, `services/webui/templates/base.html:715-733, 984-985, 1021-1028, 1092-1099, 1121-1123`
-**Summary:** Added polling capability that detects new tasks every 5 seconds (configurable 1-60 sec), automatically switches to new task and starts playback. Includes settings UI with "Auto-Detect New Tasks" toggle and "New Task Poll Interval" input, independent from existing refresh functionality.
+### 2. Model Selection Backend API
+**Files:** `services/webui/hmi_app.py:2363-2510` (3 new endpoints, ~150 lines)
+**Summary:** Added `/api/models/available` (GET), `/api/models/preferences` (GET/POST) endpoints. Parses .env for API keys and local_llms.yaml for local endpoints. Saves preferences to `configs/pas/model_preferences.json`.
 
-### 3. Aider-LCO File Allowlist Fix
-**Files:** `configs/pas/fs_allowlist.yaml:32-35`
-**Summary:** Added absolute path patterns for HTML templates to fix fnmatch path matching issue (relative patterns don't match absolute paths).
+### 3. Settings UI - LLM Model Selection
+**Files:** `services/webui/templates/base.html:736-833, 1207-1314` (HTML + JavaScript, ~210 lines)
+**Summary:** Added "🤖 LLM Model Selection" section with 8 dropdowns (4 agent classes × 2: primary/fallback). Shows status indicators (✓ OK, ⚠️ ERR, ⭕ OFFLINE) and disables unavailable models. Provider emojis: 🏠 Ollama, 🔮 Anthropic, 🚀 OpenAI, ✨ Gemini, 🧠 DeepSeek.
+
+### 4. Model Detection Logic
+**Files:** `services/webui/hmi_app.py:2405-2505`
+**Summary:** Updated `get_available_models()` to check both .env API keys and local_llms.yaml endpoints. Detected 10 models: 3 Ollama (OK status), 3 Anthropic, 3 Gemini, 1 OpenAI (all API status).
 
 ## Files Modified
 
-- `services/webui/templates/tree.html` - Added fallback logic and error handling (89 lines)
-- `services/webui/hmi_app.py` - Fixed root action detection for Gateway agent (5 lines)
-- `services/webui/templates/sequencer.html` - Added new task polling with auto-switch/scroll (68 lines)
-- `services/webui/templates/base.html` - Added settings UI controls and handlers (29 lines)
-- `configs/pas/fs_allowlist.yaml` - Added absolute path patterns for HTML files (4 lines)
+- `services/webui/hmi_app.py` - Added YAML import, health check function, 3 API endpoints, model detection (~260 lines)
+- `services/webui/templates/base.html` - Added LLM Settings section, JavaScript for loading/saving preferences (~210 lines)
+- `configs/pas/local_llms.yaml` - NEW: Local LLM configuration with Ollama endpoints
+- `docs/last_summary.md` - Updated session notes
 
 ## Current State
 
 **What's Working:**
-- ✅ Tree view displays complete task hierarchy from action logs
-- ✅ Tree view automatically falls back to live services when action logs unavailable
-- ✅ Sequencer polls for new tasks and auto-switches with playback
-- ✅ Settings UI includes new task poll controls (enabled by default, 5 sec interval)
-- ✅ Both features tested and verified on running HMI (port 6101)
+- ✅ Local LLM health detection (Ollama: 3 models detected as OK)
+- ✅ Model selection UI with status indicators and fallback configuration
+- ✅ Backend API for loading/saving model preferences
+- ✅ .env parsing for API-based models (Anthropic, OpenAI, Gemini)
+- ✅ Disabled/grayed-out models when OFFLINE or ERR status
 
 **What Needs Work:**
-- [ ] P0 stack HTML file permissions (Aider-LCO still blocks despite allowlist fix - needs service restart)
-- [ ] Test new task polling with actual task submission workflow
-- [ ] Commit all changes to git
+- [ ] macOS-style Settings UI redesign (sidebar navigation, category pages)
+- [ ] Advanced Model Settings page (temperature, max_tokens, top_p, etc.)
+- [ ] Integrate model preferences into Provider Router for actual dynamic selection
+- [ ] Create comprehensive documentation for model selection system
+- [ ] Test full end-to-end model selection with Gateway + Provider Router
 
 ## Important Context for Next Session
 
-1. **P0 Submission Attempt**: Used `/pas-task` conversational interface to submit both tasks. Failed due to Aider-LCO blocking HTML templates (`File not allowed` error). Added absolute paths to allowlist but didn't restart Aider-LCO service to verify fix.
+1. **LLM Model Selection Complete (Part A)**: Backend and UI fully functional. Users can select primary/fallback models for each agent class. Status indicators show local model health. Config saved to `configs/pas/model_preferences.json`.
 
-2. **Implementation Approach**: Pivoted to direct Tier 1 DirEng implementation (Option A) as recommended for small UI changes (1-3 files each). No PLMS tracking but faster delivery.
+2. **Settings UI Needs Redesign (Part B)**: Current Settings modal has 8 sections (70+ settings) in single scrolling page. Plan: reorganize into macOS System Settings style with sidebar navigation (General, Display, Tree View, Sequencer, Audio, LLM Models, Advanced Models, System).
 
-3. **Tree View Root Cause**: Registry service (port 6121) was running with valid data, but `build_tree_from_actions()` function filtered out Gateway as root agent. Fixed by updating root detection logic to include Gateway alongside 'user' and None.
+3. **Default Configuration**: Architect/Director use "Auto Select" + Claude Sonnet fallback. Manager uses "Auto" + Haiku fallback. Programmer uses Qwen 2.5 Coder 7B + Claude Sonnet fallback.
 
-4. **Polling Design**: New task polling is separate from refresh interval. Tracks `lastKnownTaskId`, polls `/api/actions/projects`, detects when first item changes, then auto-switches and starts playback. Configurable in settings with validation (1-60 sec range).
+4. **Local LLM Config**: `configs/pas/local_llms.yaml` defines FastAPI endpoints. Health checks run on Settings open with 30-sec cache. Add custom local models by editing YAML.
 
-5. **Testing Status**: Tree view tested with task `44315fc2-a49d-441c-b114-aa6423eae43c` (shows Gateway → PAS Root → Architect → Dir-Code → Mgr-Code-01 → Prog-Qwen-001). Sequencer polling code deployed but not yet tested with live task submission.
+5. **Provider Router Integration Pending**: Model preferences saved but not yet used by Provider Router. Next phase: update `services/provider_router/provider_router.py` to read preferences and select models based on agent class.
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Test Sequencer polling** by submitting a new task and verifying auto-switch
-3. **Commit changes** with `git add` + `git commit` (tree view + sequencer polling)
-4. **Restart Aider-LCO** to verify HTML file allowlist fix works
-5. **Continue P0 testing** or start Phase 1 (LightRAG Code Index)
+2. **Implement macOS-style Settings UI** with sidebar navigation
+3. **Create Advanced Model Settings page** (temperature, max_tokens, top_p, top_k, frequency/presence penalties)
+4. **Integrate preferences into Provider Router** for dynamic model selection
+5. **Create documentation** for model selection system
 
+## Next Session Todo List
 
-
+- [ ] Design macOS-style Settings sidebar navigation CSS
+- [ ] Create sidebar category list (General, Display, Tree, Sequencer, Audio, LLM, Advanced, System)
+- [ ] Implement page-based content switching for Settings
+- [ ] Reorganize existing settings into category pages
+- [ ] Create Advanced Model Settings page (temp, max_tokens, etc)
+- [ ] Add breadcrumb navigation for Settings
+- [ ] Test Settings UI navigation and all pages
+- [ ] Create documentation for model selection system
