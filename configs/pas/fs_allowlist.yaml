@@ -29,6 +29,10 @@ allow:
   - "services/**/*.html"
   - "services/**/*.js"
   - "services/**/*.css"
+  - "/Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4/services/**/*.html"
+  - "/Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4/services/**/*.py"
+  - "/Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4/services/**/*.js"
+  - "/Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4/services/**/*.css"
 
   # Tools & Scripts
   - "tools/**/*.py"

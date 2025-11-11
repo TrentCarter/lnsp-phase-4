@@ -1,192 +1,99 @@
-# Wrap-Up and Document Session
+# Wrap-Up Session
 
-You are about to help the user wrap up the current work session. Follow these steps carefully:
+Help the user wrap up the current work session efficiently.
 
-## Step 0: Archive Previous Summary
+## Usage
 
-**CRITICAL**: Before creating the new summary, archive the previous one:
+```
+/wrap-up          # Create summary only (no git operations)
+/wrap-up --git    # Create summary + git commit and push
+```
 
-1. **Check if `last_summary.md` exists:**
-   ```bash
-   ls docs/last_summary.md
-   ```
+## Step 1: Archive Previous Summary
 
-2. **If it exists, append it to `all_project_summary.md`:**
-   - Read the contents of `docs/last_summary.md`
-   - Open (or create) `docs/all_project_summary.md`
-   - Append to the file:
-     ```
-     ===
-     [Previous Date from last_summary.md]
+If `docs/last_summary.md` exists, archive it without reading:
 
-     [Full contents of last_summary.md]
+```bash
+if [ -f docs/last_summary.md ]; then
+  echo -e "\n===\n$(date '+%Y-%m-%d %H:%M:%S')\n" >> docs/all_project_summary.md
+  cat docs/last_summary.md >> docs/all_project_summary.md
+fi
+```
 
-     ```
-   - This file is for archival only - DO NOT load it into context
+## Step 2: Create New Summary
 
-3. **If `last_summary.md` doesn't exist:**
-   - Skip archival step (this is the first session)
-
-## Step 1: Review Recent Changes
-
-Review what has been changed in this session:
-1. Use `git status` to see modified files
-2. Use `git diff` to see actual changes (focus on key files, not all diffs)
-3. Identify the main features/fixes that were implemented
-
-## Step 2: Update Documentation
-
-Based on the changes you found:
-
-1. **Check if CLAUDE.md needs updates:**
-   - Read the relevant sections of CLAUDE.md
-   - If new features were added, update the "Current Status" section
-   - If new components were created, add them to the appropriate sections
-   - If configurations changed, update the configuration sections
-
-2. **Update any relevant PRD or design docs:**
-   - Look for PRD files in `docs/PRDs/` related to the work
-   - Update implementation status if features were completed
-   - Add any new sections for features that were added
-
-3. **Check README or other docs:**
-   - If user-facing features were added, consider updating README
-   - If API changes were made, update API documentation
-
-## Step 3: Create Session Summaries
-
-Create TWO summary files:
-
-### A. `docs/last_summary.md` (FOR CONTEXT LOADING)
-
-**This file is designed to be loaded into context with `/restore`**
-
-Keep it concise but comprehensive:
+Create `docs/last_summary.md` based on conversation context:
 
 ```markdown
 # Last Session Summary
 
-**Date:** YYYY-MM-DD
-**Duration:** [e.g., 2 hours]
-**Branch:** [current git branch]
+**Date:** YYYY-MM-DD (Session N)
+**Duration:** ~X minutes/hours
+**Branch:** [current branch from git]
 
 ## What Was Accomplished
 
-[2-3 sentence overview of main achievements]
+[2-3 sentence overview]
 
 ## Key Changes
 
 ### 1. [Feature/Fix Name]
-**Files:** `path/to/file.ext:line-range`
-**Summary:** [1-2 sentences explaining the change and why]
+**Files:** `path/to/file.ext:lines` or (NEW, size)
+**Summary:** [1-2 sentences]
 
-### 2. [Next Feature/Fix]
-**Files:** `path/to/file.ext:line-range`
-**Summary:** [1-2 sentences explaining the change and why]
+### 2. [Next Change]
+**Files:** `path/to/file.ext:lines`
+**Summary:** [1-2 sentences]
 
 ## Files Modified
 
-- `file1.ext` - [Brief description]
-- `file2.ext` - [Brief description]
+- `file1.ext` - Brief description
+- `file2.ext` - Brief description
 
 ## Current State
 
 **What's Working:**
-- [Key working features]
+- ✅ [Key working features]
 
 **What Needs Work:**
-- [ ] [Known issues or next steps]
+- [ ] [Next steps or known issues]
 
 ## Important Context for Next Session
 
-- [Any critical context to remember]
-- [Configuration changes]
-- [Breaking changes or gotchas]
+1. **[Key Context Item]**: Brief explanation
+2. **[Another Item]**: Brief explanation
 
 ## Quick Start Next Session
 
-1. [First thing to do when resuming work]
-2. [Second thing]
-3. [Third thing]
+1. **Use `/restore`** to load this summary
+2. [Next immediate action]
+3. [Another action]
 ```
 
-### B. `docs/session_summaries/YYYY-MM-DD_session_summary.md` (DETAILED ARCHIVE)
+**Guidelines:**
+- Base summary on conversation history (what user requested, what you did)
+- Keep concise but informative
+- Include file paths with line numbers or sizes
+- Focus on "what" and "why", not detailed "how"
 
-**This is the detailed archive - NOT for context loading**
+## Step 3: Git Operations (Optional)
 
-Use the comprehensive structure:
+**Only if `--git` flag is present:**
 
-```markdown
-# Session Summary: [Date]
-
-## Overview
-Detailed paragraph explaining what was accomplished.
-
-## Changes Made
-
-### 1. [Feature/Fix Name]
-**Files Changed:**
-- `path/to/file.ext:line-range` - Description of change
-- `path/to/file2.ext:line-range` - Description of change
-
-**What Changed:**
-- Detailed explanation of what was implemented
-- Why it was implemented this way
-- Any important technical decisions
-
-**Testing:**
-- How to test this feature
-- Expected behavior
-
-### 2. [Next Feature/Fix]
-[Same structure as above]
-
-## Files Modified
-
-Complete list with line numbers:
-- `file1.ext:123-456` - Brief description
-- `file2.ext:789-1011` - Brief description
-
-## Next Steps
-
-If there are known issues or follow-up tasks:
-- [ ] Task 1
-- [ ] Task 2
-
-## Notes
-
-Any important context for future sessions:
-- Configuration changes
-- Breaking changes
-- Dependencies added/removed
-```
-
-## Step 4: Git Status Check
-
-Before committing:
-1. Show `git status` one final time
-2. List any untracked files that might need attention
-3. Identify files that should be committed
-
-## Step 5: Commit and Push Changes
-
-**Automatically commit and push all session documentation:**
-
-1. **Add all documentation files:**
+1. **Show current status:**
    ```bash
-   git add docs/last_summary.md docs/all_project_summary.md docs/session_summaries/ .claude/commands/ CLAUDE.md docs/readme.txt
+   git status --short
    ```
 
-2. **Create commit with descriptive message:**
-   Use this format:
+2. **Add documentation files:**
+   ```bash
+   git add docs/last_summary.md docs/all_project_summary.md CLAUDE.md
+   ```
+
+3. **Commit with summary:**
    ```bash
    git commit -m "$(cat <<'EOF'
    docs: wrap-up session YYYY-MM-DD - [brief summary]
-
-   Session summary:
-   - [Main accomplishment 1]
-   - [Main accomplishment 2]
-   - [Main accomplishment 3]
 
    🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
@@ -195,37 +102,23 @@ Before committing:
    )"
    ```
 
-3. **Push to remote:**
+4. **Push:**
    ```bash
    git push
    ```
 
-4. **Verify:**
-   ```bash
-   git status
-   ```
+## Step 4: Completion
 
-## Step 6: Final Checklist
+Confirm completion:
+- ✅ Summary created in `docs/last_summary.md`
+- ✅ Previous summary archived to `docs/all_project_summary.md`
+- ✅ [If --git] Changes committed and pushed
 
-Provide a final checklist:
-- [ ] Previous summary archived to `all_project_summary.md`
-- [ ] New `last_summary.md` created (concise, for `/restore`)
-- [ ] Detailed summary created in `session_summaries/` (archival)
-- [ ] All documentation updated (CLAUDE.md, PRDs, etc.)
-- [ ] All changes committed and pushed
-- [ ] Ready for `/clear`
+Ready for `/clear` when you're done.
 
-## Important Notes:
+## Notes
 
-- **DO** commit and push all documentation changes automatically
-- **DO NOT** run `/clear` - just prepare for it
-- **DO NOT** load `all_project_summary.md` into context (it's archival only)
-- Focus on making `last_summary.md` concise and useful for `/restore`
-- Include specific file paths and line numbers
-- The detailed summary goes in `session_summaries/` for historical record
-
-## File Locations Reference
-
-- `docs/last_summary.md` - Current session (LOAD THIS with `/restore`)
-- `docs/all_project_summary.md` - All previous sessions (DO NOT LOAD)
-- `docs/session_summaries/YYYY-MM-DD_session_summary.md` - Today's detailed archive
+- DO NOT read files unless necessary for context
+- DO NOT run `git diff` or review changes (waste of tokens)
+- Base summary on conversation history, not git inspection
+- Keep focused on deliverables, not process

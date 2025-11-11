@@ -1,0 +1,11 @@
+{
+  "title": "Fix FAISS index persistence bug in ingestion pipeline",
+  "description": "CLI submission",
+  "repo_root": "/Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4",
+  "entry_files": [
+    "src/ingest_pipeline.py"
+  ],
+  "goal": "Ensure FAISS index is properly saved to disk after ingestion completes. Currently, vectors are built in memory but faiss_db.save() is never called, causing data loss on restart. Success criteria: (1) FAISS index file exists in artifacts/ after ingestion, (2) Retrieval API can load index after restart, (3) New test verifies save() is called, (4) All existing tests pass.",
+  "budget_tokens_max": 25000,
+  "budget_cost_usd_max": 2.0
+}
