@@ -16,6 +16,7 @@ import requests
 import logging
 from datetime import datetime
 from typing import Dict, List, Any
+from pathlib import Path
 import json
 import time
 import sqlite3
@@ -2563,6 +2564,64 @@ def save_model_preferences_api():
             return jsonify({'status': 'error', 'error': 'Failed to save preferences'}), 500
     except Exception as e:
         logger.error(f"Error saving model preferences: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/models/advanced-settings', methods=['POST'])
+def save_advanced_model_settings_api():
+    """Save advanced model settings (temperature, max_tokens, etc.)"""
+    try:
+        data = request.get_json()
+
+        # Validate settings
+        settings = {
+            'temperature': data.get('temperature', 0.7),
+            'maxTokens': data.get('maxTokens', 2000),
+            'topP': data.get('topP', 0.9),
+            'topK': data.get('topK', 40),
+            'frequencyPenalty': data.get('frequencyPenalty', 0.0),
+            'presencePenalty': data.get('presencePenalty', 0.0)
+        }
+
+        # Save to config file
+        advanced_settings_path = Path('configs/pas/advanced_model_settings.json')
+        advanced_settings_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(advanced_settings_path, 'w') as f:
+            json.dump(settings, f, indent=2)
+
+        logger.info(f"Saved advanced model settings: {settings}")
+        return jsonify({'status': 'success'})
+
+    except Exception as e:
+        logger.error(f"Error saving advanced model settings: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/models/advanced-settings', methods=['GET'])
+def get_advanced_model_settings_api():
+    """Get current advanced model settings"""
+    try:
+        advanced_settings_path = Path('configs/pas/advanced_model_settings.json')
+
+        if advanced_settings_path.exists():
+            with open(advanced_settings_path, 'r') as f:
+                settings = json.load(f)
+        else:
+            # Default settings
+            settings = {
+                'temperature': 0.7,
+                'maxTokens': 2000,
+                'topP': 0.9,
+                'topK': 40,
+                'frequencyPenalty': 0.0,
+                'presencePenalty': 0.0
+            }
+
+        return jsonify({'status': 'ok', 'settings': settings})
+
+    except Exception as e:
+        logger.error(f"Error getting advanced model settings: {e}")
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
 

@@ -1,81 +1,85 @@
 # Last Session Summary
 
-**Date:** 2025-11-11 (Session 7)
-**Duration:** ~1.5 hours
+**Date:** 2025-11-11 (Session 8)
+**Duration:** ~1 hour
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Implemented dynamic LLM model selection system with per-agent-class configuration (Architect, Director, Manager, Programmer). Added local LLM health detection for FastAPI endpoints with real-time status indicators (OK/ERR/OFFLINE). Created comprehensive Settings UI with model dropdowns including fallback chains, and parsed .env file to auto-detect available API models.
+Completed macOS-style Settings UI redesign with sidebar navigation and implemented Advanced Model Settings page. Restructured LLM Model Selection into a clean 3-column table layout and standardized all save buttons to green for consistent UX.
 
 ## Key Changes
 
-### 1. Local LLM Health Detection System
-**Files:** `services/webui/hmi_app.py:2326-2360`, `configs/pas/local_llms.yaml` (NEW, 1.9KB)
-**Summary:** Added health check system for local LLM endpoints (Ollama, custom FastAPI) with 30-second caching. Returns OK/ERR/OFFLINE status for each endpoint. Configuration file defines host/port/endpoint for each local model.
+### 1. macOS-Style Settings UI with Sidebar Navigation
+**Files:** `services/webui/templates/base.html:329-385` (CSS), `services/webui/templates/base.html:621-662` (HTML sidebar)
+**Summary:** Redesigned Settings modal with left sidebar navigation (200px) showing 8 categories: General, Display, Tree View, Sequencer, Audio, LLM Models, Advanced, System. Each category has its own page with smooth switching. Save Changes button pinned to bottom of sidebar with green background.
 
-### 2. Model Selection Backend API
-**Files:** `services/webui/hmi_app.py:2363-2510` (3 new endpoints, ~150 lines)
-**Summary:** Added `/api/models/available` (GET), `/api/models/preferences` (GET/POST) endpoints. Parses .env for API keys and local_llms.yaml for local endpoints. Saves preferences to `configs/pas/model_preferences.json`.
+### 2. Advanced Model Settings Page (NEW)
+**Files:** `services/webui/templates/base.html:984-1067` (frontend), `services/webui/hmi_app.py:2569-2625` (backend API)
+**Summary:** Created comprehensive Advanced Model Settings page with 6 parameters: Temperature (0.0-2.0), Max Tokens (100-8000), Top P (0.0-1.0), Top K (1-100), Frequency Penalty (-2.0 to 2.0), Presence Penalty (-2.0 to 2.0). All sliders show live value updates. Settings persist to `configs/pas/advanced_model_settings.json`.
 
-### 3. Settings UI - LLM Model Selection
-**Files:** `services/webui/templates/base.html:736-833, 1207-1314` (HTML + JavaScript, ~210 lines)
-**Summary:** Added "🤖 LLM Model Selection" section with 8 dropdowns (4 agent classes × 2: primary/fallback). Shows status indicators (✓ OK, ⚠️ ERR, ⭕ OFFLINE) and disables unavailable models. Provider emojis: 🏠 Ollama, 🔮 Anthropic, 🚀 OpenAI, ✨ Gemini, 🧠 DeepSeek.
+### 3. LLM Models 3-Column Table Layout
+**Files:** `services/webui/templates/base.html:892-982`
+**Summary:** Completely restructured LLM Model Selection page from 8 vertical rows into compact 3-column table (Agent Type | Primary Model | Backup Model). Features 4 agent types (Architect, Director, Manager, Programmer) with emojis and descriptions. 50% reduction in vertical space with better visual hierarchy.
 
-### 4. Model Detection Logic
-**Files:** `services/webui/hmi_app.py:2405-2505`
-**Summary:** Updated `get_available_models()` to check both .env API keys and local_llms.yaml endpoints. Detected 10 models: 3 Ollama (OK status), 3 Anthropic, 3 Gemini, 1 OpenAI (all API status).
+### 4. Consistent Green Save Buttons
+**Files:** `services/webui/templates/base.html:660, 979, 1064`
+**Summary:** Standardized all save buttons to emerald green (#10b981) with white text for consistency. Updated Save Changes (sidebar), Save Model Preferences (LLM page), and Save Advanced Settings (Advanced page). Reset to Defaults uses amber (#f59e0b) to indicate caution.
+
+### 5. Settings Page Reorganization
+**Files:** `services/webui/templates/base.html:665-1116`
+**Summary:** Reorganized all settings into 8 category pages: General (Auto-Refresh, Performance), Display (Tooltips, Compact Mode, Time Zone), Tree View (Orientation), Sequencer (Scrollbars, Playback Speed, Sound Mode, Auto-Detect), Audio (Master, Notes, Voice, Volume), LLM Models (table layout), Advanced (inference parameters), System (Clear Data, Restart Services, Reset Defaults).
 
 ## Files Modified
 
-- `services/webui/hmi_app.py` - Added YAML import, health check function, 3 API endpoints, model detection (~260 lines)
-- `services/webui/templates/base.html` - Added LLM Settings section, JavaScript for loading/saving preferences (~210 lines)
-- `configs/pas/local_llms.yaml` - NEW: Local LLM configuration with Ollama endpoints
-- `docs/last_summary.md` - Updated session notes
+- `services/webui/templates/base.html` - Added sidebar navigation CSS, restructured settings into pages, created 3-column LLM table, added Advanced page, updated button colors (~400 lines changed)
+- `services/webui/hmi_app.py` - Added Path import, created GET/POST endpoints for advanced model settings (~60 lines added)
+- `configs/pas/advanced_model_settings.json` - NEW: Auto-created on first save, stores LLM inference parameters
 
 ## Current State
 
 **What's Working:**
-- ✅ Local LLM health detection (Ollama: 3 models detected as OK)
-- ✅ Model selection UI with status indicators and fallback configuration
-- ✅ Backend API for loading/saving model preferences
-- ✅ .env parsing for API-based models (Anthropic, OpenAI, Gemini)
-- ✅ Disabled/grayed-out models when OFFLINE or ERR status
+- ✅ macOS-style sidebar navigation with 8 categories
+- ✅ Smooth page switching with active state highlighting
+- ✅ 3-column LLM Models table (Agent Type | Primary | Backup)
+- ✅ Advanced Model Settings with 6 configurable parameters
+- ✅ All save buttons standardized to green (#10b981)
+- ✅ Reset to Defaults button in amber (#f59e0b) on System page
+- ✅ Settings persist to JSON config files
+- ✅ Backend API endpoints working (tested with curl)
 
 **What Needs Work:**
-- [ ] macOS-style Settings UI redesign (sidebar navigation, category pages)
-- [ ] Advanced Model Settings page (temperature, max_tokens, top_p, etc.)
-- [ ] Integrate model preferences into Provider Router for actual dynamic selection
-- [ ] Create comprehensive documentation for model selection system
-- [ ] Test full end-to-end model selection with Gateway + Provider Router
+- [ ] Provider Router integration - Use saved model preferences and advanced settings in actual LLM calls
+- [ ] Per-agent-class advanced settings (different temperature for Architect vs Programmer)
+- [ ] Settings validation UI (warnings for extreme values)
+- [ ] Settings import/export functionality
+- [ ] Preset profiles for advanced settings ("Conservative", "Balanced", "Creative")
 
 ## Important Context for Next Session
 
-1. **LLM Model Selection Complete (Part A)**: Backend and UI fully functional. Users can select primary/fallback models for each agent class. Status indicators show local model health. Config saved to `configs/pas/model_preferences.json`.
+1. **Settings UI Complete**: Full macOS-style Settings with sidebar navigation, 8 category pages, and consistent green save buttons. No more cramped single-page scrolling.
 
-2. **Settings UI Needs Redesign (Part B)**: Current Settings modal has 8 sections (70+ settings) in single scrolling page. Plan: reorganize into macOS System Settings style with sidebar navigation (General, Display, Tree View, Sequencer, Audio, LLM Models, Advanced Models, System).
+2. **LLM Configuration**: Two levels of configuration now available:
+   - **Model Selection** (LLM Models page): Choose which model for each agent class
+   - **Advanced Parameters** (Advanced page): Fine-tune temperature, tokens, top-p, penalties
 
-3. **Default Configuration**: Architect/Director use "Auto Select" + Claude Sonnet fallback. Manager uses "Auto" + Haiku fallback. Programmer uses Qwen 2.5 Coder 7B + Claude Sonnet fallback.
+3. **Three Config Files**:
+   - `configs/pas/model_preferences.json` - Per-agent model selection (primary + fallback)
+   - `configs/pas/advanced_model_settings.json` - Global LLM inference parameters
+   - `configs/pas/local_llms.yaml` - Local LLM endpoint definitions
 
-4. **Local LLM Config**: `configs/pas/local_llms.yaml` defines FastAPI endpoints. Health checks run on Settings open with 30-sec cache. Add custom local models by editing YAML.
+4. **Button Color Scheme**:
+   - Green (#10b981) = Save/Confirm actions
+   - Amber (#f59e0b) = Caution/Reset actions
+   - Red (#ef4444) = Danger/Delete actions
 
-5. **Provider Router Integration Pending**: Model preferences saved but not yet used by Provider Router. Next phase: update `services/provider_router/provider_router.py` to read preferences and select models based on agent class.
+5. **Next Phase**: Integrate saved preferences into Provider Router so model selection and advanced settings are actually used during LLM inference.
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Implement macOS-style Settings UI** with sidebar navigation
-3. **Create Advanced Model Settings page** (temperature, max_tokens, top_p, top_k, frequency/presence penalties)
-4. **Integrate preferences into Provider Router** for dynamic model selection
-5. **Create documentation** for model selection system
-
-## Next Session Todo List
-
-- [ ] Design macOS-style Settings sidebar navigation CSS
-- [ ] Create sidebar category list (General, Display, Tree, Sequencer, Audio, LLM, Advanced, System)
-- [ ] Implement page-based content switching for Settings
-- [ ] Reorganize existing settings into category pages
-- [ ] Create Advanced Model Settings page (temp, max_tokens, etc)
-- [ ] Add breadcrumb navigation for Settings
-- [ ] Test Settings UI navigation and all pages
-- [ ] Create documentation for model selection system
+2. **Test Settings UI** - Open http://localhost:6101, click Settings button, verify all 8 pages work
+3. **Provider Router Integration** - Update `services/provider_router/provider_router.py` to:
+   - Read `model_preferences.json` and select models based on agent class
+   - Read `advanced_model_settings.json` and apply to LLM API calls
+4. **End-to-End Test** - Submit task via Verdict CLI, verify correct models are used

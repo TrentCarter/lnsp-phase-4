@@ -330,12 +330,60 @@
             background: linear-gradient(135deg, #1e2747 0%, #2a3558 100%);
             border: 2px solid #4a5578;
             border-radius: 12px;
-            padding: 2rem;
-            max-width: 600px;
+            max-width: 900px;
             width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
+            max-height: 85vh;
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+            display: flex;
+            overflow: hidden;
+        }
+
+        .settings-sidebar {
+            width: 200px;
+            background: rgba(0, 0, 0, 0.2);
+            border-right: 1px solid #4a5578;
+            padding: 1rem 0 0 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .settings-sidebar-item {
+            padding: 0.75rem 1.25rem;
+            cursor: pointer;
+            color: #9ca3af;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .settings-sidebar-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #e0e0e0;
+        }
+
+        .settings-sidebar-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border-left-color: #3b82f6;
+            font-weight: 500;
+        }
+
+        .settings-main {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .settings-page {
+            display: none;
+        }
+
+        .settings-page.active {
+            display: block;
         }
 
         .settings-header {
@@ -572,13 +620,58 @@
     <!-- Settings Modal -->
     <div id="settings-modal" class="settings-modal">
         <div class="settings-content">
-            <div class="settings-header">
-                <h2>⚙️ Settings</h2>
-                <button class="close-button" onclick="closeSettings()">✕</button>
+            <!-- Sidebar Navigation -->
+            <div class="settings-sidebar">
+                <div class="settings-sidebar-item active" onclick="switchSettingsPage('general')">
+                    <span>🏠</span>
+                    <span>General</span>
+                </div>
+                <div class="settings-sidebar-item" onclick="switchSettingsPage('display')">
+                    <span>🎨</span>
+                    <span>Display</span>
+                </div>
+                <div class="settings-sidebar-item" onclick="switchSettingsPage('tree')">
+                    <span>🌳</span>
+                    <span>Tree View</span>
+                </div>
+                <div class="settings-sidebar-item" onclick="switchSettingsPage('sequencer')">
+                    <span>🎹</span>
+                    <span>Sequencer</span>
+                </div>
+                <div class="settings-sidebar-item" onclick="switchSettingsPage('audio')">
+                    <span>🔊</span>
+                    <span>Audio</span>
+                </div>
+                <div class="settings-sidebar-item" onclick="switchSettingsPage('llm')">
+                    <span>🤖</span>
+                    <span>LLM Models</span>
+                </div>
+                <div class="settings-sidebar-item" onclick="switchSettingsPage('advanced')">
+                    <span>⚙️</span>
+                    <span>Advanced</span>
+                </div>
+                <div class="settings-sidebar-item" onclick="switchSettingsPage('system')">
+                    <span>🛠️</span>
+                    <span>System</span>
+                </div>
+
+                <!-- Save Button at Bottom -->
+                <div style="padding: 1.25rem; margin-top: auto; border-top: 1px solid #4a5578;">
+                    <button onclick="saveSettings()" style="width: 100%; padding: 0.75rem; font-size: 0.875rem; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">💾 Save Changes</button>
+                </div>
             </div>
 
-            <!-- Auto-Refresh Settings -->
-            <div class="settings-section">
+            <!-- Main Content Area -->
+            <div class="settings-main">
+                <div class="settings-header">
+                    <h2 id="settings-page-title">⚙️ General</h2>
+                    <button class="close-button" onclick="closeSettings()">✕</button>
+                </div>
+
+                <!-- General Page -->
+                <div id="page-general" class="settings-page active">
+                    <!-- Auto-Refresh Settings -->
+                    <div class="settings-section">
                 <h3>🔄 Auto-Refresh</h3>
                 <div class="setting-row">
                     <div>
@@ -601,80 +694,88 @@
                 </div>
             </div>
 
-            <!-- Display Settings -->
-            <div class="settings-section">
-                <h3>🎨 Display</h3>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Show Tooltips</div>
-                        <div class="setting-description">Display detailed information on hover</div>
-                    </div>
-                    <div class="setting-control">
-                        <div id="tooltips-toggle" class="toggle-switch active" onclick="toggleTooltips()"></div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Compact Mode</div>
-                        <div class="setting-description">Reduce spacing for more information density</div>
-                    </div>
-                    <div class="setting-control">
-                        <div id="compact-toggle" class="toggle-switch" onclick="toggleCompactMode()"></div>
+                    <!-- Performance Settings -->
+                    <div class="settings-section">
+                        <h3>⚡ Performance</h3>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Animation Duration</div>
+                                <div class="setting-description">Transition speed for visual updates (milliseconds)</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="animation-duration" class="setting-input" min="0" max="2000" step="100" value="750">
+                                <span style="color: #9ca3af; font-size: 0.875rem;">ms</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Time Zone</div>
-                        <div class="setting-description">Display time zone for timestamps</div>
-                    </div>
-                    <div class="setting-control">
-                        <select id="timezone-select" class="setting-input" style="width: 140px;">
-                            <option value="America/New_York">EST (US Eastern)</option>
-                            <option value="America/Chicago">CST (US Central)</option>
-                            <option value="America/Denver">MST (US Mountain)</option>
-                            <option value="America/Los_Angeles">PST (US Pacific)</option>
-                            <option value="UTC">UTC</option>
-                            <option value="Europe/London">GMT (London)</option>
-                            <option value="Asia/Tokyo">JST (Tokyo)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Performance Settings -->
-            <div class="settings-section">
-                <h3>⚡ Performance</h3>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Animation Duration</div>
-                        <div class="setting-description">Transition speed for visual updates (milliseconds)</div>
-                    </div>
-                    <div class="setting-control">
-                        <input type="number" id="animation-duration" class="setting-input" min="0" max="2000" step="100" value="750">
-                        <span style="color: #9ca3af; font-size: 0.875rem;">ms</span>
+                <!-- Display Page -->
+                <div id="page-display" class="settings-page">
+                    <div class="settings-section">
+                        <h3>🎨 Display</h3>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Show Tooltips</div>
+                                <div class="setting-description">Display detailed information on hover</div>
+                            </div>
+                            <div class="setting-control">
+                                <div id="tooltips-toggle" class="toggle-switch active" onclick="toggleTooltips()"></div>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Compact Mode</div>
+                                <div class="setting-description">Reduce spacing for more information density</div>
+                            </div>
+                            <div class="setting-control">
+                                <div id="compact-toggle" class="toggle-switch" onclick="toggleCompactMode()"></div>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Time Zone</div>
+                                <div class="setting-description">Display time zone for timestamps</div>
+                            </div>
+                            <div class="setting-control">
+                                <select id="timezone-select" class="setting-input" style="width: 140px;">
+                                    <option value="America/New_York">EST (US Eastern)</option>
+                                    <option value="America/Chicago">CST (US Central)</option>
+                                    <option value="America/Denver">MST (US Mountain)</option>
+                                    <option value="America/Los_Angeles">PST (US Pacific)</option>
+                                    <option value="UTC">UTC</option>
+                                    <option value="Europe/London">GMT (London)</option>
+                                    <option value="Asia/Tokyo">JST (Tokyo)</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Tree View Settings -->
-            <div class="settings-section">
-                <h3>🌳 Tree View</h3>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Tree Orientation</div>
-                        <div class="setting-description">Default layout orientation for tree visualization</div>
-                    </div>
-                    <div class="setting-control">
-                        <select id="tree-orientation" class="setting-input" style="width: 140px;">
-                            <option value="top" selected>Top</option>
-                            <option value="left">Left</option>
-                            <option value="right">Right</option>
-                            <option value="bottom">Bottom</option>
-                        </select>
+                <!-- Tree View Page -->
+                <div id="page-tree" class="settings-page">
+                    <!-- Tree View Settings -->
+                    <div class="settings-section">
+                        <h3>🌳 Tree View</h3>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Tree Orientation</div>
+                                <div class="setting-description">Default layout orientation for tree visualization</div>
+                            </div>
+                            <div class="setting-control">
+                                <select id="tree-orientation" class="setting-input" style="width: 140px;">
+                                    <option value="top" selected>Top</option>
+                                    <option value="left">Left</option>
+                                    <option value="right">Right</option>
+                                    <option value="bottom">Bottom</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
+                <!-- Sequencer Page -->
+                <div id="page-sequencer" class="settings-page">
             <!-- Sequencer Settings -->
             <div class="settings-section">
                 <h3>🎹 Sequencer</h3>
@@ -730,111 +831,246 @@
                         <input type="number" id="new-task-poll-interval" class="setting-input" min="1" max="60" value="5">
                         <span style="color: #9ca3af; font-size: 0.875rem;">sec</span>
                     </div>
+                    </div>
                 </div>
-            </div>
+                </div>
 
-            <!-- LLM Model Selection Settings -->
-            <div class="settings-section">
-                <h3>🤖 LLM Model Selection</h3>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Architect Model</div>
-                        <div class="setting-description">Primary LLM for Architect agents (high-level planning)</div>
-                    </div>
-                    <div class="setting-control">
-                        <select id="architect-primary" class="setting-input" style="width: 280px;">
-                            <option value="auto">🔄 Auto Select</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Architect Fallback</div>
-                        <div class="setting-description">Backup model if primary fails</div>
-                    </div>
-                    <div class="setting-control">
-                        <select id="architect-fallback" class="setting-input" style="width: 280px;">
-                            <option value="auto">🔄 Auto Select</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Director Model</div>
-                        <div class="setting-description">Primary LLM for Director agents (lane coordination)</div>
-                    </div>
-                    <div class="setting-control">
-                        <select id="director-primary" class="setting-input" style="width: 280px;">
-                            <option value="auto">🔄 Auto Select</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Director Fallback</div>
-                        <div class="setting-description">Backup model if primary fails</div>
-                    </div>
-                    <div class="setting-control">
-                        <select id="director-fallback" class="setting-input" style="width: 280px;">
-                            <option value="auto">🔄 Auto Select</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Manager Model</div>
-                        <div class="setting-description">Primary LLM for Manager agents (task breakdown)</div>
-                    </div>
-                    <div class="setting-control">
-                        <select id="manager-primary" class="setting-input" style="width: 280px;">
-                            <option value="auto">🔄 Auto Select</option>
-                        </select>
+                <!-- Audio Page -->
+                <div id="page-audio" class="settings-page">
+                    <div class="settings-section">
+                        <h3>🔊 Audio</h3>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Master Audio</div>
+                                <div class="setting-description">Enable all sound output</div>
+                            </div>
+                            <div class="setting-control">
+                                <div id="master-audio-toggle" class="toggle-switch" onclick="toggleMasterAudio()"></div>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Sequencer Notes</div>
+                                <div class="setting-description">Musical notes for task events (assign, start, complete)</div>
+                            </div>
+                            <div class="setting-control">
+                                <div id="sequencer-notes-toggle" class="toggle-switch" onclick="toggleSequencerNotes()"></div>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Agent Voice Status</div>
+                                <div class="setting-description">Text-to-speech narration of agent updates</div>
+                            </div>
+                            <div class="setting-control">
+                                <div id="agent-voice-toggle" class="toggle-switch" onclick="toggleAgentVoice()"></div>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Audio Volume</div>
+                                <div class="setting-description">Master volume level (0-100%)</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="range" id="audio-volume" class="setting-input" min="0" max="100" value="70" style="width: 120px;">
+                                <span id="volume-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 40px;">70%</span>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Note Duration</div>
+                                <div class="setting-description">Duration of musical notes in milliseconds (50-500ms)</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="range" id="note-duration" class="setting-input" min="50" max="500" value="150" step="10" style="width: 120px;">
+                                <span id="note-duration-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 50px;">150ms</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Manager Fallback</div>
-                        <div class="setting-description">Backup model if primary fails</div>
-                    </div>
-                    <div class="setting-control">
-                        <select id="manager-fallback" class="setting-input" style="width: 280px;">
-                            <option value="auto">🔄 Auto Select</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Programmer Model</div>
-                        <div class="setting-description">Primary LLM for Programmer agents (code execution)</div>
-                    </div>
-                    <div class="setting-control">
-                        <select id="programmer-primary" class="setting-input" style="width: 280px;">
-                            <option value="auto">🔄 Auto Select</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Programmer Fallback</div>
-                        <div class="setting-description">Backup model if primary fails</div>
-                    </div>
-                    <div class="setting-control">
-                        <select id="programmer-fallback" class="setting-input" style="width: 280px;">
-                            <option value="auto">🔄 Auto Select</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div></div>
-                    <div class="setting-control">
-                        <button class="setting-button primary" onclick="saveModelPreferences()">💾 Save Model Preferences</button>
-                    </div>
-                </div>
-            </div>
 
-            <!-- System Admin Settings -->
-            <div class="settings-section">
-                <h3>🛠️ System Administration</h3>
+                <!-- LLM Models Page -->
+                <div id="page-llm" class="settings-page">
+                    <!-- LLM Model Selection Settings -->
+                    <div class="settings-section">
+                        <h3>🤖 LLM Model Selection</h3>
+
+                        <!-- Table Header -->
+                        <div style="display: grid; grid-template-columns: 200px 1fr 1fr; gap: 1rem; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 2px solid #4a5578;">
+                            <div style="color: #e0e0e0; font-weight: 600; font-size: 0.875rem;">Agent Type</div>
+                            <div style="color: #e0e0e0; font-weight: 600; font-size: 0.875rem;">Primary Model</div>
+                            <div style="color: #e0e0e0; font-weight: 600; font-size: 0.875rem;">Backup Model</div>
+                        </div>
+
+                        <!-- Architect Row -->
+                        <div style="display: grid; grid-template-columns: 200px 1fr 1fr; gap: 1rem; margin-bottom: 1rem; align-items: center;">
+                            <div>
+                                <div style="color: #e0e0e0; font-weight: 500;">🏛️ Architect</div>
+                                <div style="color: #9ca3af; font-size: 0.75rem;">High-level planning</div>
+                            </div>
+                            <div>
+                                <select id="architect-primary" class="setting-input" style="width: 100%;">
+                                    <option value="auto">🔄 Auto Select</option>
+                                </select>
+                            </div>
+                            <div>
+                                <select id="architect-fallback" class="setting-input" style="width: 100%;">
+                                    <option value="auto">🔄 Auto Select</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Director Row -->
+                        <div style="display: grid; grid-template-columns: 200px 1fr 1fr; gap: 1rem; margin-bottom: 1rem; align-items: center;">
+                            <div>
+                                <div style="color: #e0e0e0; font-weight: 500;">🎬 Director</div>
+                                <div style="color: #9ca3af; font-size: 0.75rem;">Lane coordination</div>
+                            </div>
+                            <div>
+                                <select id="director-primary" class="setting-input" style="width: 100%;">
+                                    <option value="auto">🔄 Auto Select</option>
+                                </select>
+                            </div>
+                            <div>
+                                <select id="director-fallback" class="setting-input" style="width: 100%;">
+                                    <option value="auto">🔄 Auto Select</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Manager Row -->
+                        <div style="display: grid; grid-template-columns: 200px 1fr 1fr; gap: 1rem; margin-bottom: 1rem; align-items: center;">
+                            <div>
+                                <div style="color: #e0e0e0; font-weight: 500;">📋 Manager</div>
+                                <div style="color: #9ca3af; font-size: 0.75rem;">Task breakdown</div>
+                            </div>
+                            <div>
+                                <select id="manager-primary" class="setting-input" style="width: 100%;">
+                                    <option value="auto">🔄 Auto Select</option>
+                                </select>
+                            </div>
+                            <div>
+                                <select id="manager-fallback" class="setting-input" style="width: 100%;">
+                                    <option value="auto">🔄 Auto Select</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Programmer Row -->
+                        <div style="display: grid; grid-template-columns: 200px 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; align-items: center;">
+                            <div>
+                                <div style="color: #e0e0e0; font-weight: 500;">💻 Programmer</div>
+                                <div style="color: #9ca3af; font-size: 0.75rem;">Code execution</div>
+                            </div>
+                            <div>
+                                <select id="programmer-primary" class="setting-input" style="width: 100%;">
+                                    <option value="auto">🔄 Auto Select</option>
+                                </select>
+                            </div>
+                            <div>
+                                <select id="programmer-fallback" class="setting-input" style="width: 100%;">
+                                    <option value="auto">🔄 Auto Select</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Save Button -->
+                        <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #4a5578;">
+                            <button onclick="saveModelPreferences()" style="padding: 0.5rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.875rem;">💾 Save Model Preferences</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Models Page -->
+                <div id="page-advanced" class="settings-page">
+                    <div class="settings-section">
+                        <h3>⚙️ Advanced Model Settings</h3>
+                        <p style="color: #9ca3af; margin-bottom: 1.5rem;">Configure advanced parameters for LLM inference.</p>
+
+                        <!-- Temperature -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Temperature</div>
+                                <div class="setting-description">Controls randomness (0.0-2.0). Lower = more focused, Higher = more creative</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="range" id="llm-temperature" class="setting-input" min="0" max="2" step="0.1" value="0.7" style="width: 120px;">
+                                <span id="temperature-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 40px;">0.7</span>
+                            </div>
+                        </div>
+
+                        <!-- Max Tokens -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Max Tokens</div>
+                                <div class="setting-description">Maximum number of tokens to generate (100-8000)</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="llm-max-tokens" class="setting-input" min="100" max="8000" step="100" value="2000">
+                                <span style="color: #9ca3af; font-size: 0.875rem;">tokens</span>
+                            </div>
+                        </div>
+
+                        <!-- Top P -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Top P (Nucleus Sampling)</div>
+                                <div class="setting-description">Controls diversity (0.0-1.0). Lower = more focused</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="range" id="llm-top-p" class="setting-input" min="0" max="1" step="0.05" value="0.9" style="width: 120px;">
+                                <span id="top-p-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 40px;">0.9</span>
+                            </div>
+                        </div>
+
+                        <!-- Top K -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Top K</div>
+                                <div class="setting-description">Limits token choices (1-100). Lower = more focused</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="llm-top-k" class="setting-input" min="1" max="100" value="40">
+                                <span style="color: #9ca3af; font-size: 0.875rem;">tokens</span>
+                            </div>
+                        </div>
+
+                        <!-- Frequency Penalty -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Frequency Penalty</div>
+                                <div class="setting-description">Reduces repetition (-2.0 to 2.0). Higher = less repetition</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="range" id="llm-frequency-penalty" class="setting-input" min="-2" max="2" step="0.1" value="0" style="width: 120px;">
+                                <span id="frequency-penalty-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 40px;">0.0</span>
+                            </div>
+                        </div>
+
+                        <!-- Presence Penalty -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Presence Penalty</div>
+                                <div class="setting-description">Encourages new topics (-2.0 to 2.0). Higher = more diverse</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="range" id="llm-presence-penalty" class="setting-input" min="-2" max="2" step="0.1" value="0" style="width: 120px;">
+                                <span id="presence-penalty-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 40px;">0.0</span>
+                            </div>
+                        </div>
+
+                        <!-- Save Button -->
+                        <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #4a5578;">
+                            <button onclick="saveAdvancedModelSettings()" style="padding: 0.5rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.875rem;">💾 Save Advanced Settings</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Page -->
+                <div id="page-system" class="settings-page">
+                    <!-- System Admin Settings -->
+                    <div class="settings-section">
+                        <h3>🛠️ System Administration</h3>
                 <div class="setting-row">
                     <div>
                         <div class="setting-label">Clear All Data</div>
@@ -853,63 +1089,20 @@
                         <button class="setting-button warning" onclick="restartHMI()">🔄 Restart All Services</button>
                     </div>
                 </div>
-            </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Reset Settings to Defaults</div>
+                        <div class="setting-description">Restore all settings to their default values</div>
+                    </div>
+                    <div class="setting-control">
+                        <button onclick="resetSettings()" style="padding: 0.5rem 1rem; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.875rem;">🔄 Reset to Defaults</button>
+                    </div>
+                </div>
+                    </div>
+                </div>
+                </div>
 
-            <!-- Audio Settings -->
-            <div class="settings-section">
-                <h3>🔊 Audio</h3>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Master Audio</div>
-                        <div class="setting-description">Enable all sound output</div>
-                    </div>
-                    <div class="setting-control">
-                        <div id="master-audio-toggle" class="toggle-switch" onclick="toggleMasterAudio()"></div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Sequencer Notes</div>
-                        <div class="setting-description">Musical notes for task events (assign, start, complete)</div>
-                    </div>
-                    <div class="setting-control">
-                        <div id="sequencer-notes-toggle" class="toggle-switch" onclick="toggleSequencerNotes()"></div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Agent Voice Status</div>
-                        <div class="setting-description">Text-to-speech narration of agent updates</div>
-                    </div>
-                    <div class="setting-control">
-                        <div id="agent-voice-toggle" class="toggle-switch" onclick="toggleAgentVoice()"></div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Audio Volume</div>
-                        <div class="setting-description">Master volume level (0-100%)</div>
-                    </div>
-                    <div class="setting-control">
-                        <input type="range" id="audio-volume" class="setting-input" min="0" max="100" value="70" style="width: 120px;">
-                        <span id="volume-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 40px;">70%</span>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Note Duration</div>
-                        <div class="setting-description">Duration of musical notes in milliseconds (50-500ms)</div>
-                    </div>
-                    <div class="setting-control">
-                        <input type="range" id="note-duration" class="setting-input" min="50" max="500" value="150" step="10" style="width: 120px;">
-                        <span id="note-duration-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 50px;">150ms</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="settings-footer">
-                <button class="settings-button-secondary" onclick="resetSettings()">Reset to Defaults</button>
-                <button class="settings-button-primary" onclick="saveSettings()">Save Changes</button>
+                <!-- End of settings-main -->
             </div>
         </div>
     </div>
@@ -1332,6 +1525,128 @@
 
         function closeSettings() {
             document.getElementById('settings-modal').classList.remove('active');
+        }
+
+        function switchSettingsPage(pageId) {
+            // Update sidebar active state
+            const sidebarItems = document.querySelectorAll('.settings-sidebar-item');
+            sidebarItems.forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.settings-sidebar-item').classList.add('active');
+
+            // Update page visibility
+            const pages = document.querySelectorAll('.settings-page');
+            pages.forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById('page-' + pageId).classList.add('active');
+
+            // Update page title
+            const titles = {
+                'general': '⚙️ General',
+                'display': '🎨 Display',
+                'tree': '🌳 Tree View',
+                'sequencer': '🎹 Sequencer',
+                'audio': '🔊 Audio',
+                'llm': '🤖 LLM Models',
+                'advanced': '⚙️ Advanced Models',
+                'system': '🛠️ System'
+            };
+            document.getElementById('settings-page-title').textContent = titles[pageId];
+
+            // Initialize advanced model settings sliders if switching to advanced page
+            if (pageId === 'advanced') {
+                initAdvancedModelSettings();
+            }
+        }
+
+        async function initAdvancedModelSettings() {
+            // Load existing settings from backend
+            try {
+                const response = await fetch('/api/models/advanced-settings');
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    const settings = data.settings;
+
+                    // Set values
+                    document.getElementById('llm-temperature').value = settings.temperature;
+                    document.getElementById('llm-max-tokens').value = settings.maxTokens;
+                    document.getElementById('llm-top-p').value = settings.topP;
+                    document.getElementById('llm-top-k').value = settings.topK;
+                    document.getElementById('llm-frequency-penalty').value = settings.frequencyPenalty;
+                    document.getElementById('llm-presence-penalty').value = settings.presencePenalty;
+
+                    // Update displays
+                    document.getElementById('temperature-display').textContent = settings.temperature.toFixed(1);
+                    document.getElementById('top-p-display').textContent = settings.topP.toFixed(2);
+                    document.getElementById('frequency-penalty-display').textContent = settings.frequencyPenalty.toFixed(1);
+                    document.getElementById('presence-penalty-display').textContent = settings.presencePenalty.toFixed(1);
+                }
+            } catch (error) {
+                console.error('Error loading advanced settings:', error);
+            }
+
+            // Temperature slider
+            const tempSlider = document.getElementById('llm-temperature');
+            const tempDisplay = document.getElementById('temperature-display');
+            tempSlider.addEventListener('input', (e) => {
+                tempDisplay.textContent = parseFloat(e.target.value).toFixed(1);
+            });
+
+            // Top P slider
+            const topPSlider = document.getElementById('llm-top-p');
+            const topPDisplay = document.getElementById('top-p-display');
+            topPSlider.addEventListener('input', (e) => {
+                topPDisplay.textContent = parseFloat(e.target.value).toFixed(2);
+            });
+
+            // Frequency Penalty slider
+            const freqSlider = document.getElementById('llm-frequency-penalty');
+            const freqDisplay = document.getElementById('frequency-penalty-display');
+            freqSlider.addEventListener('input', (e) => {
+                freqDisplay.textContent = parseFloat(e.target.value).toFixed(1);
+            });
+
+            // Presence Penalty slider
+            const presSlider = document.getElementById('llm-presence-penalty');
+            const presDisplay = document.getElementById('presence-penalty-display');
+            presSlider.addEventListener('input', (e) => {
+                presDisplay.textContent = parseFloat(e.target.value).toFixed(1);
+            });
+        }
+
+        async function saveAdvancedModelSettings() {
+            try {
+                const settings = {
+                    temperature: parseFloat(document.getElementById('llm-temperature').value),
+                    maxTokens: parseInt(document.getElementById('llm-max-tokens').value),
+                    topP: parseFloat(document.getElementById('llm-top-p').value),
+                    topK: parseInt(document.getElementById('llm-top-k').value),
+                    frequencyPenalty: parseFloat(document.getElementById('llm-frequency-penalty').value),
+                    presencePenalty: parseFloat(document.getElementById('llm-presence-penalty').value)
+                };
+
+                const response = await fetch('/api/models/advanced-settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    alert('✅ Advanced model settings saved successfully!');
+                } else {
+                    alert('⚠️ Settings saved but may need service restart to take effect.');
+                }
+            } catch (error) {
+                console.error('Error saving advanced settings:', error);
+                alert('❌ Failed to save advanced settings: ' + error.message);
+            }
         }
 
         function toggleAutoRefresh() {
