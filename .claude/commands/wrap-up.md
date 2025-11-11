@@ -5,8 +5,10 @@ Help the user wrap up the current work session efficiently.
 ## Usage
 
 ```
-/wrap-up          # Create summary only (no git operations)
-/wrap-up --git    # Create summary + git commit and push
+/wrap-up                  # Create summary only (no git operations)
+/wrap-up --git            # Create summary + git commit and push
+/wrap-up --restart        # Create summary + restart HMI service
+/wrap-up --git --restart  # All three: summary + git + restart HMI
 ```
 
 ## Step 1: Archive Previous Summary
@@ -107,12 +109,37 @@ Create `docs/last_summary.md` based on conversation context:
    git push
    ```
 
-## Step 4: Completion
+## Step 4: Restart HMI (Optional)
+
+**Only if `--restart` flag is present:**
+
+1. **Kill existing HMI process:**
+   ```bash
+   lsof -ti:6101 | xargs -r kill -9
+   ```
+
+2. **Wait for clean shutdown:**
+   ```bash
+   sleep 2
+   ```
+
+3. **Restart HMI:**
+   ```bash
+   PYTHONPATH=. ./.venv/bin/python services/webui/hmi_app.py > /tmp/hmi.log 2>&1 &
+   ```
+
+4. **Verify it started:**
+   ```bash
+   sleep 3 && curl -s http://localhost:6101 > /dev/null && echo "✅ HMI restarted successfully on http://localhost:6101" || echo "❌ HMI failed to restart - check /tmp/hmi.log"
+   ```
+
+## Step 5: Completion
 
 Confirm completion:
 - ✅ Summary created in `docs/last_summary.md`
 - ✅ Previous summary archived to `docs/all_project_summary.md`
 - ✅ [If --git] Changes committed and pushed
+- ✅ [If --restart] HMI service restarted on http://localhost:6101
 
 Ready for `/clear` when you're done.
 
