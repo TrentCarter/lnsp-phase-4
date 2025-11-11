@@ -489,7 +489,7 @@ function renderTaskList() {
     taskListEl.innerHTML = allTasks.map(task => `
         <div class="task-item ${selectedTaskId === task.task_id ? 'active' : ''}"
              onclick="selectTask('${task.task_id}')">
-            <div class="task-id">${task.task_id}</div>
+            <div class="task-id">${task.task_name || task.task_id}</div>
             <div class="task-meta">
                 <div class="task-meta-row">
                     <span>📊 ${task.action_count} actions</span>
@@ -506,14 +506,14 @@ function renderTaskList() {
 function filterTasks() {
     const searchTerm = document.getElementById('task-search').value.toLowerCase();
     const filteredTasks = allTasks.filter(task =>
-        task.task_id.toLowerCase().includes(searchTerm)
+        (task.task_name || task.task_id).toLowerCase().includes(searchTerm)
     );
 
     const taskListEl = document.getElementById('task-list');
     taskListEl.innerHTML = filteredTasks.map(task => `
         <div class="task-item ${selectedTaskId === task.task_id ? 'active' : ''}"
              onclick="selectTask('${task.task_id}')">
-            <div class="task-id">${task.task_id}</div>
+            <div class="task-id">${task.task_name || task.task_id}</div>
             <div class="task-meta">
                 <div class="task-meta-row">
                     <span>📊 ${task.action_count} actions</span>
@@ -536,8 +536,12 @@ async function selectTask(taskId) {
     selectedTaskId = taskId;
     renderTaskList(); // Re-render to show active state
 
+    // Get task name from allTasks
+    const task = allTasks.find(t => t.task_id === taskId);
+    const taskName = task?.task_name || taskId;
+
     // Update header
-    document.getElementById('selected-task-title').textContent = `Task: ${taskId}`;
+    document.getElementById('selected-task-title').textContent = taskName;
     document.getElementById('selected-task-subtitle').textContent = 'Loading actions...';
 
     // Update tree view and sequencer links

@@ -7,7 +7,15 @@
 #   PAS_PORT, PAS_HOST, PAS_REGISTRY_URL, AIDER_MODEL, etc.
 
 # Service configuration
-agent: "Aider-LCO"
+# Agent name will be auto-generated: Prog-{LLM}-{Counter}
+# Example: Prog-Qwen-001, Prog-Claude-001, Prog-GPT-001
+agent_instance: 1  # Instance counter (001, 002, etc.)
+agent_metadata:
+  role: "exec"           # exec (execution tier)
+  parent: "Mgr-Code-01"  # Parent manager (P0: stub, will be implemented in full PAS)
+  grandparent: "Dir-Code"  # Parent director
+  tool: "aider"          # Tool type (aider, cursor, cody, etc.)
+  tier: "programmer"     # Tier in PAS hierarchy
 service_type: "agent"
 role: "execution"
 version: "0.1.0"

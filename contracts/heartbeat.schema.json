@@ -92,6 +92,32 @@
       "description": "Load factor (0.0 to 1.0)",
       "minimum": 0,
       "maximum": 1
+    },
+    "llm_model": {
+      "type": "string",
+      "description": "LLM model name (if this agent uses an LLM)",
+      "examples": [
+        "ollama/qwen2.5-coder:7b-instruct",
+        "anthropic/claude-3-7-sonnet",
+        "openai/gpt-4o",
+        "deepseek/deepseek-r1"
+      ]
+    },
+    "llm_provider": {
+      "type": "string",
+      "description": "LLM provider (if applicable)",
+      "enum": ["ollama", "anthropic", "openai", "deepseek", "local", "other"]
+    },
+    "parent_agent": {
+      "type": "string",
+      "description": "Parent agent name (for hierarchical tracking)"
+    },
+    "children_agents": {
+      "type": "array",
+      "description": "List of child agent names",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "additionalProperties": false

@@ -552,6 +552,7 @@
             <a href="/sequencer" {% if request.path == '/sequencer' %}class="active"{% endif %}>Sequencer</a>
             <a href="/actions" {% if request.path == '/actions' %}class="active"{% endif %}>Actions</a>
             <button id="start-demo-button" class="settings-button" onclick="startDemo()" style="background: #10b981;">▶️ Start Demo</button>
+            <button id="prime-directive-button" class="settings-button" onclick="startPrimeDirective()" style="background: #3b82f6;" title="Send real Prime Directive to PAS Root">🚀 Prime Directive</button>
             <button id="stop-demo-button" class="settings-button" onclick="stopDemo()" style="background: #ef4444; display: none;">⏹️ Stop Demo</button>
             <button id="master-stop-button" class="settings-button" onclick="masterStopDemo()" style="background: #dc2626; display: none; font-weight: bold; border: 2px solid #fbbf24;" title="EMERGENCY: Force kill ALL demo processes immediately">🛑 MASTER STOP</button>
             <button class="settings-button" onclick="clearAllData()" style="background: #ef4444;">🗑️ Clear All Data</button>
@@ -727,11 +728,11 @@
                 </div>
                 <div class="setting-row">
                     <div>
-                        <div class="setting-label">Restart HMI Services</div>
-                        <div class="setting-description">Stop and restart all HMI backend services</div>
+                        <div class="setting-label">Restart All Services</div>
+                        <div class="setting-description">Complete system restart (P0 Stack, PAS, HMI) - takes ~15 seconds</div>
                     </div>
                     <div class="setting-control">
-                        <button class="setting-button warning" onclick="restartHMI()">🔄 Restart Services</button>
+                        <button class="setting-button warning" onclick="restartHMI()">🔄 Restart All Services</button>
                     </div>
                 </div>
             </div>
@@ -1400,6 +1401,12 @@
             const settings = getSettings();
             if (!settings.masterAudioEnabled) return;
 
+            // Bug fix: Update master volume before playing each note
+            // This ensures volume changes take effect immediately without reinitializing audio context
+            if (masterGainNode) {
+                masterGainNode.gain.value = (settings.audioVolume || 70) / 100;
+            }
+
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
 
@@ -1827,6 +1834,87 @@
 
         let demoRunning = false;
 
+        async function startPrimeDirective() {
+            // Get custom prompt from settings or use default
+            const customPrompt = localStorage.getItem('primeDirectivePrompt') || '';
+            
+            // Show confirmation dialog with option to customize
+            const useCustom = confirm('🚀 Send Prime Directive to PAS Root\n\nThis will send a real project request to the operational PAS system.\n\nClick OK to use default prompt, or Cancel to customize.');
+            
+            let finalPrompt = customPrompt;
+            if (!useCustom) {
+                // Allow user to customize the prompt
+                const defaultPrompt = `Build a comprehensive REST API system with the following requirements:
+
+CORE FEATURES:
+- User authentication with JWT tokens
+- Role-based access control (admin, user, moderator)
+- RESTful endpoints for CRUD operations
+- PostgreSQL database with proper migrations
+- Input validation and error handling
+- API documentation with OpenAPI/Swagger
+- Unit and integration tests
+- Docker containerization
+- CI/CD pipeline configuration
+
+TECHNICAL STACK:
+- Backend: FastAPI or Express.js
+- Database: PostgreSQL with SQLAlchemy/Prisma
+- Authentication: JWT with refresh tokens
+- Testing: pytest/Jest with coverage reports
+- Documentation: OpenAPI 3.0 spec
+- Deployment: Docker with docker-compose
+
+DELIVERABLES:
+1. Complete source code with modular architecture
+2. Database schema and migration scripts
+3. API documentation and testing suite
+4. Docker configuration and deployment scripts
+5. CI/CD pipeline setup (GitHub Actions/GitLab CI)
+
+The system should be production-ready, secure, and scalable.`;
+
+                finalPrompt = prompt('🚀 Customize Prime Directive Prompt:', defaultPrompt);
+                if (finalPrompt === null) return; // User cancelled
+                
+                // Save custom prompt for next time
+                localStorage.setItem('primeDirectivePrompt', finalPrompt);
+            }
+
+            const primeDirectiveButton = document.getElementById('prime-directive-button');
+            const originalText = primeDirectiveButton.textContent;
+
+            try {
+                primeDirectiveButton.disabled = true;
+                primeDirectiveButton.textContent = '🚀 Sending...';
+
+                const response = await fetch('/api/demo/prime-directive', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: finalPrompt })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    console.log('✅ Prime Directive sent:', data);
+                    alert(`✅ Prime Directive sent to PAS Root!\n\nRun ID: ${data.run_id}\nPrompt Preview: ${data.prompt_preview}\n\nCheck the sequencer to see execution progress.`);
+                    
+                    // Refresh sequencer to show new tasks
+                    if (typeof fetchSequencerData === 'function') {
+                        setTimeout(() => fetchSequencerData(), 1000);
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to send Prime Directive');
+                }
+            } catch (error) {
+                console.error('Failed to send Prime Directive:', error);
+                alert('Failed to send Prime Directive: ' + error.message);
+            } finally {
+                primeDirectiveButton.disabled = false;
+                primeDirectiveButton.textContent = originalText;
+            }
+        }
+
         async function startDemo() {
             if (demoRunning) {
                 alert('Demo is already running!');
@@ -1992,27 +2080,28 @@
         }
 
         async function restartHMI() {
-            if (!confirm('This will restart all HMI backend services.\n\nThe page will temporarily disconnect.\n\nContinue?')) {
+            if (!confirm('⚠️ FULL SYSTEM RESTART ⚠️\n\nThis will restart ALL services:\n• Gateway (6120)\n• PAS Root (6100)\n• Aider-LCO (6130)\n• Registry (6121)\n• Heartbeat Monitor (6109)\n• Resource Manager (6104)\n• Token Governor (6105)\n• HMI Dashboard (6101)\n\nThe page will disconnect for ~15 seconds.\n\nContinue?')) {
                 return;
             }
 
             try {
-                alert('Restarting services...\n\nThe page will reconnect automatically.');
+                alert('🔄 Full system restart initiated...\n\nAll services will restart in ~15 seconds.\n\nThe page will reload automatically.');
                 const response = await fetch('/api/admin/restart-services', { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
-                    console.log('✓ Services restarting:', data);
+                    console.log('✓ Full system restart initiated:', data);
+                    // Wait 15 seconds for all services to restart
                     setTimeout(() => {
-                        alert('Services restarted! Reloading page...');
+                        alert('✅ Services restarted! Reloading page...');
                         window.location.reload();
-                    }, 5000);
+                    }, 15000);
                 } else {
-                    alert('Failed to restart services: ' + (data.error || 'Unknown error'));
+                    alert('❌ Failed to restart services: ' + (data.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error restarting services:', error);
-                alert('Error restarting services: ' + error.message);
+                alert('❌ Error restarting services: ' + error.message);
             }
         }
 

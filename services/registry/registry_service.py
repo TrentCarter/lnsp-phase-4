@@ -600,7 +600,7 @@ async def list_tasks():
     List all tasks with their summary information
 
     Returns:
-        - items: List of tasks with metadata
+        - items: List of tasks with metadata (including human-readable task name)
     """
     with get_db() as conn:
         cursor = conn.cursor()
@@ -621,8 +621,23 @@ async def list_tasks():
 
         items = []
         for row in rows:
+            task_id = row["task_id"]
+
+            # Fetch the task name from the first Gateway submission (Prime Directive)
+            cursor.execute("""
+                SELECT action_name
+                FROM action_logs
+                WHERE task_id = ? AND from_agent = 'Gateway' AND action_type = 'delegate'
+                ORDER BY timestamp ASC
+                LIMIT 1
+            """, (task_id,))
+
+            name_row = cursor.fetchone()
+            task_name = name_row["action_name"] if name_row else task_id
+
             items.append({
-                "task_id": row["task_id"],
+                "task_id": task_id,
+                "task_name": task_name,  # Human-readable name from Gateway submission
                 "start_time": row["start_time"],
                 "end_time": row["end_time"],
                 "action_count": row["action_count"],

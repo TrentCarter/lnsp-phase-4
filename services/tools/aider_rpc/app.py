@@ -22,8 +22,16 @@ import shlex
 import os
 import pathlib
 import time
+import sys
+
+# Add services/common to path for comms_logger
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.parent))
+from common.comms_logger import get_logger, MessageType
 
 app = FastAPI(title="Aider-LCO RPC", version="1.0")
+
+# Initialize comms logger
+logger = get_logger()
 
 # Load configurations
 FS_ALLOW = yaml.safe_load(open("configs/pas/fs_allowlist.yaml"))
@@ -33,6 +41,44 @@ AIDER_CFG = yaml.safe_load(open("configs/pas/aider.yaml"))
 ROOTS = [pathlib.Path(p).resolve() for p in FS_ALLOW["roots"]]
 DENY_PATTERNS = FS_ALLOW.get("deny", [])
 ALLOW_PATTERNS = FS_ALLOW.get("allow", [])
+
+# Agent name and metadata from config (PAS instance-based naming)
+# Build agent name: Prog-{LLM}-{Counter}
+def _build_agent_name():
+    """Build agent name from model config: Prog-{LLM}-{Counter}"""
+    model = AIDER_CFG.get("model", {}).get("primary", "unknown")
+    instance = AIDER_CFG.get("agent_instance", 1)
+
+    # Extract LLM short name from model string
+    # Examples: "ollama/qwen2.5-coder:7b-instruct" -> "Qwen"
+    #           "anthropic/claude-3-7-sonnet" -> "Claude"
+    #           "openai/gpt-4" -> "GPT"
+    if "qwen" in model.lower():
+        llm_name = "Qwen"
+    elif "claude" in model.lower():
+        llm_name = "Claude"
+    elif "gpt" in model.lower() or "openai" in model.lower():
+        llm_name = "GPT"
+    elif "gemini" in model.lower():
+        llm_name = "Gemini"
+    elif "deepseek" in model.lower():
+        llm_name = "Deepseek"
+    elif "llama" in model.lower():
+        llm_name = "Llama"
+    else:
+        llm_name = "Unknown"
+
+    return f"Prog-{llm_name}-{instance:03d}"
+
+AGENT_NAME = _build_agent_name()
+AGENT_METADATA = AIDER_CFG.get("agent_metadata", {
+    "role": "exec",
+    "parent": "Mgr-Code-01",
+    "grandparent": "Dir-Code",
+    "tool": "aider",
+    "tier": "programmer"
+})
+PARENT_AGENT = AGENT_METADATA.get("parent", "Mgr-Code-01")  # Report to parent manager
 
 
 def _in_roots(path: pathlib.Path) -> bool:
@@ -87,6 +133,8 @@ class EditRequest(BaseModel):
     files: List[str] = Field(default_factory=list, description="Files to include with aider")
     branch: Optional[str] = None
     dry_run: bool = False
+    run_id: Optional[str] = Field(None, description="Run identifier for logging/tracking")
+    parent_log_id: Optional[int] = Field(None, description="Parent log ID for hierarchical tracking")
 
 
 @app.get("/health")
@@ -94,7 +142,9 @@ def health():
     """Health check endpoint"""
     return {
         "status": "ok",
-        "service": "Aider-LCO RPC",
+        "service": f"{AGENT_NAME} RPC",
+        "agent": AGENT_NAME,
+        "agent_metadata": AGENT_METADATA,
         "port": 6130,
         "aider_model": AIDER_CFG.get("model", {}).get("primary", "unknown")
     }
@@ -110,15 +160,53 @@ def aider_edit(req: EditRequest):
     2. Validate branch creation command (if specified)
     3. Build aider command with redacted environment
     4. Execute with timeout
-    5. Return stdout/stderr + duration
+    5. Return stdout/stderr + duration + LLM metadata
     """
+    # Extract run_id and parent_log_id from request
+    run_id = req.run_id
+    parent_log_id = req.parent_log_id
+
+    # Get LLM model config
+    model = AIDER_CFG.get("model", {}).get("primary", "claude-3-5-sonnet-20241022")
+    llm_provider = model.split("/")[0] if "/" in model else "unknown"
+
+    # Log incoming command - link to parent (from PAS Root)
+    cmd_log_id = logger.log(
+        from_agent="PAS Root",
+        to_agent=AGENT_NAME,
+        msg_type=MessageType.CMD,
+        message=f"Execute: {req.message[:100]}...",
+        llm_model=model,
+        run_id=run_id,
+        status="queued",
+        progress=0.0,
+        metadata={"files": req.files, "dry_run": req.dry_run},
+        parent_log_id=parent_log_id
+    )
+
     # Step 1: Validate filesystem access
     for f in req.files:
         if not _fs_allowed(f):
+            logger.log_response(
+                from_agent=AGENT_NAME,
+                to_agent=PARENT_AGENT,
+                message=f"File not allowed: {f}",
+                run_id=run_id,
+                status="error",
+                parent_log_id=cmd_log_id
+            )
             raise HTTPException(status_code=403, detail=f"File not allowed: {f}")
 
     # Step 2: Validate branch creation
     if req.branch and not _cmd_allowed(f"git checkout -b {req.branch}"):
+        logger.log_response(
+            from_agent=AGENT_NAME,
+            to_agent=PARENT_AGENT,
+            message="Command not allowed: git checkout -b",
+            run_id=run_id,
+            status="error",
+            parent_log_id=cmd_log_id
+        )
         raise HTTPException(status_code=403, detail="Command not allowed: git checkout -b ...")
 
     # Step 3: Build aider command
@@ -129,10 +217,9 @@ def aider_edit(req: EditRequest):
         # Default to "aider" binary
         aider_bin = "aider"
 
-    model = AIDER_CFG.get("model", {}).get("primary", "claude-3-5-sonnet-20241022")
     timeout_s = int(AIDER_CFG.get("timeout_s", 900))
 
-    cmd = [aider_bin, "--yes"]
+    cmd = [aider_bin, "--yes", "--no-show-model-warnings"]
     if model:
         cmd += ["--model", model]
     for f in req.files:
@@ -146,9 +233,29 @@ def aider_edit(req: EditRequest):
 
     # Dry run mode (return command without executing)
     if req.dry_run:
-        return {"ok": True, "dry_run": True, "cmd": cmd}
+        logger.log_response(
+            from_agent=AGENT_NAME,
+            to_agent=PARENT_AGENT,
+            message="Dry run completed",
+            llm_model=model,
+            run_id=run_id,
+            status="completed",
+            parent_log_id=cmd_log_id
+        )
+        return {"ok": True, "dry_run": True, "cmd": cmd, "llm_model": model, "llm_provider": llm_provider}
 
     # Step 5: Execute aider
+    status_log_id = logger.log_status(
+        from_agent=AGENT_NAME,
+        to_agent=PARENT_AGENT,
+        message="Starting Aider execution",
+        llm_model=model,
+        run_id=run_id,
+        status="running",
+        progress=0.1,
+        parent_log_id=cmd_log_id
+    )
+
     start = time.time()
     try:
         proc = subprocess.run(
@@ -160,10 +267,38 @@ def aider_edit(req: EditRequest):
             cwd=ROOTS[0]  # Execute in project root
         )
     except subprocess.TimeoutExpired:
+        logger.log_response(
+            from_agent=AGENT_NAME,
+            to_agent=PARENT_AGENT,
+            message=f"Timeout after {timeout_s}s",
+            llm_model=model,
+            run_id=run_id,
+            status="error",
+            metadata={"timeout_s": timeout_s},
+            parent_log_id=status_log_id
+        )
         raise HTTPException(status_code=504, detail=f"aider timed out after {timeout_s}s")
     except FileNotFoundError:
+        logger.log_response(
+            from_agent=AGENT_NAME,
+            to_agent=PARENT_AGENT,
+            message=f"Aider binary not found: {aider_bin}",
+            llm_model=model,
+            run_id=run_id,
+            status="error",
+            parent_log_id=status_log_id
+        )
         raise HTTPException(status_code=500, detail=f"aider binary not found: {aider_bin}. Install with: pipx install aider-chat")
     except Exception as e:
+        logger.log_response(
+            from_agent=AGENT_NAME,
+            to_agent=PARENT_AGENT,
+            message=f"Execution error: {str(e)}",
+            llm_model=model,
+            run_id=run_id,
+            status="error",
+            parent_log_id=status_log_id
+        )
         raise HTTPException(status_code=500, detail=f"Execution error: {str(e)}")
 
     duration = round(time.time() - start, 2)
@@ -171,20 +306,46 @@ def aider_edit(req: EditRequest):
 
     # Step 6: Return result
     if rc != 0:
+        logger.log_response(
+            from_agent=AGENT_NAME,
+            to_agent=PARENT_AGENT,
+            message=f"Aider failed with rc={rc}",
+            llm_model=model,
+            run_id=run_id,
+            status="error",
+            metadata={"rc": rc, "duration_s": duration},
+            parent_log_id=status_log_id
+        )
         # Include stderr in error response (truncate to avoid huge payloads)
         return {
             "ok": False,
             "rc": rc,
             "stderr": proc.stderr[-2000:] if proc.stderr else "",
             "stdout": proc.stdout[-2000:] if proc.stdout else "",
-            "duration_s": duration
+            "duration_s": duration,
+            "llm_model": model,
+            "llm_provider": llm_provider
         }
+
+    logger.log_response(
+        from_agent=AGENT_NAME,
+        to_agent=PARENT_AGENT,
+        message="Aider execution completed successfully",
+        llm_model=model,
+        run_id=run_id,
+        status="completed",
+        progress=1.0,
+        metadata={"rc": rc, "duration_s": duration},
+        parent_log_id=status_log_id
+    )
 
     return {
         "ok": True,
         "rc": rc,
         "stdout": proc.stdout[-4000:] if proc.stdout else "",  # Last 4KB
-        "duration_s": duration
+        "duration_s": duration,
+        "llm_model": model,
+        "llm_provider": llm_provider
     }
 
 

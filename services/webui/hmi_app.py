@@ -642,7 +642,13 @@ def build_sequencer_from_actions(task_id: str) -> Dict[str, Any]:
                 import time
                 time_since_action = abs(time.time() - start_time)
 
-                if status == 'completed':
+                # Bug #3 fix: For historical tasks (>5 min old), assume completed with estimated duration
+                # This prevents the frontend from using Date.now() which makes duration appear huge
+                if time_since_action > 300:  # 5 minutes
+                    end_time = start_time + default_duration
+                    status = 'done'
+                    progress = 1.0
+                elif status == 'completed':
                     end_time = start_time + default_duration
                     progress = 1.0
                     status = 'done'
@@ -650,7 +656,7 @@ def build_sequencer_from_actions(task_id: str) -> Dict[str, Any]:
                     end_time = start_time + default_duration
                     progress = 1.0
                 elif status == 'running' and time_since_action > 60:
-                    # Stale running task
+                    # Stale running task (1-5 min old)
                     end_time = start_time + default_duration
                     progress = 0.8
                 else:
@@ -726,10 +732,24 @@ def build_sequencer_from_actions(task_id: str) -> Dict[str, Any]:
         # For now, return both deduplicated and raw data
         deduplicated_tasks = apply_deduplication(tasks, mode='smart')  # Mode: 'none', 'smart', 'full'
 
+        # Extract project name from Gateway→PAS Root "Submit Prime Directive" action
+        project_name = task_id  # Default to task_id if not found
+        gateway_action = next((a for a in all_actions
+                              if a.get('from_agent') == 'Gateway'
+                              and a.get('to_agent') == 'PAS Root'), None)
+        if gateway_action:
+            action_text = gateway_action.get('action_name', '')
+            # Action format: "Submit Prime Directive: <task description>"
+            if action_text.startswith("Submit Prime Directive: "):
+                project_name = action_text.replace("Submit Prime Directive: ", "")
+            elif action_text:
+                project_name = action_text
+
         return {
             'agents': agents,
             'tasks': tasks,  # Raw tasks (Option 3: Transparency)
-            'tasks_deduplicated': deduplicated_tasks  # Deduplicated tasks (Options 1 & 2)
+            'tasks_deduplicated': deduplicated_tasks,  # Deduplicated tasks (Options 1 & 2)
+            'project_name': project_name  # Bug #2 fix: Add project name to API response
         }
 
     except Exception as e:
@@ -1555,8 +1575,30 @@ def get_projects():
         projects = []
         for row in cursor.fetchall():
             task_id, first_action, last_action, action_count, is_running = row
+
+            # Fetch task_name from Gateway submission (from action_name field)
+            cursor.execute("""
+                SELECT action_name
+                FROM action_logs
+                WHERE task_id = ? AND from_agent = 'Gateway' AND to_agent = 'PAS Root'
+                ORDER BY timestamp ASC
+                LIMIT 1
+            """, (task_id,))
+            task_name_row = cursor.fetchone()
+
+            # Extract task name from action_name field
+            task_name = task_id  # Default to task_id if not found
+            if task_name_row and task_name_row[0]:
+                action_text = task_name_row[0]
+                # Action format: "Submit Prime Directive: <task description>"
+                if action_text.startswith("Submit Prime Directive: "):
+                    task_name = action_text  # Use full text with prefix
+                else:
+                    task_name = action_text
+
             projects.append({
                 'task_id': task_id,
+                'task_name': task_name,
                 'first_action': first_action,
                 'last_action': last_action,
                 'action_count': action_count,
@@ -1715,14 +1757,22 @@ def start_demo():
                 except OSError:
                     os.remove(demo_pid_file)
 
-        # Start LLM-driven hierarchical demo in background
-        demo_script = '/tmp/lnsp_llm_driven_demo.py'
+        # Start realistic demo with proper comms logging
+        import sys
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        demo_script = os.path.join(project_root, 'scripts', 'demo_realistic_project.py')
+
+        # Use project venv python
+        python_exe = os.path.join(project_root, '.venv', 'bin', 'python3')
+        if not os.path.exists(python_exe):
+            python_exe = 'python3'  # Fallback to system python
 
         process = subprocess.Popen(
-            ['python3', demo_script],
+            [python_exe, demo_script],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            start_new_session=True
+            start_new_session=True,
+            cwd=project_root
         )
 
         # Save PID
@@ -1951,16 +2001,23 @@ def clear_all_data():
 
 @app.route('/api/admin/restart-services', methods=['POST'])
 def restart_services():
-    """Restart all HMI backend services"""
+    """Restart ALL system services (P0 Stack + PAS + HMI)"""
     try:
         import subprocess
         import os
 
-        # Find and execute restart script
+        # Use comprehensive restart script for full system restart
         script_path = os.path.join(
             os.path.dirname(__file__),
-            '../../scripts/restart_all_services.sh'
+            '../../scripts/restart_full_system.sh'
         )
+
+        # Fallback to old script if new one doesn't exist
+        if not os.path.exists(script_path):
+            script_path = os.path.join(
+                os.path.dirname(__file__),
+                '../../scripts/restart_all_services.sh'
+            )
 
         if not os.path.exists(script_path):
             return jsonify({'error': 'Restart script not found'}), 404
@@ -1969,17 +2026,29 @@ def restart_services():
         global SERVER_START_TIME
         SERVER_START_TIME = time.time()
 
-        # Execute restart script in background
-        subprocess.Popen(['bash', script_path],
+        # Execute restart script in fully detached background
+        # Use nohup to ensure it continues after HMI dies
+        subprocess.Popen(['nohup', 'bash', script_path],
                         stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL)
+                        stderr=subprocess.DEVNULL,
+                        start_new_session=True)  # Detach from parent process
 
-        logger.info("Services restart initiated, uptime counter reset")
+        logger.info("Full system restart initiated (P0 + PAS + HMI), uptime counter reset")
 
         return jsonify({
-            'message': 'Services restart initiated',
-            'note': 'Services will restart in a few seconds',
-            'uptime_reset': True
+            'message': 'Full system restart initiated',
+            'note': 'All services (P0 Stack, PAS, HMI) will restart in ~15 seconds',
+            'uptime_reset': True,
+            'services': [
+                'Gateway (6120)',
+                'PAS Root (6100)',
+                'Aider-LCO (6130)',
+                'Registry (6121)',
+                'Heartbeat Monitor (6109)',
+                'Resource Manager (6104)',
+                'Token Governor (6105)',
+                'HMI Dashboard (6101)'
+            ]
         })
     except Exception as e:
         logger.error(f"Error restarting services: {e}")

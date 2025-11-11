@@ -1,0 +1,30 @@
+════════════════════════════════════════ demo-auth-1762880382 ════════════════════════════════════════
+2025-11-11T16:59:42.841Z|Gateway|PAS Root|CMD|Submit Prime Directive: Add authentication system to e-commerce platform|-|demo-auth-1762880382|-|-|-
+2025-11-11T16:59:43.146Z|PAS Root|Gateway|RESPONSE|Queued: Add authentication system to e-commerce platform|-|demo-auth-1762880382|queued|-|-
+2025-11-11T16:59:43.351Z|PAS Root|Gateway|RESPONSE|Started execution: Add authentication system to e-commerce platform|-|demo-auth-1762880382|running|-|-
+2025-11-11T16:59:43.857Z|PAS Root|Architect|CMD|Analyze and delegate Prime Directive: Add authentication system to e-commerce platform|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|-|-|-
+2025-11-11T16:59:44.361Z|Architect|PAS Root|HEARTBEAT|Analyzing project structure (1/3)|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|running|0.30|-
+2025-11-11T16:59:44.666Z|Architect|PAS Root|HEARTBEAT|Analyzing project structure (2/3)|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|running|0.50|-
+2025-11-11T16:59:44.969Z|Architect|PAS Root|HEARTBEAT|Analyzing project structure (3/3)|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|running|0.70|-
+2025-11-11T16:59:45.276Z|Architect|PAS Root|RESPONSE|Analysis complete: Breaking down into 8 tasks (5 new files, 3 modifications)|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|completed|-|%7B%22tasks%22%3A8%2C%22new_files%22%3A5%2C%22modified_files%22%3A3%7D
+2025-11-11T16:59:45.779Z|Architect|Dir-Code|CMD|Delegate to Code Director: Add authentication system to e-commerce platform (8 files)|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|-|-|-
+2025-11-11T16:59:46.083Z|Dir-Code|Architect|RESPONSE|Received: Will delegate to Code Manager for implementation|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|running|-|-
+2025-11-11T16:59:46.388Z|Dir-Code|Mgr-Code-01|CMD|Assign to Code Manager: Implement User Authentication (8 files)|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|-|-|-
+2025-11-11T16:59:46.691Z|Mgr-Code-01|Dir-Code|RESPONSE|Accepted: Will execute via Programmer agent|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|running|-|-
+2025-11-11T16:59:47.196Z|Mgr-Code-01|Prog-Qwen-001|CMD|Execute Prime Directive: Create auth models, routes, middleware, tests, docs|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|-|-|-
+2025-11-11T16:59:47.701Z|Prog-Qwen-001|Mgr-Code-01|HEARTBEAT|Generating models/user.py (1/2)|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|running|0.50|%7B%22current_file%22%3A%22models/user.py%22%2C%22files_done%22%3A1%2C%22total_files%22%3A2%7D
+2025-11-11T16:59:48.503Z|Prog-Qwen-001|Mgr-Code-01|HEARTBEAT|Generating models/session.py (2/2)|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|running|1.00|%7B%22current_file%22%3A%22models/session.py%22%2C%22files_done%22%3A2%2C%22total_files%22%3A2%7D
+2025-11-11T16:59:49.308Z|Prog-Qwen-001|Mgr-Code-01|RESPONSE|Completed: Generated 2 files successfully|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|completed|-|%7B%22files_created%22%3A2%2C%22files%22%3A%5B%22models/user.py%22%2C%22models/session.py%22%5D%7D
+2025-11-11T16:59:49.816Z|Mgr-Code-01|Prog-Qwen-002|CMD|Execute Prime Directive: Implement JWT authentication and password hashing|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|-|-|-
+2025-11-11T16:59:50.322Z|Prog-Qwen-002|Mgr-Code-01|HEARTBEAT|Generating routes/auth.py (1/2)|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|running|0.50|%7B%22current_file%22%3A%22routes/auth.py%22%2C%22files_done%22%3A1%2C%22total_files%22%3A2%7D
+2025-11-11T16:59:51.130Z|Prog-Qwen-002|Mgr-Code-01|HEARTBEAT|Generating middleware/jwt.py (2/2)|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|running|1.00|%7B%22current_file%22%3A%22middleware/jwt.py%22%2C%22files_done%22%3A2%2C%22total_files%22%3A2%7D
+2025-11-11T16:59:51.937Z|Prog-Qwen-002|Mgr-Code-01|RESPONSE|Completed: Generated 2 files successfully|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|completed|-|%7B%22files_created%22%3A2%2C%22files%22%3A%5B%22routes/auth.py%22%2C%22middleware/jwt.py%22%5D%7D
+2025-11-11T16:59:52.441Z|Mgr-Code-01|Prog-Qwen-003|CMD|Execute Prime Directive: Write comprehensive tests and API documentation|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|-|-|-
+2025-11-11T16:59:52.946Z|Prog-Qwen-003|Mgr-Code-01|HEARTBEAT|Generating tests/test_auth.py (1/2)|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|running|0.50|%7B%22current_file%22%3A%22tests/test_auth.py%22%2C%22files_done%22%3A1%2C%22total_files%22%3A2%7D
+2025-11-11T16:59:53.750Z|Prog-Qwen-003|Mgr-Code-01|HEARTBEAT|Generating docs/auth_api.md (2/2)|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|running|1.00|%7B%22current_file%22%3A%22docs/auth_api.md%22%2C%22files_done%22%3A2%2C%22total_files%22%3A2%7D
+2025-11-11T16:59:54.553Z|Prog-Qwen-003|Mgr-Code-01|RESPONSE|Completed: Generated 2 files successfully|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|completed|-|%7B%22files_created%22%3A2%2C%22files%22%3A%5B%22tests/test_auth.py%22%2C%22docs/auth_api.md%22%5D%7D
+2025-11-11T16:59:55.057Z|Mgr-Code-01|Dir-Code|RESPONSE|All programmer tasks completed successfully|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|completed|-|%7B%22programmers_completed%22%3A3%2C%22total_files%22%3A8%7D
+2025-11-11T16:59:55.561Z|Dir-Code|Architect|RESPONSE|Code division completed: All 8 files generated|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|completed|-|-
+2025-11-11T16:59:56.067Z|Architect|PAS Root|RESPONSE|Prime Directive execution complete|ollama/qwen2.5-coder:7b-instruct|demo-auth-1762880382|completed|-|%7B%22total_tasks%22%3A8%2C%22success%22%3Atrue%7D
+2025-11-11T16:59:56.569Z|PAS Root|Gateway|RESPONSE|Completed: Add authentication system to e-commerce platform|-|demo-auth-1762880382|completed|-|%7B%22execution_time%22%3A40%2C%22agents_used%22%3A7%2C%22files_generated%22%3A8%7D
+════════════════════════════════════════ demo-auth-1762880382 ════════════════════════════════════════

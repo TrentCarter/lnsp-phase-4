@@ -38,6 +38,30 @@
       "type": "object",
       "description": "Additional event-specific details",
       "additionalProperties": true
+    },
+    "llm_model": {
+      "type": "string",
+      "description": "LLM model name (if this agent uses an LLM)",
+      "examples": [
+        "ollama/qwen2.5-coder:7b-instruct",
+        "anthropic/claude-3-7-sonnet",
+        "openai/gpt-4o"
+      ]
+    },
+    "llm_provider": {
+      "type": "string",
+      "description": "LLM provider (if applicable)",
+      "enum": ["ollama", "anthropic", "openai", "deepseek", "local", "other"]
+    },
+    "parent_agent": {
+      "type": "string",
+      "description": "Parent agent name (for hierarchical tracking)"
+    },
+    "progress": {
+      "type": "number",
+      "description": "Task progress (0.0 to 1.0)",
+      "minimum": 0,
+      "maximum": 1
     }
   },
   "additionalProperties": false

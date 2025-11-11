@@ -61,6 +61,18 @@
           "type": "number"
         }
       }
+    },
+    "llm_model": {
+      "type": "string",
+      "description": "LLM model name (if this agent uses an LLM)"
+    },
+    "llm_provider": {
+      "type": "string",
+      "description": "LLM provider (ollama, anthropic, openai, etc.)"
+    },
+    "parent_agent": {
+      "type": "string",
+      "description": "Parent agent name"
     }
   }
 }

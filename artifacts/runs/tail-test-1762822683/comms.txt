@@ -1,0 +1,4 @@
+════════════════════════════════════════ START: Tail Mode Test (tail-tes) ════════════════════════════════════════
+2025-11-11T00:58:04.320Z|Gateway|PAS Root|CMD|Testing tail mode|-|tail-test-1762822683|-|-|-
+2025-11-11T00:58:04.822Z|PAS Root|Gateway|STATUS|Processing...|-|tail-test-1762822683|running|0.50|-
+════════════════════════════════════════ END: Tail Mode Test (tail-tes) - 1.50s ════════════════════════════════════════

@@ -4,13 +4,24 @@
 
 {% block extra_styles %}
 <style>
+    /* Fix: Prevent page-level scrolling - only timeline should scroll */
+    body {
+        overflow: hidden !important;
+        height: 100vh;
+    }
+
+    .container {
+        height: calc(100vh - 80px); /* Account for header */
+        overflow: hidden; /* Keep this - prevents page scrolling */
+        padding: 0 1rem;
+    }
+
     #sequencer-container {
         width: 100%;
-        height: calc(100vh - 100px);
+        height: 100%;
         background: linear-gradient(135deg, #0f1423 0%, #1a1f3a 100%);
         border-radius: 12px;
-        margin-top: 1rem;
-        overflow: hidden;
+        overflow: hidden; /* Keep this - contains toolbar */
         position: relative;
         display: flex;
         flex-direction: column;
@@ -29,9 +40,11 @@
     #sequencer-canvas-wrapper {
         flex: 1;
         position: relative;
-        overflow-x: auto;  /* Horizontal scroll for timeline */
-        overflow-y: scroll; /* ALWAYS show vertical scrollbar */
+        overflow-x: scroll;  /* Horizontal scrollbar */
+        overflow-y: scroll; /* Vertical scrollbar */
         background: #0a0e27;
+        width: 100%;
+        height: 100%;
     }
 
     /* Style the scrollbar */
@@ -52,6 +65,16 @@
 
     #sequencer-canvas-wrapper::-webkit-scrollbar-thumb:hover {
         background: rgba(59, 130, 246, 0.8);
+    }
+
+    /* Hide scrollbar when hideScrollbars setting is enabled */
+    #sequencer-canvas-wrapper.hide-scrollbars::-webkit-scrollbar {
+        display: none;
+    }
+
+    #sequencer-canvas-wrapper.hide-scrollbars {
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE/Edge */
     }
 
     #sequencer-canvas {
@@ -538,12 +561,16 @@
                 <span>Awaiting Approval</span>
             </div>
             <div class="legend-item">
-                <div class="legend-color" style="background-color: #f87171;"></div>
+                <div class="legend-color" style="background-color: #ff3333;"></div>
                 <span>Stuck/Error</span>
             </div>
             <div class="legend-item">
+                <div class="legend-color" style="background-color: #6b7280; border: 2px solid #10b981;"></div>
+                <span>Done (Green Border)</span>
+            </div>
+            <div class="legend-item">
                 <div class="legend-color" style="background-color: #9ca3af;"></div>
-                <span>Done/Idle</span>
+                <span>Idle</span>
             </div>
         </div>
     </div>
@@ -594,9 +621,9 @@
         'blocked': '#fb923c',          // Bright Orange
         'waiting': '#fb923c',          // Bright Orange
         'awaiting_approval': '#c084fc', // Bright Purple (lighter)
-        'stuck': '#f87171',            // Bright Red (lighter)
-        'error': '#f87171',            // Bright Red (lighter)
-        'done': '#9ca3af',             // Light Gray (more visible)
+        'stuck': '#ff3333',            // BRIGHT RED (for errors)
+        'error': '#ff3333',            // BRIGHT RED (for errors)
+        'done': '#6b7280',             // Medium Gray (for completed tasks)
         'idle': '#9ca3af'              // Light Gray (more visible)
     };
 
@@ -663,7 +690,7 @@
             // WHEEL ALONE: Horizontal zoom (time axis)
             let newZoom;
             if (delta > 0) {
-                newZoom = Math.min(zoomLevel * zoomFactor, 20.0);
+                newZoom = Math.min(zoomLevel * zoomFactor, 100.0);
             } else {
                 newZoom = Math.max(zoomLevel / zoomFactor, 0.1);
             }
@@ -848,18 +875,18 @@
     function resizeCanvas() {
         const wrapper = document.getElementById('sequencer-canvas-wrapper');
 
-        // Calculate minimum width based on time range
+        // Calculate minimum width based on time range and zoom level
         const pixelsPerSecond = PIXELS_PER_SECOND * zoomLevel;
         const timelineWidth = AGENT_LABEL_WIDTH + (timeRangeSeconds * pixelsPerSecond);
-        const minWidth = Math.max(timelineWidth, 2000);
 
         // Calculate total height needed for all agent rows (with vertical zoom applied)
         const rowHeight = ROW_HEIGHT * verticalZoom;
         const totalContentHeight = HEADER_HEIGHT + (agents.length * rowHeight) + 100;
 
         // Set canvas dimensions
-        // Width: Allow horizontal scrolling for wide timelines
-        canvas.width = Math.max(wrapper.clientWidth, minWidth);
+        // Width: Use timeline width directly to enable horizontal scrolling
+        // Only fall back to wrapper width if timeline is smaller (zoomed out)
+        canvas.width = Math.max(timelineWidth, wrapper.clientWidth);
 
         // Height: ALWAYS use content height (not viewport height) to enable scrolling
         // This ensures the scrollbar appears when content exceeds viewport
@@ -950,6 +977,10 @@
             // Allocate lanes for overlapping tasks (NEW!)
             allocateLanes();
 
+            // CRITICAL: Resize canvas after allocating lanes to account for expanded agent rows
+            // This ensures vertical scrollbar appears when tasks overflow the viewport
+            resizeCanvas();
+
             // IMPORTANT: Don't clear lastTriggeredTaskStarts during refresh if playing
             // This prevents duplicate sounds when data refreshes mid-playback
             if (!isPlaying) {
@@ -1039,7 +1070,9 @@
                 hasRunningTasks = true;
             }
 
-            const endTime = task.end_time || (Date.now() / 1000); // Use current time for running tasks
+            // Bug #1 fix: Use estimated duration for tasks without end_time
+            // instead of Date.now() which makes historical tasks appear to span to present
+            const endTime = task.end_time || (task.start_time + 30); // Estimate 30s for tasks without end_time
             if (endTime > latestTime) latestTime = endTime;
         });
 
@@ -1115,9 +1148,8 @@
         let latestTime = -Infinity;
         tasks.forEach(task => {
             if (task.start_time < earliestTime) earliestTime = task.start_time;
-            // FIX: Don't use Date.now() for old tasks - estimate 30s for running tasks
-            const hasRunningStatus = ['running', 'blocked', 'waiting'].includes(task.status);
-            const endTime = task.end_time || (hasRunningStatus ? (task.start_time + 30) : (task.start_time + 30));
+            // Bug #1 fix: Estimate 30s for tasks without end_time (don't use Date.now())
+            const endTime = task.end_time || (task.start_time + 30);
             if (endTime > latestTime) latestTime = endTime;
         });
 
@@ -1287,15 +1319,30 @@
             const agent = agents[agentIndex];
             const isMultiLane = agent && agent._laneCount > 1;
 
-            if (isMultiLane) {
+            // Determine border color based on task status
+            let borderColor = '#ffffff';  // Default white
+            let borderWidth = 1;
+
+            if (task.status === 'done' && task.status !== 'error' && task.status !== 'stuck') {
+                // Completed task with no errors: GREEN border
+                borderColor = '#10b981';  // Bright green
+                borderWidth = 2;
+            } else if (task.status === 'error' || task.status === 'stuck') {
+                // Error task: keep border consistent (or could make it red too)
+                borderColor = '#ff3333';  // Bright red border
+                borderWidth = 2;
+            } else if (isMultiLane) {
                 // Color-code lanes: Lane 1 = blue, Lane 2 = green, Lane 3 = orange, etc.
                 const laneColors = ['#60a5fa', '#34d399', '#fb923c', '#c084fc', '#fbbf24'];
-                ctx.strokeStyle = laneColors[taskLane % laneColors.length];
-                ctx.lineWidth = 2;
-            } else {
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = !task.end_time ? 3 : 1; // Thicker border for active tasks
+                borderColor = laneColors[taskLane % laneColors.length];
+                borderWidth = 2;
+            } else if (!task.end_time) {
+                // Active/running tasks: thicker white border
+                borderWidth = 3;
             }
+
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = borderWidth;
             ctx.strokeRect(x, y, width, blockHeight);
 
             // Reset alpha (already 1.0 but good practice)
@@ -2474,10 +2521,10 @@
     }
 
     /**
-     * Convert slider position (0-100) to zoom level (0.1x-20x) using logarithmic scaling.
+     * Convert slider position (0-100) to zoom level (0.1x-100x) using logarithmic scaling.
      * - 0%: 0.1x (10%, zoomed out)
      * - 50%: 1.0x (100%, normal)
-     * - 100%: 20x (2000%, zoomed in)
+     * - 100%: 100x (10000%, zoomed in)
      */
     function sliderToZoom(sliderValue) {
         const val = parseFloat(sliderValue);
@@ -2485,9 +2532,9 @@
         // At val=0: zoom = 0.1 * 10^0 = 0.1
         // At val=33.33: zoom = 0.1 * 10^1 = 1.0
         // At val=66.66: zoom = 0.1 * 10^2 = 10.0
-        // At val=100: zoom = 0.1 * 10^3 = 100.0 (capped at 20)
+        // At val=100: zoom = 0.1 * 10^3 = 100.0
         const zoom = 0.1 * Math.pow(10, val / 33.33);
-        return Math.min(zoom, 20.0); // Cap at 20x
+        return Math.min(zoom, 100.0); // Cap at 100x
     }
 
     /**
@@ -2524,7 +2571,7 @@
     }
 
     function zoomIn() {
-        updateZoom(Math.min(zoomLevel * 1.5, 20.0));
+        updateZoom(Math.min(zoomLevel * 1.5, 100.0));
     }
 
     function zoomOut() {
@@ -2716,9 +2763,11 @@
         const canvasWrapper = document.getElementById('sequencer-canvas-wrapper');
         if (canvasWrapper) {
             if (settings.hideScrollbars) {
-                canvasWrapper.style.overflow = 'hidden';
+                // Hide scrollbars but still allow scrolling via mouse wheel
+                canvasWrapper.classList.add('hide-scrollbars');
             } else {
-                canvasWrapper.style.overflow = 'auto';
+                // Show scrollbars for timeline navigation
+                canvasWrapper.classList.remove('hide-scrollbars');
             }
         }
     }
@@ -2763,8 +2812,10 @@
                     // Format display name with status indicator
                     const statusIcon = project.is_running ? '🟢' : '⚪';
                     const timestamp = new Date(project.last_action).toLocaleString();
-                    option.textContent = `${statusIcon} ${project.task_id} (${project.action_count} actions)`;
-                    option.title = `Last action: ${timestamp}`;
+                    // Use task_name if available, otherwise fall back to task_id
+                    const displayName = project.task_name || project.task_id;
+                    option.textContent = `${statusIcon} ${displayName} (${project.action_count} actions)`;
+                    option.title = `Last action: ${timestamp}\nTask ID: ${project.task_id}`;
 
                     selector.appendChild(option);
 

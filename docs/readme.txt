@@ -2,6 +2,28 @@
 source .venv/bin/activate
 claude --dangerously-skip-permissions
 
+
+11/10/2025
+
+  View logs (colored, easy to read):
+  ./tools/parse_comms_log.py
+
+  Filter by run ID:
+  ./tools/parse_comms_log.py --run-id abc123-def456
+
+  Filter by LLM model (answer your original question!):
+  ./tools/parse_comms_log.py --llm claude
+  ./tools/parse_comms_log.py --llm qwen
+  ./tools/parse_comms_log.py --llm gpt
+
+  Watch in real-time (like tail -f):
+  ./tools/parse_comms_log.py --tail
+
+  Export to JSON:
+  ./tools/parse_comms_log.py --format json > logs.json
+
+  
+
 # ========================================================================
 # 🚨 CURRENT PROJECT: POLYGLOT AGENT SWARM (PAS) + HMI
 # ========================================================================

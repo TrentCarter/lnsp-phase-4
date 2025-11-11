@@ -1018,7 +1018,10 @@
                     // Format display name with status indicator
                     const statusEmoji = project.is_running ? '▶️' : '⏸️';
                     const firstAction = new Date(project.first_action).toLocaleString();
-                    option.textContent = `${statusEmoji} ${project.task_id.substring(0, 12)}... (${project.action_count} actions, ${firstAction})`;
+                    // Use task_name if available, otherwise fall back to truncated task_id
+                    const displayName = project.task_name || `${project.task_id.substring(0, 12)}...`;
+                    option.textContent = `${statusEmoji} ${displayName} (${project.action_count} actions, ${firstAction})`;
+                    option.title = `Task ID: ${project.task_id}\nFirst action: ${firstAction}`;
 
                     // Select current task if it matches
                     const params = new URLSearchParams(window.location.search);

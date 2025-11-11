@@ -1,0 +1,11 @@
+{
+  "title": "Test PAS hierarchy naming",
+  "description": "CLI submission",
+  "repo_root": "/Users/trentcarter/Artificial_Intelligence/AI_Projects/lnsp-phase-4",
+  "entry_files": [
+    "tests/test_simple.py"
+  ],
+  "goal": "Add a simple comment to the top of tests/test_simple.py explaining what the file tests",
+  "budget_tokens_max": 25000,
+  "budget_cost_usd_max": 2.0
+}

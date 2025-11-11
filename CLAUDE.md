@@ -260,6 +260,7 @@ directional_bonus = 0.03   # Directional alignment bonus
 - ✅ **DirEng designed**: Human-facing interface agent (like Claude Code) - Nov 7
 - ✅ **PEX contract**: Project orchestrator with strict safety rules - Nov 7
 - ✅ **P0 End-to-End Integration**: Gateway + PAS Root + Aider-LCO complete (Nov 10) ⭐ NEW
+- ✅ **Communication logging**: Flat .txt logs with LLM metadata tracking (Nov 10) ⭐ NEW
 - 🎯 **Current focus**: Test P0 stack, then start Phase 1 (LightRAG Code Index)
 - 🔍 **Optional future work**: Q-tower ranker for retrieved candidates
 
@@ -568,6 +569,105 @@ cat artifacts/runs/<uuid>/aider_stdout.txt
 - **Architecture**: `docs/P0_END_TO_END_INTEGRATION.md` (500+ lines)
 - **Tool Access Path**: `docs/OPTIONS_SENDING_PRIME_DIRECTIVES.md` (Q0 section)
 - **Configs**: `configs/pas/fs_allowlist.yaml`, `configs/pas/cmd_allowlist.yaml`
+
+---
+
+## 📝 COMMUNICATION LOGGING SYSTEM (2025-11-10)
+
+**Status**: ✅ Production Ready
+
+Complete parent-child communication logging for PAS with flat `.txt` logs, LLM metadata tracking, and real-time parsing.
+
+### Quick Start
+
+```bash
+# View all logs for today (colored output)
+./tools/parse_comms_log.py
+
+# Filter by run ID
+./tools/parse_comms_log.py --run-id abc123-def456
+
+# Filter by LLM model
+./tools/parse_comms_log.py --llm claude
+./tools/parse_comms_log.py --llm qwen
+
+# Watch logs in real-time (tail -f mode)
+./tools/parse_comms_log.py --tail
+
+# Export to JSON
+./tools/parse_comms_log.py --format json > logs.json
+```
+
+### Log Format
+
+```
+timestamp|from|to|type|message|llm_model|run_id|status|progress|metadata
+```
+
+**Example:**
+```txt
+2025-11-10T18:31:37.429Z|Gateway|PAS Root|CMD|Submit Prime Directive: Add docstrings|-|test-run-001|-|-|-
+2025-11-10T18:31:45.123Z|Aider-LCO|PAS Root|HEARTBEAT|Processing file 3 of 5|ollama/qwen2.5-coder:7b-instruct|test-run-001|running|0.60|%7B%22files_done%22%3A3%7D
+2025-11-10T18:32:10.456Z|Aider-LCO|PAS Root|RESPONSE|Completed successfully|ollama/qwen2.5-coder:7b-instruct|test-run-001|completed|1.0|%7B%22rc%22%3A0%7D
+```
+
+### Log Locations
+
+- **Global logs**: `artifacts/logs/pas_comms_<date>.txt` (daily rotation)
+- **Per-run logs**: `artifacts/runs/<run-id>/comms.txt`
+
+### Key Files
+
+- **Logger**: `services/common/comms_logger.py`
+- **Parser**: `tools/parse_comms_log.py`
+- **Guide**: `docs/COMMS_LOGGING_GUIDE.md`
+- **Format Spec**: `docs/FLAT_LOG_FORMAT.md`
+
+### Developer Usage
+
+```python
+from services.common.comms_logger import get_logger
+
+logger = get_logger()
+
+# Log a command
+logger.log_cmd(
+    from_agent="PAS Root",
+    to_agent="Aider-LCO",
+    message="Execute Prime Directive",
+    llm_model="ollama/qwen2.5-coder:7b-instruct",
+    run_id="abc123"
+)
+
+# Log a heartbeat
+logger.log_heartbeat(
+    from_agent="Aider-LCO",
+    to_agent="PAS Root",
+    message="Processing file 3 of 5",
+    llm_model="ollama/qwen2.5-coder:7b-instruct",
+    run_id="abc123",
+    status="running",
+    progress=0.6,
+    metadata={"files_done": 3}
+)
+```
+
+### Schema Updates
+
+Updated schemas to include LLM metadata:
+- ✅ `contracts/heartbeat.schema.json` - Added `llm_model`, `llm_provider`, `parent_agent`, `children_agents`
+- ✅ `schemas/heartbeat.schema.json` - Added `llm_model`, `llm_provider`, `parent_agent`
+- ✅ `contracts/status_update.schema.json` - Added `llm_model`, `llm_provider`, `parent_agent`, `progress`
+- ✅ `schemas/status_update.schema.json` - Added `llm_model`, `llm_provider`, `parent_agent`, `progress`
+
+### Integration Status
+
+- ✅ **Aider-LCO RPC**: Logs all commands, status updates, responses with LLM model info
+- ✅ **PAS Root**: Logs Prime Directive submission, delegation to Aider-LCO, completion
+- ✅ **Real-time parser**: Colored text output + JSON export + filtering + tailing
+- ⏳ **HMI visualization**: To be integrated (Phase 2)
+
+**See**: `docs/COMMS_LOGGING_GUIDE.md` for complete documentation
 
 ---
 
