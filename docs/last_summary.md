@@ -1,85 +1,69 @@
 # Last Session Summary
 
-**Date:** 2025-11-11 (Session 8)
+**Date:** 2025-11-11 (Session 10)
 **Duration:** ~1 hour
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Completed macOS-style Settings UI redesign with sidebar navigation and implemented Advanced Model Settings page. Restructured LLM Model Selection into a clean 3-column table layout and standardized all save buttons to green for consistent UX.
+Implemented **Provider Router integration with Model Pool Manager** to enable intelligent LLM model routing based on agent class. Created per-agent model preferences, integrated inference parameter management, and built a complete routing API that automatically selects and loads the appropriate model for each PAS agent.
 
 ## Key Changes
 
-### 1. macOS-Style Settings UI with Sidebar Navigation
-**Files:** `services/webui/templates/base.html:329-385` (CSS), `services/webui/templates/base.html:621-662` (HTML sidebar)
-**Summary:** Redesigned Settings modal with left sidebar navigation (200px) showing 8 categories: General, Display, Tree View, Sequencer, Audio, LLM Models, Advanced, System. Each category has its own page with smooth switching. Save Changes button pinned to bottom of sidebar with green background.
+### 1. Model Preferences Configuration (NEW)
+**Files:** `configs/pas/model_preferences.json` (75 lines, NEW)
+**Summary:** Defines model preferences for each agent class (Architect → qwen2.5-coder, Reviewer → llama3.1, etc.) with fallback models and model-specific inference parameters (temperature, top_p, maxTokens) optimized for each model's strengths.
 
-### 2. Advanced Model Settings Page (NEW)
-**Files:** `services/webui/templates/base.html:984-1067` (frontend), `services/webui/hmi_app.py:2569-2625` (backend API)
-**Summary:** Created comprehensive Advanced Model Settings page with 6 parameters: Temperature (0.0-2.0), Max Tokens (100-8000), Top P (0.0-1.0), Top K (1-100), Frequency Penalty (-2.0 to 2.0), Presence Penalty (-2.0 to 2.0). All sliders show live value updates. Settings persist to `configs/pas/advanced_model_settings.json`.
-
-### 3. LLM Models 3-Column Table Layout
-**Files:** `services/webui/templates/base.html:892-982`
-**Summary:** Completely restructured LLM Model Selection page from 8 vertical rows into compact 3-column table (Agent Type | Primary Model | Backup Model). Features 4 agent types (Architect, Director, Manager, Programmer) with emojis and descriptions. 50% reduction in vertical space with better visual hierarchy.
-
-### 4. Consistent Green Save Buttons
-**Files:** `services/webui/templates/base.html:660, 979, 1064`
-**Summary:** Standardized all save buttons to emerald green (#10b981) with white text for consistency. Updated Save Changes (sidebar), Save Model Preferences (LLM page), and Save Advanced Settings (Advanced page). Reset to Defaults uses amber (#f59e0b) to indicate caution.
-
-### 5. Settings Page Reorganization
-**Files:** `services/webui/templates/base.html:665-1116`
-**Summary:** Reorganized all settings into 8 category pages: General (Auto-Refresh, Performance), Display (Tooltips, Compact Mode, Time Zone), Tree View (Orientation), Sequencer (Scrollbars, Playback Speed, Sound Mode, Auto-Detect), Audio (Master, Notes, Voice, Volume), LLM Models (table layout), Advanced (inference parameters), System (Clear Data, Restart Services, Reset Defaults).
+### 2. Provider Router Enhanced with Model Pool Integration
+**Files:** `services/provider_router/provider_router.py` (567 lines, +250 lines added)
+**Summary:** Added Model Pool integration with helper functions for model selection, endpoint discovery, and parameter merging. Implemented three new endpoints: `/model-pool/status`, `/model-pool/preferences`, and `/model-pool/route` for intelligent request routing based on agent class with automatic model loading.
 
 ## Files Modified
 
-- `services/webui/templates/base.html` - Added sidebar navigation CSS, restructured settings into pages, created 3-column LLM table, added Advanced page, updated button colors (~400 lines changed)
-- `services/webui/hmi_app.py` - Added Path import, created GET/POST endpoints for advanced model settings (~60 lines added)
-- `configs/pas/advanced_model_settings.json` - NEW: Auto-created on first save, stores LLM inference parameters
+- `configs/pas/model_preferences.json` - NEW: Agent-to-model mappings and model-specific inference settings
+- `services/provider_router/provider_router.py` - Enhanced with Model Pool integration, routing logic, and parameter merging
 
 ## Current State
 
 **What's Working:**
-- ✅ macOS-style sidebar navigation with 8 categories
-- ✅ Smooth page switching with active state highlighting
-- ✅ 3-column LLM Models table (Agent Type | Primary | Backup)
-- ✅ Advanced Model Settings with 6 configurable parameters
-- ✅ All save buttons standardized to green (#10b981)
-- ✅ Reset to Defaults button in amber (#f59e0b) on System page
-- ✅ Settings persist to JSON config files
-- ✅ Backend API endpoints working (tested with curl)
+- ✅ Provider Router running on port 6103 with Model Pool integration
+- ✅ Model preferences loaded successfully from config file
+- ✅ Automatic model selection based on agent class (Architect → qwen, Reviewer → llama)
+- ✅ Fallback model support if primary unavailable
+- ✅ Parameter merging from multiple sources (global → model-specific → request override)
+- ✅ Automatic model loading with 60s timeout if model not HOT
+- ✅ Tested routing for Architect, Reviewer, and default cases
+- ✅ Integration with Model Pool Manager (port 8050)
 
 **What Needs Work:**
-- [ ] Provider Router integration - Use saved model preferences and advanced settings in actual LLM calls
-- [ ] Per-agent-class advanced settings (different temperature for Architect vs Programmer)
-- [ ] Settings validation UI (warnings for extreme values)
-- [ ] Settings import/export functionality
-- [ ] Preset profiles for advanced settings ("Conservative", "Balanced", "Creative")
+- [ ] **HMI Model Management UI** - Build visual dashboard in Settings for real-time model monitoring
+- [ ] **Streaming support** - Implement `/model-pool/route/stream` endpoint for long completions
+- [ ] **PAS integration** - Update PAS agents to use Provider Router for LLM requests
+- [ ] **Load balancing** - Add support for multiple instances of same model
+- [ ] **Metrics collection** - Track routing decisions and model performance
+- [ ] **Error recovery** - Improve fallback behavior when models fail to load
 
 ## Important Context for Next Session
 
-1. **Settings UI Complete**: Full macOS-style Settings with sidebar navigation, 8 category pages, and consistent green save buttons. No more cramped single-page scrolling.
+1. **Model Routing Flow**: Provider Router queries Model Pool Manager (`GET /models`) → selects model based on agent class from preferences → checks if model is HOT → loads model if needed → merges parameters → proxies request to model service (ports 8051-8099) → returns response with metadata.
 
-2. **LLM Configuration**: Two levels of configuration now available:
-   - **Model Selection** (LLM Models page): Choose which model for each agent class
-   - **Advanced Parameters** (Advanced page): Fine-tune temperature, tokens, top-p, penalties
+2. **Agent Preferences**: Each agent class has a primary and fallback model. Architect/Programmer/Tester use qwen2.5-coder (code-focused), Reviewer/Documenter use llama3.1 (reasoning), Debugger uses deepseek-coder-v2 (advanced). Default is llama3.1.
 
-3. **Three Config Files**:
-   - `configs/pas/model_preferences.json` - Per-agent model selection (primary + fallback)
-   - `configs/pas/advanced_model_settings.json` - Global LLM inference parameters
-   - `configs/pas/local_llms.yaml` - Local LLM endpoint definitions
+3. **Parameter Priority**: Inference parameters merge in order: (1) Global advanced_model_settings.json, (2) Model-specific settings from model_preferences.json, (3) Request-level overrides. Each model has optimized defaults (e.g., qwen temp=0.7 for consistency, llama temp=0.8 for creativity).
 
-4. **Button Color Scheme**:
-   - Green (#10b981) = Save/Confirm actions
-   - Amber (#f59e0b) = Caution/Reset actions
-   - Red (#ef4444) = Danger/Delete actions
+4. **Path Resolution**: Provider Router uses `Path(__file__).parent.parent.parent` to resolve config file paths relative to project root, ensuring correct loading regardless of working directory.
 
-5. **Next Phase**: Integrate saved preferences into Provider Router so model selection and advanced settings are actually used during LLM inference.
+5. **Testing Endpoints**:
+   - `curl http://localhost:6103/model-pool/status` - View active models
+   - `curl http://localhost:6103/model-pool/preferences` - View agent preferences
+   - `curl -X POST http://localhost:6103/model-pool/route -H 'Content-Type: application/json' -d '{"agent_class":"Architect","prompt":"..."}'` - Route request
+
+6. **HMI Model Management UI** (Next Task): Build Settings page to visualize model states, show port allocations, display TTL countdowns, provide load/unload buttons, monitor memory usage, and configure TTL settings. Should use WebSocket for real-time updates.
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Test Settings UI** - Open http://localhost:6101, click Settings button, verify all 8 pages work
-3. **Provider Router Integration** - Update `services/provider_router/provider_router.py` to:
-   - Read `model_preferences.json` and select models based on agent class
-   - Read `advanced_model_settings.json` and apply to LLM API calls
-4. **End-to-End Test** - Submit task via Verdict CLI, verify correct models are used
+2. **Commit current changes** - `git add` new config file and modified provider_router.py
+3. **Start HMI Model Management UI** - Add new "Model Pool" tab in Settings dialog
+4. **Design real-time dashboard** - WebSocket connection to Model Pool Manager for live state updates
+5. **Test end-to-end** - Verify PAS agents can use Provider Router for LLM requests

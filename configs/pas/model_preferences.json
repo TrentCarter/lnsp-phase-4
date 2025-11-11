@@ -1,0 +1,18 @@
+{
+  "architect": {
+    "primary": "anthropic/claude-sonnet-4-5-20250929",
+    "fallback": "google/gemini-2.5-pro"
+  },
+  "director": {
+    "primary": "google/gemini-2.5-pro",
+    "fallback": "anthropic/claude-haiku-4-5"
+  },
+  "manager": {
+    "primary": "google/gemini-2.5-flash",
+    "fallback": "ollama/qwen2.5-coder:7b-instruct"
+  },
+  "programmer": {
+    "primary": "ollama/qwen2.5-coder:7b-instruct",
+    "fallback": "openai/gpt-5-codex"
+  }
+}

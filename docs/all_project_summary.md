@@ -501,3 +501,202 @@ Implemented dynamic LLM model selection system with per-agent-class configuratio
 - [ ] Add breadcrumb navigation for Settings
 - [ ] Test Settings UI navigation and all pages
 - [ ] Create documentation for model selection system
+
+===
+2025-11-11 17:19:25
+
+# Last Session Summary
+
+**Date:** 2025-11-11 (Session 8)
+**Duration:** ~1 hour
+**Branch:** feature/aider-lco-p0
+
+## What Was Accomplished
+
+Completed macOS-style Settings UI redesign with sidebar navigation and implemented Advanced Model Settings page. Restructured LLM Model Selection into a clean 3-column table layout and standardized all save buttons to green for consistent UX.
+
+## Key Changes
+
+### 1. macOS-Style Settings UI with Sidebar Navigation
+**Files:** `services/webui/templates/base.html:329-385` (CSS), `services/webui/templates/base.html:621-662` (HTML sidebar)
+**Summary:** Redesigned Settings modal with left sidebar navigation (200px) showing 8 categories: General, Display, Tree View, Sequencer, Audio, LLM Models, Advanced, System. Each category has its own page with smooth switching. Save Changes button pinned to bottom of sidebar with green background.
+
+### 2. Advanced Model Settings Page (NEW)
+**Files:** `services/webui/templates/base.html:984-1067` (frontend), `services/webui/hmi_app.py:2569-2625` (backend API)
+**Summary:** Created comprehensive Advanced Model Settings page with 6 parameters: Temperature (0.0-2.0), Max Tokens (100-8000), Top P (0.0-1.0), Top K (1-100), Frequency Penalty (-2.0 to 2.0), Presence Penalty (-2.0 to 2.0). All sliders show live value updates. Settings persist to `configs/pas/advanced_model_settings.json`.
+
+### 3. LLM Models 3-Column Table Layout
+**Files:** `services/webui/templates/base.html:892-982`
+**Summary:** Completely restructured LLM Model Selection page from 8 vertical rows into compact 3-column table (Agent Type | Primary Model | Backup Model). Features 4 agent types (Architect, Director, Manager, Programmer) with emojis and descriptions. 50% reduction in vertical space with better visual hierarchy.
+
+### 4. Consistent Green Save Buttons
+**Files:** `services/webui/templates/base.html:660, 979, 1064`
+**Summary:** Standardized all save buttons to emerald green (#10b981) with white text for consistency. Updated Save Changes (sidebar), Save Model Preferences (LLM page), and Save Advanced Settings (Advanced page). Reset to Defaults uses amber (#f59e0b) to indicate caution.
+
+### 5. Settings Page Reorganization
+**Files:** `services/webui/templates/base.html:665-1116`
+**Summary:** Reorganized all settings into 8 category pages: General (Auto-Refresh, Performance), Display (Tooltips, Compact Mode, Time Zone), Tree View (Orientation), Sequencer (Scrollbars, Playback Speed, Sound Mode, Auto-Detect), Audio (Master, Notes, Voice, Volume), LLM Models (table layout), Advanced (inference parameters), System (Clear Data, Restart Services, Reset Defaults).
+
+## Files Modified
+
+- `services/webui/templates/base.html` - Added sidebar navigation CSS, restructured settings into pages, created 3-column LLM table, added Advanced page, updated button colors (~400 lines changed)
+- `services/webui/hmi_app.py` - Added Path import, created GET/POST endpoints for advanced model settings (~60 lines added)
+- `configs/pas/advanced_model_settings.json` - NEW: Auto-created on first save, stores LLM inference parameters
+
+## Current State
+
+**What's Working:**
+- ✅ macOS-style sidebar navigation with 8 categories
+- ✅ Smooth page switching with active state highlighting
+- ✅ 3-column LLM Models table (Agent Type | Primary | Backup)
+- ✅ Advanced Model Settings with 6 configurable parameters
+- ✅ All save buttons standardized to green (#10b981)
+- ✅ Reset to Defaults button in amber (#f59e0b) on System page
+- ✅ Settings persist to JSON config files
+- ✅ Backend API endpoints working (tested with curl)
+
+**What Needs Work:**
+- [ ] Provider Router integration - Use saved model preferences and advanced settings in actual LLM calls
+- [ ] Per-agent-class advanced settings (different temperature for Architect vs Programmer)
+- [ ] Settings validation UI (warnings for extreme values)
+- [ ] Settings import/export functionality
+- [ ] Preset profiles for advanced settings ("Conservative", "Balanced", "Creative")
+
+## Important Context for Next Session
+
+1. **Settings UI Complete**: Full macOS-style Settings with sidebar navigation, 8 category pages, and consistent green save buttons. No more cramped single-page scrolling.
+
+2. **LLM Configuration**: Two levels of configuration now available:
+   - **Model Selection** (LLM Models page): Choose which model for each agent class
+   - **Advanced Parameters** (Advanced page): Fine-tune temperature, tokens, top-p, penalties
+
+3. **Three Config Files**:
+   - `configs/pas/model_preferences.json` - Per-agent model selection (primary + fallback)
+   - `configs/pas/advanced_model_settings.json` - Global LLM inference parameters
+   - `configs/pas/local_llms.yaml` - Local LLM endpoint definitions
+
+4. **Button Color Scheme**:
+   - Green (#10b981) = Save/Confirm actions
+   - Amber (#f59e0b) = Caution/Reset actions
+   - Red (#ef4444) = Danger/Delete actions
+
+5. **Next Phase**: Integrate saved preferences into Provider Router so model selection and advanced settings are actually used during LLM inference.
+
+## Quick Start Next Session
+
+1. **Use `/restore`** to load this summary
+2. **Test Settings UI** - Open http://localhost:6101, click Settings button, verify all 8 pages work
+3. **Provider Router Integration** - Update `services/provider_router/provider_router.py` to:
+   - Read `model_preferences.json` and select models based on agent class
+   - Read `advanced_model_settings.json` and apply to LLM API calls
+4. **End-to-End Test** - Submit task via Verdict CLI, verify correct models are used
+
+===
+2025-11-11 17:47:10
+
+# Last Session Summary
+
+**Date:** 2025-11-11 (Session 9)
+**Duration:** ~2 hours
+**Branch:** feature/aider-lco-p0
+
+## What Was Accomplished
+
+Implemented a complete **Dynamic Model Pool Manager** to enable concurrent LLM access for PAS. Created automatic model loading/unloading with TTL management (15 min default), replacing old static LLM services. Updated system restart scripts to include Model Pool Manager (port 8050) and model services (8051-8099).
+
+## Key Changes
+
+### 1. Model Pool Manager Service (NEW)
+**Files:** `services/model_pool_manager/model_pool_manager.py` (700 lines, NEW)
+**Summary:** Control plane for dynamic LLM model lifecycle. Manages model states (COLD/WARMING/HOT/COOLING/UNLOADING), port allocation (8051-8099), TTL tracking, and PAS Registry integration. Auto-loads warmup models (qwen2.5-coder, llama3.1) on startup.
+
+### 2. Model Service Template (NEW)
+**Files:** `services/model_pool_manager/model_service_template.py` (250 lines, NEW)
+**Summary:** FastAPI wrapper for individual Ollama models. Provides OpenAI-compatible endpoints (/v1/chat/completions, /v1/completions) and auto-extends TTL on each request. Each model gets dedicated port (8051-8099).
+
+### 3. API Documentation (NEW)
+**Files:** `docs/design_documents/MODEL_POOL_MANAGER_API.md` (450 lines, NEW)
+**Summary:** Complete API reference with request/response schemas, Python client examples, configuration files, and usage patterns. Documents all endpoints (registry, lifecycle, health, metrics, config).
+
+### 4. Implementation Summary (NEW)
+**Files:** `docs/MODEL_POOL_MANAGER_COMPLETE.md` (400 lines, NEW)
+**Summary:** Full implementation documentation with architecture diagrams, testing results, usage examples, performance characteristics, and migration notes from old static services.
+
+### 5. Port Documentation Updated
+**Files:** `docs/DATABASE_LOCATIONS.md:516-587` (Section 10 added)
+**Summary:** Added comprehensive port mapping for Model Pool Manager (8050), model services (8051-8099), and Ollama backend (11434). Includes architecture diagram and configuration file locations.
+
+### 6. Service Startup Scripts Updated
+**Files:** `scripts/run_stack.sh:6-10, 79-82, 115-120`
+**Summary:** Added Model Pool Manager to P0 stack startup. Starts on port 8050 before other services, displays in final URL summary.
+
+### 7. System Restart Script Updated
+**Files:** `scripts/restart_full_system.sh:70-77, 140-148, 209-212`
+**Summary:** Added Model Pool Manager stop/start logic. Stops all model services (8051-8099) during shutdown, starts pool manager before P0 Stack, displays Model Pool URLs in completion summary.
+
+### 8. HMI Settings Dialog Updated
+**Files:** `services/webui/templates/base.html:2661`, `services/webui/hmi_app.py:2046-2047`
+**Summary:** Updated "Restart All Services" confirmation dialog and API response to include Model Pool Manager (8050) and model services (8051-8099).
+
+## Files Modified
+
+- `services/model_pool_manager/model_pool_manager.py` - NEW: Main control plane (700 lines)
+- `services/model_pool_manager/model_service_template.py` - NEW: Model wrapper (250 lines)
+- `docs/design_documents/MODEL_POOL_MANAGER_API.md` - NEW: API reference (450 lines)
+- `docs/MODEL_POOL_MANAGER_COMPLETE.md` - NEW: Implementation summary (400 lines)
+- `docs/DATABASE_LOCATIONS.md` - Added Section 10: Service Ports
+- `scripts/run_stack.sh` - Added Model Pool Manager startup
+- `scripts/restart_full_system.sh` - Added Model Pool stop/start
+- `services/webui/templates/base.html` - Updated restart dialog
+- `services/webui/hmi_app.py` - Updated restart API response
+
+## Current State
+
+**What's Working:**
+- ✅ Model Pool Manager running on port 8050
+- ✅ qwen2.5-coder service on port 8051 (warmup, HOT)
+- ✅ llama3.1 service on port 8052 (warmup, HOT)
+- ✅ Automatic TTL extension on requests (15 min default)
+- ✅ OpenAI-compatible API endpoints
+- ✅ Tested: Health checks, model list, chat completions
+- ✅ Service startup/restart scripts updated
+- ✅ Port documentation complete (8050-8099)
+
+**What Needs Work:**
+- [ ] Provider Router integration - Use Model Pool Client to route LLM requests
+- [ ] HMI Model Management UI - Add "Model Pool" page to Settings for real-time monitoring
+- [ ] Advanced Settings integration - Apply model preferences and inference parameters
+- [ ] Per-agent-class advanced settings (different temperature for Architect vs Programmer)
+- [ ] Settings validation UI (warnings for extreme values)
+- [ ] Preset profiles for advanced settings ("Conservative", "Balanced", "Creative")
+
+## Important Context for Next Session
+
+1. **Model Pool Architecture**: Control plane (8050) manages model services (8051-8099) with automatic loading/unloading. Warmup models (qwen, llama3.1) stay loaded permanently. Non-warmup models unload after 15 min inactivity.
+
+2. **Port Allocation Standard**: Ports 8050-8099 (50 slots) reserved for LLM services. 8050 = Pool Manager, 8051-8099 = Model services. Max 5 concurrent models (configurable).
+
+3. **Configuration Files**:
+   - `configs/pas/model_pool_config.json` - Pool settings (TTL, ports, limits)
+   - `configs/pas/model_pool_registry.json` - Available models (qwen, llama3.1, deepseek, codellama)
+   - `configs/pas/model_preferences.json` - Per-agent model selection (for Provider Router)
+   - `configs/pas/advanced_model_settings.json` - LLM inference parameters (for Provider Router)
+
+4. **Migration Note**: Replaced old static services (`services/llm/llama31_8b_service.py` on port 8050) with dynamic pool manager. Old services should not be used.
+
+5. **Restart Behavior**: "Restart All Services" button in HMI Settings now properly stops/starts Model Pool Manager and all model services. Warmup models auto-load on startup.
+
+## Quick Start Next Session
+
+1. **Use `/restore`** to load this summary
+2. **Test Model Pool** - Run `curl http://localhost:8050/models` to verify services
+3. **Provider Router Integration** - Update `services/provider_router/provider_router.py` to:
+   - Use Model Pool Client to get model endpoints
+   - Read `model_preferences.json` for per-agent model selection
+   - Read `advanced_model_settings.json` for inference parameters
+   - Route requests to appropriate model services (8051-8099)
+4. **HMI Model Management UI** - Add "Model Pool" page to Settings with:
+   - Real-time model states (COLD/WARMING/HOT/COOLING)
+   - Load/unload buttons
+   - TTL configuration
+   - Memory usage visualization
