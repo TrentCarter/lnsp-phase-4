@@ -594,6 +594,8 @@
     let agents = [];
     let tasks = [];
     let autoRefreshTimer = null;
+    let newTaskPollTimer = null; // Timer for polling for new tasks
+    let lastKnownTaskId = null; // Track last task to detect new ones
     let timelineOffset = 0; // Pan offset in seconds (for timeline dragging)
     let verticalOffset = 0; // NEW: Vertical pan offset in pixels (for scrolling up/down)
     let projectName = 'Project Timeline'; // Project/task name for header
@@ -2746,6 +2748,24 @@
             console.log('Auto-refresh disabled');
         }
 
+        // NEW: Setup new task polling if enabled
+        if (newTaskPollTimer) {
+            clearInterval(newTaskPollTimer);
+            newTaskPollTimer = null;
+        }
+
+        // Check for new task poll settings (with defaults)
+        const newTaskPollEnabled = settings.newTaskPollEnabled !== undefined ? settings.newTaskPollEnabled : true;
+        const newTaskPollInterval = settings.newTaskPollInterval || 5; // Default: 5 seconds
+
+        if (newTaskPollEnabled) {
+            const pollIntervalMs = newTaskPollInterval * 1000;
+            console.log(`🔄 [POLL] Enabling new task detection every ${newTaskPollInterval} seconds`);
+            newTaskPollTimer = setInterval(pollForNewTasks, pollIntervalMs);
+        } else {
+            console.log('🔄 [POLL] New task detection disabled');
+        }
+
         // Apply sequencer-specific settings
         if (settings.defaultPlaybackSpeed) {
             updatePlaybackSpeed(settings.defaultPlaybackSpeed, 'settings');
@@ -2785,6 +2805,57 @@
             }
         } catch (error) {
             console.error('Error polling for active tasks:', error);
+        }
+    }
+
+    // NEW: Poll for new tasks and auto-switch when detected
+    async function pollForNewTasks() {
+        try {
+            // Fetch list of projects (tasks)
+            const response = await fetch('/api/actions/projects');
+            if (!response.ok) return;
+
+            const data = await response.json();
+            if (!data.projects || data.projects.length === 0) return;
+
+            // Get the most recent task (first in list)
+            const latestTask = data.projects[0];
+            const latestTaskId = latestTask.task_id;
+
+            // Check if this is a NEW task (different from what we last saw)
+            if (lastKnownTaskId && latestTaskId !== lastKnownTaskId) {
+                console.log(`🆕 [NEW TASK DETECTED] ${latestTaskId}`);
+
+                // Auto-switch to the new task
+                lastKnownTaskId = latestTaskId;
+                currentTaskId = latestTaskId;
+
+                // Update project selector
+                const selector = document.getElementById('project-selector');
+                if (selector) {
+                    selector.value = latestTaskId;
+                }
+
+                // Update URL
+                const url = new URL(window.location);
+                url.searchParams.set('task_id', latestTaskId);
+                window.history.pushState({}, '', url);
+
+                // Load the new task data
+                await fetchSequencerData();
+
+                // Auto-start scrolling to show the new task in real-time
+                if (!isPlaying) {
+                    console.log(`▶️ [AUTO-START] Starting playback for new task`);
+                    playPauseTimeline();
+                }
+            } else if (!lastKnownTaskId) {
+                // First time - just remember this task
+                lastKnownTaskId = latestTaskId;
+                console.log(`📌 [INIT] Tracking task: ${latestTaskId}`);
+            }
+        } catch (error) {
+            console.error('Error polling for new tasks:', error);
         }
     }
 

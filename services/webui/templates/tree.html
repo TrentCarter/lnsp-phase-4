@@ -380,8 +380,10 @@
             }
 
             let url = '/api/tree';
+            let dataSource = 'services';
             if (taskId) {
                 url = `/api/tree?source=actions&task_id=${taskId}`;
+                dataSource = 'actions';
                 // Update URL without reloading page
                 if (!urlParams.get('task_id')) {
                     window.history.replaceState({}, '', `?task_id=${taskId}`);
@@ -390,11 +392,45 @@
 
             const response = await fetch(url);
             const data = await response.json();
-            console.log('Fetched tree data:', data);
+            console.log(`Fetched tree data from ${dataSource}:`, data);
+
+            // Check if tree is empty or has error, fallback to services tree
+            if (data.error || (data.children && data.children.length === 0)) {
+                console.warn(`⚠️ Tree from ${dataSource} is empty or has error:`, data.error || 'No children');
+
+                if (dataSource === 'actions') {
+                    console.log('🔄 Falling back to services tree...');
+                    const fallbackResp = await fetch('/api/tree?source=services');
+                    const fallbackData = await fallbackResp.json();
+                    console.log('Fetched fallback tree from services:', fallbackData);
+
+                    // Add visual indicator that we're showing services tree
+                    fallbackData.name = fallbackData.name + ' (Live Services)';
+                    fallbackData._fallback = true;
+                    return fallbackData;
+                }
+            }
+
             return data;
         } catch (error) {
             console.error('Error fetching tree data:', error);
-            return { name: 'Error', children: [] };
+            // Try one last fallback to services tree
+            try {
+                console.log('🔄 Final fallback to services tree after error...');
+                const fallbackResp = await fetch('/api/tree?source=services');
+                const fallbackData = await fallbackResp.json();
+                fallbackData.name = fallbackData.name + ' (Live Services - Fallback)';
+                fallbackData._fallback = true;
+                return fallbackData;
+            } catch (fallbackError) {
+                console.error('Fallback also failed:', fallbackError);
+                return {
+                    name: '❌ Error: Services Offline',
+                    status: 'error',
+                    children: [],
+                    _error: true
+                };
+            }
         }
     }
 

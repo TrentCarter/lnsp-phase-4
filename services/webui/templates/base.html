@@ -712,6 +712,124 @@
                         </select>
                     </div>
                 </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Auto-Detect New Tasks</div>
+                        <div class="setting-description">Automatically switch to new tasks and start playback</div>
+                    </div>
+                    <div class="setting-control">
+                        <div id="new-task-poll-toggle" class="toggle-switch active" onclick="toggleNewTaskPoll()"></div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">New Task Poll Interval</div>
+                        <div class="setting-description">How often to check for new tasks (seconds)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" id="new-task-poll-interval" class="setting-input" min="1" max="60" value="5">
+                        <span style="color: #9ca3af; font-size: 0.875rem;">sec</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LLM Model Selection Settings -->
+            <div class="settings-section">
+                <h3>🤖 LLM Model Selection</h3>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Architect Model</div>
+                        <div class="setting-description">Primary LLM for Architect agents (high-level planning)</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="architect-primary" class="setting-input" style="width: 280px;">
+                            <option value="auto">🔄 Auto Select</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Architect Fallback</div>
+                        <div class="setting-description">Backup model if primary fails</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="architect-fallback" class="setting-input" style="width: 280px;">
+                            <option value="auto">🔄 Auto Select</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Director Model</div>
+                        <div class="setting-description">Primary LLM for Director agents (lane coordination)</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="director-primary" class="setting-input" style="width: 280px;">
+                            <option value="auto">🔄 Auto Select</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Director Fallback</div>
+                        <div class="setting-description">Backup model if primary fails</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="director-fallback" class="setting-input" style="width: 280px;">
+                            <option value="auto">🔄 Auto Select</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Manager Model</div>
+                        <div class="setting-description">Primary LLM for Manager agents (task breakdown)</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="manager-primary" class="setting-input" style="width: 280px;">
+                            <option value="auto">🔄 Auto Select</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Manager Fallback</div>
+                        <div class="setting-description">Backup model if primary fails</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="manager-fallback" class="setting-input" style="width: 280px;">
+                            <option value="auto">🔄 Auto Select</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Programmer Model</div>
+                        <div class="setting-description">Primary LLM for Programmer agents (code execution)</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="programmer-primary" class="setting-input" style="width: 280px;">
+                            <option value="auto">🔄 Auto Select</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Programmer Fallback</div>
+                        <div class="setting-description">Backup model if primary fails</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="programmer-fallback" class="setting-input" style="width: 280px;">
+                            <option value="auto">🔄 Auto Select</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div></div>
+                    <div class="setting-control">
+                        <button class="setting-button primary" onclick="saveModelPreferences()">💾 Save Model Preferences</button>
+                    </div>
+                </div>
             </div>
 
             <!-- System Admin Settings -->
@@ -961,7 +1079,9 @@
             treeOrientation: 'top',
             hideScrollbars: true,
             defaultPlaybackSpeed: 1.0,
-            defaultSoundMode: 'none'
+            defaultSoundMode: 'none',
+            newTaskPollEnabled: true,  // Auto-detect new tasks
+            newTaskPollInterval: 5  // Poll every 5 seconds
         };
 
         let currentSettings = { ...DEFAULT_SETTINGS };
@@ -997,10 +1117,14 @@
             currentSettings.hideScrollbars = document.getElementById('hide-scrollbars-toggle').classList.contains('active');
             currentSettings.defaultPlaybackSpeed = parseFloat(document.getElementById('default-playback-speed').value);
             currentSettings.defaultSoundMode = document.getElementById('default-sound-mode').value;
+            currentSettings.newTaskPollEnabled = document.getElementById('new-task-poll-toggle').classList.contains('active');
+            currentSettings.newTaskPollInterval = parseInt(document.getElementById('new-task-poll-interval').value);
 
             // Validate
             if (currentSettings.refreshInterval < 0) currentSettings.refreshInterval = 0;
             if (currentSettings.refreshInterval > 600) currentSettings.refreshInterval = 600;
+            if (currentSettings.newTaskPollInterval < 1) currentSettings.newTaskPollInterval = 1;
+            if (currentSettings.newTaskPollInterval > 60) currentSettings.newTaskPollInterval = 60;
             if (currentSettings.animationDuration < 0) currentSettings.animationDuration = 0;
             if (currentSettings.animationDuration > 2000) currentSettings.animationDuration = 2000;
             if (currentSettings.audioVolume < 0) currentSettings.audioVolume = 0;
@@ -1064,11 +1188,146 @@
             document.getElementById('tree-orientation').value = currentSettings.treeOrientation;
             document.getElementById('default-playback-speed').value = currentSettings.defaultPlaybackSpeed;
             document.getElementById('default-sound-mode').value = currentSettings.defaultSoundMode;
+            document.getElementById('new-task-poll-interval').value = currentSettings.newTaskPollInterval;
+
+            // Update toggle states
+            if (currentSettings.newTaskPollEnabled) {
+                document.getElementById('new-task-poll-toggle').classList.add('active');
+            } else {
+                document.getElementById('new-task-poll-toggle').classList.remove('active');
+            }
         }
 
-        function openSettings() {
+        async function openSettings() {
             updateSettingsUI();
+            await loadModelPreferences();
             document.getElementById('settings-modal').classList.add('active');
+        }
+
+        // Load available models and current preferences
+        async function loadModelPreferences() {
+            try {
+                // Load available models
+                const modelsResponse = await fetch('/api/models/available');
+                const modelsData = await modelsResponse.json();
+
+                if (modelsData.status === 'ok') {
+                    const models = modelsData.models;
+
+                    // Populate all dropdowns
+                    const agentTypes = ['architect', 'director', 'manager', 'programmer'];
+                    const selectTypes = ['primary', 'fallback'];
+
+                    for (const agentType of agentTypes) {
+                        for (const selectType of selectTypes) {
+                            const selectId = `${agentType}-${selectType}`;
+                            const selectElement = document.getElementById(selectId);
+
+                            if (selectElement) {
+                                // Clear existing options
+                                selectElement.innerHTML = '';
+
+                                // Add options for each model
+                                for (const [modelId, modelInfo] of Object.entries(models)) {
+                                    const option = document.createElement('option');
+                                    option.value = modelId;
+
+                                    // Add emoji prefix based on provider
+                                    let emoji = '🤖';
+                                    if (modelId === 'auto') emoji = '🔄';
+                                    else if (modelInfo.provider === 'ollama') emoji = '🏠';
+                                    else if (modelInfo.provider === 'anthropic') emoji = '🔮';
+                                    else if (modelInfo.provider === 'openai') emoji = '🚀';
+                                    else if (modelInfo.provider === 'google') emoji = '✨';
+                                    else if (modelInfo.provider === 'deepseek') emoji = '🧠';
+                                    else if (modelInfo.provider === 'local' || modelInfo.provider === 'local_fastapi') emoji = '💻';
+
+                                    // Add status indicator for local models
+                                    let statusText = '';
+                                    if (modelInfo.status) {
+                                        if (modelInfo.status === 'OK') statusText = ' ✓';
+                                        else if (modelInfo.status === 'ERR') statusText = ' ⚠️';
+                                        else if (modelInfo.status === 'OFFLINE') statusText = ' ⭕';
+                                        else if (modelInfo.status === 'API') statusText = '';  // No indicator for API models
+                                    }
+
+                                    option.textContent = `${emoji} ${modelInfo.name}${statusText}`;
+
+                                    // Disable offline models
+                                    if (modelInfo.status === 'OFFLINE' || modelInfo.status === 'ERR') {
+                                        option.disabled = true;
+                                        option.style.color = '#666';
+                                    }
+
+                                    selectElement.appendChild(option);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Load current preferences
+                const prefsResponse = await fetch('/api/models/preferences');
+                const prefsData = await prefsResponse.json();
+
+                if (prefsData.status === 'ok') {
+                    const prefs = prefsData.preferences;
+
+                    // Set selected values
+                    for (const [agentType, config] of Object.entries(prefs)) {
+                        const primaryElement = document.getElementById(`${agentType}-primary`);
+                        const fallbackElement = document.getElementById(`${agentType}-fallback`);
+
+                        if (primaryElement) primaryElement.value = config.primary;
+                        if (fallbackElement) fallbackElement.value = config.fallback;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load model preferences:', error);
+            }
+        }
+
+        // Save model preferences
+        async function saveModelPreferences() {
+            try {
+                const preferences = {
+                    architect: {
+                        primary: document.getElementById('architect-primary').value,
+                        fallback: document.getElementById('architect-fallback').value
+                    },
+                    director: {
+                        primary: document.getElementById('director-primary').value,
+                        fallback: document.getElementById('director-fallback').value
+                    },
+                    manager: {
+                        primary: document.getElementById('manager-primary').value,
+                        fallback: document.getElementById('manager-fallback').value
+                    },
+                    programmer: {
+                        primary: document.getElementById('programmer-primary').value,
+                        fallback: document.getElementById('programmer-fallback').value
+                    }
+                };
+
+                const response = await fetch('/api/models/preferences', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ preferences })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    alert('✅ Model preferences saved successfully!');
+                } else {
+                    alert('❌ Failed to save preferences: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Failed to save model preferences:', error);
+                alert('❌ Failed to save preferences: ' + error.message);
+            }
         }
 
         function closeSettings() {
@@ -1097,6 +1356,10 @@
 
         function toggleAgentVoice() {
             document.getElementById('agent-voice-toggle').classList.toggle('active');
+        }
+
+        function toggleNewTaskPoll() {
+            document.getElementById('new-task-poll-toggle').classList.toggle('active');
         }
 
         function toggleHideScrollbars() {

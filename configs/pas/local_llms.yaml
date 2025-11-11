@@ -1,0 +1,64 @@
+# Local LLM Configuration
+#
+# Define local LLMs running on FastAPI endpoints (self-hosted models)
+# The HMI will check /health on each endpoint to determine availability
+#
+# Format:
+#   - name: Display name for the model
+#     model_id: Unique identifier (used in model selection)
+#     host: Host address
+#     port: Port number
+#     endpoint: Base URL path (optional, defaults to /)
+#     provider: Provider type (local_fastapi, ollama, etc.)
+#     description: Short description
+
+local_llms:
+  # Ollama Models (always check, may be running on different ports)
+  - name: "Ollama Qwen 2.5 Coder 7B"
+    model_id: "ollama/qwen2.5-coder:7b-instruct"
+    host: "localhost"
+    port: 11434
+    endpoint: "/api/tags"
+    provider: "ollama"
+    description: "Fast local coding model (7B)"
+
+  - name: "Ollama DeepSeek R1 7B"
+    model_id: "ollama/deepseek-r1:7b-q4_k_m"
+    host: "localhost"
+    port: 11434
+    endpoint: "/api/tags"
+    provider: "ollama"
+    description: "Local reasoning model (7B quantized)"
+
+  - name: "Ollama DeepSeek R1 1.5B"
+    model_id: "ollama/deepseek-r1:1.5b-q4_k_m"
+    host: "localhost"
+    port: 11434
+    endpoint: "/api/tags"
+    provider: "ollama"
+    description: "Fast local reasoning model (1.5B quantized)"
+
+  # Custom FastAPI LLM Services (add your own here)
+  # Example:
+  # - name: "Custom GPT-J 6B"
+  #   model_id: "local/gptj-6b"
+  #   host: "localhost"
+  #   port: 8000
+  #   endpoint: "/health"
+  #   provider: "local_fastapi"
+  #   description: "Self-hosted GPT-J model"
+
+  # Example: Remote GPU server
+  # - name: "GPU Server Llama 70B"
+  #   model_id: "remote/llama-70b"
+  #   host: "gpu-server.local"
+  #   port: 8001
+  #   endpoint: "/health"
+  #   provider: "local_fastapi"
+  #   description: "Remote GPU cluster model"
+
+# Health check settings
+health_check:
+  timeout_seconds: 2
+  retry_count: 1
+  cache_duration_seconds: 30  # Cache health status for 30 seconds

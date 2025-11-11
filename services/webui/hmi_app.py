@@ -21,6 +21,7 @@ import time
 import sqlite3
 import os
 import threading
+import yaml
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -416,10 +417,11 @@ def build_tree_from_actions(task_id: str) -> Dict[str, Any]:
 
             return [current_node] if current_node else []
 
-        # Find root action (usually from 'user' or 'pas_root')
+        # Find root action (usually from 'user', 'Gateway', or top-level)
         root_children = []
         for action in actions:
-            if action.get('from_agent') in ['user', None]:
+            # Include top-level actions (from Gateway, user, or no parent)
+            if action.get('from_agent') in ['user', 'Gateway', None] or action.get('parent_log_id') is None:
                 root_children.extend(build_forward_hierarchy([action]))
 
         # Create root node
@@ -2309,6 +2311,259 @@ def stream_tree_updates(task_id):
             'X-Accel-Buffering': 'no'
         }
     )
+
+
+# Model configuration paths
+MODEL_PREFERENCES_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'configs', 'pas', 'model_preferences.json')
+ENV_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
+LOCAL_LLMS_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'configs', 'pas', 'local_llms.yaml')
+
+# Cache for local LLM health status (to avoid checking too frequently)
+local_llm_health_cache = {}
+local_llm_health_cache_time = {}
+
+
+def check_local_llm_health(host: str, port: int, endpoint: str = "/health", timeout: int = 2) -> str:
+    """Check health of a local LLM endpoint
+
+    Returns: "OK", "ERR", or "OFFLINE"
+    """
+    # Check cache first
+    cache_key = f"{host}:{port}{endpoint}"
+    cache_duration = 30  # seconds
+
+    if cache_key in local_llm_health_cache_time:
+        age = time.time() - local_llm_health_cache_time[cache_key]
+        if age < cache_duration:
+            return local_llm_health_cache[cache_key]
+
+    try:
+        url = f"http://{host}:{port}{endpoint}"
+        response = requests.get(url, timeout=timeout)
+
+        if response.status_code == 200:
+            status = "OK"
+        else:
+            status = "ERR"
+    except requests.exceptions.Timeout:
+        status = "OFFLINE"
+    except requests.exceptions.ConnectionError:
+        status = "OFFLINE"
+    except Exception as e:
+        logger.debug(f"Health check failed for {cache_key}: {e}")
+        status = "ERR"
+
+    # Update cache
+    local_llm_health_cache[cache_key] = status
+    local_llm_health_cache_time[cache_key] = time.time()
+
+    return status
+
+
+def load_model_preferences():
+    """Load model preferences from config file"""
+    try:
+        if os.path.exists(MODEL_PREFERENCES_PATH):
+            with open(MODEL_PREFERENCES_PATH, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        logger.warning(f"Could not load model preferences: {e}")
+
+    # Return defaults if file doesn't exist
+    return {
+        "architect": {
+            "primary": "auto",
+            "fallback": "anthropic/claude-sonnet-4-5-20250929"
+        },
+        "director": {
+            "primary": "auto",
+            "fallback": "anthropic/claude-sonnet-4-5-20250929"
+        },
+        "manager": {
+            "primary": "auto",
+            "fallback": "anthropic/claude-haiku-4-5"
+        },
+        "programmer": {
+            "primary": "ollama/qwen2.5-coder:7b-instruct",
+            "fallback": "anthropic/claude-sonnet-4-5-20250929"
+        }
+    }
+
+
+def save_model_preferences(preferences: dict):
+    """Save model preferences to config file"""
+    try:
+        os.makedirs(os.path.dirname(MODEL_PREFERENCES_PATH), exist_ok=True)
+        with open(MODEL_PREFERENCES_PATH, 'w') as f:
+            json.dump(preferences, f, indent=2)
+        return True
+    except Exception as e:
+        logger.error(f"Could not save model preferences: {e}")
+        return False
+
+
+def get_available_models():
+    """Parse .env file and local_llms.yaml to get available models with health status"""
+    models = {
+        "auto": {
+            "name": "Auto Select",
+            "provider": "auto",
+            "description": "Dynamically select best model based on task requirements",
+            "available": True,
+            "status": "OK"
+        }
+    }
+
+    # Load local LLMs from configuration file
+    if os.path.exists(LOCAL_LLMS_CONFIG_PATH):
+        try:
+            with open(LOCAL_LLMS_CONFIG_PATH, 'r') as f:
+                config = yaml.safe_load(f)
+
+            local_llms = config.get('local_llms', [])
+            for llm in local_llms:
+                model_id = llm.get('model_id')
+                host = llm.get('host', 'localhost')
+                port = llm.get('port')
+                endpoint = llm.get('endpoint', '/health')
+
+                # Check health status
+                status = check_local_llm_health(host, port, endpoint)
+
+                models[model_id] = {
+                    "name": llm.get('name'),
+                    "provider": llm.get('provider', 'local'),
+                    "description": llm.get('description', ''),
+                    "available": status == "OK",
+                    "status": status,
+                    "host": host,
+                    "port": port
+                }
+        except Exception as e:
+            logger.warning(f"Could not load local LLMs config: {e}")
+
+    # Parse .env file for API keys
+    if os.path.exists(ENV_FILE_PATH):
+        try:
+            with open(ENV_FILE_PATH, 'r') as f:
+                env_content = f.read()
+
+                # Check for OpenAI
+                if 'OPENAI_API_KEY=' in env_content and 'your_' not in env_content.split('OPENAI_API_KEY=')[1].split('\n')[0]:
+                    # Extract model name
+                    if 'OPENAI_MODEL_NAME=' in env_content:
+                        model_line = env_content.split('OPENAI_MODEL_NAME=')[1].split('\n')[0].strip().strip("'\"")
+                        models[f"openai/{model_line}"] = {
+                            "name": f"OpenAI {model_line}",
+                            "provider": "openai",
+                            "description": "OpenAI model",
+                            "available": True,
+                            "status": "API"
+                        }
+
+                # Check for Anthropic
+                if 'ANTHROPIC_API_KEY=' in env_content and 'your_' not in env_content.split('ANTHROPIC_API_KEY=')[1].split('\n')[0]:
+                    # Extract model names
+                    for tier in ['HIGH', 'MEDIUM', 'LOW']:
+                        key = f'ANTHROPIC_MODEL_NAME_{tier}='
+                        if key in env_content:
+                            model_line = env_content.split(key)[1].split('\n')[0].strip().strip("'\"")
+                            models[f"anthropic/{model_line}"] = {
+                                "name": f"Anthropic {model_line}",
+                                "provider": "anthropic",
+                                "description": f"Anthropic Claude ({tier.lower()} tier)",
+                                "available": True,
+                                "status": "API"
+                            }
+
+                # Check for Gemini
+                if 'GEMINI_API_KEY=' in env_content and 'your_' not in env_content.split('GEMINI_API_KEY=')[1].split('\n')[0]:
+                    for tier in ['HIGH', 'MEDIUM', 'LOW']:
+                        key = f'GEMINI_MODEL_NAME_{tier}='
+                        if key in env_content:
+                            model_line = env_content.split(key)[1].split('\n')[0].strip().strip("'\"")
+                            models[f"google/{model_line}"] = {
+                                "name": f"Google {model_line}",
+                                "provider": "google",
+                                "description": f"Google Gemini ({tier.lower()} tier)",
+                                "available": True,
+                                "status": "API"
+                            }
+
+                # Check for DeepSeek API
+                if 'DEEPSEEK_API_KEY=' in env_content and 'your_' not in env_content.split('DEEPSEEK_API_KEY=')[1].split('\n')[0]:
+                    models["deepseek/deepseek-r1"] = {
+                        "name": "DeepSeek R1 (API)",
+                        "provider": "deepseek",
+                        "description": "DeepSeek reasoning model via API",
+                        "available": True,
+                        "status": "API"
+                    }
+        except Exception as e:
+            logger.warning(f"Could not parse .env file: {e}")
+
+    return models
+
+
+@app.route('/api/models/available', methods=['GET'])
+def get_available_models_api():
+    """Get list of available models"""
+    try:
+        models = get_available_models()
+        return jsonify({
+            'status': 'ok',
+            'models': models
+        })
+    except Exception as e:
+        logger.error(f"Error getting available models: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/models/preferences', methods=['GET'])
+def get_model_preferences_api():
+    """Get current model preferences"""
+    try:
+        preferences = load_model_preferences()
+        return jsonify({
+            'status': 'ok',
+            'preferences': preferences
+        })
+    except Exception as e:
+        logger.error(f"Error getting model preferences: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/models/preferences', methods=['POST'])
+def save_model_preferences_api():
+    """Save model preferences"""
+    try:
+        data = request.get_json()
+        preferences = data.get('preferences', {})
+
+        # Validate structure
+        required_keys = ['architect', 'director', 'manager', 'programmer']
+        for key in required_keys:
+            if key not in preferences:
+                return jsonify({
+                    'status': 'error',
+                    'error': f'Missing required key: {key}'
+                }), 400
+            if 'primary' not in preferences[key] or 'fallback' not in preferences[key]:
+                return jsonify({
+                    'status': 'error',
+                    'error': f'Missing primary or fallback for {key}'
+                }), 400
+
+        # Save preferences
+        success = save_model_preferences(preferences)
+        if success:
+            logger.info(f"Updated model preferences: {preferences}")
+            return jsonify({'status': 'ok'})
+        else:
+            return jsonify({'status': 'error', 'error': 'Failed to save preferences'}), 500
+    except Exception as e:
+        logger.error(f"Error saving model preferences: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
 
 
 if __name__ == '__main__':
