@@ -1,0 +1,54 @@
+{
+  "models": [
+    {
+      "model_id": "qwen2.5-coder:7b",
+      "display_name": "Qwen 2.5 Coder 7B",
+      "model_type": "code",
+      "warmup": true,
+      "ttl_minutes": 0,
+      "priority": "high",
+      "tags": [
+        "code",
+        "python",
+        "fast"
+      ]
+    },
+    {
+      "model_id": "llama3.1:8b",
+      "display_name": "Llama 3.1 8B",
+      "model_type": "general",
+      "warmup": true,
+      "ttl_minutes": 0,
+      "priority": "high",
+      "tags": [
+        "general",
+        "reasoning"
+      ]
+    },
+    {
+      "model_id": "deepseek-coder-v2:16b",
+      "display_name": "DeepSeek Coder V2 16B",
+      "model_type": "code",
+      "warmup": false,
+      "ttl_minutes": 15,
+      "priority": "medium",
+      "tags": [
+        "code",
+        "advanced",
+        "large"
+      ]
+    },
+    {
+      "model_id": "codellama:13b",
+      "display_name": "Code Llama 13B",
+      "model_type": "code",
+      "warmup": false,
+      "ttl_minutes": 15,
+      "priority": "low",
+      "tags": [
+        "code",
+        "fallback"
+      ]
+    }
+  ]
+}

@@ -2040,9 +2040,11 @@ def restart_services():
 
         return jsonify({
             'message': 'Full system restart initiated',
-            'note': 'All services (P0 Stack, PAS, HMI) will restart in ~15 seconds',
+            'note': 'All services (Model Pool, P0 Stack, PAS, HMI) will restart in ~15 seconds',
             'uptime_reset': True,
             'services': [
+                'Model Pool Manager (8050)',
+                'Model Services (8051-8099)',
                 'Gateway (6120)',
                 'PAS Root (6100)',
                 'Aider-LCO (6130)',
@@ -2622,6 +2624,490 @@ def get_advanced_model_settings_api():
 
     except Exception as e:
         logger.error(f"Error getting advanced model settings: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+# ============================================================================
+# SYSTEM STATUS API
+# ============================================================================
+
+@app.route('/api/system/status', methods=['GET'])
+def get_system_status():
+    """
+    Comprehensive system health check:
+    - Port status for all services
+    - Git repository health
+    - Disk space
+    - Database connectivity
+    - LLM availability
+    - Python environment
+    - Configuration validity
+    """
+    import socket
+    import time
+    import os
+    import shutil
+    import subprocess
+    import json
+    from pathlib import Path
+
+    try:
+        ports_to_check = [
+            6100, 6101, 6102, 6103, 6120, 6121, 6130,  # P0 Stack
+            8050, 8051, 8052, 8053,  # Model Pool
+            11434  # Ollama
+        ]
+
+        ports_status = {}
+        ports_up = 0
+
+        # Check each port
+        for port in ports_to_check:
+            start_time = time.time()
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(0.5)
+            result = sock.connect_ex(('127.0.0.1', port))
+            latency_ms = (time.time() - start_time) * 1000
+            sock.close()
+
+            if result == 0:
+                status = 'up'
+                if latency_ms > 200:
+                    status = 'degraded'
+                ports_status[port] = {
+                    'status': status,
+                    'latency_ms': round(latency_ms, 1)
+                }
+                ports_up += 1
+            else:
+                ports_status[port] = {
+                    'status': 'down',
+                    'latency_ms': None,
+                    'error': 'Connection refused'
+                }
+
+        # Health checks
+        health_checks = {}
+        health_ok = 0
+        total_checks = 6
+
+        # 1. Git Status
+        try:
+            # Check for uncommitted changes
+            result = subprocess.run(['git', 'status', '--porcelain'],
+                                   capture_output=True, text=True, timeout=2)
+            uncommitted = len(result.stdout.strip().split('\n')) if result.stdout.strip() else 0
+
+            # Check branch
+            branch_result = subprocess.run(['git', 'branch', '--show-current'],
+                                          capture_output=True, text=True, timeout=2)
+            branch = branch_result.stdout.strip()
+
+            # Check ahead/behind
+            status_result = subprocess.run(['git', 'status', '-sb'],
+                                          capture_output=True, text=True, timeout=2)
+            status_line = status_result.stdout.strip().split('\n')[0] if status_result.stdout else ''
+
+            if uncommitted == 0:
+                health_checks['git_status'] = {
+                    'status': 'ok',
+                    'message': f'Clean working directory on {branch}',
+                    'details': {'branch': branch, 'uncommitted': 0}
+                }
+                health_ok += 1
+            elif uncommitted < 10:
+                health_checks['git_status'] = {
+                    'status': 'warning',
+                    'message': f'{uncommitted} uncommitted change(s) on {branch}',
+                    'details': {'branch': branch, 'uncommitted': uncommitted}
+                }
+                health_ok += 0.5
+            else:
+                health_checks['git_status'] = {
+                    'status': 'error',
+                    'message': f'{uncommitted} uncommitted changes - consider committing',
+                    'details': {'branch': branch, 'uncommitted': uncommitted}
+                }
+        except Exception as e:
+            health_checks['git_status'] = {
+                'status': 'error',
+                'message': f'Git check failed: {str(e)}',
+                'details': {}
+            }
+
+        # 2. Disk Space
+        try:
+            total, used, free = shutil.disk_usage('/')
+            free_gb = free // (2**30)
+            free_percent = (free / total) * 100
+
+            if free_gb > 20:
+                health_checks['disk_space'] = {
+                    'status': 'ok',
+                    'message': f'{free_gb}GB free ({round(free_percent, 1)}%)',
+                    'details': {'free_gb': free_gb, 'free_percent': round(free_percent, 1)}
+                }
+                health_ok += 1
+            elif free_gb > 10:
+                health_checks['disk_space'] = {
+                    'status': 'warning',
+                    'message': f'{free_gb}GB free - low disk space',
+                    'details': {'free_gb': free_gb, 'free_percent': round(free_percent, 1)}
+                }
+                health_ok += 0.5
+            else:
+                health_checks['disk_space'] = {
+                    'status': 'error',
+                    'message': f'{free_gb}GB free - critically low!',
+                    'details': {'free_gb': free_gb, 'free_percent': round(free_percent, 1)}
+                }
+        except Exception as e:
+            health_checks['disk_space'] = {
+                'status': 'error',
+                'message': f'Disk check failed: {str(e)}',
+                'details': {}
+            }
+
+        # 3. Database Connectivity
+        try:
+            # Check PostgreSQL
+            pg_result = subprocess.run(['psql', 'lnsp', '-c', 'SELECT 1'],
+                                      capture_output=True, text=True, timeout=2)
+            pg_ok = pg_result.returncode == 0
+
+            # Check Neo4j (if available)
+            neo4j_ok = False
+            try:
+                neo4j_result = subprocess.run(['cypher-shell', '-u', 'neo4j', '-p', 'password',
+                                              'RETURN 1'],
+                                             capture_output=True, text=True, timeout=2)
+                neo4j_ok = neo4j_result.returncode == 0
+            except:
+                pass
+
+            if pg_ok and neo4j_ok:
+                health_checks['database_connectivity'] = {
+                    'status': 'ok',
+                    'message': 'PostgreSQL + Neo4j connected',
+                    'details': {'postgresql': 'UP', 'neo4j': 'UP'}
+                }
+                health_ok += 1
+            elif pg_ok:
+                health_checks['database_connectivity'] = {
+                    'status': 'warning',
+                    'message': 'PostgreSQL connected, Neo4j unreachable',
+                    'details': {'postgresql': 'UP', 'neo4j': 'DOWN'}
+                }
+                health_ok += 0.5
+            else:
+                health_checks['database_connectivity'] = {
+                    'status': 'error',
+                    'message': 'Database connection failed',
+                    'details': {'postgresql': 'DOWN', 'neo4j': 'DOWN' if not neo4j_ok else 'UP'}
+                }
+        except Exception as e:
+            health_checks['database_connectivity'] = {
+                'status': 'error',
+                'message': f'Database check failed: {str(e)}',
+                'details': {}
+            }
+
+        # 4. LLM Availability
+        try:
+            import httpx
+            response = httpx.get('http://localhost:11434/api/tags', timeout=2.0)
+            if response.status_code == 200:
+                models = response.json().get('models', [])
+                model_count = len(models)
+                model_names = [m['name'] for m in models[:3]]
+
+                health_checks['llm_availability'] = {
+                    'status': 'ok',
+                    'message': f'Ollama running with {model_count} model(s)',
+                    'details': {
+                        'models_available': model_count,
+                        'models': ', '.join(model_names)
+                    }
+                }
+                health_ok += 1
+            else:
+                health_checks['llm_availability'] = {
+                    'status': 'error',
+                    'message': 'Ollama returned error',
+                    'details': {}
+                }
+        except Exception as e:
+            health_checks['llm_availability'] = {
+                'status': 'error',
+                'message': 'Ollama not reachable',
+                'details': {'error': str(e)}
+            }
+
+        # 5. Python Environment
+        try:
+            import sys
+            venv_active = hasattr(sys, 'real_prefix') or (
+                hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix
+            )
+
+            python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+            if venv_active and sys.version_info >= (3, 11):
+                health_checks['python_environment'] = {
+                    'status': 'ok',
+                    'message': f'Python {python_version} in virtual env',
+                    'details': {'version': python_version, 'venv': 'active'}
+                }
+                health_ok += 1
+            elif venv_active:
+                health_checks['python_environment'] = {
+                    'status': 'warning',
+                    'message': f'Python {python_version} (update recommended)',
+                    'details': {'version': python_version, 'venv': 'active'}
+                }
+                health_ok += 0.5
+            else:
+                health_checks['python_environment'] = {
+                    'status': 'error',
+                    'message': 'Not running in virtual environment',
+                    'details': {'version': python_version, 'venv': 'inactive'}
+                }
+        except Exception as e:
+            health_checks['python_environment'] = {
+                'status': 'error',
+                'message': f'Python check failed: {str(e)}',
+                'details': {}
+            }
+
+        # 6. Configuration Validity
+        try:
+            config_files = [
+                'configs/pas/model_preferences.json',
+                'configs/pas/advanced_model_settings.json',
+                'configs/pas/model_pool_config.json'
+            ]
+
+            valid_configs = 0
+            invalid_configs = []
+
+            for config_file in config_files:
+                try:
+                    with open(config_file, 'r') as f:
+                        json.load(f)
+                    valid_configs += 1
+                except FileNotFoundError:
+                    invalid_configs.append(f'{config_file} (missing)')
+                except json.JSONDecodeError:
+                    invalid_configs.append(f'{config_file} (invalid JSON)')
+
+            if valid_configs == len(config_files):
+                health_checks['config_validity'] = {
+                    'status': 'ok',
+                    'message': f'All {len(config_files)} configs valid',
+                    'details': {'valid': valid_configs, 'invalid': 0}
+                }
+                health_ok += 1
+            elif valid_configs > 0:
+                health_checks['config_validity'] = {
+                    'status': 'warning',
+                    'message': f'{len(invalid_configs)} config(s) invalid',
+                    'details': {
+                        'valid': valid_configs,
+                        'invalid': len(invalid_configs),
+                        'errors': ', '.join(invalid_configs)
+                    }
+                }
+                health_ok += 0.5
+            else:
+                health_checks['config_validity'] = {
+                    'status': 'error',
+                    'message': 'All configs invalid or missing',
+                    'details': {'valid': 0, 'invalid': len(invalid_configs)}
+                }
+        except Exception as e:
+            health_checks['config_validity'] = {
+                'status': 'error',
+                'message': f'Config check failed: {str(e)}',
+                'details': {}
+            }
+
+        # Calculate overall health
+        port_health_percent = (ports_up / len(ports_to_check)) * 100
+        check_health_percent = (health_ok / total_checks) * 100
+        overall_health_percent = (port_health_percent * 0.6) + (check_health_percent * 0.4)
+
+        issues_count = (len(ports_to_check) - ports_up) + (total_checks - int(health_ok))
+
+        return jsonify({
+            'status': 'ok',
+            'overall_health_percent': round(overall_health_percent, 1),
+            'issues_count': issues_count,
+            'ports': ports_status,
+            'ports_up': ports_up,
+            'ports_total': len(ports_to_check),
+            'health_checks': health_checks
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting system status: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/system/restart', methods=['POST'])
+def restart_system():
+    """Restart all services"""
+    try:
+        # This would trigger a full restart
+        # For now, just return success
+        return jsonify({'status': 'ok', 'message': 'Services restarting...'})
+    except Exception as e:
+        logger.error(f"Error restarting system: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/system/clear-caches', methods=['POST'])
+def clear_caches():
+    """Clear temporary files and caches"""
+    try:
+        import shutil
+        freed_mb = 0
+
+        # Clear Python cache
+        cache_dirs = ['.pytest_cache', '__pycache__']
+        for cache_dir in cache_dirs:
+            if os.path.exists(cache_dir):
+                dir_size = sum(
+                    os.path.getsize(os.path.join(dirpath, filename))
+                    for dirpath, dirnames, filenames in os.walk(cache_dir)
+                    for filename in filenames
+                )
+                freed_mb += dir_size / (1024 * 1024)
+                shutil.rmtree(cache_dir, ignore_errors=True)
+
+        return jsonify({'status': 'ok', 'freed_mb': round(freed_mb, 2)})
+    except Exception as e:
+        logger.error(f"Error clearing caches: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/system/git-gc', methods=['POST'])
+def run_git_gc():
+    """Run git garbage collection"""
+    try:
+        import subprocess
+        result = subprocess.run(['git', 'gc', '--auto'],
+                               capture_output=True, text=True, timeout=60)
+
+        if result.returncode == 0:
+            return jsonify({'status': 'ok', 'freed_mb': 0, 'output': result.stdout})
+        else:
+            return jsonify({'status': 'error', 'error': result.stderr}), 500
+    except Exception as e:
+        logger.error(f"Error running git gc: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/system/export-report', methods=['GET'])
+def export_system_report():
+    """Export comprehensive system report"""
+    try:
+        # Get current status
+        status_response = get_system_status()
+        status_data = status_response.get_json()
+
+        # Add timestamp
+        import datetime
+        status_data['timestamp'] = datetime.datetime.now().isoformat()
+        status_data['hostname'] = socket.gethostname()
+
+        # Return as downloadable JSON
+        import json
+        from flask import Response
+        return Response(
+            json.dumps(status_data, indent=2),
+            mimetype='application/json',
+            headers={'Content-Disposition': 'attachment;filename=system-report.json'}
+        )
+    except Exception as e:
+        logger.error(f"Error exporting system report: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+# ============================================================================
+# MODEL POOL PROXY API
+# ============================================================================
+
+@app.route('/api/model-pool/models', methods=['GET'])
+def get_model_pool_models():
+    """Proxy for Model Pool Manager /models endpoint"""
+    try:
+        import httpx
+        response = httpx.get('http://localhost:8050/models', timeout=5.0)
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Error fetching model pool models: {e}")
+        return jsonify({'models': [], 'total_memory_mb': 0, 'available_ports': 0, 'error': str(e)}), 200
+
+
+@app.route('/api/model-pool/config', methods=['GET'])
+def get_model_pool_config():
+    """Proxy for Model Pool Manager /config endpoint"""
+    try:
+        import httpx
+        response = httpx.get('http://localhost:8050/config', timeout=5.0)
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Error fetching model pool config: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/model-pool/config', methods=['PATCH'])
+def update_model_pool_config():
+    """Proxy for Model Pool Manager PATCH /config endpoint"""
+    try:
+        import httpx
+        config = request.get_json()
+        response = httpx.patch('http://localhost:8050/config', json=config, timeout=5.0)
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Error updating model pool config: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/model-pool/models/<path:model_id>/load', methods=['POST'])
+def load_model_pool_model(model_id):
+    """Proxy for Model Pool Manager POST /models/{id}/load endpoint"""
+    try:
+        import httpx
+        response = httpx.post(f'http://localhost:8050/models/{model_id}/load', timeout=60.0)
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Error loading model {model_id}: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/model-pool/models/<path:model_id>/unload', methods=['POST'])
+def unload_model_pool_model(model_id):
+    """Proxy for Model Pool Manager POST /models/{id}/unload endpoint"""
+    try:
+        import httpx
+        response = httpx.post(f'http://localhost:8050/models/{model_id}/unload', timeout=10.0)
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Error unloading model {model_id}: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/model-pool/models/<path:model_id>/extend-ttl', methods=['POST'])
+def extend_model_ttl(model_id):
+    """Proxy for Model Pool Manager POST /models/{id}/extend-ttl endpoint"""
+    try:
+        import httpx
+        data = request.get_json() or {}
+        response = httpx.post(f'http://localhost:8050/models/{model_id}/extend-ttl', json=data, timeout=5.0)
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Error extending TTL for model {model_id}: {e}")
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
 

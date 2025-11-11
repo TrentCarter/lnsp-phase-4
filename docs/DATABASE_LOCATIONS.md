@@ -513,6 +513,80 @@ Wikipedia Articles → PostgreSQL (80k concepts)
 
 ---
 
+## 10. Service Ports
+
+### FastAPI Services (P0 Stack)
+
+| Port | Service | Purpose | Status |
+|------|---------|---------|--------|
+| **6100** | PAS Root | Orchestration layer | ✅ ACTIVE |
+| **6101** | HMI (Web UI) | Human-Machine Interface | ✅ ACTIVE |
+| **6120** | Gateway | Prime Directive entry point | ✅ ACTIVE |
+| **6121** | Registry | Service discovery | ✅ ACTIVE |
+| **6130** | Aider-LCO RPC | Filesystem/git guardrails | ✅ ACTIVE |
+
+### LLM Model Pool (Ports 8050-8099)
+
+| Port | Service | Purpose | Status |
+|------|---------|---------|--------|
+| **8050** | Model Pool Manager | Dynamic model load/unload | ✅ NEW |
+| **8051** | qwen2.5-coder:7b | Code generation (warmup) | ✅ NEW |
+| **8052** | llama3.1:8b | General purpose (warmup) | ✅ NEW |
+| **8053-8099** | Dynamic Models | On-demand allocation | Available |
+
+#### Model Pool Architecture
+```
+Client Request
+    ↓
+Model Pool Manager (8050)
+    ↓
+├─ Checks model state (COLD/WARMING/HOT/COOLING)
+├─ Auto-loads if COLD (allocates port 8051-8099)
+├─ Extends TTL on request (default 15 min)
+└─ Auto-unloads after TTL expires
+    ↓
+Model Service (8051-8099)
+    ↓ OpenAI-compatible API
+Ollama Backend (11434)
+```
+
+#### Key Features
+- **Automatic Loading**: Models load on first request
+- **TTL Management**: Unload after 15 min inactivity (configurable)
+- **Warmup Models**: qwen2.5-coder, llama3.1 stay loaded
+- **Port Pool**: 50 slots (8051-8099), max 5 concurrent models
+- **OpenAI-Compatible**: All models expose `/v1/chat/completions`
+- **Service Discovery**: Auto-registers with PAS Registry (6121)
+
+#### Configuration Files
+```bash
+# Model pool configuration
+configs/pas/model_pool_config.json
+
+# Model registry (which models are available)
+configs/pas/model_pool_registry.json
+
+# Local LLM endpoints (existing)
+configs/pas/local_llms.yaml
+```
+
+### Ollama Backend
+
+| Port | Service | Purpose |
+|------|---------|---------|
+| **11434** | Ollama | LLM backend (not exposed to clients) |
+
+**Note**: Clients should use Model Pool Manager (8050) or individual model services (8051-8099), not Ollama directly.
+
+### Vec2Text Services
+
+| Port | Service | Purpose |
+|------|---------|---------|
+| **7001** | Encoder | Text → GTR-T5 embeddings |
+| **7002** | Decoder | GTR-T5 embeddings → Text |
+
+---
+
 ## Related Documentation
 
 - **LVM Training Data**: See `docs/LVM_DATA_MAP.md` (comprehensive LVM-specific data guide)
@@ -522,6 +596,6 @@ Wikipedia Articles → PostgreSQL (80k concepts)
 
 ---
 
-**Last Updated**: October 16, 2025
+**Last Updated**: November 11, 2025
 **Status**: ✅ All active systems operational
 **Next Review**: When adding Neo4j graph data or new training datasets

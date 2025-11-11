@@ -617,6 +617,22 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- Tooltip for port/health check details -->
+    <div id="system-tooltip" style="
+        position: fixed;
+        background: #1e293b;
+        border: 2px solid #4a5578;
+        border-radius: 8px;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        color: #e0e0e0;
+        pointer-events: none;
+        z-index: 10000;
+        display: none;
+        min-width: 200px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    "></div>
+
     <!-- Settings Modal -->
     <div id="settings-modal" class="settings-modal">
         <div class="settings-content">
@@ -646,13 +662,17 @@
                     <span>🤖</span>
                     <span>LLM Models</span>
                 </div>
+                <div class="settings-sidebar-item" onclick="switchSettingsPage('model-pool')">
+                    <span>🔥</span>
+                    <span>Model Pool</span>
+                </div>
                 <div class="settings-sidebar-item" onclick="switchSettingsPage('advanced')">
                     <span>⚙️</span>
                     <span>Advanced</span>
                 </div>
                 <div class="settings-sidebar-item" onclick="switchSettingsPage('system')">
                     <span>🛠️</span>
-                    <span>System</span>
+                    <span>System Status</span>
                 </div>
 
                 <!-- Save Button at Bottom -->
@@ -981,6 +1001,84 @@
                     </div>
                 </div>
 
+                <!-- Model Pool Page -->
+                <div id="page-model-pool" class="settings-page">
+                    <!-- Pool Overview -->
+                    <div class="settings-section">
+                        <h3>🔥 Model Pool Status</h3>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                            <div style="background: #1e293b; border: 1px solid #4a5578; border-radius: 8px; padding: 1rem;">
+                                <div style="color: #9ca3af; font-size: 0.75rem; margin-bottom: 0.25rem;">Active Models</div>
+                                <div style="font-size: 1.5rem; font-weight: 600; color: #10b981;" id="pool-active-count">-</div>
+                            </div>
+                            <div style="background: #1e293b; border: 1px solid #4a5578; border-radius: 8px; padding: 1rem;">
+                                <div style="color: #9ca3af; font-size: 0.75rem; margin-bottom: 0.25rem;">Total Memory</div>
+                                <div style="font-size: 1.5rem; font-weight: 600; color: #3b82f6;" id="pool-memory">-</div>
+                            </div>
+                            <div style="background: #1e293b; border: 1px solid #4a5578; border-radius: 8px; padding: 1rem;">
+                                <div style="color: #9ca3af; font-size: 0.75rem; margin-bottom: 0.25rem;">Available Ports</div>
+                                <div style="font-size: 1.5rem; font-weight: 600; color: #f59e0b;" id="pool-available-ports">-</div>
+                            </div>
+                            <div style="background: #1e293b; border: 1px solid #4a5578; border-radius: 8px; padding: 1rem;">
+                                <div style="color: #9ca3af; font-size: 0.75rem; margin-bottom: 0.25rem;">Pool Status</div>
+                                <div style="font-size: 1.5rem; font-weight: 600; color: #8b5cf6;" id="pool-status">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pool Configuration -->
+                    <div class="settings-section">
+                        <h3>⚙️ Pool Configuration</h3>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Default TTL</div>
+                                <div class="setting-description">Minutes of inactivity before model unload (0 = never unload)</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="pool-default-ttl" class="setting-input" min="0" max="60" step="5" value="15">
+                                <span style="color: #9ca3af; font-size: 0.875rem;">min</span>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Max Concurrent Models</div>
+                                <div class="setting-description">Maximum number of models loaded simultaneously</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="pool-max-concurrent" class="setting-input" min="1" max="10" value="5">
+                                <span style="color: #9ca3af; font-size: 0.875rem;">models</span>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Check Interval</div>
+                                <div class="setting-description">Seconds between TTL checks and auto-unloading</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="pool-check-interval" class="setting-input" min="10" max="300" step="10" value="30">
+                                <span style="color: #9ca3af; font-size: 0.875rem;">sec</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #4a5578;">
+                            <button onclick="savePoolConfig()" style="padding: 0.5rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.875rem;">💾 Save Configuration</button>
+                        </div>
+                    </div>
+
+                    <!-- Model Cards -->
+                    <div class="settings-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3>🤖 Registered Models</h3>
+                            <button onclick="refreshModelPool()" style="padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem;">🔄 Refresh</button>
+                        </div>
+                        <div id="model-cards-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem;">
+                            <!-- Model cards will be populated here -->
+                            <div style="grid-column: 1 / -1; text-align: center; color: #9ca3af; padding: 2rem;">
+                                Loading models...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Advanced Models Page -->
                 <div id="page-advanced" class="settings-page">
                     <div class="settings-section">
@@ -1068,38 +1166,59 @@
 
                 <!-- System Page -->
                 <div id="page-system" class="settings-page">
-                    <!-- System Admin Settings -->
+                    <!-- Overall System Health -->
                     <div class="settings-section">
-                        <h3>🛠️ System Administration</h3>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Clear All Data</div>
-                        <div class="setting-description">Delete all action logs and service registrations (⚠️ Cannot be undone!)</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3>🛠️ System Status</h3>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button onclick="copySystemSummaryToClipboard()" style="padding: 0.5rem 1rem; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem;">📋 Copy Summary</button>
+                                <button onclick="refreshSystemStatus()" style="padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem;">🔄 Refresh</button>
+                            </div>
+                        </div>
+                        <div style="background: #1e293b; border: 2px solid #4a5578; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; text-align: center;">
+                            <div style="font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem;" id="overall-health-score">--%</div>
+                            <div style="font-size: 1rem; color: #9ca3af;" id="overall-health-status">Checking system health...</div>
+                            <div style="margin-top: 1rem; height: 8px; background: #374151; border-radius: 4px; overflow: hidden;">
+                                <div id="overall-health-bar" style="height: 100%; background: linear-gradient(90deg, #10b981, #3b82f6); width: 0%; transition: width 0.5s;"></div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="setting-control">
-                        <button class="setting-button danger" onclick="clearAllDataConfirm()">🗑️ Clear All Data</button>
+
+                    <!-- Port Status Grid -->
+                    <div class="settings-section">
+                        <h3>🔌 Port Status</h3>
+                        <div style="margin-bottom: 1rem;">
+                            <span style="font-size: 0.875rem; color: #9ca3af;">Hover over ports for details</span>
+                        </div>
+                        <div id="port-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 0.5rem; margin-bottom: 1rem;">
+                            <!-- Ports will be populated here -->
+                        </div>
+                        <div style="display: flex; gap: 1.5rem; font-size: 0.75rem; color: #9ca3af; margin-top: 1rem;">
+                            <div><span style="display: inline-block; width: 12px; height: 12px; background: #10b981; border-radius: 2px; margin-right: 0.25rem;"></span> UP</div>
+                            <div><span style="display: inline-block; width: 12px; height: 12px; background: #ef4444; border-radius: 2px; margin-right: 0.25rem;"></span> DOWN</div>
+                            <div><span style="display: inline-block; width: 12px; height: 12px; background: #f59e0b; border-radius: 2px; margin-right: 0.25rem;"></span> DEGRADED</div>
+                            <div><span style="display: inline-block; width: 12px; height: 12px; background: #6b7280; border-radius: 2px; margin-right: 0.25rem;"></span> UNKNOWN</div>
+                        </div>
                     </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Restart All Services</div>
-                        <div class="setting-description">Complete system restart (P0 Stack, PAS, HMI) - takes ~15 seconds</div>
+
+                    <!-- System Health Checks -->
+                    <div class="settings-section">
+                        <h3>✅ Health Checks</h3>
+                        <div id="health-checks-container" style="display: grid; gap: 0.75rem;">
+                            <!-- Health checks will be populated here -->
+                        </div>
                     </div>
-                    <div class="setting-control">
-                        <button class="setting-button warning" onclick="restartHMI()">🔄 Restart All Services</button>
+
+                    <!-- Quick Actions -->
+                    <div class="settings-section">
+                        <h3>⚡ Quick Actions</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+                            <button onclick="restartAllServices()" style="padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">🔄 Restart All Services</button>
+                            <button onclick="clearCachesAndTemp()" style="padding: 0.75rem; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">🧹 Clear Caches</button>
+                            <button onclick="runGitGC()" style="padding: 0.75rem; background: #8b5cf6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">♻️ Git Cleanup</button>
+                            <button onclick="exportSystemReport()" style="padding: 0.75rem; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">📊 Export Report</button>
+                        </div>
                     </div>
-                </div>
-                <div class="setting-row">
-                    <div>
-                        <div class="setting-label">Reset Settings to Defaults</div>
-                        <div class="setting-description">Restore all settings to their default values</div>
-                    </div>
-                    <div class="setting-control">
-                        <button onclick="resetSettings()" style="padding: 0.5rem 1rem; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.875rem;">🔄 Reset to Defaults</button>
-                    </div>
-                </div>
-                    </div>
-                </div>
                 </div>
 
                 <!-- End of settings-main -->
@@ -1550,14 +1669,50 @@
                 'sequencer': '🎹 Sequencer',
                 'audio': '🔊 Audio',
                 'llm': '🤖 LLM Models',
+                'model-pool': '🔥 Model Pool',
                 'advanced': '⚙️ Advanced Models',
-                'system': '🛠️ System'
+                'system': '🛠️ System Status'
             };
             document.getElementById('settings-page-title').textContent = titles[pageId];
 
             // Initialize advanced model settings sliders if switching to advanced page
             if (pageId === 'advanced') {
                 initAdvancedModelSettings();
+            }
+
+            // Initialize Model Pool page
+            if (pageId === 'model-pool') {
+                refreshModelPool();
+                loadPoolConfig();
+
+                // Start auto-refresh (every 3 seconds)
+                if (modelPoolRefreshInterval) {
+                    clearInterval(modelPoolRefreshInterval);
+                }
+                modelPoolRefreshInterval = setInterval(refreshModelPool, 3000);
+            } else {
+                // Stop auto-refresh when leaving the page
+                if (modelPoolRefreshInterval) {
+                    clearInterval(modelPoolRefreshInterval);
+                    modelPoolRefreshInterval = null;
+                }
+            }
+
+            // Initialize System Status page
+            if (pageId === 'system') {
+                refreshSystemStatus();
+
+                // Start auto-refresh (every 5 seconds)
+                if (systemStatusRefreshInterval) {
+                    clearInterval(systemStatusRefreshInterval);
+                }
+                systemStatusRefreshInterval = setInterval(refreshSystemStatus, 5000);
+            } else {
+                // Stop auto-refresh when leaving the page
+                if (systemStatusRefreshInterval) {
+                    clearInterval(systemStatusRefreshInterval);
+                    systemStatusRefreshInterval = null;
+                }
             }
         }
 
@@ -2658,7 +2813,7 @@ The system should be production-ready, secure, and scalable.`;
         }
 
         async function restartHMI() {
-            if (!confirm('⚠️ FULL SYSTEM RESTART ⚠️\n\nThis will restart ALL services:\n• Gateway (6120)\n• PAS Root (6100)\n• Aider-LCO (6130)\n• Registry (6121)\n• Heartbeat Monitor (6109)\n• Resource Manager (6104)\n• Token Governor (6105)\n• HMI Dashboard (6101)\n\nThe page will disconnect for ~15 seconds.\n\nContinue?')) {
+            if (!confirm('⚠️ FULL SYSTEM RESTART ⚠️\n\nThis will restart ALL services:\n• Model Pool Manager (8050)\n• Model Services (8051-8099)\n• Gateway (6120)\n• PAS Root (6100)\n• Aider-LCO (6130)\n• Registry (6121)\n• Heartbeat Monitor (6109)\n• Resource Manager (6104)\n• Token Governor (6105)\n• HMI Dashboard (6101)\n\nThe page will disconnect for ~15 seconds.\n\nContinue?')) {
                 return;
             }
 
@@ -2699,6 +2854,557 @@ The system should be production-ready, secure, and scalable.`;
                 console.error('Failed to check demo status:', error);
             }
         });
+
+        // ===== Model Pool Management Functions =====
+
+        let modelPoolRefreshInterval = null;
+
+        async function refreshModelPool() {
+            try {
+                // Fetch pool status via HMI proxy
+                const response = await fetch('/api/model-pool/models');
+                const data = await response.json();
+
+                // Update pool overview
+                document.getElementById('pool-active-count').textContent = data.models.filter(m => m.state === 'HOT' || m.state === 'WARMING').length;
+                document.getElementById('pool-memory').textContent = Math.round(data.total_memory_mb) + ' MB';
+                document.getElementById('pool-available-ports').textContent = data.available_ports || '-';
+                document.getElementById('pool-status').textContent = '✓';
+                document.getElementById('pool-status').style.color = '#10b981';
+
+                // Render model cards
+                renderModelCards(data.models);
+
+            } catch (error) {
+                console.error('Failed to fetch model pool:', error);
+                document.getElementById('pool-status').textContent = '✗';
+                document.getElementById('pool-status').style.color = '#ef4444';
+                document.getElementById('model-cards-container').innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; color: #ef4444; padding: 2rem;">
+                        ⚠️ Failed to fetch model pool data<br>
+                        <span style="font-size: 0.875rem; color: #9ca3af;">Check that Model Pool Manager is running on port 8050</span>
+                    </div>
+                `;
+            }
+        }
+
+        function renderModelCards(models) {
+            const container = document.getElementById('model-cards-container');
+
+            if (!models || models.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; color: #9ca3af; padding: 2rem;">
+                        No models registered
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = models.map(model => {
+                const stateColors = {
+                    'HOT': '#10b981',
+                    'WARMING': '#f59e0b',
+                    'COOLING': '#3b82f6',
+                    'COLD': '#6b7280'
+                };
+                const stateColor = stateColors[model.state] || '#6b7280';
+                const isHot = model.state === 'HOT';
+                const isWarmup = model.warmup || false;
+
+                return `
+                    <div style="background: #1e293b; border: 1px solid #4a5578; border-radius: 8px; padding: 1rem;">
+                        <!-- Header -->
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                            <div>
+                                <div style="font-weight: 600; color: #e0e0e0; margin-bottom: 0.25rem;">${model.display_name || model.model_id}</div>
+                                <div style="font-size: 0.75rem; color: #9ca3af; font-family: monospace;">${model.model_id}</div>
+                            </div>
+                            <div style="background: ${stateColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+                                ${model.state}
+                            </div>
+                        </div>
+
+                        <!-- Stats Grid -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem; padding: 0.75rem; background: #0f172a; border-radius: 6px;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: #9ca3af;">Port</div>
+                                <div style="font-weight: 600; color: #e0e0e0;">${model.port || '-'}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #9ca3af;">Memory</div>
+                                <div style="font-weight: 600; color: #e0e0e0;">${model.memory_mb ? Math.round(model.memory_mb) + ' MB' : '-'}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #9ca3af;">Requests</div>
+                                <div style="font-weight: 600; color: #e0e0e0;">${model.request_count || 0}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #9ca3af;">Uptime</div>
+                                <div style="font-weight: 600; color: #e0e0e0;">${model.uptime_minutes ? Math.round(model.uptime_minutes) + ' min' : '-'}</div>
+                            </div>
+                        </div>
+
+                        <!-- TTL Display -->
+                        ${!isWarmup ? `
+                            <div style="margin-bottom: 0.75rem; padding: 0.5rem; background: #0f172a; border-radius: 6px;">
+                                <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">TTL Remaining</div>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <div style="flex: 1; height: 6px; background: #374151; border-radius: 3px; overflow: hidden;">
+                                        <div style="height: 100%; background: ${stateColor}; width: ${Math.min((model.ttl_remaining_minutes || 0) / 15 * 100, 100)}%;"></div>
+                                    </div>
+                                    <div style="font-weight: 600; color: #e0e0e0; min-width: 50px;">${model.ttl_remaining_minutes || 0} min</div>
+                                </div>
+                            </div>
+                        ` : `
+                            <div style="margin-bottom: 0.75rem; padding: 0.5rem; background: #0f172a; border-radius: 6px; text-align: center;">
+                                <div style="font-size: 0.75rem; color: #f59e0b; font-weight: 600;">⚡ WARMUP MODEL (Never Unloads)</div>
+                            </div>
+                        `}
+
+                        <!-- Actions -->
+                        <div style="display: flex; gap: 0.5rem;">
+                            ${isHot ? `
+                                <button onclick="unloadModel('${model.model_id}')" style="flex: 1; padding: 0.5rem; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 500;">
+                                    📥 Unload
+                                </button>
+                                ${!isWarmup ? `
+                                    <button onclick="extendTTL('${model.model_id}')" style="flex: 1; padding: 0.5rem; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 500;">
+                                        ⏱️ Extend TTL
+                                    </button>
+                                ` : ''}
+                            ` : `
+                                <button onclick="loadModel('${model.model_id}')" style="flex: 1; padding: 0.5rem; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 500;">
+                                    📤 Load
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadModel(modelId) {
+            try {
+                const response = await fetch(`/api/model-pool/models/${encodeURIComponent(modelId)}/load`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                console.log('Model load initiated:', data);
+
+                // Refresh immediately to show WARMING state
+                setTimeout(() => refreshModelPool(), 500);
+            } catch (error) {
+                console.error('Failed to load model:', error);
+                alert('Failed to load model: ' + error.message);
+            }
+        }
+
+        async function unloadModel(modelId) {
+            if (!confirm(`Unload model ${modelId}?`)) return;
+
+            try {
+                const response = await fetch(`/api/model-pool/models/${encodeURIComponent(modelId)}/unload`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                console.log('Model unloaded:', data);
+
+                // Refresh to show updated state
+                setTimeout(() => refreshModelPool(), 500);
+            } catch (error) {
+                console.error('Failed to unload model:', error);
+                alert('Failed to unload model: ' + error.message);
+            }
+        }
+
+        async function extendTTL(modelId) {
+            try {
+                const response = await fetch(`/api/model-pool/models/${encodeURIComponent(modelId)}/extend-ttl`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ minutes: 15 })
+                });
+                const data = await response.json();
+                console.log('TTL extended:', data);
+
+                // Refresh to show updated TTL
+                setTimeout(() => refreshModelPool(), 500);
+            } catch (error) {
+                console.error('Failed to extend TTL:', error);
+                alert('Failed to extend TTL: ' + error.message);
+            }
+        }
+
+        async function loadPoolConfig() {
+            try {
+                const response = await fetch('/api/model-pool/config');
+                const config = await response.json();
+
+                document.getElementById('pool-default-ttl').value = config.default_ttl_minutes || 15;
+                document.getElementById('pool-max-concurrent').value = config.max_concurrent_models || 5;
+                document.getElementById('pool-check-interval').value = config.check_interval_seconds || 30;
+            } catch (error) {
+                console.error('Failed to load pool config:', error);
+            }
+        }
+
+        async function savePoolConfig() {
+            try {
+                const config = {
+                    default_ttl_minutes: parseInt(document.getElementById('pool-default-ttl').value),
+                    max_concurrent_models: parseInt(document.getElementById('pool-max-concurrent').value),
+                    check_interval_seconds: parseInt(document.getElementById('pool-check-interval').value)
+                };
+
+                const response = await fetch('/api/model-pool/config', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                const data = await response.json();
+
+                if (data.status === 'updated') {
+                    alert('✓ Pool configuration updated successfully');
+                } else {
+                    alert('⚠️ Configuration update returned unexpected status');
+                }
+            } catch (error) {
+                console.error('Failed to save pool config:', error);
+                alert('❌ Failed to save configuration: ' + error.message);
+            }
+        }
+
+        // ===== System Status Functions =====
+
+        let systemStatusRefreshInterval = null;
+
+        const PORT_DEFINITIONS = [
+            { port: 6100, name: 'PAS Root', service: 'PAS' },
+            { port: 6101, name: 'HMI', service: 'WebUI' },
+            { port: 6102, name: 'Event Bus', service: 'Events' },
+            { port: 6103, name: 'Provider Router', service: 'Router' },
+            { port: 6120, name: 'Gateway', service: 'Gateway' },
+            { port: 6121, name: 'PAS Registry', service: 'Registry' },
+            { port: 6130, name: 'Aider-LCO', service: 'Aider' },
+            { port: 8050, name: 'Model Pool', service: 'Model Pool' },
+            { port: 8051, name: 'Model:qwen', service: 'Model' },
+            { port: 8052, name: 'Model:llama', service: 'Model' },
+            { port: 8053, name: 'Model:deepseek', service: 'Model' },
+            { port: 11434, name: 'Ollama', service: 'LLM' }
+        ];
+
+        async function refreshSystemStatus() {
+            try {
+                const response = await fetch('/api/system/status');
+                const data = await response.json();
+
+                // Update overall health score
+                const healthScore = data.overall_health_percent || 0;
+                document.getElementById('overall-health-score').textContent = Math.round(healthScore) + '%';
+                document.getElementById('overall-health-bar').style.width = healthScore + '%';
+
+                // Update status text
+                let statusText = 'All Systems Operational';
+                let statusColor = '#10b981';
+                if (healthScore < 100) {
+                    statusText = `${data.issues_count || 0} Issue(s) Detected`;
+                    statusColor = healthScore >= 70 ? '#f59e0b' : '#ef4444';
+                }
+                document.getElementById('overall-health-status').textContent = statusText;
+                document.getElementById('overall-health-status').style.color = statusColor;
+
+                // Render port grid
+                renderPortGrid(data.ports || {});
+
+                // Render health checks
+                renderHealthChecks(data.health_checks || {});
+
+            } catch (error) {
+                console.error('Failed to fetch system status:', error);
+                document.getElementById('overall-health-score').textContent = 'ERROR';
+                document.getElementById('overall-health-status').textContent = 'Failed to connect to HMI API';
+                document.getElementById('overall-health-status').style.color = '#ef4444';
+            }
+        }
+
+        function renderPortGrid(portsData) {
+            const grid = document.getElementById('port-grid');
+
+            grid.innerHTML = PORT_DEFINITIONS.map((portDef, index) => {
+                const portStatus = portsData[portDef.port] || { status: 'unknown', latency_ms: null };
+                const statusColors = {
+                    'up': '#10b981',
+                    'down': '#ef4444',
+                    'degraded': '#f59e0b',
+                    'unknown': '#6b7280'
+                };
+                const statusIcons = {
+                    'up': '✓',
+                    'down': '✗',
+                    'degraded': '⚠',
+                    'unknown': '?'
+                };
+                const bgColor = statusColors[portStatus.status] || '#6b7280';
+                const icon = statusIcons[portStatus.status] || '?';
+
+                return `
+                    <div
+                        data-port="${portDef.port}"
+                        data-port-name="${portDef.name}"
+                        data-port-service="${portDef.service}"
+                        data-port-status="${portStatus.status}"
+                        data-port-latency="${portStatus.latency_ms || 'N/A'}"
+                        data-port-error="${portStatus.error || ''}"
+                        onmouseenter="showPortTooltip(event, this)"
+                        onmouseleave="hidePortTooltip()"
+                        style="
+                            background: ${bgColor};
+                            color: white;
+                            padding: 0.75rem;
+                            border-radius: 6px;
+                            text-align: center;
+                            font-weight: 600;
+                            cursor: pointer;
+                            position: relative;
+                            font-size: 0.875rem;
+                        ">
+                        <div style="font-size: 1.25rem; margin-bottom: 0.25rem;">${icon}</div>
+                        <div style="font-size: 0.625rem; opacity: 0.9;">${portDef.port}</div>
+                        <div style="font-size: 0.625rem; opacity: 0.7; margin-top: 0.125rem;">${portDef.service}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showPortTooltip(event, element) {
+            const tooltip = document.getElementById('system-tooltip');
+            const port = element.dataset.port;
+            const name = element.dataset.portName;
+            const service = element.dataset.portService;
+            const status = element.dataset.portStatus;
+            const latency = element.dataset.portLatency;
+            const error = element.dataset.portError;
+
+            // Build tooltip content
+            let content = `
+                <div style="font-weight: 700; font-size: 1rem; margin-bottom: 0.5rem; color: #e0e0e0;">${name}</div>
+                <div style="border-top: 1px solid #4a5578; padding-top: 0.5rem;">
+                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem; font-size: 0.875rem;">
+                        <div style="color: #9ca3af;">Port:</div>
+                        <div style="font-weight: 600;">${port}</div>
+
+                        <div style="color: #9ca3af;">Service:</div>
+                        <div style="font-weight: 600;">${service}</div>
+
+                        <div style="color: #9ca3af;">Status:</div>
+                        <div style="font-weight: 600; text-transform: uppercase;">${status}</div>
+            `;
+
+            if (latency !== 'N/A') {
+                content += `
+                        <div style="color: #9ca3af;">Latency:</div>
+                        <div style="font-weight: 600;">${latency}ms</div>
+                `;
+            }
+
+            if (error) {
+                content += `
+                        <div style="color: #9ca3af;">Error:</div>
+                        <div style="font-weight: 600; color: #ef4444;">${error}</div>
+                `;
+            }
+
+            content += `
+                    </div>
+                </div>
+            `;
+
+            tooltip.innerHTML = content;
+            tooltip.style.display = 'block';
+
+            // Position tooltip near mouse
+            const x = event.clientX + 15;
+            const y = event.clientY + 15;
+
+            tooltip.style.left = x + 'px';
+            tooltip.style.top = y + 'px';
+        }
+
+        function hidePortTooltip() {
+            const tooltip = document.getElementById('system-tooltip');
+            tooltip.style.display = 'none';
+        }
+
+        async function copySystemSummaryToClipboard() {
+            try {
+                const response = await fetch('/api/system/status');
+                const data = await response.json();
+
+                // Build text summary
+                let summary = '=== SYSTEM STATUS SUMMARY ===\\n\\n';
+                summary += `Overall Health: ${Math.round(data.overall_health_percent)}%\\n`;
+                summary += `Issues: ${data.issues_count}\\n`;
+                summary += `Ports Up: ${data.ports_up}/${data.ports_total}\\n\\n`;
+
+                summary += '--- PORTS ---\\n';
+                for (const portDef of PORT_DEFINITIONS) {
+                    const portStatus = data.ports[portDef.port] || { status: 'unknown' };
+                    const icon = portStatus.status === 'up' ? '✓' : portStatus.status === 'down' ? '✗' : '⚠';
+                    summary += `${icon} Port ${portDef.port} (${portDef.name}): ${portStatus.status.toUpperCase()}`;
+                    if (portStatus.latency_ms !== null && portStatus.latency_ms !== undefined) {
+                        summary += ` - ${portStatus.latency_ms}ms`;
+                    }
+                    summary += '\\n';
+                }
+
+                summary += '\\n--- HEALTH CHECKS ---\\n';
+                const checkNames = {
+                    'git_status': 'Git Repository',
+                    'disk_space': 'Disk Space',
+                    'database_connectivity': 'Databases',
+                    'llm_availability': 'LLM (Ollama)',
+                    'python_environment': 'Python Env',
+                    'config_validity': 'Configurations'
+                };
+
+                for (const [key, check] of Object.entries(data.health_checks)) {
+                    const icon = check.status === 'ok' ? '✓' : check.status === 'warning' ? '⚠' : '✗';
+                    summary += `${icon} ${checkNames[key] || key}: ${check.message}\\n`;
+                }
+
+                // Copy to clipboard
+                await navigator.clipboard.writeText(summary);
+                alert('✓ System summary copied to clipboard!');
+            } catch (error) {
+                console.error('Failed to copy summary:', error);
+                alert('❌ Failed to copy summary: ' + error.message);
+            }
+        }
+
+        function renderHealthChecks(healthChecks) {
+            const container = document.getElementById('health-checks-container');
+
+            const checkOrder = [
+                'git_status',
+                'disk_space',
+                'database_connectivity',
+                'llm_availability',
+                'python_environment',
+                'config_validity'
+            ];
+
+            container.innerHTML = checkOrder.map(checkId => {
+                const check = healthChecks[checkId] || {
+                    status: 'unknown',
+                    message: 'Not checked',
+                    details: {}
+                };
+
+                const statusColors = {
+                    'ok': '#10b981',
+                    'warning': '#f59e0b',
+                    'error': '#ef4444',
+                    'unknown': '#6b7280'
+                };
+                const statusIcons = {
+                    'ok': '✓',
+                    'warning': '⚠',
+                    'error': '✗',
+                    'unknown': '?'
+                };
+
+                const bgColor = statusColors[check.status] || '#6b7280';
+                const icon = statusIcons[check.status] || '?';
+
+                // Format check details
+                let detailsHtml = '';
+                if (check.details && Object.keys(check.details).length > 0) {
+                    detailsHtml = '<div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #4a5578; font-size: 0.75rem; color: #9ca3af;">';
+                    for (const [key, value] of Object.entries(check.details)) {
+                        detailsHtml += `<div><strong>${key}:</strong> ${value}</div>`;
+                    }
+                    detailsHtml += '</div>';
+                }
+
+                return `
+                    <div style="background: #1e293b; border: 1px solid #4a5578; border-left: 4px solid ${bgColor}; border-radius: 6px; padding: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 32px; height: 32px; background: ${bgColor}; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: white; font-weight: 700;">
+                                ${icon}
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; color: #e0e0e0; margin-bottom: 0.25rem;">${getCheckTitle(checkId)}</div>
+                                <div style="font-size: 0.875rem; color: #9ca3af;">${check.message}</div>
+                            </div>
+                        </div>
+                        ${detailsHtml}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getCheckTitle(checkId) {
+            const titles = {
+                'git_status': '🔀 Git Repository Health',
+                'disk_space': '💾 Disk Space',
+                'database_connectivity': '🗄️ Database Connectivity',
+                'llm_availability': '🤖 LLM Availability',
+                'python_environment': '🐍 Python Environment',
+                'config_validity': '⚙️ Configuration Validity'
+            };
+            return titles[checkId] || checkId;
+        }
+
+        async function restartAllServices() {
+            if (!confirm('Restart all services? This will take ~15 seconds.')) return;
+
+            try {
+                const response = await fetch('/api/system/restart', { method: 'POST' });
+                const data = await response.json();
+                alert(data.status === 'ok' ? '✓ Services restarting...' : '❌ ' + data.error);
+            } catch (error) {
+                alert('❌ Failed to restart services: ' + error.message);
+            }
+        }
+
+        async function clearCachesAndTemp() {
+            if (!confirm('Clear caches and temporary files?')) return;
+
+            try {
+                const response = await fetch('/api/system/clear-caches', { method: 'POST' });
+                const data = await response.json();
+                alert(data.status === 'ok' ? `✓ Cleared ${data.freed_mb || 0}MB` : '❌ ' + data.error);
+            } catch (error) {
+                alert('❌ Failed to clear caches: ' + error.message);
+            }
+        }
+
+        async function runGitGC() {
+            if (!confirm('Run git garbage collection? This may take a minute.')) return;
+
+            try {
+                const response = await fetch('/api/system/git-gc', { method: 'POST' });
+                const data = await response.json();
+                alert(data.status === 'ok' ? `✓ Git GC complete. Freed ${data.freed_mb || 0}MB` : '❌ ' + data.error);
+            } catch (error) {
+                alert('❌ Failed to run git GC: ' + error.message);
+            }
+        }
+
+        async function exportSystemReport() {
+            try {
+                const response = await fetch('/api/system/export-report');
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `system-report-${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('❌ Failed to export report: ' + error.message);
+            }
+        }
     </script>
 
     {% block extra_scripts %}{% endblock %}

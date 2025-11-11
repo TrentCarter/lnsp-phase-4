@@ -66,6 +66,17 @@ echo "HMI:"
 lsof -ti:6101 | xargs kill -9 2>/dev/null && echo -e "  ${GREEN}✓${NC} Web Dashboard stopped" || echo "  (Web Dashboard not running)"
 
 echo ""
+
+# Stop Model Pool Manager + Model Services
+echo "Model Pool:"
+lsof -ti:8050 | xargs kill -9 2>/dev/null && echo -e "  ${GREEN}✓${NC} Model Pool Manager stopped" || echo "  (Model Pool Manager not running)"
+# Stop all model services (8051-8099)
+for port in $(seq 8051 8099); do
+    lsof -ti:$port 2>/dev/null | xargs kill -9 2>/dev/null
+done
+echo -e "  ${GREEN}✓${NC} Model services stopped (ports 8051-8099)"
+
+echo ""
 echo -e "${GREEN}✓ All services stopped${NC}"
 echo ""
 
@@ -123,7 +134,19 @@ echo ""
 # STEP 3: Start P0 Stack + HMI
 # ============================================================================
 
-echo -e "${YELLOW}[3/3] Starting P0 Stack + HMI...${NC}"
+echo -e "${YELLOW}[3/3] Starting P0 Stack + Model Pool + HMI...${NC}"
+echo ""
+
+# Start Model Pool Manager (port 8050)
+echo "Starting Model Pool Manager (port 8050)..."
+./.venv/bin/python services/model_pool_manager/model_pool_manager.py > /tmp/model_pool_manager.log 2>&1 &
+sleep 3
+if lsof -ti:8050 > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Model Pool Manager started (warmup models loading...)${NC}"
+else
+    echo -e "${RED}✗ Model Pool Manager failed to start${NC}"
+fi
+
 echo ""
 
 # Start Aider-LCO (port 6130)
@@ -182,6 +205,11 @@ echo ""
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  Full System Restart Complete!${NC}"
 echo -e "${GREEN}========================================${NC}"
+echo ""
+echo -e "${GREEN}Model Pool:${NC}"
+echo "  Pool Manager:      http://localhost:8050"
+echo "  qwen2.5-coder:     http://localhost:8051 (warmup)"
+echo "  llama3.1:          http://localhost:8052 (warmup)"
 echo ""
 echo -e "${GREEN}P0 Stack:${NC}"
 echo "  Gateway:           http://localhost:6120"

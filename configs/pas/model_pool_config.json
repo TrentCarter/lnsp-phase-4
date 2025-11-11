@@ -1,0 +1,19 @@
+{
+  "default_ttl_minutes": 15,
+  "min_ttl_minutes": 5,
+  "max_ttl_minutes": 60,
+  "check_interval_seconds": 30,
+  "warmup_models": [
+    "qwen2.5-coder:7b",
+    "llama3.1:8b"
+  ],
+  "port_range": {
+    "start": 8051,
+    "end": 8099
+  },
+  "max_concurrent_models": 5,
+  "memory_limit_mb": 32000,
+  "auto_unload": true,
+  "graceful_shutdown_seconds": 30,
+  "ollama_base_url": "http://localhost:11434"
+}

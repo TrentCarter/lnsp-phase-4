@@ -3,6 +3,7 @@
 # run_stack.sh - Start all P0 services
 #
 # Services:
+#   0. Model Pool Manager (port 8050) - LLM model lifecycle
 #   1. Aider-LCO RPC (port 6130)
 #   2. PAS Root (port 6100)
 #   3. Gateway (port 6120)
@@ -75,6 +76,11 @@ echo -e "${YELLOW}  Starting P0 Service Stack${NC}"
 echo -e "${YELLOW}========================================${NC}"
 echo ""
 
+# 0. Model Pool Manager (port 8050) - start first to manage LLM models
+start_service "Model Pool Manager" \
+    "./.venv/bin/python services/model_pool_manager/model_pool_manager.py" \
+    "8050"
+
 # 1. Aider-LCO RPC (port 6130)
 start_service "Aider-LCO" \
     "./.venv/bin/uvicorn services.tools.aider_rpc.app:app --host 127.0.0.1 --port 6130" \
@@ -106,6 +112,7 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  All Services Running${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
+echo -e "${GREEN}Model Pool:${NC}  http://127.0.0.1:8050"
 echo -e "${GREEN}Gateway:${NC}     http://127.0.0.1:6120"
 echo -e "${GREEN}PAS Root:${NC}    http://127.0.0.1:6100"
 echo -e "${GREEN}Aider-LCO:${NC}   http://127.0.0.1:6130"
