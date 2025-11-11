@@ -1,69 +1,94 @@
 # Last Session Summary
 
-**Date:** 2025-11-11 (Session 10)
-**Duration:** ~1 hour
+**Date:** 2025-11-11 (Session 11)
+**Duration:** ~2 hours
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Implemented **Provider Router integration with Model Pool Manager** to enable intelligent LLM model routing based on agent class. Created per-agent model preferences, integrated inference parameter management, and built a complete routing API that automatically selects and loads the appropriate model for each PAS agent.
+Built comprehensive **HMI Model Pool Management UI** and **System Status Dashboard** with real-time monitoring, visual health indicators, port testing, styled tooltips, and clipboard export functionality. Created proxy API endpoints to route Model Pool requests through HMI backend.
 
 ## Key Changes
 
-### 1. Model Preferences Configuration (NEW)
-**Files:** `configs/pas/model_preferences.json` (75 lines, NEW)
-**Summary:** Defines model preferences for each agent class (Architect → qwen2.5-coder, Reviewer → llama3.1, etc.) with fallback models and model-specific inference parameters (temperature, top_p, maxTokens) optimized for each model's strengths.
+### 1. Model Pool Management UI (NEW)
+**Files:** `services/webui/templates/base.html` (lines 988-1064, 2786-3054)
+**Summary:** Created full Model Pool dashboard in HMI Settings with pool overview metrics, configuration controls, dynamic model cards showing state (HOT/COLD/WARMING), TTL progress bars, load/unload controls, and auto-refresh every 3 seconds.
 
-### 2. Provider Router Enhanced with Model Pool Integration
-**Files:** `services/provider_router/provider_router.py` (567 lines, +250 lines added)
-**Summary:** Added Model Pool integration with helper functions for model selection, endpoint discovery, and parameter merging. Implemented three new endpoints: `/model-pool/status`, `/model-pool/preferences`, and `/model-pool/route` for intelligent request routing based on agent class with automatic model loading.
+### 2. Model Pool Proxy API (NEW)
+**Files:** `services/webui/hmi_app.py` (lines 3036-3112, +77 lines)
+**Summary:** Added proxy endpoints (`/api/model-pool/*`) to route Model Pool Manager requests through HMI backend, solving CORS issues with direct browser-to-port-8050 connections. Includes models, config, load, unload, and extend-ttl endpoints.
+
+### 3. System Status Dashboard (NEW)
+**Files:** `services/webui/templates/base.html` (lines 1152-1203, 3040-3350)
+**Summary:** Replaced basic System page with comprehensive status dashboard featuring overall health score (0-100%), port status grid (12 ports monitored), six novel health checks (Git, Disk Space, Databases, LLM, Python, Config), and quick action buttons.
+
+### 4. System Health API (NEW)
+**Files:** `services/webui/hmi_app.py` (lines 2630-3033, +404 lines)
+**Summary:** Implemented comprehensive system health checking with port connectivity tests (latency measurement), Git repository status, disk space monitoring, database connectivity (PostgreSQL + Neo4j), LLM availability, Python environment validation, and JSON configuration parsing.
+
+### 5. Styled Hover Tooltips (NEW)
+**Files:** `services/webui/templates/base.html` (lines 620-634, 3179-3236)
+**Summary:** Created custom rectangle tooltip system with dark theme styling, label-value grid layout, conditional fields (latency, errors), and mouse-following positioning. Replaced basic HTML title attributes with rich interactive tooltips.
+
+### 6. Copy to Clipboard Feature (NEW)
+**Files:** `services/webui/templates/base.html` (lines 1158, 3238-3282)
+**Summary:** Added "Copy Summary" button that generates formatted text summary of entire system status (health score, all ports with icons, all health checks) and copies to clipboard with one click.
 
 ## Files Modified
 
-- `configs/pas/model_preferences.json` - NEW: Agent-to-model mappings and model-specific inference settings
-- `services/provider_router/provider_router.py` - Enhanced with Model Pool integration, routing logic, and parameter merging
+- `services/webui/templates/base.html` - Added Model Pool page, System Status page, tooltips, JavaScript functions (+600 lines)
+- `services/webui/hmi_app.py` - Added Model Pool proxy API, System Status API (+481 lines)
 
 ## Current State
 
 **What's Working:**
-- ✅ Provider Router running on port 6103 with Model Pool integration
-- ✅ Model preferences loaded successfully from config file
-- ✅ Automatic model selection based on agent class (Architect → qwen, Reviewer → llama)
-- ✅ Fallback model support if primary unavailable
-- ✅ Parameter merging from multiple sources (global → model-specific → request override)
-- ✅ Automatic model loading with 60s timeout if model not HOT
-- ✅ Tested routing for Architect, Reviewer, and default cases
-- ✅ Integration with Model Pool Manager (port 8050)
+- ✅ Model Pool UI showing 2 HOT models (qwen, llama), 2 COLD models (deepseek, codellama)
+- ✅ Real-time model state updates, TTL countdowns, memory tracking
+- ✅ Load/Unload/Extend-TTL controls functional via proxy API
+- ✅ System Status showing 80% health (10/12 ports UP)
+- ✅ Six health checks operational (Git, Disk, DB, LLM, Python, Config)
+- ✅ Styled hover tooltips on all ports with detailed info
+- ✅ Copy to Clipboard generating formatted system summary
+- ✅ Auto-refresh on both pages (Model Pool: 3s, System: 5s)
 
 **What Needs Work:**
-- [ ] **HMI Model Management UI** - Build visual dashboard in Settings for real-time model monitoring
-- [ ] **Streaming support** - Implement `/model-pool/route/stream` endpoint for long completions
-- [ ] **PAS integration** - Update PAS agents to use Provider Router for LLM requests
-- [ ] **Load balancing** - Add support for multiple instances of same model
-- [ ] **Metrics collection** - Track routing decisions and model performance
-- [ ] **Error recovery** - Improve fallback behavior when models fail to load
+- [ ] **Neo4j connection** - Currently showing DOWN in database check
+- [ ] **2 ports down** - Event Bus (6102) and one model port need investigation
+- [ ] **Git status warning** - 11 uncommitted changes to commit
+- [ ] **WebSocket support** - Add streaming for Model Pool route endpoint
+- [ ] **Historical metrics** - Add charts for model memory/requests over time
+- [ ] **Bulk operations** - Add "Load All" / "Unload All" buttons
 
 ## Important Context for Next Session
 
-1. **Model Routing Flow**: Provider Router queries Model Pool Manager (`GET /models`) → selects model based on agent class from preferences → checks if model is HOT → loads model if needed → merges parameters → proxies request to model service (ports 8051-8099) → returns response with metadata.
+1. **Model Pool Proxy Pattern**: All Model Pool requests now go through HMI (`/api/model-pool/*`) instead of direct browser-to-8050 connections. This solved CORS issues and centralizes API access.
 
-2. **Agent Preferences**: Each agent class has a primary and fallback model. Architect/Programmer/Tester use qwen2.5-coder (code-focused), Reviewer/Documenter use llama3.1 (reasoning), Debugger uses deepseek-coder-v2 (advanced). Default is llama3.1.
+2. **Health Score Calculation**: Overall health = (Port Health × 60%) + (Check Health × 40%). Ports weighted higher because they're critical for system operation. Warnings count as 0.5 points instead of 0 or 1.
 
-3. **Parameter Priority**: Inference parameters merge in order: (1) Global advanced_model_settings.json, (2) Model-specific settings from model_preferences.json, (3) Request-level overrides. Each model has optimized defaults (e.g., qwen temp=0.7 for consistency, llama temp=0.8 for creativity).
+3. **Port Monitoring**: 12 ports tracked - P0 Stack (6100-6130), Model Pool (8050-8053), Ollama (11434). Latency >200ms = DEGRADED status. Socket timeout = 500ms.
 
-4. **Path Resolution**: Provider Router uses `Path(__file__).parent.parent.parent` to resolve config file paths relative to project root, ensuring correct loading regardless of working directory.
+4. **Novel Health Checks**:
+   - Git Status: Checks uncommitted changes (<10 = warning, ≥10 = error)
+   - Disk Space: Free GB thresholds (>20 = ok, 10-20 = warning, <10 = error)
+   - Databases: Tests both PostgreSQL and Neo4j connections
+   - LLM: Queries Ollama API, lists available models
+   - Python: Verifies venv active + version ≥3.11
+   - Config: Validates JSON parsing of 3 config files
 
-5. **Testing Endpoints**:
-   - `curl http://localhost:6103/model-pool/status` - View active models
-   - `curl http://localhost:6103/model-pool/preferences` - View agent preferences
-   - `curl -X POST http://localhost:6103/model-pool/route -H 'Content-Type: application/json' -d '{"agent_class":"Architect","prompt":"..."}'` - Route request
+5. **Tooltip System**: Global `#system-tooltip` div positioned at cursor +15px offset. Uses `onmouseenter`/`onmouseleave` events with data attributes. Grid layout for label-value pairs.
 
-6. **HMI Model Management UI** (Next Task): Build Settings page to visualize model states, show port allocations, display TTL countdowns, provide load/unload buttons, monitor memory usage, and configure TTL settings. Should use WebSocket for real-time updates.
+6. **Testing Endpoints**:
+   - `curl http://localhost:6101/api/model-pool/models` - Get model states
+   - `curl http://localhost:6101/api/system/status` - Get health data
+   - `curl -X POST http://localhost:6101/api/model-pool/models/{id}/load` - Load model
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Commit current changes** - `git add` new config file and modified provider_router.py
-3. **Start HMI Model Management UI** - Add new "Model Pool" tab in Settings dialog
-4. **Design real-time dashboard** - WebSocket connection to Model Pool Manager for live state updates
-5. **Test end-to-end** - Verify PAS agents can use Provider Router for LLM requests
+2. **Commit changes** - 11 uncommitted files ready for git commit
+3. **Investigate Event Bus** - Port 6102 showing DOWN, check if service is running
+4. **Neo4j connection** - Verify Neo4j service status or disable if not needed
+5. **Test Model Pool UI** - Open http://localhost:6101 → Settings → Model Pool
+6. **Test System Status** - Open http://localhost:6101 → Settings → System Status
+7. **Try tooltips** - Hover over any port to see styled tooltip
+8. **Copy summary** - Click "📋 Copy Summary" button to test clipboard
