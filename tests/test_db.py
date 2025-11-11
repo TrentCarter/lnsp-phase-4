@@ -1,5 +1,6 @@
 import os
 from src.db import FaissDB
+import faiss  # Add this line
 
 def test_save_and_load():
     # Create a temporary FAISS index file

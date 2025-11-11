@@ -1,5 +1,6 @@
 import os
 from unittest.mock import patch
+import faiss  # Add this line
 from src.ingest_pipeline import IngestPipeline, FaissDB
 
 def test_save_faiss_index():
