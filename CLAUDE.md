@@ -80,6 +80,7 @@ After 8 failed training attempts (P1-P8) and decisive narrative delta test (Δ=0
 - ✅ **Slash Commands**: `/wrap-up` and `/restore` for session management (Nov 11)
 - ✅ **CLAUDE.md Optimization**: 72.9% token reduction (3,894 → 1,056 words) with zero information loss (Nov 11)
 - ✅ **Slash Command Enhancement**: `/wrap-up` now auto-commits and pushes session documentation (Nov 11)
+- ✅ **Task Intake System**: `/pas-task` conversational interface for submitting tasks to P0 stack (Nov 11) → `.claude/commands/pas-task.md`
 
 **See**: `CLAUDE_Artifacts_Old.md` (Section 4) for complete history
 
@@ -110,6 +111,12 @@ After 8 failed training attempts (P1-P8) and decisive narrative delta test (Δ=0
 **Delegate to PEX when**: Multi-file projects, budget tracking, KPI validation needed
 **See**: `docs/contracts/DIRENG_SYSTEM_PROMPT.md` | `CLAUDE_Artifacts_Old.md` (Section 9)
 
+### Task Intake System (`/pas-task`)
+**Status**: ✅ Production Ready (Nov 11, 2025) | **Type**: Slash Command
+**What**: Conversational interface for submitting tasks to P0 stack - DirEng acts as requirements analyst, gathers structured information, formats Prime Directive, submits via Verdict CLI, tracks status
+**Quick Start**: `/pas-task` (interactive mode) or `./bin/verdict send` (direct CLI)
+**See**: `.claude/commands/pas-task.md`
+
 ---
 
 ## 📂 QUICK COMMANDS
@@ -136,6 +143,9 @@ VEC2TEXT_FORCE_PROJECT_VENV=1 VEC2TEXT_DEVICE=cpu TOKENIZERS_PARALLELISM=false \
 bash scripts/run_stack.sh                # Start Gateway + PAS + Aider-LCO
 ./bin/verdict health                     # Check status
 ./bin/verdict send --title "Task" --goal "Description" --entry-file "file.py"
+
+# Task Intake (Conversational)
+# Use /pas-task slash command - DirEng will guide you through structured questions
 
 # Database Check
 psql lnsp -c "SELECT COUNT(*) FROM cpe_entry;"  # PostgreSQL
