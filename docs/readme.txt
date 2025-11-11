@@ -2,6 +2,73 @@
 source .venv/bin/activate
 claude --dangerously-skip-permissions
 
+# ========================================================================
+# 📝 SESSION WORKFLOW - START HERE (Added 11/11/2025)
+# ========================================================================
+
+## Starting a New Session
+
+**Step 1: Restore Context from Last Session**
+```bash
+/restore
+```
+This command will:
+- Load `docs/last_summary.md` into context
+- Show you what was accomplished last session
+- Display current git status and service status
+- Provide quick start instructions
+
+## Ending a Session
+
+**Step 2: Wrap Up and Document Your Work**
+```bash
+/wrap-up
+```
+This command will:
+1. Archive previous `last_summary.md` to `all_project_summary.md`
+2. Update `CLAUDE.md` with new features
+3. Create TWO summaries:
+   - `docs/last_summary.md` - Concise summary for `/restore` (LOAD THIS)
+   - `docs/session_summaries/YYYY-MM-DD_session_summary.md` - Detailed archive
+4. Show git status and provide commit message
+5. Give you a checklist before `/clear`
+
+## File Structure
+
+```
+docs/
+├── last_summary.md              # ← Load this with /restore (current session)
+├── all_project_summary.md       # ← DO NOT LOAD (all previous sessions archived)
+└── session_summaries/           # ← Detailed archives (reference only)
+    ├── 2025-11-11_session_summary.md
+    ├── 2025-11-10_session_summary.md
+    └── ...
+```
+
+## Important Rules
+
+1. **Always use `/restore` at the start of a session** - Loads concise context
+2. **Always use `/wrap-up` at the end** - Archives old summary, creates new one
+3. **Never load `all_project_summary.md`** - It's for archival only (too large)
+4. **Restart Claude Code after creating slash commands** - Commands load at startup
+
+## Quick Workflow Example
+
+```bash
+# Start session
+claude --dangerously-skip-permissions
+/restore                    # Load context from last session
+
+# Do your work...
+
+# End session
+/wrap-up                    # Document everything
+# Review checklist
+# Commit changes
+/clear                      # Clean slate for next time
+```
+
+# ========================================================================
 
 11/10/2025
 

@@ -78,6 +78,8 @@ After 8 failed training attempts (P1-P8) and decisive narrative delta test (Δ=0
 - ✅ **Communication Logging**: Flat .txt logs with LLM metadata (Nov 10) → `docs/COMMS_LOGGING_GUIDE.md`
 - ✅ **HMI Sequencer**: 100x zoom, scrollbars, color scheme (Nov 11)
 - ✅ **Slash Commands**: `/wrap-up` and `/restore` for session management (Nov 11)
+- ✅ **CLAUDE.md Optimization**: 72.9% token reduction (3,894 → 1,056 words) with zero information loss (Nov 11)
+- ✅ **Slash Command Enhancement**: `/wrap-up` now auto-commits and pushes session documentation (Nov 11)
 
 **See**: `CLAUDE_Artifacts_Old.md` (Section 4) for complete history
 
