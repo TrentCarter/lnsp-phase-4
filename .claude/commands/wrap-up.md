@@ -149,3 +149,13 @@ Ready for `/clear` when you're done.
 - DO NOT run `git diff` or review changes (waste of tokens)
 - Base summary on conversation history, not git inspection
 - Keep focused on deliverables, not process
+- **DO NOT kill background services** unless explicitly requested by user
+- **DO NOT clean up running services** - they are meant to persist between sessions
+- Services that should stay running:
+  - Model Pool Manager (port 8050)
+  - Model services (ports 8051-8099)
+  - Provider Router (port 6103)
+  - P0 Stack (Gateway 6120, PAS 6100, Registry 6121, etc.)
+  - Vec2Text services (ports 7001, 7002)
+  - HMI (port 6101) - only restart if `--restart` flag is used
+- Only kill processes if they are temporary test processes or explicitly mentioned in the session
