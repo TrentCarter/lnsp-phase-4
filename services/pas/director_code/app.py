@@ -279,7 +279,7 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
                 message=f"Error escalating {child_id}: {str(e)}",
                 run_id=None,
                 metadata={"child_id": child_id, "error": str(e)}
-            }
+            )
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to escalate to grandparent: {str(e)}"

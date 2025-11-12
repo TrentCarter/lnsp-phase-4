@@ -81,6 +81,12 @@ DIRECTOR_ENDPOINTS = {
 # In-memory run tracking (will move to DB in Phase 2)
 RUNS: Dict[str, Dict[str, Any]] = {}
 
+# Track active tasks for each child (for TRON restart/resend)
+CHILD_ACTIVE_TASKS: Dict[str, Dict[str, Any]] = {
+    # "Dir-Code": {"job_card": JobCard(...), "run_id": "...", "endpoint": "..."},
+    # "Dir-Models": {...},
+}
+
 
 # === HHMRS Event Emission Helper ===
 
@@ -252,6 +258,18 @@ async def receive_lane_report(request: LaneReportRequest):
         }
     )
 
+    # Clean up active task tracking (task is now complete or failed)
+    director_id = f"Dir-{lane_name}"
+    if director_id in CHILD_ACTIVE_TASKS:
+        del CHILD_ACTIVE_TASKS[director_id]
+        logger.log_status(
+            from_agent="Architect",
+            to_agent=director_id,
+            message=f"Cleared active task tracking for {director_id}",
+            run_id=request.run_id,
+            metadata={"lane": lane_name, "state": request.state}
+        )
+
     return {
         "status": "ok",
         "message": f"Lane report received for {lane_name}",
@@ -325,7 +343,7 @@ def _restart_child_process(child_id: str) -> bool:
         True if restart successful, False otherwise
     """
     if child_id not in AGENT_RESTART_CONFIG:
-        logger.log_message(
+        logger.log_status(
             from_agent="Architect",
             to_agent="Architect",
             message=f"Cannot restart {child_id}: no restart config found",
@@ -342,7 +360,7 @@ def _restart_child_process(child_id: str) -> bool:
 
     try:
         # Step 1: Kill process on port
-        logger.log_message(
+        logger.log_status(
             from_agent="Architect",
             to_agent=child_id,
             message=f"Killing process on port {port}",
@@ -359,7 +377,7 @@ def _restart_child_process(child_id: str) -> bool:
 
         if find_pid.returncode == 0 and find_pid.stdout.strip():
             pid = int(find_pid.stdout.strip())
-            logger.log_message(
+            logger.log_status(
                 from_agent="Architect",
                 to_agent=child_id,
                 message=f"Found process PID {pid} on port {port}",
@@ -383,7 +401,7 @@ def _restart_child_process(child_id: str) -> bool:
                     pass
 
             except OSError as e:
-                logger.log_message(
+                logger.log_status(
                     from_agent="Architect",
                     to_agent="Architect",
                     message=f"Error killing PID {pid}: {e}",
@@ -391,7 +409,7 @@ def _restart_child_process(child_id: str) -> bool:
                     metadata={"child_id": child_id, "pid": pid, "error": str(e)}
                 )
         else:
-            logger.log_message(
+            logger.log_status(
                 from_agent="Architect",
                 to_agent=child_id,
                 message=f"No process found on port {port}",
@@ -400,7 +418,7 @@ def _restart_child_process(child_id: str) -> bool:
             )
 
         # Step 2: Start new process
-        logger.log_message(
+        logger.log_status(
             from_agent="Architect",
             to_agent=child_id,
             message=f"Starting new process on port {port}",
@@ -431,7 +449,7 @@ def _restart_child_process(child_id: str) -> bool:
             preexec_fn=os.setpgrp  # Create new process group
         )
 
-        logger.log_message(
+        logger.log_status(
             from_agent="Architect",
             to_agent=child_id,
             message=f"Started new process PID {process.pid}",
@@ -446,7 +464,7 @@ def _restart_child_process(child_id: str) -> bool:
             try:
                 response = requests.get(f"http://127.0.0.1:{port}/health", timeout=2)
                 if response.status_code == 200:
-                    logger.log_message(
+                    logger.log_status(
                         from_agent="Architect",
                         to_agent=child_id,
                         message=f"Health check passed after {i+1} seconds",
@@ -457,7 +475,7 @@ def _restart_child_process(child_id: str) -> bool:
             except:
                 pass
 
-        logger.log_message(
+        logger.log_status(
             from_agent="Architect",
             to_agent="Architect",
             message=f"Health check failed after {max_retries} seconds",
@@ -467,7 +485,7 @@ def _restart_child_process(child_id: str) -> bool:
         return False
 
     except Exception as e:
-        logger.log_message(
+        logger.log_status(
             from_agent="Architect",
             to_agent="Architect",
             message=f"Error restarting {child_id}: {str(e)}",
@@ -505,7 +523,7 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
     child_id = alert.child_id
     restart_count = alert.restart_count
 
-    logger.log_message(
+    logger.log_status(
         from_agent="TRON",
         to_agent="Architect",
         message=f"Child timeout alert: {child_id} (restart_count={restart_count})",
@@ -548,7 +566,7 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
                 )
 
             if response.status_code == 200:
-                logger.log_message(
+                logger.log_status(
                     from_agent="Architect",
                     to_agent="PAS Root",
                     message=f"Escalated {child_id} failure to PAS Root",
@@ -561,7 +579,7 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
                     "restart_count": restart_count
                 }
             else:
-                logger.log_message(
+                logger.log_status(
                     from_agent="Architect",
                     to_agent="Architect",
                     message=f"Failed to escalate {child_id} to PAS Root: {response.text}",
@@ -574,7 +592,7 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
                 )
 
         except Exception as e:
-            logger.log_message(
+            logger.log_status(
                 from_agent="Architect",
                 to_agent="Architect",
                 message=f"Error escalating {child_id}: {str(e)}",
@@ -595,7 +613,7 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
     })
 
     # Phase 3: Attempt actual process restart
-    logger.log_message(
+    logger.log_status(
         from_agent="Architect",
         to_agent=child_id,
         message=f"Attempting process restart for {child_id} (attempt {restart_count + 1})",
@@ -610,7 +628,7 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
     restart_success = _restart_child_process(child_id)
 
     if restart_success:
-        logger.log_message(
+        logger.log_status(
             from_agent="Architect",
             to_agent=child_id,
             message=f"Successfully restarted {child_id}",
@@ -618,13 +636,79 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
             metadata={"child_id": child_id, "restart_count": restart_count + 1, "status": "success"}
         )
 
-        return {
-            "status": "restarted",
-            "message": f"Successfully restarted {child_id}",
-            "restart_count": restart_count + 1
-        }
+        # Check if this child had an active task that needs to be resent
+        if child_id in CHILD_ACTIVE_TASKS:
+            task_context = CHILD_ACTIVE_TASKS[child_id]
+            job_card = task_context["job_card"]
+            endpoint = task_context["endpoint"]
+            run_id = task_context["run_id"]
+
+            logger.log_status(
+                from_agent="Architect",
+                to_agent=child_id,
+                message=f"Resending task to restarted {child_id}: {job_card.task[:50]}...",
+                run_id=run_id,
+                metadata={
+                    "child_id": child_id,
+                    "job_card_id": job_card.id,
+                    "restart_count": restart_count + 1
+                }
+            )
+
+            # Resend the task to the restarted child
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.post(f"{endpoint}/submit", json={"job_card": asdict(job_card)})
+                    response.raise_for_status()
+
+                logger.log_cmd(
+                    from_agent="Architect",
+                    to_agent=child_id,
+                    message=f"Task resent successfully: {job_card.task[:50]}...",
+                    run_id=run_id,
+                    metadata={
+                        "job_card_id": job_card.id,
+                        "restart_count": restart_count + 1,
+                        "resend_status": "success"
+                    }
+                )
+
+                return {
+                    "status": "restarted_and_resent",
+                    "message": f"Successfully restarted {child_id} and resent task",
+                    "restart_count": restart_count + 1,
+                    "job_card_id": job_card.id
+                }
+
+            except Exception as e:
+                logger.log_status(
+                    from_agent="Architect",
+                    to_agent=child_id,
+                    message=f"Failed to resend task to {child_id}: {str(e)}",
+                    run_id=run_id,
+                    metadata={
+                        "child_id": child_id,
+                        "job_card_id": job_card.id,
+                        "restart_count": restart_count + 1,
+                        "error": str(e)
+                    }
+                )
+
+                return {
+                    "status": "restarted_but_resend_failed",
+                    "message": f"Restarted {child_id} but failed to resend task: {str(e)}",
+                    "restart_count": restart_count + 1,
+                    "error": str(e)
+                }
+        else:
+            # No active task to resend
+            return {
+                "status": "restarted",
+                "message": f"Successfully restarted {child_id} (no active task to resend)",
+                "restart_count": restart_count + 1
+            }
     else:
-        logger.log_message(
+        logger.log_status(
             from_agent="Architect",
             to_agent=child_id,
             message=f"Failed to restart {child_id}, may need manual intervention",
@@ -936,6 +1020,15 @@ async def delegate_to_directors(run_id: str, plan: ArchitectPlan):
                     run_id=run_id,
                     metadata={"job_card_id": job_card.id}
                 )
+
+                # Track active task for TRON restart/resend
+                CHILD_ACTIVE_TASKS[director] = {
+                    "job_card": job_card,
+                    "run_id": run_id,
+                    "endpoint": endpoint,
+                    "lane_name": lane_name,
+                    "submitted_at": time.time()
+                }
             else:
                 # Fallback to queue
                 job_queue.submit(job_card, target_agent=director, use_file_fallback=True)

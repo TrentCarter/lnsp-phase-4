@@ -190,7 +190,7 @@ def _record_retry(agent_id: str, retry_type: str, retry_count: int, reason: str,
         conn.close()
 
     except Exception as e:
-        logger.log_message(
+        logger.log_status(
             from_agent="PAS Root",
             to_agent="PAS Root",
             message=f"Failed to record retry in database: {e}",
@@ -604,7 +604,7 @@ async def mark_task_failed(agent_id: str, run_id: Optional[str] = None) -> dict:
         'message': f"{agent_id} permanently failed after {max_llm_retries} LLM retry attempts"
     })
 
-    logger.log_message(
+    logger.log_status(
         from_agent="PAS Root",
         to_agent="PAS Root",
         message=f"Task {agent_id} permanently failed after {max_llm_retries} attempts",
@@ -632,7 +632,7 @@ async def mark_task_failed(agent_id: str, run_id: Optional[str] = None) -> dict:
                 }
             )
 
-        logger.log_message(
+        logger.log_status(
             from_agent="PAS Root",
             to_agent="Gateway",
             message=f"Notified Gateway of permanent failure: {agent_id}",
@@ -640,7 +640,7 @@ async def mark_task_failed(agent_id: str, run_id: Optional[str] = None) -> dict:
             metadata={"agent_id": agent_id}
         )
     except Exception as e:
-        logger.log_message(
+        logger.log_status(
             from_agent="PAS Root",
             to_agent="PAS Root",
             message=f"Failed to notify Gateway: {e}",
@@ -666,7 +666,7 @@ async def handle_grandchild_failure(alert: GrandchildFailureAlert):
     # Get current failure count
     failure_count = _get_failure_count(grandchild_id)
 
-    logger.log_message(
+    logger.log_status(
         from_agent=parent_id,
         to_agent="PAS Root",
         message=f"Grandchild escalation: {grandchild_id} (failure_count={failure_count})",
@@ -682,6 +682,15 @@ async def handle_grandchild_failure(alert: GrandchildFailureAlert):
     # Check if we've exceeded max failures (load from settings)
     max_llm_retries = heartbeat_monitor.max_llm_retries
     if failure_count >= max_llm_retries:
+        # Emit failure event for HMI chimes and TRON visualization
+        _emit_hhmrs_event('hhmrs_failure', {
+            'agent_id': grandchild_id,
+            'parent_id': parent_id,
+            'grandparent_id': 'PAS Root',
+            'failure_count': failure_count,
+            'reason': 'max_llm_retries_exceeded',
+            'message': f"{grandchild_id} permanently failed after {failure_count} LLM retries"
+        })
         # Permanent failure
         return await mark_task_failed(grandchild_id, run_id=None)
 
@@ -699,7 +708,7 @@ async def handle_grandchild_failure(alert: GrandchildFailureAlert):
             old_llm = "llama3.1:8b"
             new_llm = "claude-sonnet-4-5"
 
-        logger.log_message(
+        logger.log_status(
             from_agent="PAS Root",
             to_agent=grandchild_id,
             message=f"Retrying {grandchild_id} with different LLM: {old_llm} → {new_llm}",
@@ -711,6 +720,18 @@ async def handle_grandchild_failure(alert: GrandchildFailureAlert):
                 "retry_count": failure_count + 1
             }
         )
+
+        # Emit retry event for HMI chimes and TRON visualization
+        _emit_hhmrs_event('hhmrs_restart', {
+            'agent_id': grandchild_id,
+            'parent_id': parent_id,
+            'grandparent_id': 'PAS Root',
+            'retry_type': 'llm_change',
+            'old_llm': old_llm,
+            'new_llm': new_llm,
+            'retry_count': failure_count + 1,
+            'message': f"Retrying {grandchild_id} with {new_llm} (attempt {failure_count + 1})"
+        })
 
         # Increment failure count
         new_failure_count = _increment_failure_count(grandchild_id)
@@ -738,7 +759,7 @@ async def handle_grandchild_failure(alert: GrandchildFailureAlert):
         }
 
     except Exception as e:
-        logger.log_message(
+        logger.log_status(
             from_agent="PAS Root",
             to_agent="PAS Root",
             message=f"Failed to retry {grandchild_id} with different LLM: {e}",
