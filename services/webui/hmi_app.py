@@ -2628,6 +2628,91 @@ def get_advanced_model_settings_api():
 
 
 # ============================================================================
+# PROGRAMMER POOL API
+# ============================================================================
+
+@app.route('/api/programmer-pool/status', methods=['GET'])
+def get_programmer_pool_status():
+    """Get Programmer Pool status and statistics"""
+    try:
+        import sys
+        from pathlib import Path
+
+        # Add project root to path
+        project_root = Path(__file__).parent.parent.parent
+        if str(project_root) not in sys.path:
+            sys.path.insert(0, str(project_root))
+
+        from services.common.programmer_pool import get_programmer_pool
+
+        pool = get_programmer_pool()
+
+        # Run discovery if pool is empty or stale
+        if len(pool.programmers) == 0:
+            pool.discover_programmers()
+
+        # Get stats and programmer list
+        stats = pool.get_stats()
+        programmers = pool.list_programmers()
+
+        return jsonify({
+            'status': 'ok',
+            'stats': stats,
+            'programmers': programmers
+        })
+    except Exception as e:
+        logger.error(f"Error getting programmer pool status: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/programmer-pool/programmers', methods=['GET'])
+def get_programmers_list():
+    """Get detailed list of all Programmers"""
+    try:
+        import sys
+        from pathlib import Path
+
+        # Add project root to path
+        project_root = Path(__file__).parent.parent.parent
+        if str(project_root) not in sys.path:
+            sys.path.insert(0, str(project_root))
+
+        from services.common.programmer_pool import get_programmer_pool
+
+        pool = get_programmer_pool()
+        programmers = pool.list_programmers()
+
+        # Add detailed info for each programmer
+        detailed_programmers = []
+        for prog in programmers:
+            # Try to get additional info from health endpoint
+            try:
+                import httpx
+                response = httpx.get(f"{prog['endpoint']}/health", timeout=2.0)
+                if response.status_code == 200:
+                    health_data = response.json()
+                    prog['health'] = health_data
+                else:
+                    prog['health'] = None
+            except Exception:
+                prog['health'] = None
+
+            detailed_programmers.append(prog)
+
+        return jsonify({
+            'status': 'ok',
+            'programmers': detailed_programmers
+        })
+    except Exception as e:
+        logger.error(f"Error getting programmers list: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+# ============================================================================
 # HHMRS SETTINGS API
 # ============================================================================
 

@@ -222,6 +222,50 @@
         </div>
     </div>
 
+    <!-- Programmer Pool Section -->
+    <div class="section-container">
+        <div class="section-header" onclick="toggleSection('programmer-pool')">
+            <h2>💻 Programmer Pool <span class="section-badge" id="pool-badge">-</span></h2>
+            <div class="section-toggle">
+                <span class="section-toggle-text">Collapse</span>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+        </div>
+        <div class="section-content" id="programmer-pool-content">
+            <!-- Pool Stats -->
+            <div class="metrics-row" style="margin-bottom: 1.5rem;">
+                <div class="metric-card">
+                    <h3>Total Programmers</h3>
+                    <div class="value" id="pool-total">-</div>
+                    <div class="subtext">Registered in pool</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Available</h3>
+                    <div class="value" id="pool-available" style="color: #10b981;">-</div>
+                    <div class="subtext">Ready for tasks</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Busy</h3>
+                    <div class="value" id="pool-busy" style="color: #f59e0b;">-</div>
+                    <div class="subtext">Currently working</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Tasks Completed</h3>
+                    <div class="value" id="pool-completed">-</div>
+                    <div class="subtext" id="pool-success-rate">Success rate: -%</div>
+                </div>
+            </div>
+
+            <!-- Programmer Cards -->
+            <div id="programmers-container" class="service-cards" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading programmers...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Registered Agents Section -->
     <div class="section-container">
         <div class="section-header" onclick="toggleSection('registered-agents')">
@@ -676,10 +720,108 @@
                 fetchMetrics();
                 fetchAgents();
                 fetchCostMetrics();
+                fetchProgrammerPool();
             }, intervalMs);
         } else {
             console.log('Auto-refresh disabled');
         }
+    }
+
+    // Fetch Programmer Pool Status
+    async function fetchProgrammerPool() {
+        try {
+            const response = await fetch('/api/programmer-pool/status');
+            const data = await response.json();
+
+            if (data.status === 'ok') {
+                const stats = data.stats;
+                const programmers = data.programmers;
+
+                // Update pool stats
+                document.getElementById('pool-total').textContent = stats.total_programmers;
+                document.getElementById('pool-available').textContent = stats.available;
+                document.getElementById('pool-busy').textContent = stats.busy;
+                document.getElementById('pool-completed').textContent = stats.total_tasks_completed;
+                document.getElementById('pool-success-rate').textContent =
+                    `Success rate: ${(stats.success_rate * 100).toFixed(1)}%`;
+                document.getElementById('pool-badge').textContent =
+                    `${stats.idle} idle / ${stats.busy} busy`;
+
+                // Render programmer cards
+                renderProgrammers(programmers);
+            }
+        } catch (error) {
+            console.error('Failed to fetch programmer pool:', error);
+            document.getElementById('programmers-container').innerHTML = `
+                <div class="alert-banner" style="grid-column: 1 / -1;">
+                    <div class="alert-icon">⚠️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Failed to load Programmer Pool</div>
+                        <div class="alert-message">${error.message}</div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function renderProgrammers(programmers) {
+        const container = document.getElementById('programmers-container');
+
+        if (programmers.length === 0) {
+            container.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: #9ca3af;">
+                    <p>No Programmers discovered</p>
+                    <p style="font-size: 0.875rem; margin-top: 0.5rem;">Make sure Programmer services are running on ports 6151-6160</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = programmers.map(prog => {
+            const stateColors = {
+                'idle': '#10b981',
+                'busy': '#f59e0b',
+                'failed': '#ef4444',
+                'unknown': '#6b7280'
+            };
+            const stateColor = stateColors[prog.state] || '#6b7280';
+            const stateIcons = {
+                'idle': '✓',
+                'busy': '⟳',
+                'failed': '✗',
+                'unknown': '?'
+            };
+            const stateIcon = stateIcons[prog.state] || '?';
+
+            return `
+                <div class="service-card" style="background: linear-gradient(135deg, #1e2747 0%, #2a3558 100%);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <div class="service-name">${prog.agent_id}</div>
+                        <div class="status-badge" style="background: ${stateColor}; border-color: ${stateColor};">
+                            ${stateIcon} ${prog.state.toUpperCase()}
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; font-size: 0.75rem; color: #9ca3af;">
+                        <div>
+                            <div style="color: #6b7280;">Port</div>
+                            <div style="color: #e0e0e0; font-weight: 600;">${prog.port}</div>
+                        </div>
+                        <div>
+                            <div style="color: #6b7280;">Current Tasks</div>
+                            <div style="color: #e0e0e0; font-weight: 600;">${prog.current_tasks}</div>
+                        </div>
+                        <div>
+                            <div style="color: #6b7280;">Completed</div>
+                            <div style="color: #10b981; font-weight: 600;">${prog.total_completed}</div>
+                        </div>
+                        <div>
+                            <div style="color: #6b7280;">Failures</div>
+                            <div style="color: ${prog.total_failures > 0 ? '#ef4444' : '#6b7280'}; font-weight: 600;">${prog.total_failures}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -687,6 +829,7 @@
         fetchMetrics();
         fetchAgents();
         fetchCostMetrics();
+        fetchProgrammerPool();
 
         // Settings will be loaded by base.html, which will call applyViewSettings()
         // Default auto-refresh (will be overridden by settings)
