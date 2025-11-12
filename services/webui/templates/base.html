@@ -308,6 +308,12 @@
             50% { opacity: 0.5; }
         }
 
+        @keyframes tronPulse {
+            0% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         /* Settings Modal */
         .settings-modal {
             display: none;
@@ -613,7 +619,33 @@
         </div>
     </header>
 
-    <main>
+    <!-- TRON HHMRS Visualization Bar -->
+    <div id="tron-bar" style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 40px;
+        background: linear-gradient(90deg, #ff6c00 0%, #ff8c00 100%);
+        border-bottom: 2px solid #ff4500;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        padding: 0 1.5rem;
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+        color: #000;
+        box-shadow: 0 2px 8px rgba(255, 108, 0, 0.5);
+    ">
+        <div style="display: flex; align-items: center; gap: 1rem; flex: 1;">
+            <span style="font-size: 0.875rem; letter-spacing: 0.05em;">⚡ TRON INTERVENTION ACTIVE</span>
+            <div id="tron-event-list" style="display: flex; gap: 0.5rem; flex: 1;"></div>
+        </div>
+        <div style="font-size: 0.75rem; opacity: 0.8;">HHMRS Phase 1</div>
+    </div>
+
+    <main style="margin-top: 0;">
         {% block content %}{% endblock %}
     </main>
 
@@ -657,6 +689,10 @@
                 <div class="settings-sidebar-item" onclick="switchSettingsPage('audio')">
                     <span>🔊</span>
                     <span>Audio</span>
+                </div>
+                <div class="settings-sidebar-item" onclick="switchSettingsPage('tasks')">
+                    <span>📋</span>
+                    <span>Tasks</span>
                 </div>
                 <div class="settings-sidebar-item" onclick="switchSettingsPage('llm')">
                     <span>🤖</span>
@@ -904,6 +940,185 @@
                             <div class="setting-control">
                                 <input type="range" id="note-duration" class="setting-input" min="50" max="500" value="150" step="10" style="width: 120px;">
                                 <span id="note-duration-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 50px;">150ms</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TRON Chime Notifications Subsection -->
+                    <div class="settings-section" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #3a4568;">
+                        <h3>🔔 TRON Chime Notifications</h3>
+
+                        <!-- Enable Chime Notifications -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Enable Chime Notifications</div>
+                                <div class="setting-description">Play chime sounds for HHMRS intervention events</div>
+                            </div>
+                            <div class="setting-control">
+                                <div id="chime-enabled-toggle" class="toggle-switch" onclick="toggleChimeEnabled()"></div>
+                            </div>
+                        </div>
+
+                        <!-- Chime Sound Selection -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Chime Sound</div>
+                                <div class="setting-description">Sound type for TRON notifications</div>
+                            </div>
+                            <div class="setting-control" style="display: flex; gap: 10px; align-items: center;">
+                                <select id="chime-sound" class="setting-input" style="width: 150px;">
+                                    <option value="ping">Ping (soft)</option>
+                                    <option value="bell">Bell (medium)</option>
+                                    <option value="chime">Chime (pleasant)</option>
+                                    <option value="alert">Alert (attention)</option>
+                                    <option value="alarm">Alarm (urgent)</option>
+                                </select>
+                                <button id="test-chime-btn" onclick="testChime()" style="padding: 5px 15px; cursor: pointer; background: #2f80ed; color: white; border: none; border-radius: 4px; font-size: 0.875rem;">
+                                    🔊 Test Sound
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Chime Volume -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Chime Volume</div>
+                                <div class="setting-description">Volume level for chime notifications (0-100%)</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="range" id="chime-volume" class="setting-input" min="0" max="100" value="50" style="width: 120px;" oninput="document.getElementById('chime-volume-display').textContent = this.value + '%'">
+                                <span id="chime-volume-display" style="color: #9ca3af; font-size: 0.875rem; min-width: 40px;">50%</span>
+                            </div>
+                        </div>
+
+                        <!-- Chime Event Triggers -->
+                        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #2a3558;">
+                            <div style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 0.75rem;">Chime on these events:</div>
+
+                            <div class="setting-row" style="margin-bottom: 0.5rem;">
+                                <div>
+                                    <div class="setting-label">Timeout Detection</div>
+                                    <div class="setting-description">Agent misses heartbeat threshold</div>
+                                </div>
+                                <div class="setting-control">
+                                    <div id="chime-on-timeout-toggle" class="toggle-switch" onclick="toggleChimeOnTimeout()"></div>
+                                </div>
+                            </div>
+
+                            <div class="setting-row" style="margin-bottom: 0.5rem;">
+                                <div>
+                                    <div class="setting-label">Agent Restart</div>
+                                    <div class="setting-description">TRON restarts a failed agent</div>
+                                </div>
+                                <div class="setting-control">
+                                    <div id="chime-on-restart-toggle" class="toggle-switch" onclick="toggleChimeOnRestart()"></div>
+                                </div>
+                            </div>
+
+                            <div class="setting-row" style="margin-bottom: 0.5rem;">
+                                <div>
+                                    <div class="setting-label">Escalation to Parent</div>
+                                    <div class="setting-description">Task escalated after max restarts</div>
+                                </div>
+                                <div class="setting-control">
+                                    <div id="chime-on-escalation-toggle" class="toggle-switch" onclick="toggleChimeOnEscalation()"></div>
+                                </div>
+                            </div>
+
+                            <div class="setting-row" style="margin-bottom: 0.5rem;">
+                                <div>
+                                    <div class="setting-label">Permanent Failure</div>
+                                    <div class="setting-description">Task fails after all retries exhausted</div>
+                                </div>
+                                <div class="setting-control">
+                                    <div id="chime-on-failure-toggle" class="toggle-switch" onclick="toggleChimeOnFailure()"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tasks Page -->
+                <div id="page-tasks" class="settings-page">
+                    <div class="settings-section">
+                        <h3>📋 Task Management</h3>
+
+                        <!-- Task Timeout -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Task Timeout</div>
+                                <div class="setting-description">Maximum duration before marking task as failed (minutes)</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="task-timeout" class="setting-input" min="5" max="480" value="30">
+                                <span style="color: #9ca3af; font-size: 0.875rem;">min</span>
+                            </div>
+                        </div>
+
+                        <!-- Max Concurrent Tasks -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Max Concurrent Tasks</div>
+                                <div class="setting-description">Maximum number of tasks that can run simultaneously</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="max-concurrent-tasks" class="setting-input" min="1" max="20" value="5">
+                            </div>
+                        </div>
+
+                        <!-- Enable Task Priority -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Enable Task Priority Queue</div>
+                                <div class="setting-description">Process high-priority tasks before low-priority tasks</div>
+                            </div>
+                            <div class="setting-control">
+                                <div id="task-priority-toggle" class="toggle-switch"></div>
+                            </div>
+                        </div>
+
+                        <!-- Auto Archive Completed -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Auto-archive Completed Tasks</div>
+                                <div class="setting-description">Automatically move completed tasks to archive after 24 hours</div>
+                            </div>
+                            <div class="setting-control">
+                                <div id="auto-archive-toggle" class="toggle-switch"></div>
+                            </div>
+                        </div>
+
+                        <!-- Auto Cleanup Days -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Auto-cleanup After</div>
+                                <div class="setting-description">Delete archived tasks older than this many days</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="cleanup-days" class="setting-input" min="1" max="90" value="7">
+                                <span style="color: #9ca3af; font-size: 0.875rem;">days</span>
+                            </div>
+                        </div>
+
+                        <!-- Retry Failed Tasks -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Auto-retry Failed Tasks</div>
+                                <div class="setting-description">Automatically retry tasks that fail due to transient errors</div>
+                            </div>
+                            <div class="setting-control">
+                                <div id="retry-tasks-toggle" class="toggle-switch"></div>
+                            </div>
+                        </div>
+
+                        <!-- Max Task Retries -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Max Task Retries</div>
+                                <div class="setting-description">Maximum number of automatic retries for failed tasks</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="max-retries" class="setting-input" min="0" max="5" value="2">
                             </div>
                         </div>
                     </div>
@@ -1281,10 +1496,101 @@
         function handleRealtimeEvent(event) {
             console.log('Base handler received event:', event.event_type);
 
+            // Handle HHMRS events (timeout, restart, escalation, failure)
+            if (event.event_type && event.event_type.startsWith('hhmrs_')) {
+                handleHHMRSEvent(event);
+            }
+
             // Update task status on relevant events
             if (['job_started', 'task_started', 'job_completed', 'task_completed', 'heartbeat', 'error', 'blocked'].includes(event.event_type)) {
                 fetchCurrentTask();
             }
+        }
+
+        // Handle HHMRS intervention events (chimes + TRON visualization)
+        function handleHHMRSEvent(event) {
+            const eventType = event.event_type;
+            const data = event.data || {};
+            const settings = getSettings();
+
+            console.log('🔔 HHMRS Event:', eventType, data);
+
+            // Play chime based on event type and settings
+            if (settings.chimeEnabled) {
+                const soundType = settings.chimeSound || 'ping';
+                const volume = settings.chimeVolume || 50;
+
+                // Check if this event type should trigger a chime
+                const shouldPlayChime = (
+                    (eventType === 'hhmrs_timeout' && settings.chimeOnTimeout) ||
+                    (eventType === 'hhmrs_restart' && settings.chimeOnRestart) ||
+                    (eventType === 'hhmrs_escalation' && settings.chimeOnEscalation) ||
+                    (eventType === 'hhmrs_failure' && settings.chimeOnFailure)
+                );
+
+                if (shouldPlayChime) {
+                    // Play the chime sound
+                    playChime(soundType, volume);
+                }
+            }
+
+            // Update TRON visualization bar
+            updateTRONBar(eventType, data);
+        }
+
+        // Update TRON visualization bar with new event
+        function updateTRONBar(eventType, data) {
+            const tronBar = document.getElementById('tron-bar');
+            if (!tronBar) return;
+
+            const settings = getSettings();
+            if (!settings.show_tron_status_bar) {
+                tronBar.style.display = 'none';
+                return;
+            }
+
+            // Show TRON bar
+            tronBar.style.display = 'flex';
+
+            // Get or create event counter
+            const eventCounterEl = document.getElementById('tron-event-counter');
+            const eventListEl = document.getElementById('tron-event-list');
+
+            // Add event to list (show last 5 events)
+            const eventItem = document.createElement('div');
+            eventItem.className = 'tron-event-item';
+            eventItem.style.cssText = 'margin-right: 1rem; padding: 0.25rem 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 4px; font-size: 0.75rem;';
+
+            const eventIcon = {
+                'hhmrs_timeout': '⏱️',
+                'hhmrs_restart': '🔄',
+                'hhmrs_escalation': '⬆️',
+                'hhmrs_failure': '❌'
+            }[eventType] || '📌';
+
+            const agentId = data.agent_id || 'Unknown';
+            eventItem.textContent = `${eventIcon} ${agentId}`;
+
+            // Add to beginning of list
+            if (eventListEl.firstChild) {
+                eventListEl.insertBefore(eventItem, eventListEl.firstChild);
+            } else {
+                eventListEl.appendChild(eventItem);
+            }
+
+            // Keep only last 5 events
+            while (eventListEl.children.length > 5) {
+                eventListEl.removeChild(eventListEl.lastChild);
+            }
+
+            // Animate the new event
+            eventItem.style.animation = 'tronPulse 0.5s ease-out';
+
+            // Auto-hide after 30 seconds of no activity
+            clearTimeout(window.tronBarHideTimer);
+            window.tronBarHideTimer = setTimeout(() => {
+                eventListEl.innerHTML = '';  // Clear events
+            }, 30000);
         }
 
         // Task Status Management
@@ -1393,7 +1699,24 @@
             defaultPlaybackSpeed: 1.0,
             defaultSoundMode: 'none',
             newTaskPollEnabled: true,  // Auto-detect new tasks
-            newTaskPollInterval: 5  // Poll every 5 seconds
+            newTaskPollInterval: 5,  // Poll every 5 seconds
+            taskTimeout: 30,  // minutes
+            maxConcurrentTasks: 5,
+            taskPriorityEnabled: true,
+            autoArchiveCompleted: true,
+            cleanupDays: 7,
+            retryFailedTasks: true,
+            maxTaskRetries: 2,
+            // TRON Chime Settings
+            chimeEnabled: true,
+            chimeSound: 'ping',  // ping, bell, chime, alert, alarm
+            chimeVolume: 50,  // 0-100
+            chimeOnTimeout: true,
+            chimeOnRestart: false,
+            chimeOnEscalation: true,
+            chimeOnFailure: true,
+            // TRON Visualization
+            show_tron_status_bar: true
         };
 
         let currentSettings = { ...DEFAULT_SETTINGS };
@@ -1431,6 +1754,24 @@
             currentSettings.defaultSoundMode = document.getElementById('default-sound-mode').value;
             currentSettings.newTaskPollEnabled = document.getElementById('new-task-poll-toggle').classList.contains('active');
             currentSettings.newTaskPollInterval = parseInt(document.getElementById('new-task-poll-interval').value);
+
+            // Task settings
+            currentSettings.taskTimeout = parseInt(document.getElementById('task-timeout').value);
+            currentSettings.maxConcurrentTasks = parseInt(document.getElementById('max-concurrent-tasks').value);
+            currentSettings.taskPriorityEnabled = document.getElementById('task-priority-toggle').classList.contains('active');
+            currentSettings.autoArchiveCompleted = document.getElementById('auto-archive-toggle').classList.contains('active');
+            currentSettings.cleanupDays = parseInt(document.getElementById('cleanup-days').value);
+            currentSettings.retryFailedTasks = document.getElementById('retry-tasks-toggle').classList.contains('active');
+            currentSettings.maxTaskRetries = parseInt(document.getElementById('max-retries').value);
+
+            // TRON Chime settings
+            currentSettings.chimeEnabled = document.getElementById('chime-enabled-toggle').classList.contains('active');
+            currentSettings.chimeSound = document.getElementById('chime-sound').value;
+            currentSettings.chimeVolume = parseInt(document.getElementById('chime-volume').value);
+            currentSettings.chimeOnTimeout = document.getElementById('chime-on-timeout-toggle').classList.contains('active');
+            currentSettings.chimeOnRestart = document.getElementById('chime-on-restart-toggle').classList.contains('active');
+            currentSettings.chimeOnEscalation = document.getElementById('chime-on-escalation-toggle').classList.contains('active');
+            currentSettings.chimeOnFailure = document.getElementById('chime-on-failure-toggle').classList.contains('active');
 
             // Validate
             if (currentSettings.refreshInterval < 0) currentSettings.refreshInterval = 0;
@@ -1508,6 +1849,25 @@
             } else {
                 document.getElementById('new-task-poll-toggle').classList.remove('active');
             }
+
+            // Update task settings
+            document.getElementById('task-timeout').value = currentSettings.taskTimeout;
+            document.getElementById('max-concurrent-tasks').value = currentSettings.maxConcurrentTasks;
+            document.getElementById('cleanup-days').value = currentSettings.cleanupDays;
+            document.getElementById('max-retries').value = currentSettings.maxTaskRetries;
+            document.getElementById('task-priority-toggle').classList.toggle('active', currentSettings.taskPriorityEnabled);
+            document.getElementById('auto-archive-toggle').classList.toggle('active', currentSettings.autoArchiveCompleted);
+            document.getElementById('retry-tasks-toggle').classList.toggle('active', currentSettings.retryFailedTasks);
+
+            // Update TRON Chime settings
+            document.getElementById('chime-enabled-toggle').classList.toggle('active', currentSettings.chimeEnabled);
+            document.getElementById('chime-sound').value = currentSettings.chimeSound;
+            document.getElementById('chime-volume').value = currentSettings.chimeVolume;
+            document.getElementById('chime-volume-display').textContent = currentSettings.chimeVolume + '%';
+            document.getElementById('chime-on-timeout-toggle').classList.toggle('active', currentSettings.chimeOnTimeout);
+            document.getElementById('chime-on-restart-toggle').classList.toggle('active', currentSettings.chimeOnRestart);
+            document.getElementById('chime-on-escalation-toggle').classList.toggle('active', currentSettings.chimeOnEscalation);
+            document.getElementById('chime-on-failure-toggle').classList.toggle('active', currentSettings.chimeOnFailure);
         }
 
         async function openSettings() {
@@ -1834,6 +2194,27 @@
 
         function toggleHideScrollbars() {
             document.getElementById('hide-scrollbars-toggle').classList.toggle('active');
+        }
+
+        // TRON Chime toggle functions
+        function toggleChimeEnabled() {
+            document.getElementById('chime-enabled-toggle').classList.toggle('active');
+        }
+
+        function toggleChimeOnTimeout() {
+            document.getElementById('chime-on-timeout-toggle').classList.toggle('active');
+        }
+
+        function toggleChimeOnRestart() {
+            document.getElementById('chime-on-restart-toggle').classList.toggle('active');
+        }
+
+        function toggleChimeOnEscalation() {
+            document.getElementById('chime-on-escalation-toggle').classList.toggle('active');
+        }
+
+        function toggleChimeOnFailure() {
+            document.getElementById('chime-on-failure-toggle').classList.toggle('active');
         }
 
         // Update volume and note duration displays as sliders move
@@ -2210,6 +2591,99 @@
 
             const sound = sounds[Math.floor(Math.random() * sounds.length)];
             playClientNote(sound.freq, 0.15, sound.wave);
+        }
+
+        /**
+         * Play TRON chime notification
+         * @param {string} soundType - Type of chime (ping, bell, chime, alert, alarm)
+         * @param {number} volume - Volume level (0-100)
+         */
+        function playChime(soundType, volume) {
+            if (!audioContext) initAudioContext();
+            if (!audioContext) return;
+
+            const settings = getSettings();
+            if (!settings.chimeEnabled) return;
+
+            const ctx = audioContext;
+            const now = ctx.currentTime;
+            const volumeGain = (volume / 100) * (settings.audioVolume / 100); // Apply both chime volume and master volume
+
+            // Helper function to play a tone
+            function playTone(frequency, startTime, duration, gain, waveType = 'sine') {
+                const oscillator = ctx.createOscillator();
+                const gainNode = ctx.createGain();
+
+                oscillator.type = waveType;
+                oscillator.frequency.value = frequency;
+
+                gainNode.gain.setValueAtTime(gain, startTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+                oscillator.connect(gainNode);
+                gainNode.connect(masterGainNode);
+
+                oscillator.start(startTime);
+                oscillator.stop(startTime + duration);
+            }
+
+            // Helper function to play a pulsing tone
+            function playPulse(frequency, startTime, duration, gain, pulseCount) {
+                const pulseDuration = duration / pulseCount;
+                const onTime = pulseDuration * 0.4;
+
+                for (let i = 0; i < pulseCount; i++) {
+                    const pulseStart = startTime + (i * pulseDuration);
+                    playTone(frequency, pulseStart, onTime, gain, 'sine');
+                }
+            }
+
+            switch (soundType) {
+                case 'ping':
+                    // Soft ping: 300Hz sine wave, short decay
+                    playTone(300, now, 0.15, volumeGain * 0.3, 'sine');
+                    break;
+
+                case 'bell':
+                    // Bell: 523Hz (C5) with harmonics, medium decay
+                    playTone(523, now, 0.4, volumeGain * 0.25, 'sine');
+                    playTone(1046, now, 0.3, volumeGain * 0.15, 'sine');  // Octave harmonic
+                    break;
+
+                case 'chime':
+                    // Pleasant chime: C-E-G chord (261Hz, 329Hz, 392Hz)
+                    playTone(261, now, 0.6, volumeGain * 0.2, 'sine');
+                    playTone(329, now + 0.05, 0.6, volumeGain * 0.2, 'sine');
+                    playTone(392, now + 0.1, 0.6, volumeGain * 0.2, 'sine');
+                    break;
+
+                case 'alert':
+                    // Attention alert: 800Hz pulsing (3 pulses)
+                    playPulse(800, now, 0.5, volumeGain * 0.3, 3);
+                    break;
+
+                case 'alarm':
+                    // Urgent alarm: alternating 1000Hz and 1200Hz
+                    playTone(1000, now, 0.2, volumeGain * 0.35, 'square');
+                    playTone(1200, now + 0.2, 0.2, volumeGain * 0.35, 'square');
+                    playTone(1000, now + 0.4, 0.2, volumeGain * 0.35, 'square');
+                    break;
+
+                default:
+                    // Default to ping
+                    playTone(300, now, 0.15, volumeGain * 0.3, 'sine');
+            }
+        }
+
+        /**
+         * Test chime sound (called from Settings page)
+         */
+        function testChime() {
+            const soundType = document.getElementById('chime-sound').value;
+            const volume = parseInt(document.getElementById('chime-volume').value);
+            // Temporarily enable audio context for testing
+            if (!audioContext) initAudioContext();
+            playChime(soundType, volume);
         }
 
         /**

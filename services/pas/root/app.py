@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import uuid
 import httpx
+import requests
 import os
 import json
 import time
@@ -101,6 +102,40 @@ class RunStatus(BaseModel):
 
 # In-memory run tracking (P0 only, will move to SQLite in P1)
 RUNS: Dict[str, Dict[str, Any]] = {}
+
+
+# === HHMRS Event Emission Helper ===
+
+def _emit_hhmrs_event(event_type: str, data: Dict[str, Any]) -> None:
+    """
+    Emit HHMRS event to Event Stream for HMI chimes and TRON visualization
+
+    Args:
+        event_type: One of: 'hhmrs_timeout', 'hhmrs_restart', 'hhmrs_escalation', 'hhmrs_failure'
+        data: Event data containing agent_id, message, etc.
+    """
+    try:
+        if 'timestamp' not in data:
+            data['timestamp'] = datetime.now().isoformat()
+
+        payload = {
+            "event_type": event_type,
+            "data": data
+        }
+
+        response = requests.post(
+            "http://localhost:6102/broadcast",
+            json=payload,
+            timeout=1.0
+        )
+
+        if response.status_code != 200:
+            print(f"Warning: Failed to emit HHMRS event {event_type}, status={response.status_code}")
+
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+        print(f"Warning: Event Stream not available for HHMRS event {event_type}")
+    except Exception as e:
+        print(f"Error emitting HHMRS event {event_type}: {e}")
 
 
 def _artifact_dir(run_id: str) -> pathlib.Path:
@@ -560,6 +595,15 @@ async def mark_task_failed(agent_id: str, run_id: Optional[str] = None) -> dict:
     """Mark task as permanently failed after max failures exceeded"""
 
     max_llm_retries = heartbeat_monitor.max_llm_retries
+
+    # Emit permanent failure event for HMI chimes and TRON visualization
+    _emit_hhmrs_event('hhmrs_failure', {
+        'agent_id': agent_id,
+        'run_id': run_id,
+        'max_llm_retries': max_llm_retries,
+        'message': f"{agent_id} permanently failed after {max_llm_retries} LLM retry attempts"
+    })
+
     logger.log_message(
         from_agent="PAS Root",
         to_agent="PAS Root",

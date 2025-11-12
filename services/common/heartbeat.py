@@ -171,6 +171,43 @@ class HeartbeatMonitor:
         self._checker_thread = threading.Thread(target=self._check_health_loop, daemon=True)
         self._checker_thread.start()
 
+    def _emit_hhmrs_event(self, event_type: str, data: Dict[str, Any]) -> None:
+        """
+        Emit HHMRS event to Event Stream for HMI chimes and TRON visualization
+
+        Args:
+            event_type: One of: 'hhmrs_timeout', 'hhmrs_restart', 'hhmrs_escalation', 'hhmrs_failure'
+            data: Event data containing agent_id, message, etc.
+        """
+        try:
+            # Add timestamp if not present
+            if 'timestamp' not in data:
+                data['timestamp'] = datetime.now().isoformat()
+
+            payload = {
+                "event_type": event_type,
+                "data": data
+            }
+
+            # POST to Event Stream broadcast endpoint
+            response = requests.post(
+                "http://localhost:6102/broadcast",
+                json=payload,
+                timeout=1.0  # Quick timeout to avoid blocking
+            )
+
+            if response.status_code == 200:
+                logger.debug(f"Emitted HHMRS event: {event_type} for {data.get('agent_id', 'unknown')}")
+            else:
+                logger.warning(f"Failed to emit HHMRS event: {event_type}, status={response.status_code}")
+
+        except requests.exceptions.Timeout:
+            logger.warning(f"Timeout emitting HHMRS event: {event_type} (Event Stream may be down)")
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"Connection error emitting HHMRS event: {event_type} (Event Stream not running on port 6102)")
+        except Exception as e:
+            logger.error(f"Error emitting HHMRS event: {event_type}: {e}")
+
     def register_agent(
         self,
         agent: str,
@@ -524,6 +561,15 @@ class HeartbeatMonitor:
                 f"Agent {agent_id} timeout detected "
                 f"(last_seen={health.last_heartbeat:.1f}s ago, restart_count={restart_count})"
             )
+
+            # Emit HHMRS timeout event for HMI chimes and TRON visualization
+            self._emit_hhmrs_event('hhmrs_timeout', {
+                'agent_id': agent_id,
+                'parent_id': parent_id,
+                'restart_count': restart_count,
+                'last_seen_seconds_ago': health.last_heartbeat,
+                'message': f"{agent_id} missed heartbeat (restart #{restart_count})"
+            })
 
             # Alert parent via RPC
             try:

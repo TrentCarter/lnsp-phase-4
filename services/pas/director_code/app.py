@@ -26,7 +26,9 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import time
 import httpx
+import requests
 import json
+from datetime import datetime
 import uuid
 import asyncio
 
@@ -69,6 +71,40 @@ MANAGER_ENDPOINTS: Dict[str, str] = {}
 
 # In-memory job tracking (will move to DB in Phase 2)
 JOBS: Dict[str, Dict[str, Any]] = {}
+
+
+# === HHMRS Event Emission Helper ===
+
+def _emit_hhmrs_event(event_type: str, data: Dict[str, Any]) -> None:
+    """
+    Emit HHMRS event to Event Stream for HMI chimes and TRON visualization
+
+    Args:
+        event_type: One of: 'hhmrs_timeout', 'hhmrs_restart', 'hhmrs_escalation', 'hhmrs_failure'
+        data: Event data containing agent_id, message, etc.
+    """
+    try:
+        if 'timestamp' not in data:
+            data['timestamp'] = datetime.now().isoformat()
+
+        payload = {
+            "event_type": event_type,
+            "data": data
+        }
+
+        response = requests.post(
+            "http://localhost:6102/broadcast",
+            json=payload,
+            timeout=1.0
+        )
+
+        if response.status_code != 200:
+            print(f"Warning: Failed to emit HHMRS event {event_type}, status={response.status_code}")
+
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+        print(f"Warning: Event Stream not available for HHMRS event {event_type}")
+    except Exception as e:
+        print(f"Error emitting HHMRS event {event_type}: {e}")
 
 
 # === Pydantic Models ===
@@ -182,6 +218,16 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
 
     # Check if we should escalate to grandparent
     if restart_count >= max_restarts:
+        # Emit escalation event for HMI chimes and TRON visualization
+        _emit_hhmrs_event('hhmrs_escalation', {
+            'agent_id': child_id,
+            'parent_id': 'Dir-Code',
+            'grandparent_id': 'Architect',
+            'restart_count': restart_count,
+            'reason': 'max_restarts_exceeded',
+            'message': f"{child_id} escalated to Architect after {restart_count} restarts"
+        })
+
         # Escalate to Architect
         try:
             architect_url = os.getenv("ARCHITECT_URL", "http://127.0.0.1:6110")
@@ -238,6 +284,14 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
                 status_code=500,
                 detail=f"Failed to escalate to grandparent: {str(e)}"
             )
+
+    # Emit restart event for HMI chimes and TRON visualization
+    _emit_hhmrs_event('hhmrs_restart', {
+        'agent_id': child_id,
+        'parent_id': 'Dir-Code',
+        'restart_count': restart_count + 1,
+        'message': f"Restarting {child_id} (attempt {restart_count + 1})"
+    })
 
     # Attempt restart (simplified for Phase 1 - just log the action)
     # In a full implementation, this would:

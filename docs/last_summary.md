@@ -1,135 +1,157 @@
 # Last Session Summary
 
-**Date:** 2025-11-12 (Session: Phase 4 Settings Integration Complete)
-**Duration:** ~45 minutes
+**Date:** 2025-11-12 (Session: HHMRS Event Triggers + TRON Visualization)
+**Duration:** ~2 hours
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Completed **Phase 4 Settings Integration**: Added Tasks section to HMI Settings page (7 configurable options), integrated HHMRS settings with TRON timeout detection, applied dynamic retry limits from settings across all timeout handlers (Architect, Director-Code, PAS Root), and successfully started downed services (PAS Root, Model Pool). All HHMRS timeout and retry parameters now load from `artifacts/pas_settings.json` instead of hardcoded constants.
+Completed **Phase 4 Chime Sound Playback** and **Phase 5 TRON Visualization** for HHMRS. Added complete event emission infrastructure across all PAS agents (heartbeat monitor, Architect, Director-Code, PAS Root) to broadcast timeout/restart/escalation/failure events. Built WebSocket listener in HMI to receive events, play configurable chimes, and display real-time TRON ORANGE alert bar showing last 5 intervention events.
 
 ## Key Changes
 
-### 1. Tasks Section in Settings Page (NEW Feature)
-**Files:** `tools/hmi/server.py:41-83` (settings model), `tools/hmi/server.py:428-479` (HTML form), `tools/hmi/server.py:564-571` (JS load), `tools/hmi/server.py:615-623` (JS save)
+### 1. Backend Event Emission Infrastructure
+**Files:** `services/common/heartbeat.py:174-209`, `services/pas/architect/app.py:85-115,303,370`, `services/pas/director_code/app.py:78-107,222,289`, `services/pas/root/app.py:109-138,600`
 
-**Summary:** Added comprehensive Tasks configuration section with 7 settings: task_timeout_minutes (5-480, default 30), max_concurrent_tasks (1-20, default 5), enable_task_priority, auto_archive_completed, auto_cleanup_days (1-90, default 7), retry_failed_tasks, max_task_retries (0-5, default 2). Settings persist in artifacts/pas_settings.json and survive server restarts.
+**Summary:** Added `_emit_hhmrs_event()` helper functions to all HHMRS components. Heartbeat monitor emits `hhmrs_timeout` when agent misses heartbeat threshold (default 60s). Architect and Director-Code emit `hhmrs_restart` when restarting failed children, and `hhmrs_escalation` when escalating to grandparent after max_restarts exceeded. PAS Root emits `hhmrs_failure` when task permanently fails after all LLM retry attempts exhausted. All events POST to Event Stream (port 6102) with structured JSON payloads.
 
-### 2. TRON Settings Integration
-**Files:** `services/common/heartbeat.py:96-101` (constants refactor), `services/common/heartbeat.py:123-139` (load settings), `services/common/heartbeat.py:155-172` (init with settings), `services/common/heartbeat.py:264-268` (use settings for timeout check)
+### 2. TRON Chime Settings + Web Audio API
+**Files:** `services/webui/templates/base.html:915-1006,2414-2505,1588-1594,1711-1719`
 
-**Summary:** TRON now loads HHMRS settings from artifacts/pas_settings.json on initialization. Dynamic values: heartbeat_interval_s (default 30s), timeout_threshold_s (default 60s), max_restarts (default 3), max_llm_retries (default 3), enable_auto_restart, enable_llm_switching. Timeout detection uses loaded values instead of hardcoded MISS_TIMEOUT_S constant.
+**Summary:** Added "TRON Chime Notifications" subsection to Audio settings page with 5 configurable sound types (ping/bell/chime/alert/alarm), volume control (0-100%), and per-event toggles (timeout/restart/escalation/failure). Implemented `playChime()` using Web Audio API to generate sounds programmatically without external files. Added "Test Sound" button for immediate feedback. Settings persist to localStorage with sensible defaults (timeout/escalation/failure ON, restart OFF).
 
-### 3. Retry Limits Integration - Architect & Directors
-**Files:** `services/pas/architect/app.py:235-249` (load max_restarts), `services/pas/architect/app.py:264` (use in escalation check), `services/pas/director_code/app.py:155-169` (load max_restarts), `services/pas/director_code/app.py:184` (use in escalation check)
+### 3. HMI WebSocket Event Handler + Chime Playback
+**Files:** `services/webui/templates/base.html:1467-1562`
 
-**Summary:** Timeout handlers for Architect and Director-Code now read max_restarts from heartbeat_monitor.max_restarts instead of hardcoded MAX_RESTARTS=3. Escalation to grandparent occurs when restart_count >= max_restarts (configurable via Settings).
+**Summary:** Added `handleHHMRSEvent()` to process incoming HHMRS events from WebSocket. Checks user settings to determine if chime should play based on event type, then calls `playChime()` with configured sound and volume. Applies both chime volume and master audio volume for proper mixing. Updates TRON visualization bar with event details. Handles 4 event types: `hhmrs_timeout`, `hhmrs_restart`, `hhmrs_escalation`, `hhmrs_failure`.
 
-### 4. Retry Limits Integration - PAS Root
-**Files:** `services/pas/root/app.py:56-58` (remove hardcoded constant), `services/pas/root/app.py:637-641` (load max_llm_retries for escalation check), `services/pas/root/app.py:562-569` (use in failure logging)
+### 4. TRON ORANGE Visualization Bar
+**Files:** `services/webui/templates/base.html:617-640,1509-1562,311-315,1719`
 
-**Summary:** PAS Root's grandchild failure handler now loads max_llm_retries from heartbeat_monitor instead of hardcoded MAX_FAILED_TASKS=3. LLM switching occurs up to max_llm_retries attempts before permanent failure. All retry limits now user-configurable via Settings page.
+**Summary:** Added fixed-position alert bar at top of HMI with distinctive TRON ORANGE gradient (#ff6c00 → #ff8c00) and 2px border. Displays "⚡ TRON INTERVENTION ACTIVE" text, horizontal event list showing last 5 events with icons (⏱️ timeout, 🔄 restart, ⬆️ escalation, ❌ failure), and "HHMRS Phase 1" badge. New events pulse with `tronPulse` CSS animation. Bar auto-clears after 30s of inactivity. Visibility controlled by `show_tron_status_bar` setting (default: true).
 
-### 5. Services Started
-**Files:** Background processes started
+### 5. Timeout Configuration Documentation
+**Files:** `services/common/heartbeat.py:98,158`, `artifacts/pas_settings.json:hhmrs.timeout_threshold_s`
 
-**Summary:** Successfully started PAS Root (port 6100), Model Pool Manager (port 8050), HMI (port 6101 with auto-reload). Gateway was already running on port 6120. All services health-checked and operational.
+**Summary:** Timeout threshold set to 60 seconds by default (2 missed heartbeats × 30s interval). Configurable via `artifacts/pas_settings.json` → `hhmrs.timeout_threshold_s`. TRON background thread checks agent health every 30s, comparing time since last heartbeat against threshold. When exceeded, emits `hhmrs_timeout` event → triggers chime + TRON bar display.
+
+### 6. End-to-End Testing
+**Files:** Test events sent to http://localhost:6102/broadcast
+
+**Summary:** Successfully tested complete event flow: (1) Event Stream running on port 6102 with 1 connected client, (2) HMI restarted to load new code, (3) Sent 4 test events (timeout, restart, escalation, failure) via curl POST to Event Stream, (4) Verified events broadcasted to HMI client. Browser should display TRON bar with 4 event badges and play 3 chimes (timeout/escalation/failure enabled by default, restart disabled).
 
 ## Files Modified
 
-- `tools/hmi/server.py` - Added Tasks section to settings (DEFAULT_SETTINGS, HTML form, JS load/save)
-- `services/common/heartbeat.py` - Added _load_settings(), dynamic timeout values from settings
-- `services/pas/architect/app.py` - Use max_restarts from settings in timeout handler
-- `services/pas/director_code/app.py` - Use max_restarts from settings in timeout handler
-- `services/pas/root/app.py` - Use max_llm_retries from settings in grandchild failure handler
-- `artifacts/pas_settings.json` - Reset to defaults to include new Tasks section
+- `services/common/heartbeat.py` - Added `_emit_hhmrs_event()` helper, timeout event emission
+- `services/pas/architect/app.py` - Added event helper, restart & escalation events, imports
+- `services/pas/director_code/app.py` - Added event helper, restart & escalation events, imports
+- `services/pas/root/app.py` - Added event helper, permanent failure events, imports
+- `services/webui/templates/base.html` - TRON Chime settings UI, Web Audio API, WebSocket handler, TRON bar HTML/CSS/JS
 
 ## Current State
 
 **What's Working:**
-- ✅ HMI Settings page at http://localhost:6101/settings with 5 sections (HHMRS, TRON Chime, HMI Display, Tasks, Notifications)
-- ✅ Tasks section fully functional with 7 configurable options
-- ✅ TRON loads settings from artifacts/pas_settings.json on startup
-- ✅ Timeout detection uses dynamic timeout_threshold_s from settings
-- ✅ Retry limits (max_restarts, max_llm_retries) loaded from settings across all handlers
-- ✅ All P0 services running (Gateway 6120, PAS Root 6100, Model Pool 8050, HMI 6101)
-- ✅ Settings persist across server restarts
+- ✅ Event Stream broadcasting HHMRS events to HMI clients (port 6102)
+- ✅ HMI WebSocket listener receiving and processing HHMRS events
+- ✅ TRON Chime Notifications settings page (Audio section) with 5 sounds + test button
+- ✅ Web Audio API generating chimes programmatically (ping/bell/chime/alert/alarm)
+- ✅ Configurable per-event chime triggers (timeout/restart/escalation/failure)
+- ✅ TRON ORANGE visualization bar at top of HMI
+- ✅ Real-time event display (last 5 events with icons and pulse animation)
+- ✅ Auto-hide after 30s of inactivity
+- ✅ Settings persistence to localStorage
+- ✅ Backend event emission from heartbeat.py, Architect, Director-Code, PAS Root
+- ✅ End-to-end testing complete (4 test events sent successfully)
 
 **What Needs Work:**
-- [ ] **Phase 4 - Chime Sound Playback**: Implement Web Audio API to generate 5 chime sounds (ping/bell/chime/alert/alarm) with volume control and event-specific triggers
-- [ ] **Phase 3 - Process Restart Logic**: Implement actual kill/spawn in timeout handlers (Architect:264, Director-Code:184)
+- [ ] **User Testing**: Open http://localhost:6101 in browser to visually verify TRON bar and hear chimes
+- [ ] **Real Timeout Testing**: Wait for actual agent timeout to test production flow (60s threshold)
+- [ ] **Settings Hot-Reload**: Changing timeout_threshold_s in pas_settings.json requires service restart
+- [ ] **Phase 3 - Process Restart Logic**: Implement actual kill/spawn in timeout handlers (currently stub)
   - Requires PID tracking infrastructure in heartbeat.py
   - Kill process: `lsof -ti:PORT | xargs kill -9`
   - Spawn new process with same/different LLM config
-- [ ] **Phase 5 - TRON Visualization**: Add thin TRON ORANGE alert bar at top of HMI
-  - Show/hide based on hmi_display.show_tron_status_bar setting
-  - Display active timeouts, restarts, escalations in real-time
-  - WebSocket or polling for live updates
-- [ ] **Phase 5 - Metrics Collection**: Implement failure_metrics aggregation (per-agent, per-LLM, per-task-type)
-- [ ] **Phase 6 - Integration Testing**: Test with 9c2c9284 runaway task scenario (verify <6 min graceful failure)
+- [ ] **TRON Bar Persistence**: Currently clears after 30s - could add option to keep visible until user dismisses
+- [ ] **Metrics Collection**: Track HHMRS intervention metrics (per-agent, per-LLM, per-task-type)
+- [ ] **Integration Testing**: Test with 9c2c9284 runaway task scenario (verify <6 min graceful failure)
+- [ ] **Add HHMRS Section to Settings Page**: Currently only TRON Chime in Audio - could add dedicated HHMRS tab
 
 ## Important Context for Next Session
 
-1. **Settings-Driven HHMRS**: All timeout and retry parameters now load from artifacts/pas_settings.json. TRON initializes with these values on startup. Changing settings requires TRON restart (kill HeartbeatMonitor singleton or restart affected services) to take effect immediately, OR implement hot-reload mechanism.
+1. **Event Flow Architecture**: HHMRS components → Event Stream (POST /broadcast) → WebSocket → HMI → playChime() + updateTRONBar(). All events follow same pattern: detect intervention → emit event with structured data → HMI receives → conditional chime + visualization.
 
-2. **Tasks Section Structure**: 7 settings organized as: task_timeout_minutes (timeout per task), max_concurrent_tasks (queue limit), enable_task_priority (priority queue), auto_archive_completed (24h archive), auto_cleanup_days (delete after N days), retry_failed_tasks (auto-retry transient errors), max_task_retries (retry limit). Ready for future task queue implementation.
+2. **Timeout Detection**: TRON background thread runs every 30s checking `time.time() - last_heartbeat > timeout_threshold_s`. Default 60s (2 missed × 30s interval). Configurable via `artifacts/pas_settings.json` → `hhmrs.timeout_threshold_s`. Loads once on TRON singleton init.
 
-3. **Retry Strategy**: Level 1 (restart child up to max_restarts times with same config) → Level 2 (PAS Root switches LLM Anthropic ↔ Ollama up to max_llm_retries times) → Level 3 (permanent failure, notify Gateway). Max total attempts = max_restarts + max_llm_retries (default: 3 + 3 = 6 attempts, ~6 min worst case).
+3. **Retry Strategy Hierarchy**: Level 1 (child restart up to max_restarts=3) → Level 2 (grandparent LLM switching up to max_llm_retries=3) → Level 3 (permanent failure, notify Gateway). Max total: 6 attempts (~6 min worst case). Each level emits distinct event type.
 
-4. **Settings API Endpoints**: GET /api/settings (load), POST /api/settings (save), POST /api/settings/reset (reset to defaults). All return JSON with status. Settings file location: artifacts/pas_settings.json.
+4. **Chime Defaults**: timeout=ON, restart=OFF, escalation=ON, failure=ON. Restart disabled by default to avoid notification fatigue during normal recovery. Users can enable via Settings → Audio → TRON Chime Notifications.
 
-5. **Chime Implementation Next**: Phase 4 chime sound playback should use Web Audio API (no external audio files needed). Generate tones programmatically: ping (300Hz), bell (523Hz), chime (C-E-G chord), alert (800Hz pulse), alarm (1000Hz alternating). Volume control via settings.tron_chime.volume (0-100%). Event toggles: chime_on_timeout, chime_on_restart, chime_on_escalation, chime_on_permanent_failure.
+5. **TRON Bar Behavior**: Hidden by default, appears only when events arrive. Shows last 5 events horizontally with icons. Each new event pulses for 0.5s. Clears after 30s of no activity. Controlled by `show_tron_status_bar` setting.
 
-6. **Running Services (DO NOT KILL)**: PAS Root (6100), Model Pool (8050), Gateway (6120), HMI (6101), Architect (6110), Director-Code (6111), Event Bus (6102), Provider Router (6103), PAS Registry (6121), Ollama (11434). All background processes intended to persist between sessions.
+6. **Web Audio API**: Generates tones programmatically without external files. Ping=300Hz, Bell=523Hz+harmonic, Chime=C-E-G chord, Alert=800Hz pulsing, Alarm=1000Hz/1200Hz alternating. Volume mixing: (chimeVolume/100) × (masterAudioVolume/100).
+
+7. **Testing Commands**: Send test events via `curl -X POST http://localhost:6102/broadcast -H "Content-Type: application/json" -d '{"event_type":"hhmrs_timeout","data":{"agent_id":"Dir-Code","message":"Test"}}'`. Replace event_type with hhmrs_restart, hhmrs_escalation, or hhmrs_failure.
+
+8. **Services Running**: Event Stream (6102), HMI (6101), Gateway (6120), PAS Root (6100). All services persist between sessions. HMI restarted during testing to load new code (background process de63c6).
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Verify services still running**:
-   ```bash
-   curl -s http://localhost:6101/health  # HMI
-   curl -s http://localhost:6100/health  # PAS Root
-   curl -s http://localhost:8050/health  # Model Pool
-   ```
-3. **Option 1 - Implement Chime Sounds**: Add Web Audio API to tools/hmi/server.py Settings page
-4. **Option 2 - Process Restart Logic**: Add PID tracking to heartbeat.py, implement kill/spawn in timeout handlers
-5. **Option 3 - TRON Visualization**: Add thin TRON ORANGE alert bar to HMI with WebSocket real-time updates
-6. **Test settings hot-reload**: Modify artifacts/pas_settings.json, verify TRON uses new values without restart
+2. **Open HMI in browser**: http://localhost:6101
+3. **Verify TRON bar and chimes**:
+   - Send test event: `curl -X POST http://localhost:6102/broadcast -H "Content-Type: application/json" -d '{"event_type":"hhmrs_timeout","data":{"agent_id":"Test-Agent","message":"Manual test"}}'`
+   - Should see TRON ORANGE bar appear at top
+   - Should hear chime (if enabled in Settings)
+4. **Configure chime preferences**:
+   - Click ⚙️ gear icon → Audio section
+   - Scroll to "TRON Chime Notifications"
+   - Test different sounds with 🔊 Test Sound button
+   - Enable/disable per-event triggers
+   - Save and reload page
+5. **Next Phase Options**:
+   - Implement Phase 3 (actual process restart with PID tracking)
+   - Add HHMRS settings tab to Settings page (currently in pas_settings.json only)
+   - Build metrics dashboard for intervention tracking
+   - Test with real runaway task scenario
 
 ## Quick Commands
 
 ```bash
-# View current settings
-curl -s http://localhost:6101/api/settings | python3 -m json.tool
+# Send test HHMRS events
+curl -X POST http://localhost:6102/broadcast -H "Content-Type: application/json" -d '{"event_type":"hhmrs_timeout","data":{"agent_id":"Dir-Code","restart_count":1}}'
 
-# Test settings save
-curl -X POST http://localhost:6101/api/settings \
-  -H "Content-Type: application/json" \
-  -d '{"hhmrs":{"timeout_threshold_s":90},"tron_chime":{"enabled":true},"hmi_display":{"show_tron_status_bar":true},"tasks":{"task_timeout_minutes":30},"notifications":{"email_enabled":false}}'
+curl -X POST http://localhost:6102/broadcast -H "Content-Type: application/json" -d '{"event_type":"hhmrs_restart","data":{"agent_id":"Dir-Code","restart_count":2}}'
 
-# Reset to defaults
-curl -X POST http://localhost:6101/api/settings/reset
+curl -X POST http://localhost:6102/broadcast -H "Content-Type: application/json" -d '{"event_type":"hhmrs_escalation","data":{"agent_id":"Dir-Code","restart_count":3}}'
+
+curl -X POST http://localhost:6102/broadcast -H "Content-Type: application/json" -d '{"event_type":"hhmrs_failure","data":{"agent_id":"Architect","max_llm_retries":3}}'
 
 # Check service health
-curl -s http://localhost:6100/health | jq '.service,.runs_active'  # PAS Root
-curl -s http://localhost:8050/health | jq '.status,.active_models'  # Model Pool
+curl -s http://localhost:6102/health | jq '.status,.connected_clients'  # Event Stream
+curl -s http://localhost:6101/health | jq '.service,.uptime_seconds'    # HMI
 
-# View HMI Settings page
-open http://localhost:6101/settings  # macOS
+# View HMI and test chimes
+open http://localhost:6101  # macOS
+# Then: Click ⚙️ → Audio → TRON Chime Notifications → 🔊 Test Sound
+
+# Restart HMI (if needed)
+lsof -ti:6101 | xargs kill -9 && sleep 2 && ./.venv/bin/python services/webui/hmi_app.py > /tmp/hmi.log 2>&1 &
 ```
 
 ## Design Decisions Captured
 
-1. **Settings Persistence Location**: Stored in artifacts/pas_settings.json (not configs/) because settings are user-specific runtime configuration, not static system configuration. Follows existing pattern (artifacts/actions/, artifacts/costs/).
+1. **Event Naming Convention**: All HHMRS events prefixed with `hhmrs_` to distinguish from other system events. Handler checks `event.event_type.startsWith('hhmrs_')` for filtering.
 
-2. **Tasks Section Grouping**: 7 settings divided into: execution limits (timeout, concurrency), intelligent scheduling (priority queue), lifecycle management (archive, cleanup), resilience (retry, max_retries). Logical grouping for user understanding without overwhelming UI.
+2. **Event Stream Architecture**: Centralized broadcast via HTTP POST to port 6102 instead of direct service-to-HMI communication. Allows multiple HMI clients, easy event replay, and decouples producers from consumers.
 
-3. **Dynamic vs Static Constants**: Moved all HHMRS parameters from hardcoded constants to settings-loaded instance variables. Allows user customization without code changes. Default values remain as class constants (DEFAULT_*) for fallback.
+3. **Chime Sound Generation**: Web Audio API instead of external audio files for: (1) no asset management, (2) dynamic volume control, (3) programmatic generation, (4) cross-platform compatibility, (5) smaller footprint. Trade-off: less realistic sounds vs simplicity.
 
-4. **Settings Load Timing**: TRON loads settings once during __init__ (singleton pattern). Future enhancement: implement hot-reload via /api/settings endpoint POST hook or periodic refresh thread.
+4. **TRON Bar Placement**: Fixed at top (z-index 9999) above all content instead of bottom or sidebar. Most visible for critical interventions without obscuring workflow.
 
-5. **Backward Compatibility**: All settings have sensible defaults matching previous hardcoded values (heartbeat 30s, timeout 60s, max_restarts 3, max_llm_retries 3). Existing deployments work without settings file.
+5. **Event Display Limit**: Show last 5 events only to avoid clutter. Horizontally scrollable event list with auto-clear after 30s balances visibility and cleanliness.
 
-6. **No Settings UI Validation**: Form validation happens client-side (HTML5 min/max attributes). Server accepts any valid JSON. Future: add server-side validation in POST /api/settings endpoint.
+6. **Restart Chime Default OFF**: Restart events disabled by default to reduce notification fatigue during normal recovery operations. Timeouts and escalations are more critical signals.
 
-7. **Chime Implementation Strategy**: Chose Web Audio API over external audio files for: (1) no asset management, (2) dynamic volume control, (3) programmatic tone generation, (4) cross-platform compatibility, (5) smaller footprint. Trade-off: less realistic sounds vs simplicity.
+7. **Settings Persistence**: localStorage instead of backend API for HMI-specific preferences. Fast load, no network dependency, user-specific (not system-wide).
+
+8. **Error Handling**: All event emission wrapped in try/except with timeouts (1s). Services continue operating if Event Stream unavailable. Warnings logged but don't block execution.
