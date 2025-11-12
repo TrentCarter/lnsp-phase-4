@@ -1,0 +1,52 @@
+# Programmer-001 Configuration
+
+service:
+  name: "Programmer-002"
+  port: 6152
+  host: "127.0.0.1"
+  tier: 5
+  lane: "Code"
+
+agent_metadata:
+  agent_id: "Prog-002"
+  role: "programmer"
+  parent: "Mgr-Code-01"
+  grandparent: "Dir-Code"
+  tier: "programmer"
+  lane: "Code"
+
+llm:
+  mode: "runtime-selectable"  # Not hardcoded at startup
+  supported_providers:
+    - ollama    # Local models (free)
+    - anthropic # Claude (API key required)
+    - openai    # GPT (API key required)
+    - google    # Gemini (API key required)
+
+  default_provider: "ollama"
+  default_model: "qwen2.5-coder:7b-instruct"
+
+  # Default parameters (can be overridden per-request)
+  default_params:
+    temperature: 0.2
+    max_tokens: 4096
+
+resources:
+  max_concurrent_tasks: 1  # Programmers are single-threaded
+  timeout_s: 300
+  max_file_size_mb: 10
+
+execution:
+  tool: "aider"
+  auto_commit: false  # Manager handles commits
+  dry_run_default: false
+
+metrics:
+  track_tokens: true
+  track_cost: true
+  track_quality: true
+  receipts_dir: "artifacts/programmer_receipts"
+
+allowlists:
+  filesystem: "configs/pas/fs_allowlist.yaml"
+  commands: "configs/pas/cmd_allowlist.yaml"
