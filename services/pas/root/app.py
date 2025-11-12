@@ -22,6 +22,7 @@ import json
 import time
 import pathlib
 import sys
+import asyncio
 
 # Add services/common to path for comms_logger and title_generator
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.parent))
@@ -29,6 +30,7 @@ from common.comms_logger import get_logger, MessageType
 from common.title_generator import generate_short_title_async
 
 AIDER_RPC = os.getenv("AIDER_RPC_URL", "http://127.0.0.1:6130")
+ARCHITECT_URL = os.getenv("ARCHITECT_URL", "http://127.0.0.1:6110")
 
 app = FastAPI(title="PAS Root", version="1.0")
 
@@ -86,12 +88,12 @@ def _artifact_dir(run_id: str) -> pathlib.Path:
 
 async def _execute_prime_directive(run_id: str, pd: PrimeDirective):
     """
-    Execute Prime Directive via Prog-Aider RPC (background task).
+    Execute Prime Directive via Architect (background task).
 
     Steps:
     1. Mark run as "running"
-    2. Build instruction message for Aider
-    3. Call Prog-Aider RPC
+    2. Submit Prime Directive to Architect
+    3. Poll Architect for completion
     4. Save artifacts
     5. Update run status
     """
@@ -119,161 +121,157 @@ async def _execute_prime_directive(run_id: str, pd: PrimeDirective):
         parent_log_id=gateway_log_id
     )
 
-    # Step 1: Build instruction for Aider
-    nl = (
-        f"You are refactoring/creating files to satisfy: {pd.goal}. "
-        f"Repo root is {pd.repo_root}. "
-        f"Respect existing code style and documentation conventions."
-    )
-
-    # Step 2: Resolve file paths
+    # Step 1: Resolve file paths
     files = [str(pathlib.Path(pd.repo_root) / f) for f in pd.entry_files]
 
-    # P0: Log delegation chain: Gateway → PAS Root → Architect → Dir → Mgr → Prog
-    # (In full PAS, Architect/Dir/Mgr will be real AI agents. For P0, we log the chain for proper hierarchy)
-
-    # Step A: PAS Root → Architect (top-level AI coordinator)
+    # Step 2: Log delegation to Architect
     architect_cmd_log_id = logger.log_cmd(
         from_agent="PAS Root",
         to_agent="Architect",
-        message=f"Analyze and delegate Prime Directive: {short_name}",
+        message=f"Submit Prime Directive to Architect: {short_name}",
         run_id=run_id,
-        metadata={"task_type": "prime_directive", "goal": pd.goal},
+        metadata={"task_type": "prime_directive", "goal": pd.goal, "files": files},
         parent_log_id=status_log_id
     )
 
-    # Step B: Architect → Dir-Code
-    dir_cmd_log_id = logger.log_cmd(
-        from_agent="Architect",
-        to_agent=DIR_CODE_NAME,
-        message=f"Delegate to Code Director: {short_name}",
-        run_id=run_id,
-        metadata={"task_type": "code_edit", "files_count": len(files)},
-        parent_log_id=architect_cmd_log_id
-    )
-
-    # Step C: Dir-Code → Mgr-Code-01
-    mgr_cmd_log_id = logger.log_cmd(
-        from_agent=DIR_CODE_NAME,
-        to_agent=MGR_CODE_NAME,
-        message=f"Assign to Code Manager: {short_name}",
-        run_id=run_id,
-        metadata={"lane": "code", "files": files},
-        parent_log_id=dir_cmd_log_id
-    )
-
-    # Step D: Mgr-Code-01 → Prog-{LLM}-{N}
-    prog_cmd_log_id = logger.log_cmd(
-        from_agent=MGR_CODE_NAME,
-        to_agent=PROG_AGENT_NAME,
-        message=f"Execute Prime Directive: {pd.goal[:100]}",
-        run_id=run_id,
-        metadata={"files": files, "short_name": short_name, "original_title": pd.title},
-        parent_log_id=mgr_cmd_log_id
-    )
-
-    # Step 3: Call Prog RPC with parent_log_id
-    payload = {
-        "message": nl,
-        "files": files,
-        "dry_run": False,
-        "run_id": run_id,  # Pass run_id for logging
-        "parent_log_id": prog_cmd_log_id  # Pass parent_log_id for hierarchy tracking
+    # Step 3: Submit to Architect
+    architect_payload = {
+        "run_id": run_id,
+        "prd": pd.goal,  # Full PRD text
+        "title": short_name,
+        "entry_files": files,
+        "budget": {
+            "tokens_max": pd.budget_tokens_max or 25000,
+            "cost_usd_max": pd.budget_cost_usd_max or 2.00
+        },
+        "policy": {
+            "require_cross_vendor_review": True,
+            "protected_paths": ["app/", "contracts/", "scripts/", "docs/PRDs/"]
+        },
+        "approval_mode": "auto"
     }
 
     try:
-        async with httpx.AsyncClient(timeout=1200) as client:
-            r = await client.post(f"{AIDER_RPC}/aider/edit", json=payload)
+        # Submit to Architect
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.post(f"{ARCHITECT_URL}/submit", json=architect_payload)
         r.raise_for_status()
-        out = r.json()
+        architect_response = r.json()
 
-        # Step 4: Save artifacts
-        artifact_dir = _artifact_dir(run_id)
-        artifact_dir.joinpath("aider_stdout.txt").write_text(out.get("stdout", ""))
-        artifact_dir.joinpath("aider_response.json").write_text(json.dumps(out, indent=2))
-        artifact_dir.joinpath("prime_directive.json").write_text(json.dumps(pd.dict(), indent=2))
-
-        # Step 5: Update run status
-        completed_at = time.time()
-        duration_s = round(completed_at - started_at, 2)
-        llm_model = out.get("llm_model", "unknown")
-
-        RUNS[run_id].update({
-            "status": "completed",
-            "message": "Prime Directive executed via Aider",
-            "completed_at": completed_at,
-            "duration_s": duration_s,
-            "aider_duration_s": out.get("duration_s"),
-            "aider_rc": out.get("rc"),
-            "llm_model": llm_model
-        })
-
-        # Log completion chain (reverse): Prog → Mgr → Dir → Architect → PAS Root → Gateway
-        # (Prog → Mgr is logged by Aider RPC)
-
-        # Mgr-Code-01 → Dir-Code
-        mgr_resp_log_id = logger.log_response(
-            from_agent=MGR_CODE_NAME,
-            to_agent=DIR_CODE_NAME,
-            message=f"Task completed: {short_name}",
-            llm_model=llm_model,
-            run_id=run_id,
-            status="completed",
-            metadata={"duration_s": duration_s},
-            parent_log_id=mgr_cmd_log_id
-        )
-
-        # Dir-Code → Architect
-        dir_resp_log_id = logger.log_response(
-            from_agent=DIR_CODE_NAME,
-            to_agent="Architect",
-            message=f"Code directive completed: {short_name}",
-            llm_model=llm_model,
-            run_id=run_id,
-            status="completed",
-            parent_log_id=dir_cmd_log_id
-        )
-
-        # Architect → PAS Root
-        architect_resp_log_id = logger.log_response(
+        # Log Architect acceptance
+        logger.log_response(
             from_agent="Architect",
             to_agent="PAS Root",
-            message=f"Prime Directive analysis complete: {short_name}",
-            llm_model=llm_model,
+            message=f"Accepted Prime Directive: {short_name}",
             run_id=run_id,
-            status="completed",
+            status="planning",
             parent_log_id=architect_cmd_log_id
         )
 
-        # PAS Root → Gateway
-        logger.log_response(
-            from_agent="PAS Root",
-            to_agent="Gateway",
-            message=f"Completed: {short_name}",
-            llm_model=llm_model,
-            run_id=run_id,
-            status="completed",
-            metadata={"duration_s": duration_s, "rc": out.get("rc")},
-            parent_log_id=architect_resp_log_id
-        )
+        # Step 4: Poll Architect for completion
+        poll_interval = 10  # seconds
+        max_wait_time = 3600  # 1 hour
+        elapsed = 0
 
-        # Log END separator (visual break in logs)
-        logger.log_separator(f"END: {short_name} ({run_id[:8]}) - {duration_s}s", run_id=run_id)
+        while elapsed < max_wait_time:
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    status_r = await client.get(f"{ARCHITECT_URL}/status/{run_id}")
+                status_r.raise_for_status()
+                architect_status = status_r.json()
+
+                current_state = architect_status.get("state")
+
+                if current_state in ["completed", "failed"]:
+                    # Architect finished
+                    break
+
+            except Exception:
+                # Ignore polling errors, continue waiting
+                pass
+
+        # Step 5: Save artifacts
+        artifact_dir = _artifact_dir(run_id)
+        artifact_dir.joinpath("architect_plan.json").write_text(
+            json.dumps(architect_status, indent=2) if 'architect_status' in locals() else "{}"
+        )
+        artifact_dir.joinpath("prime_directive.json").write_text(json.dumps(pd.dict(), indent=2))
+
+        # Step 6: Update run status
+        completed_at = time.time()
+        duration_s = round(completed_at - started_at, 2)
+
+        if 'architect_status' in locals() and architect_status.get("state") == "completed":
+            RUNS[run_id].update({
+                "status": "completed",
+                "message": "Prime Directive executed via Architect",
+                "completed_at": completed_at,
+                "duration_s": duration_s
+            })
+
+            # Log completion: Architect → PAS Root → Gateway
+            architect_resp_log_id = logger.log_response(
+                from_agent="Architect",
+                to_agent="PAS Root",
+                message=f"Prime Directive completed: {short_name}",
+                run_id=run_id,
+                status="completed",
+                parent_log_id=architect_cmd_log_id
+            )
+
+            # PAS Root → Gateway
+            logger.log_response(
+                from_agent="PAS Root",
+                to_agent="Gateway",
+                message=f"Completed: {short_name}",
+                run_id=run_id,
+                status="completed",
+                metadata={"duration_s": duration_s},
+                parent_log_id=architect_resp_log_id
+            )
+
+            # Log END separator
+            logger.log_separator(f"END: {short_name} ({run_id[:8]}) - {duration_s}s", run_id=run_id)
+        else:
+            # Failed or timeout
+            RUNS[run_id].update({
+                "status": "error",
+                "message": "Architect execution failed or timed out",
+                "completed_at": completed_at,
+                "duration_s": duration_s
+            })
+
+            # Log error
+            logger.log_response(
+                from_agent="PAS Root",
+                to_agent="Gateway",
+                message=f"Error: Architect failed or timed out",
+                run_id=run_id,
+                status="error",
+                metadata={"duration_s": duration_s},
+                parent_log_id=architect_cmd_log_id
+            )
+
+            # Log END separator (error case)
+            logger.log_separator(f"END: {short_name} ({run_id[:8]}) - ERROR after {duration_s}s", run_id=run_id)
 
     except httpx.HTTPStatusError as e:
-        # HTTP error from Prog-Aider RPC
+        # HTTP error from Architect
         completed_at = time.time()
         duration_s = round(completed_at - started_at, 2)
         error_detail = e.response.text if hasattr(e.response, 'text') else str(e)
 
         RUNS[run_id].update({
             "status": "error",
-            "message": f"Prog-Aider RPC error: {error_detail}",
+            "message": f"Architect RPC error: {error_detail}",
             "completed_at": completed_at,
             "duration_s": duration_s
         })
 
-        # Log error - link to Aider command
+        # Log error
         logger.log_response(
             from_agent="PAS Root",
             to_agent="Gateway",
@@ -281,7 +279,7 @@ async def _execute_prime_directive(run_id: str, pd: PrimeDirective):
             run_id=run_id,
             status="error",
             metadata={"duration_s": duration_s},
-            parent_log_id=prog_cmd_log_id
+            parent_log_id=architect_cmd_log_id
         )
 
         # Log END separator (error case)
@@ -299,7 +297,7 @@ async def _execute_prime_directive(run_id: str, pd: PrimeDirective):
             "duration_s": duration_s
         })
 
-        # Log error - link to Aider command
+        # Log error
         logger.log_response(
             from_agent="PAS Root",
             to_agent="Gateway",
@@ -307,7 +305,7 @@ async def _execute_prime_directive(run_id: str, pd: PrimeDirective):
             run_id=run_id,
             status="error",
             metadata={"duration_s": duration_s},
-            parent_log_id=prog_cmd_log_id
+            parent_log_id=architect_cmd_log_id
         )
 
         # Log END separator (error case)
@@ -321,7 +319,7 @@ def health():
         "status": "ok",
         "service": "PAS Root",
         "port": 6100,
-        "aider_rpc_url": AIDER_RPC,
+        "architect_url": ARCHITECT_URL,
         "runs_active": len([r for r in RUNS.values() if r["status"] == "running"]),
         "runs_total": len(RUNS)
     }
