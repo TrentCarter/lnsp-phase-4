@@ -37,6 +37,8 @@ from services.common.comms_logger import get_logger, MessageType
 
 # Director-Code specific imports
 from services.pas.director_code.decomposer import ManagerTaskDecomposer
+from services.common.manager_executor import get_manager_executor
+from services.common.manager_pool.manager_factory import get_manager_factory
 
 
 app = FastAPI(title="Director-Code", version="1.0.0")
@@ -57,6 +59,10 @@ heartbeat_monitor.register_agent(
 
 # Manager task decomposer (LLM-powered)
 decomposer = ManagerTaskDecomposer()
+
+# Manager executor and factory
+manager_executor = get_manager_executor()
+manager_factory = get_manager_factory()
 
 # Manager endpoints (dynamic - Managers register themselves)
 MANAGER_ENDPOINTS: Dict[str, str] = {}
@@ -354,143 +360,100 @@ async def decompose_job_card(job_card_dict: Dict[str, Any]) -> Dict[str, Any]:
 
 async def delegate_to_managers(job_card_id: str, run_id: str, manager_plan: Dict[str, Any]):
     """
-    Submit tasks to Managers
+    Execute Manager tasks directly via Manager executor
 
     For each manager in manager_plan:
-    1. Create Manager job card
-    2. Submit via RPC (or queue fallback)
-    3. Log delegation
+    1. Create Manager metadata via Factory
+    2. Execute task via Manager executor (calls Aider RPC)
+    3. Store results
     """
     for manager_task in manager_plan["manager_tasks"]:
         manager_id = manager_task["manager_id"]
 
-        # Create Manager job card
-        mgr_job_card = JobCard(
-            id=f"{job_card_id}-{manager_id.lower()}",
-            parent_id=job_card_id,
-            role=Role.MANAGER,
-            lane=Lane.CODE,
-            task=manager_task["task"],
-            inputs=manager_task.get("inputs", []),
-            expected_artifacts=manager_task.get("expected_artifacts", []),
-            acceptance=manager_task.get("acceptance", []),
-            risks=[],
-            budget=manager_task.get("budget", {}),
+        # Create Manager metadata (track in Manager Pool)
+        actual_manager_id = manager_factory.create_manager(
+            lane="Code",
+            director="Dir-Code",
+            job_card_id=job_card_id,
+            llm_model=manager_task.get("programmers", [None])[0] if manager_task.get("programmers") else None,
             metadata={
+                "task": manager_task["task"],
                 "files": manager_task.get("files", []),
-                "programmers": manager_task.get("programmers", []),
                 "requires_review": manager_task.get("requires_review", False)
-            },
-            submitted_by="Dir-Code"
+            }
         )
 
-        # Try RPC first (if Manager is registered)
-        try:
-            endpoint = MANAGER_ENDPOINTS.get(manager_id)
-            if endpoint:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    response = await client.post(f"{endpoint}/submit", json={"job_card": mgr_job_card.dict()})
-                    response.raise_for_status()
-
-                logger.log_cmd(
-                    from_agent="Dir-Code",
-                    to_agent=manager_id,
-                    message=f"Task submitted: {manager_task['task'][:50]}...",
-                    run_id=run_id,
-                    metadata={"job_card_id": mgr_job_card.id}
-                )
-            else:
-                # Fallback to queue
-                job_queue.submit(mgr_job_card, target_agent=manager_id, use_file_fallback=True)
-
-        except Exception as e:
-            # Fallback to file queue
-            job_queue.submit(mgr_job_card, target_agent=manager_id, use_file_fallback=True)
-
-            logger.log_cmd(
-                from_agent="Dir-Code",
-                to_agent=manager_id,
-                message=f"Task queued (RPC failed): {manager_task['task'][:50]}...",
-                run_id=run_id,
-                metadata={"job_card_id": mgr_job_card.id, "rpc_error": str(e)}
-            )
-
-        # Update job state
-        JOBS[job_card_id]["managers"][manager_id] = {
-            "state": "delegated",
-            "job_card_id": mgr_job_card.id,
-            "task": manager_task["task"]
+        # Update job state - mark as executing
+        JOBS[job_card_id]["managers"][actual_manager_id] = {
+            "state": "executing",
+            "job_card_id": f"{job_card_id}-{manager_id.lower()}",
+            "task": manager_task["task"],
+            "started_at": time.time()
         }
+
+        # Execute task via Manager executor (calls Aider RPC)
+        result = await manager_executor.execute_manager_task(
+            manager_id=actual_manager_id,
+            task=manager_task["task"],
+            files=manager_task.get("files", []),
+            run_id=run_id,
+            director="Dir-Code",
+            acceptance=manager_task.get("acceptance", []),
+            budget=manager_task.get("budget", {}),
+            programmers=manager_task.get("programmers", [])
+        )
+
+        # Update job state based on result
+        if result["success"]:
+            JOBS[job_card_id]["managers"][actual_manager_id]["state"] = "completed"
+            JOBS[job_card_id]["managers"][actual_manager_id]["result"] = result
+            JOBS[job_card_id]["managers"][actual_manager_id]["completed_at"] = time.time()
+        else:
+            JOBS[job_card_id]["managers"][actual_manager_id]["state"] = "failed"
+            JOBS[job_card_id]["managers"][actual_manager_id]["result"] = result
+            JOBS[job_card_id]["managers"][actual_manager_id]["completed_at"] = time.time()
+            JOBS[job_card_id]["managers"][actual_manager_id]["error"] = result.get("output", "Unknown error")
 
 
 async def monitor_managers(job_card_id: str, run_id: str, manager_plan: Dict[str, Any]):
     """
-    Monitor Managers until all complete or timeout
+    Monitor Managers - simplified since execution is now synchronous
 
-    Polls Manager status every 10 seconds
-    Checks heartbeats for liveness
-    Escalates on 2 missed heartbeats
+    Since we execute Manager tasks directly in delegate_to_managers(),
+    all Managers are already complete by the time we reach this function.
+    This is now a no-op, but kept for API compatibility.
     """
-    manager_ids = [task["manager_id"] for task in manager_plan["manager_tasks"]]
-    timeout_s = 1800  # 30 minutes max
-    start_time = time.time()
+    # All Manager tasks are already executed synchronously in delegate_to_managers()
+    # So monitoring is a no-op - just verify all are complete
 
-    while time.time() - start_time < timeout_s:
-        all_complete = True
-
-        for manager_id in manager_ids:
-            mgr_state = JOBS[job_card_id]["managers"][manager_id]["state"]
-
-            if mgr_state not in ["completed", "failed"]:
-                all_complete = False
-
-                # Check Manager health
-                health = heartbeat_monitor.get_health(manager_id)
-
-                if not health.healthy:
-                    # Manager unhealthy - escalate
-                    JOBS[job_card_id]["managers"][manager_id]["state"] = "failed"
-                    JOBS[job_card_id]["managers"][manager_id]["message"] = health.reason
-
-                    logger.log_status(
-                        from_agent="Dir-Code",
-                        to_agent="Architect",
-                        message=f"Manager {manager_id} unhealthy: {health.reason}",
-                        run_id=run_id,
-                        status="failed"
-                    )
-
-        if all_complete:
-            break
-
-        # Wait before next poll
-        await asyncio.sleep(10)
-
-    # Check for timeout
-    if time.time() - start_time >= timeout_s:
-        for manager_id in manager_ids:
-            if JOBS[job_card_id]["managers"][manager_id]["state"] not in ["completed", "failed"]:
-                JOBS[job_card_id]["managers"][manager_id]["state"] = "failed"
-                JOBS[job_card_id]["managers"][manager_id]["message"] = "Timeout"
+    for manager_id, manager_data in JOBS[job_card_id]["managers"].items():
+        if manager_data["state"] not in ["completed", "failed"]:
+            # This shouldn't happen, but handle it just in case
+            logger.log_status(
+                from_agent="Dir-Code",
+                to_agent="Architect",
+                message=f"Manager {manager_id} in unexpected state: {manager_data['state']}",
+                run_id=run_id,
+                status="warning"
+            )
 
 
 async def validate_acceptance(job_card_id: str, run_id: str, manager_plan: Dict[str, Any]) -> Dict[str, bool]:
     """
     Validate acceptance gates for each Manager
 
+    Since Manager executor already validates acceptance,
+    we just collect the results from the Manager execution.
+
     Returns:
         Dict mapping manager_id to pass/fail boolean
     """
     results = {}
 
-    for manager_task in manager_plan["manager_tasks"]:
-        manager_id = manager_task["manager_id"]
-
-        # Get Manager report
-        # (In full implementation, Managers would report artifacts + results)
-        # For now, assume success if Manager completed
-        mgr_state = JOBS[job_card_id]["managers"].get(manager_id, {}).get("state")
-        results[manager_id] = mgr_state == "completed"
+    for manager_id, manager_data in JOBS[job_card_id]["managers"].items():
+        # Manager executor already validated acceptance
+        # Check if Manager completed successfully
+        results[manager_id] = manager_data.get("state") == "completed"
 
     return results
 

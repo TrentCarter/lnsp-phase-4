@@ -180,7 +180,7 @@ async def submit_prime_directive(
         "message": "Received Prime Directive, planning lanes",
         "started_at": time.time(),
         "lanes": {},
-        "pd": pd.dict()
+        "pd": pd.model_dump()
     }
 
     # Log receipt
@@ -393,7 +393,7 @@ def save_architect_plan(run_id: str, plan: ArchitectPlan):
 
     # Save as JSON
     plan_file = artifact_dir / "architect_plan.json"
-    plan_file.write_text(json.dumps(plan.dict(), indent=2))
+    plan_file.write_text(json.dumps(plan.model_dump(), indent=2))
 
     # Save dependency graph (DOT format)
     graph_file = artifact_dir / "dependency_graph.dot"
@@ -433,7 +433,7 @@ async def delegate_to_directors(run_id: str, plan: ArchitectPlan):
             endpoint = DIRECTOR_ENDPOINTS.get(director)
             if endpoint:
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    response = await client.post(f"{endpoint}/submit", json={"job_card": job_card.dict()})
+                    response = await client.post(f"{endpoint}/submit", json={"job_card": job_card.model_dump()})
                     response.raise_for_status()
 
                 logger.log_cmd(
