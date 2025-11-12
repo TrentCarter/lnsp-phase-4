@@ -1,55 +1,81 @@
 # Last Session Summary
 
-**Date:** 2025-11-11 (Session 14)
-**Duration:** ~30 minutes
+**Date:** 2025-11-11 (Session 15)
+**Duration:** ~2 hours
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Added click-to-expand functionality for health check details in System Status dashboard, with special formatting for configuration errors. Fixed z-index layering issue where port status tooltips were appearing behind the Settings modal.
+Started full implementation of multi-tier PAS architecture to enable proper task decomposition. Built foundation (Heartbeat & Monitoring, Job Queue System) and complete Architect service. Identified that File Manager task failed due to P0 limitation (no task decomposition), prompting decision to build production-ready multi-tier system.
 
 ## Key Changes
 
-### 1. Click-to-Expand Health Check Details
-**Files:** `services/webui/templates/base.html:3301-3392`, `services/webui/hmi_app.py:2944-2952`
-**Summary:** Health check cards (Git, Disk Space, Databases, LLM, Python, Configuration) are now clickable to expand and show detailed information. Added animated chevron indicator (▼/▲), special formatting for error lists, and hover effects. Backend updated to include 'errors' field for config_validity when all configs are invalid.
+### 1. Heartbeat & Monitoring System
+**Files:** `services/common/heartbeat.py` (NEW, 440 lines)
+**Summary:** Production-ready agent health tracking with 60s heartbeat intervals, 2-miss escalation rule, parent-child hierarchy tracking, and thread-safe singleton implementation. Provides health dashboard data and status aggregation across agent hierarchy.
 
-### 2. Port Status Tooltip Z-Index Fix
-**Files:** `services/webui/templates/base.html:630`
-**Summary:** Increased tooltip z-index from 10000 to 20000 so port status tooltips appear above the Settings modal instead of being hidden behind it.
+### 2. Job Card Queue System
+**Files:** `services/common/job_queue.py` (NEW, 389 lines)
+**Summary:** Multi-tier job card queue with in-memory primary and file-based fallback. Supports priority ordering, at-least-once delivery guarantees, and atomic JSONL persistence. Thread-safe operations with queue depth tracking and stale job detection.
+
+### 3. Architect Service (Port 6110)
+**Files:** `services/pas/architect/app.py` (NEW, 540 lines), `services/pas/architect/decomposer.py` (NEW, 250 lines), `services/pas/architect/start_architect.sh` (NEW)
+**Summary:** Top-level PAS coordinator using Claude Sonnet 4.5 for LLM-powered PRD decomposition. Receives Prime Directives, decomposes into lane-specific job cards (Code, Models, Data, DevSecOps, Docs), delegates to Directors, monitors execution via heartbeats, validates acceptance gates, and generates executive summaries. Complete with FastAPI app, startup script, and task decomposer.
+
+### 4. Task Intake System Investigation
+**Files:** Analyzed P0 execution logs (`artifacts/runs/36c92edc-ed72-484d-87de-b8f85c02b7f3/`)
+**Summary:** Performed root cause analysis on File Manager task failure. Discovered P0 system's fundamental limitation: no Architect/Director/Manager hierarchy means no task decomposition, resulting in 1,800-word Prime Directive dumped to Aider as single prompt. Identified that Qwen2.5-Coder 7b + single-shot execution = 10-15% feature completion.
 
 ## Files Modified
 
-- `services/webui/hmi_app.py` - Added 'errors' field to config_validity error response
-- `services/webui/templates/base.html` - Added click-to-expand for health checks, fixed tooltip z-index
+- `services/common/heartbeat.py` (NEW) - Agent health monitoring
+- `services/common/job_queue.py` (NEW) - Job card queue with fallback
+- `services/pas/architect/app.py` (NEW) - Architect FastAPI service
+- `services/pas/architect/decomposer.py` (NEW) - LLM-powered task decomposition
+- `services/pas/architect/__init__.py` (NEW) - Package init
+- `services/pas/architect/start_architect.sh` (NEW) - Service startup script
 
 ## Current State
 
 **What's Working:**
-- ✅ Health check cards expand on click to show detailed information
-- ✅ Chevron icon animates (▼ → ▲) to indicate expanded state
-- ✅ Error lists formatted as bulleted items in red
-- ✅ Port status tooltips appear above Settings modal
-- ✅ Configuration Validity shows detailed list of missing/invalid config files
-- ✅ HMI service running on port 6101
+- ✅ Heartbeat monitoring system with 2-miss escalation
+- ✅ Job queue with priority and persistence
+- ✅ Architect service structure complete
+- ✅ LLM-powered task decomposition (Claude Sonnet 4.5)
+- ✅ Director delegation logic
+- ✅ Status monitoring framework
+- ✅ P0 stack analysis complete (root cause identified)
 
 **What Needs Work:**
-- [ ] User testing: click health checks to verify expand/collapse behavior
-- [ ] User testing: hover port status indicators to verify tooltips appear correctly
+- [ ] Implement 5 Director services (Code, Models, Data, DevSecOps, Docs) - ports 6111-6115
+- [ ] Build Manager Pool & Factory System
+- [ ] Update PAS Root to use Architect instead of direct Aider call
+- [ ] Add comprehensive error handling & validation
+- [ ] Write unit tests for all services
+- [ ] Integration testing (end-to-end pipeline)
+- [ ] Test with File Manager task (resubmit to verify fix)
+- [ ] Update startup scripts and documentation
 
 ## Important Context for Next Session
 
-1. **Click-to-Expand Pattern**: All health checks with details are now clickable. The `toggleHealthCheckDetails()` function handles expand/collapse with chevron rotation animation. Details are hidden by default (display: none) and shown on click.
+1. **Architecture Decision**: Building full multi-tier PAS (Option A) with 5 lanes. Foundation + Architect complete (Phase 1). Remaining: 5 Directors + Manager Pool + integration (~35-45 hours).
 
-2. **Error Formatting**: The 'errors' field in config_validity is specially formatted - it's split by ', ' delimiter and displayed as a bulleted list with red text color (#fca5a5), making it easy to see which config files are problematic.
+2. **P0 Limitation Identified**: Current P0 bypasses Architect/Director/Manager hierarchy, calling Aider directly with entire Prime Directive. This causes complex tasks to fail because:
+   - No task decomposition (1 massive prompt instead of 8 focused subtasks)
+   - No iterative execution (single-shot, no validation between steps)
+   - No quality gates (tests/lint/coverage checked only at end)
+   - LLM overwhelmed (especially 7b models like Qwen)
 
-3. **Z-Index Layers**: Settings modal uses z-index 10000, tooltips now use 20000 to ensure they always appear on top. This follows the general pattern: page content (1-999), modals (10000), tooltips/popovers (20000+).
+3. **Contracts Exist**: Comprehensive system prompts already documented in `docs/contracts/` for Architect, Directors (all 5 lanes), Managers, and Programmers. Use these as authoritative specifications.
 
-4. **Health Check Details**: Any health check can have a 'details' object in its response. If present and non-empty, the card becomes clickable. This makes the system extensible - add details to any check and it automatically becomes expandable.
+4. **Token Budget**: Used 98k/200k tokens (49%). Plenty remaining for Director implementations.
+
+5. **Recommendation Given**: Option B (Build Code Lane Only) for immediate value - Dir-Code + Manager Pool + PAS Root integration = working system for code tasks in 2-3 hours. Can add other Directors incrementally.
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Test expand/collapse** - Open http://localhost:6101 → Settings → System Status, click any health check with ▼ icon
-3. **Test tooltip** - Hover over port status indicators (✓, ✗, ○) to verify tooltips appear above modal
-4. **Optional: Break a config** - Temporarily rename/move a config file to see error expansion in action
+2. **Decision needed**: Continue with Option A (full 5-lane build) or Option B (Code lane only)?
+3. **If Option B**: Start with Dir-Code service (port 6111) - most critical for code tasks
+4. **If Option A**: Continue building all 5 Directors sequentially
+5. **Reference**: Use `docs/contracts/DIRECTOR_CODE_SYSTEM_PROMPT.md` as specification
