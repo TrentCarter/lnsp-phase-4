@@ -19,7 +19,11 @@ from contextlib import contextmanager
 # Configuration
 # ============================================================================
 
-DB_PATH = Path("artifacts/registry/registry.db")
+# Use absolute path to ensure we're using the project's main database
+# regardless of where the service is started from
+import os
+PROJECT_ROOT = Path(os.path.abspath(__file__)).parent.parent.parent
+DB_PATH = PROJECT_ROOT / "artifacts" / "registry" / "registry.db"
 DEFAULT_HEARTBEAT_INTERVAL_S = 60
 DEFAULT_TTL_S = 90
 
@@ -625,7 +629,7 @@ async def list_tasks():
 
             # Fetch the task name from the first Gateway submission (Prime Directive)
             cursor.execute("""
-                SELECT action_name
+                SELECT action_name, action_data
                 FROM action_logs
                 WHERE task_id = ? AND from_agent = 'Gateway' AND action_type = 'delegate'
                 ORDER BY timestamp ASC
@@ -635,13 +639,24 @@ async def list_tasks():
             name_row = cursor.fetchone()
             task_name = name_row["action_name"] if name_row else task_id
 
+            # Extract token budget from action_data metadata
+            budget_tokens = None
+            if name_row and name_row["action_data"]:
+                try:
+                    action_data = json.loads(name_row["action_data"])
+                    metadata = action_data.get("metadata", {})
+                    budget_tokens = metadata.get("budget_tokens_max")
+                except (json.JSONDecodeError, KeyError):
+                    pass
+
             items.append({
                 "task_id": task_id,
                 "task_name": task_name,  # Human-readable name from Gateway submission
                 "start_time": row["start_time"],
                 "end_time": row["end_time"],
                 "action_count": row["action_count"],
-                "agents_involved": row["agents_involved"].split(",") if row["agents_involved"] else []
+                "agents_involved": row["agents_involved"].split(",") if row["agents_involved"] else [],
+                "budget_tokens": budget_tokens  # Token budget from Prime Directive
             })
 
         return {"items": items}
@@ -711,6 +726,83 @@ async def get_task_actions(task_id: str):
         return {
             "task_id": task_id,
             "actions": root_actions
+        }
+
+
+@app.delete("/action_logs/task/{task_id}")
+async def delete_task_actions(task_id: str):
+    """
+    Delete all actions for a specific task
+
+    Args:
+        task_id: The task ID to delete
+
+    Returns:
+        - deleted_count: Number of action log entries deleted
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Check if task exists
+        cursor.execute("SELECT COUNT(*) as count FROM action_logs WHERE task_id = ?", (task_id,))
+        count = cursor.fetchone()["count"]
+
+        if count == 0:
+            raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+        # Delete all actions for this task
+        cursor.execute("DELETE FROM action_logs WHERE task_id = ?", (task_id,))
+        conn.commit()
+
+        print(f"Deleted {count} action log entries for task {task_id}")
+
+        return {
+            "task_id": task_id,
+            "deleted_count": count,
+            "message": f"Successfully deleted {count} action log entries"
+        }
+
+
+@app.delete("/action_logs/tasks")
+async def delete_multiple_tasks(task_ids: list[str]):
+    """
+    Delete all actions for multiple tasks
+
+    Args:
+        task_ids: List of task IDs to delete
+
+    Returns:
+        - deleted_tasks: Number of tasks deleted
+        - deleted_count: Total number of action log entries deleted
+    """
+    if not task_ids:
+        raise HTTPException(status_code=400, detail="No task IDs provided")
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        total_deleted = 0
+        deleted_tasks = 0
+
+        for task_id in task_ids:
+            # Check if task exists
+            cursor.execute("SELECT COUNT(*) as count FROM action_logs WHERE task_id = ?", (task_id,))
+            count = cursor.fetchone()["count"]
+
+            if count > 0:
+                # Delete all actions for this task
+                cursor.execute("DELETE FROM action_logs WHERE task_id = ?", (task_id,))
+                total_deleted += count
+                deleted_tasks += 1
+
+        conn.commit()
+
+        print(f"Deleted {total_deleted} action log entries across {deleted_tasks} tasks")
+
+        return {
+            "deleted_tasks": deleted_tasks,
+            "deleted_count": total_deleted,
+            "message": f"Successfully deleted {total_deleted} action log entries from {deleted_tasks} tasks"
         }
 
 

@@ -27,11 +27,53 @@
         top: 0;
         z-index: 10;
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
+        gap: 0.75rem;
         padding: 1.5rem 1.5rem 1rem 1.5rem;
         background: linear-gradient(135deg, #0f1423 0%, #1a1f3a 100%);
         border-bottom: 1px solid #3a4568;
+    }
+
+    .tasks-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .tasks-toolbar {
+        display: none;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid #ef4444;
+        border-radius: 6px;
+    }
+
+    .tasks-toolbar.active {
+        display: flex;
+    }
+
+    .tasks-toolbar-text {
+        font-size: 0.875rem;
+        color: #ef4444;
+        flex: 1;
+    }
+
+    .delete-selected-button {
+        padding: 0.5rem 1rem;
+        background: #ef4444;
+        border: 1px solid #dc2626;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .delete-selected-button:hover {
+        background: #dc2626;
+        transform: translateY(-1px);
     }
 
     .tasks-title {
@@ -93,11 +135,13 @@
     }
 
     .task-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
         padding: 1rem;
         background: rgba(30, 39, 71, 0.6);
         border: 1px solid #3a4568;
         border-radius: 8px;
-        cursor: pointer;
         transition: all 0.2s;
     }
 
@@ -110,6 +154,42 @@
     .task-item.active {
         background: rgba(59, 130, 246, 0.2);
         border-color: #3b82f6;
+    }
+
+    .task-checkbox {
+        flex-shrink: 0;
+        margin-top: 0.25rem;
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: #3b82f6;
+    }
+
+    .task-content {
+        flex: 1;
+        cursor: pointer;
+    }
+
+    .task-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .delete-task-button {
+        padding: 0.25rem 0.5rem;
+        background: rgba(239, 68, 68, 0.8);
+        border: 1px solid #ef4444;
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        font-size: 0.75rem;
+        transition: all 0.2s;
+    }
+
+    .delete-task-button:hover {
+        background: #ef4444;
+        transform: scale(1.05);
     }
 
     .task-id {
@@ -130,6 +210,20 @@
     .task-meta-row {
         display: flex;
         justify-content: space-between;
+        align-items: center;
+    }
+
+    .token-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.125rem 0.5rem;
+        background: rgba(168, 85, 247, 0.2);
+        border: 1px solid #a855f7;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #c084fc;
+        white-space: nowrap;
     }
 
     .actions-main {
@@ -427,8 +521,14 @@
     <!-- Prime Directives Sidebar -->
     <div class="tasks-sidebar">
         <div class="tasks-header">
-            <div class="tasks-title">Prime Directives</div>
-            <button class="refresh-button" onclick="refreshTasks()">🔄 Refresh</button>
+            <div class="tasks-header-row">
+                <div class="tasks-title">Prime Directives</div>
+                <button class="refresh-button" onclick="refreshTasks()">🔄 Refresh</button>
+            </div>
+            <div class="tasks-toolbar" id="tasks-toolbar">
+                <span class="tasks-toolbar-text"><span id="selected-count">0</span> selected</span>
+                <button class="delete-selected-button" onclick="deleteSelectedTasks()">🗑️ Delete Selected</button>
+            </div>
         </div>
 
         <div class="search-box-container">
@@ -476,6 +576,7 @@
 let allTasks = [];
 let selectedTaskId = null;
 let expandedActions = new Set(); // Track which actions are expanded
+let selectedTasks = new Set(); // Track which tasks are selected for deletion
 
 // Fetch tasks on load
 async function fetchTasks() {
@@ -512,17 +613,28 @@ function renderTaskList() {
     }
 
     taskListEl.innerHTML = allTasks.map(task => `
-        <div class="task-item ${selectedTaskId === task.task_id ? 'active' : ''}"
-             onclick="selectTask('${task.task_id}')">
-            <div class="task-id">${task.task_name || task.task_id}</div>
-            <div class="task-meta">
-                <div class="task-meta-row">
-                    <span>📊 ${task.action_count} actions</span>
-                    <span>${formatTimestamp(task.start_time)}</span>
+        <div class="task-item ${selectedTaskId === task.task_id ? 'active' : ''}">
+            <input type="checkbox" class="task-checkbox"
+                   ${selectedTasks.has(task.task_id) ? 'checked' : ''}
+                   onchange="toggleTaskSelection('${task.task_id}', this.checked)"
+                   onclick="event.stopPropagation()">
+            <div class="task-content" onclick="selectTask('${task.task_id}')">
+                <div class="task-id">${task.task_name || task.task_id}</div>
+                <div class="task-meta">
+                    <div class="task-meta-row">
+                        <span>📊 ${task.action_count} actions</span>
+                        <span>${formatTimestamp(task.start_time)}</span>
+                    </div>
+                    <div class="task-meta-row">
+                        <span>👥 ${task.agents_involved.length} agents</span>
+                        ${task.budget_tokens ? `<span class="token-badge">🪙 ${formatTokens(task.budget_tokens)}</span>` : ''}
+                    </div>
                 </div>
-                <div class="task-meta-row">
-                    <span>👥 ${task.agents_involved.length} agents</span>
-                </div>
+            </div>
+            <div class="task-actions">
+                <button class="delete-task-button"
+                        onclick="deleteTask('${task.task_id}'); event.stopPropagation();"
+                        title="Delete this task">🗑️</button>
             </div>
         </div>
     `).join('');
@@ -536,17 +648,28 @@ function filterTasks() {
 
     const taskListEl = document.getElementById('task-list');
     taskListEl.innerHTML = filteredTasks.map(task => `
-        <div class="task-item ${selectedTaskId === task.task_id ? 'active' : ''}"
-             onclick="selectTask('${task.task_id}')">
-            <div class="task-id">${task.task_name || task.task_id}</div>
-            <div class="task-meta">
-                <div class="task-meta-row">
-                    <span>📊 ${task.action_count} actions</span>
-                    <span>${formatTimestamp(task.start_time)}</span>
+        <div class="task-item ${selectedTaskId === task.task_id ? 'active' : ''}">
+            <input type="checkbox" class="task-checkbox"
+                   ${selectedTasks.has(task.task_id) ? 'checked' : ''}
+                   onchange="toggleTaskSelection('${task.task_id}', this.checked)"
+                   onclick="event.stopPropagation()">
+            <div class="task-content" onclick="selectTask('${task.task_id}')">
+                <div class="task-id">${task.task_name || task.task_id}</div>
+                <div class="task-meta">
+                    <div class="task-meta-row">
+                        <span>📊 ${task.action_count} actions</span>
+                        <span>${formatTimestamp(task.start_time)}</span>
+                    </div>
+                    <div class="task-meta-row">
+                        <span>👥 ${task.agents_involved.length} agents</span>
+                        ${task.budget_tokens ? `<span class="token-badge">🪙 ${formatTokens(task.budget_tokens)}</span>` : ''}
+                    </div>
                 </div>
-                <div class="task-meta-row">
-                    <span>👥 ${task.agents_involved.length} agents</span>
-                </div>
+            </div>
+            <div class="task-actions">
+                <button class="delete-task-button"
+                        onclick="deleteTask('${task.task_id}'); event.stopPropagation();"
+                        title="Delete this task">🗑️</button>
             </div>
         </div>
     `).join('');
@@ -809,6 +932,136 @@ function formatTimestamp(timestamp) {
     if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
 
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+}
+
+function formatTokens(tokens) {
+    if (!tokens) return '0';
+    if (tokens >= 1000000) return (tokens / 1000000).toFixed(1) + 'M';
+    if (tokens >= 1000) return (tokens / 1000).toFixed(1) + 'K';
+    return tokens.toLocaleString();
+}
+
+function toggleTaskSelection(taskId, checked) {
+    if (checked) {
+        selectedTasks.add(taskId);
+    } else {
+        selectedTasks.delete(taskId);
+    }
+    updateToolbar();
+}
+
+function updateToolbar() {
+    const toolbar = document.getElementById('tasks-toolbar');
+    const countEl = document.getElementById('selected-count');
+
+    countEl.textContent = selectedTasks.size;
+
+    if (selectedTasks.size > 0) {
+        toolbar.classList.add('active');
+    } else {
+        toolbar.classList.remove('active');
+    }
+}
+
+async function deleteTask(taskId) {
+    if (!confirm(`Are you sure you want to delete task "${taskId}"?\n\nThis will delete all ${allTasks.find(t => t.task_id === taskId)?.action_count || 0} actions permanently.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/actions/task/${taskId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to delete task: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('Deleted:', data);
+
+        // If deleted task was selected, clear selection
+        if (selectedTaskId === taskId) {
+            selectedTaskId = null;
+            document.getElementById('actions-tree').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div class="empty-state-text">Select a prime directive to view its delegation chain</div>
+                </div>
+            `;
+            document.getElementById('selected-task-title').textContent = 'Select a task to view actions';
+            document.getElementById('selected-task-subtitle').textContent = '';
+            document.getElementById('expand-controls').style.display = 'none';
+        }
+
+        // Remove from selected tasks if it was selected
+        selectedTasks.delete(taskId);
+        updateToolbar();
+
+        // Refresh task list
+        await fetchTasks();
+    } catch (error) {
+        console.error('Error deleting task:', error);
+        alert(`Error deleting task: ${error.message}`);
+    }
+}
+
+async function deleteSelectedTasks() {
+    const count = selectedTasks.size;
+    if (count === 0) return;
+
+    const taskIds = Array.from(selectedTasks);
+    const totalActions = taskIds.reduce((sum, id) => {
+        const task = allTasks.find(t => t.task_id === id);
+        return sum + (task?.action_count || 0);
+    }, 0);
+
+    if (!confirm(`Are you sure you want to delete ${count} task(s)?\n\nThis will delete ${totalActions} total actions permanently.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/actions/tasks/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                task_ids: taskIds
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to delete tasks: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('Deleted:', data);
+
+        // If deleted task was currently selected, clear selection
+        if (taskIds.includes(selectedTaskId)) {
+            selectedTaskId = null;
+            document.getElementById('actions-tree').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div class="empty-state-text">Select a prime directive to view its delegation chain</div>
+                </div>
+            `;
+            document.getElementById('selected-task-title').textContent = 'Select a task to view actions';
+            document.getElementById('selected-task-subtitle').textContent = '';
+            document.getElementById('expand-controls').style.display = 'none';
+        }
+
+        // Clear selected tasks
+        selectedTasks.clear();
+        updateToolbar();
+
+        // Refresh task list
+        await fetchTasks();
+    } catch (error) {
+        console.error('Error deleting tasks:', error);
+        alert(`Error deleting tasks: ${error.message}`);
+    }
 }
 
 function refreshTasks() {

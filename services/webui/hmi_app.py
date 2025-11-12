@@ -1544,6 +1544,45 @@ def log_action():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/actions/task/<task_id>', methods=['DELETE'])
+def delete_task_actions(task_id):
+    """Delete all actions for a specific task (proxy to Registry service)"""
+    try:
+        response = requests.delete(f'{REGISTRY_URL}/action_logs/task/{task_id}', timeout=5)
+        response.raise_for_status()
+        return jsonify(response.json())
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 404:
+            return jsonify({'error': f'Task {task_id} not found'}), 404
+        logger.error(f"Error deleting task {task_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+    except Exception as e:
+        logger.error(f"Error deleting task {task_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/actions/tasks/delete', methods=['POST'])
+def delete_multiple_tasks():
+    """Delete multiple tasks (proxy to Registry service)"""
+    try:
+        data = request.get_json()
+        task_ids = data.get('task_ids', [])
+
+        if not task_ids:
+            return jsonify({'error': 'No task IDs provided'}), 400
+
+        response = requests.delete(
+            f'{REGISTRY_URL}/action_logs/tasks',
+            json=task_ids,
+            timeout=5
+        )
+        response.raise_for_status()
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Error deleting multiple tasks: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/actions/projects', methods=['GET'])
 def get_projects():
     """Get list of all unique task_ids (projects) with metadata"""
