@@ -627,7 +627,7 @@
         font-size: 0.875rem;
         color: #e0e0e0;
         pointer-events: none;
-        z-index: 10000;
+        z-index: 20000;
         display: none;
         min-width: 200px;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
@@ -3333,18 +3333,31 @@ The system should be production-ready, secure, and scalable.`;
                 const bgColor = statusColors[check.status] || '#6b7280';
                 const icon = statusIcons[check.status] || '?';
 
+                // Check if there are details to show
+                const hasDetails = check.details && Object.keys(check.details).length > 0;
+                const cursorStyle = hasDetails ? 'cursor: pointer;' : '';
+                const hoverStyle = hasDetails ? 'transition: all 0.2s; &:hover { border-color: #64748b; }' : '';
+
                 // Format check details
                 let detailsHtml = '';
-                if (check.details && Object.keys(check.details).length > 0) {
-                    detailsHtml = '<div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #4a5578; font-size: 0.75rem; color: #9ca3af;">';
+                if (hasDetails) {
+                    detailsHtml = `<div id="details-${checkId}" style="display: none; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #4a5578; font-size: 0.875rem;">`;
+
                     for (const [key, value] of Object.entries(check.details)) {
-                        detailsHtml += `<div><strong>${key}:</strong> ${value}</div>`;
+                        // Special formatting for 'errors' field (show as list)
+                        if (key === 'errors' && typeof value === 'string') {
+                            const errorList = value.split(', ').map(err => `<div style="padding: 0.25rem 0; color: #fca5a5;">• ${err}</div>`).join('');
+                            detailsHtml += `<div style="margin-bottom: 0.5rem;"><strong style="color: #e0e0e0;">${key}:</strong>${errorList}</div>`;
+                        } else {
+                            detailsHtml += `<div style="margin-bottom: 0.25rem;"><strong style="color: #9ca3af;">${key}:</strong> <span style="color: #e0e0e0;">${value}</span></div>`;
+                        }
                     }
                     detailsHtml += '</div>';
                 }
 
                 return `
-                    <div style="background: #1e293b; border: 1px solid #4a5578; border-left: 4px solid ${bgColor}; border-radius: 6px; padding: 1rem;">
+                    <div id="check-${checkId}" onclick="toggleHealthCheckDetails('${checkId}')"
+                         style="background: #1e293b; border: 1px solid #4a5578; border-left: 4px solid ${bgColor}; border-radius: 6px; padding: 1rem; ${cursorStyle} ${hoverStyle}">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
                             <div style="width: 32px; height: 32px; background: ${bgColor}; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: white; font-weight: 700;">
                                 ${icon}
@@ -3353,11 +3366,29 @@ The system should be production-ready, secure, and scalable.`;
                                 <div style="font-weight: 600; color: #e0e0e0; margin-bottom: 0.25rem;">${getCheckTitle(checkId)}</div>
                                 <div style="font-size: 0.875rem; color: #9ca3af;">${check.message}</div>
                             </div>
+                            ${hasDetails ? '<div id="chevron-' + checkId + '" style="color: #64748b; font-size: 1.25rem; transition: transform 0.2s;">▼</div>' : ''}
                         </div>
                         ${detailsHtml}
                     </div>
                 `;
             }).join('');
+        }
+
+        function toggleHealthCheckDetails(checkId) {
+            const detailsEl = document.getElementById(`details-${checkId}`);
+            const chevronEl = document.getElementById(`chevron-${checkId}`);
+
+            if (!detailsEl) return; // No details to show
+
+            const isExpanded = detailsEl.style.display !== 'none';
+
+            if (isExpanded) {
+                detailsEl.style.display = 'none';
+                if (chevronEl) chevronEl.style.transform = 'rotate(0deg)';
+            } else {
+                detailsEl.style.display = 'block';
+                if (chevronEl) chevronEl.style.transform = 'rotate(180deg)';
+            }
         }
 
         function getCheckTitle(checkId) {

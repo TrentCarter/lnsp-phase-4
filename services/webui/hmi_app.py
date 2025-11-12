@@ -2944,7 +2944,11 @@ def get_system_status():
                 health_checks['config_validity'] = {
                     'status': 'error',
                     'message': 'All configs invalid or missing',
-                    'details': {'valid': 0, 'invalid': len(invalid_configs)}
+                    'details': {
+                        'valid': 0,
+                        'invalid': len(invalid_configs),
+                        'errors': ', '.join(invalid_configs)
+                    }
                 }
         except Exception as e:
             health_checks['config_validity'] = {
