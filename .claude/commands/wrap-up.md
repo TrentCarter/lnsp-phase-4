@@ -133,13 +133,24 @@ Create `docs/last_summary.md` based on conversation context:
    sleep 3 && curl -s http://localhost:6101 > /dev/null && echo "✅ HMI restarted successfully on http://localhost:6101" || echo "❌ HMI failed to restart - check /tmp/hmi.log"
    ```
 
-## Step 5: Completion
+## Step 5: Audio Notification
+
+Play "wrap up complete" voice notification using macOS TTS:
+
+```bash
+say "wrap up complete"
+```
+
+This alerts the user that the wrap-up process has finished and they can take action.
+
+## Step 6: Completion
 
 Confirm completion:
 - ✅ Summary created in `docs/last_summary.md`
 - ✅ Previous summary archived to `docs/all_project_summary.md`
 - ✅ [If --git] Changes committed and pushed
 - ✅ [If --restart] HMI service restarted on http://localhost:6101
+- ✅ Audio notification played: "wrap up complete"
 
 Ready for `/clear` when you're done.
 
