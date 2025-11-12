@@ -36,6 +36,23 @@
 | **Director-Data** | 6113 | http://127.0.0.1:6113 | Data processing lane coordinator | 3 |
 | **Director-DevSecOps** | 6114 | http://127.0.0.1:6114 | DevSecOps lane coordinator | 3 |
 | **Director-Docs** | 6115 | http://127.0.0.1:6115 | Documentation lane coordinator | 3 |
+| **Manager-Code-01** | 6141 | http://127.0.0.1:6141 | Code lane task breakdown | 4 |
+| **Manager-Code-02** | 6142 | http://127.0.0.1:6142 | Code lane task breakdown | 4 |
+| **Manager-Code-03** | 6143 | http://127.0.0.1:6143 | Code lane task breakdown | 4 |
+| **Manager-Models-01** | 6144 | http://127.0.0.1:6144 | Models lane task breakdown | 4 |
+| **Manager-Data-01** | 6145 | http://127.0.0.1:6145 | Data lane task breakdown | 4 |
+| **Manager-DevSecOps-01** | 6146 | http://127.0.0.1:6146 | DevSecOps lane task breakdown | 4 |
+| **Manager-Docs-01** | 6147 | http://127.0.0.1:6147 | Docs lane task breakdown | 4 |
+| **Programmer-Qwen-001** | 6151 | http://127.0.0.1:6151 | Code execution (Qwen 2.5 Coder 7B) | 5 |
+| **Programmer-Qwen-002** | 6152 | http://127.0.0.1:6152 | Code execution (Qwen 2.5 Coder 7B) | 5 |
+| **Programmer-Qwen-003** | 6153 | http://127.0.0.1:6153 | Code execution (Qwen 2.5 Coder 7B) | 5 |
+| **Programmer-Qwen-004** | 6154 | http://127.0.0.1:6154 | Code execution (Qwen 2.5 Coder 7B) | 5 |
+| **Programmer-Qwen-005** | 6155 | http://127.0.0.1:6155 | Code execution (Qwen 2.5 Coder 7B) | 5 |
+| **Programmer-Claude-001** | 6156 | http://127.0.0.1:6156 | Code execution (Claude Sonnet 4) | 5 |
+| **Programmer-Claude-002** | 6157 | http://127.0.0.1:6157 | Code execution (Claude Sonnet 4) | 5 |
+| **Programmer-GPT-001** | 6158 | http://127.0.0.1:6158 | Code execution (GPT-4) | 5 |
+| **Programmer-DeepSeek-001** | 6159 | http://127.0.0.1:6159 | Code execution (DeepSeek Coder V3) | 5 |
+| **Programmer-DeepSeek-002** | 6160 | http://127.0.0.1:6160 | Code execution (DeepSeek Coder V3) | 5 |
 
 ## Core Infrastructure Services
 
@@ -74,12 +91,20 @@
 
 ## Port Ranges
 
-- **6100-6119**: Core PAS services
-- **6120-6129**: Gateway and Registry
-- **6130-6139**: Aider and tooling
-- **8050-8059**: FastAPI LLM services
+- **6100-6119**: Core PAS services (Tier 0-2: Gateway, PAS Root, Architect)
+- **6110**: Architect (Tier 2)
+- **6111-6115**: Directors (Tier 3, 5 lanes)
+- **6120-6129**: Gateway and Registry (Tier 0)
+- **6130-6139**: Legacy/tooling (deprecated single Aider RPC)
+- **6141-6150**: Managers (Tier 4, up to 10 managers)
+- **6151-6199**: Programmers (Tier 5, up to 49 programmers for parallelization)
 - **7001-7002**: Encoding/decoding services
+- **8050-8099**: FastAPI LLM services (Model Pool)
 - **8999**: LVM evaluation (legacy)
+
+**NEW PORT ALLOCATION:**
+- Managers: 6141-6150 (10 slots, 7 allocated)
+- Programmers: 6151-6199 (49 slots, 10 allocated initially)
 
 ## Environment Variables
 

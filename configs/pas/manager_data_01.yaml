@@ -1,0 +1,41 @@
+# Manager-Data-01 Configuration
+
+service:
+  name: "Manager-Data-01"
+  port: 6145
+  host: "127.0.0.1"
+  tier: 4
+  lane: "Data"
+
+agent_metadata:
+  agent_id: "Mgr-Data-01"
+  role: "manager"
+  parent: "Dir-Data"
+  grandparent: "Architect"
+  tier: "manager"
+  lane: "Data"
+
+llm:
+  primary:
+    provider: "google"
+    model: "gemini-2.5-flash"
+    temperature: 0.3
+    max_tokens: 4096
+    api_key_env: "GEMINI_API_KEY"
+  backup:
+    provider: "anthropic"
+    model: "claude-haiku-4"
+    temperature: 0.3
+    max_tokens: 4096
+    api_key_env: "ANTHROPIC_API_KEY"
+
+resources:
+  max_concurrent_tasks: 5
+  max_programmers: 5
+  timeout_s: 600
+
+decomposition:
+  strategy: "surgical"  # Break into atomic, single-file tasks
+  max_tasks_per_job: 10
+  min_tasks_per_job: 1
+  prefer_parallel: true
