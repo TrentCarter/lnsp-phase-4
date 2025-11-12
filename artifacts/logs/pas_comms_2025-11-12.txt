@@ -250,3 +250,138 @@
 2025-11-12T15:27:07.650-05:00|Mgr-Data-01|System|STATUS|Manager service started on port 6145|-|-|started|-|%7B%22agent%22%3A%22Mgr-Data-01%22%2C%22port%22%3A6145%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Data%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
 2025-11-12T15:27:08.655-05:00|Mgr-Devsecops-01|System|STATUS|Manager service started on port 6146|-|-|started|-|%7B%22agent%22%3A%22Mgr-Devsecops-01%22%2C%22port%22%3A6146%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Devsecops%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
 2025-11-12T15:27:09.656-05:00|Mgr-Docs-01|System|STATUS|Manager service started on port 6147|-|-|started|-|%7B%22agent%22%3A%22Mgr-Docs-01%22%2C%22port%22%3A6147%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Docs%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:27:37.250-05:00|Mgr-Code-01|System|STATUS|Manager service started on port 6141|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-01%22%2C%22port%22%3A6141%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:27:50.787-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Create a simple test file...|-|test-single-1|-|-|%7B%22job_card_id%22%3A%22test-single-1%22%7D
+2025-11-12T16:28:10.142-05:00|Mgr-Code-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:28:10.387-05:00|Mgr-Code-01|System|STATUS|Manager service started on port 6141|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-01%22%2C%22port%22%3A6141%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:28:13.717-05:00|Mgr-Code-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:28:13.952-05:00|Mgr-Code-01|System|STATUS|Manager service started on port 6141|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-01%22%2C%22port%22%3A6141%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:28:21.409-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Create a simple test file...|-|test-single-1|-|-|%7B%22job_card_id%22%3A%22test-single-1%22%7D
+2025-11-12T16:28:21.410-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Create a simple test file...|-|test-single-1|planning|-|-
+2025-11-12T16:28:21.411-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-single-1|decomposing|-|-
+2025-11-12T16:28:21.412-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 1 Programmer tasks|-|test-single-1|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:28:21.413-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-single-1|delegating|-|-
+2025-11-12T16:28:21.474-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job error: type object 'MessageType' has no attribute 'ERROR'|-|test-single-1|error|-|-
+2025-11-12T16:28:48.307-05:00|Mgr-Code-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:28:48.554-05:00|Mgr-Code-01|System|STATUS|Manager service started on port 6141|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-01%22%2C%22port%22%3A6141%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:28:51.884-05:00|Mgr-Code-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:28:52.132-05:00|Mgr-Code-01|System|STATUS|Manager service started on port 6141|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-01%22%2C%22port%22%3A6141%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:29:01.577-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Create a simple test file...|-|test-single-1|-|-|%7B%22job_card_id%22%3A%22test-single-1%22%7D
+2025-11-12T16:29:01.578-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Create a simple test file...|-|test-single-1|planning|-|-
+2025-11-12T16:29:01.579-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-single-1|decomposing|-|-
+2025-11-12T16:29:01.580-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 1 Programmer tasks|-|test-single-1|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:29:01.580-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-single-1|delegating|-|-
+2025-11-12T16:29:01.633-05:00|Prog-001|Mgr-Code-01|RESPONSE|Task failed: Create a simple test file...|-|test-single-1|failed|-|%7B%22status_code%22%3A500%7D
+2025-11-12T16:29:01.634-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job failed|-|test-single-1|failed|-|%7B%22errors%22%3A%5B%22Programmer%20returned%20500%22%5D%7D
+2025-11-12T16:29:23.726-05:00|Mgr-Code-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:29:23.961-05:00|Mgr-Code-01|System|STATUS|Manager service started on port 6141|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-01%22%2C%22port%22%3A6141%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:29:36.775-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Create a simple test file...|-|test-single-1|-|-|%7B%22job_card_id%22%3A%22test-single-1%22%7D
+2025-11-12T16:29:36.776-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Create a simple test file...|-|test-single-1|planning|-|-
+2025-11-12T16:29:36.777-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-single-1|decomposing|-|-
+2025-11-12T16:29:36.777-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job error: 'programmer_id'|-|test-single-1|error|-|-
+2025-11-12T16:30:12.089-05:00|Mgr-Code-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:30:12.335-05:00|Mgr-Code-01|System|STATUS|Manager service started on port 6141|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-01%22%2C%22port%22%3A6141%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:30:22.727-05:00|Mgr-Code-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:30:22.963-05:00|Mgr-Code-01|System|STATUS|Manager service started on port 6141|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-01%22%2C%22port%22%3A6141%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:30:30.327-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Create a simple test file...|-|test-single-1|-|-|%7B%22job_card_id%22%3A%22test-single-1%22%7D
+2025-11-12T16:30:30.328-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Create a simple test file...|-|test-single-1|planning|-|-
+2025-11-12T16:30:30.329-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-single-1|decomposing|-|-
+2025-11-12T16:30:30.329-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 1 Programmer tasks|-|test-single-1|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:30:30.330-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-single-1|delegating|-|-
+2025-11-12T16:30:30.384-05:00|Prog-001|Mgr-Code-01|RESPONSE|Task failed: Create a simple test file...|-|test-single-1|failed|-|%7B%22status_code%22%3A500%7D
+2025-11-12T16:30:30.385-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job failed|-|test-single-1|failed|-|%7B%22errors%22%3A%5B%22Programmer%20returned%20500%22%5D%7D
+2025-11-12T16:31:08.714-05:00|Mgr-Code-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:31:08.953-05:00|Mgr-Code-01|System|STATUS|Manager service started on port 6141|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-01%22%2C%22port%22%3A6141%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:32:10.418-05:00|Mgr-Code-01|System|STATUS|Manager service started on port 6141|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-01%22%2C%22port%22%3A6141%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:32:33.034-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Create a simple test file...|-|test-single-1|-|-|%7B%22job_card_id%22%3A%22test-single-1%22%7D
+2025-11-12T16:32:33.035-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Create a simple test file...|-|test-single-1|planning|-|-
+2025-11-12T16:32:33.036-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-single-1|decomposing|-|-
+2025-11-12T16:32:33.036-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 1 Programmer tasks|-|test-single-1|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:32:33.037-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-single-1|delegating|-|-
+2025-11-12T16:32:33.092-05:00|Prog-001|Mgr-Code-01|RESPONSE|Task failed: Create a simple test file...|-|test-single-1|failed|-|%7B%22status_code%22%3A500%7D
+2025-11-12T16:32:33.092-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job failed|-|test-single-1|failed|-|%7B%22errors%22%3A%5B%22Programmer%20returned%20500%22%5D%7D
+2025-11-12T16:33:32.502-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Create a simple test file...|-|test-single-1|-|-|%7B%22job_card_id%22%3A%22test-single-1%22%7D
+2025-11-12T16:33:32.503-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Create a simple test file...|-|test-single-1|planning|-|-
+2025-11-12T16:33:32.504-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-single-1|decomposing|-|-
+2025-11-12T16:33:32.505-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 1 Programmer tasks|-|test-single-1|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:33:32.505-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-single-1|delegating|-|-
+2025-11-12T16:33:32.554-05:00|Prog-002|Mgr-Code-01|RESPONSE|Task failed: Create a simple test file...|-|test-single-1|failed|-|%7B%22status_code%22%3A500%7D
+2025-11-12T16:33:32.555-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job failed|-|test-single-1|failed|-|%7B%22errors%22%3A%5B%22Programmer%20returned%20500%22%5D%7D
+2025-11-12T16:34:25.491-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Create a simple test file...|-|test-single-1|-|-|%7B%22job_card_id%22%3A%22test-single-1%22%7D
+2025-11-12T16:34:25.492-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Create a simple test file...|-|test-single-1|planning|-|-
+2025-11-12T16:34:25.493-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-single-1|decomposing|-|-
+2025-11-12T16:34:25.494-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 1 Programmer tasks|-|test-single-1|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:34:25.494-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-single-1|delegating|-|-
+2025-11-12T16:34:26.135-05:00|Prog-003|Mgr-Code-01|RESPONSE|Task completed: Create a simple test file...|-|test-single-1|completed|-|-
+2025-11-12T16:34:26.136-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job completed successfully|-|test-single-1|completed|-|%7B%22duration_s%22%3A0.643916%7D
+2025-11-12T16:34:34.281-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Add a comment '# Parallel test 1' to the top of a ...|-|test-job-1|-|-|%7B%22job_card_id%22%3A%22test-job-1%22%7D
+2025-11-12T16:34:34.282-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Add a comment '# Parallel test 1' to the top of a ...|-|test-job-1|planning|-|-
+2025-11-12T16:34:34.282-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-job-1|decomposing|-|-
+2025-11-12T16:34:34.283-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 1 Programmer tasks|-|test-job-1|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:34:34.283-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-job-1|delegating|-|-
+2025-11-12T16:34:34.339-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Add a comment '# Parallel test 2' to the top of a ...|-|test-job-2|-|-|%7B%22job_card_id%22%3A%22test-job-2%22%7D
+2025-11-12T16:34:34.340-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Add a comment '# Parallel test 2' to the top of a ...|-|test-job-2|planning|-|-
+2025-11-12T16:34:34.341-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-job-2|decomposing|-|-
+2025-11-12T16:34:34.342-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 1 Programmer tasks|-|test-job-2|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:34:34.342-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-job-2|delegating|-|-
+2025-11-12T16:34:34.387-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Add a comment '# Parallel test 3' to the top of a ...|-|test-job-3|-|-|%7B%22job_card_id%22%3A%22test-job-3%22%7D
+2025-11-12T16:34:34.388-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Add a comment '# Parallel test 3' to the top of a ...|-|test-job-3|planning|-|-
+2025-11-12T16:34:34.388-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-job-3|decomposing|-|-
+2025-11-12T16:34:34.389-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 1 Programmer tasks|-|test-job-3|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:34:34.389-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-job-3|delegating|-|-
+2025-11-12T16:34:34.768-05:00|Prog-006|Mgr-Code-01|RESPONSE|Task completed: Add a comment '# Parallel test 2' to the top of a ...|-|test-job-2|completed|-|-
+2025-11-12T16:34:34.770-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job completed successfully|-|test-job-2|completed|-|%7B%22duration_s%22%3A0.429341%7D
+2025-11-12T16:34:34.771-05:00|Prog-004|Mgr-Code-01|RESPONSE|Task completed: Add a comment '# Parallel test 1' to the top of a ...|-|test-job-1|completed|-|-
+2025-11-12T16:34:34.772-05:00|Prog-008|Mgr-Code-01|RESPONSE|Task completed: Add a comment '# Parallel test 3' to the top of a ...|-|test-job-3|completed|-|-
+2025-11-12T16:34:34.772-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job completed successfully|-|test-job-1|completed|-|%7B%22duration_s%22%3A0.490711%7D
+2025-11-12T16:34:34.773-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job completed successfully|-|test-job-3|completed|-|%7B%22duration_s%22%3A0.385505%7D
+2025-11-12T16:34:37.400-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Add a comment '# Parallel test 1' to the top of a ...|-|test-job-1|-|-|%7B%22job_card_id%22%3A%22test-job-1%22%7D
+2025-11-12T16:34:37.401-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Add a comment '# Parallel test 1' to the top of a ...|-|test-job-1|planning|-|-
+2025-11-12T16:34:37.402-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-job-1|decomposing|-|-
+2025-11-12T16:34:37.402-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 1 Programmer tasks|-|test-job-1|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:34:37.403-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-job-1|delegating|-|-
+2025-11-12T16:34:37.756-05:00|Prog-007|Mgr-Code-01|RESPONSE|Task completed: Add a comment '# Parallel test 1' to the top of a ...|-|test-job-1|completed|-|-
+2025-11-12T16:34:37.757-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job completed successfully|-|test-job-1|completed|-|%7B%22duration_s%22%3A0.355684%7D
+2025-11-12T16:34:40.404-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Add a comment '# Parallel test 2' to the top of a ...|-|test-job-2|-|-|%7B%22job_card_id%22%3A%22test-job-2%22%7D
+2025-11-12T16:34:40.405-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Add a comment '# Parallel test 2' to the top of a ...|-|test-job-2|planning|-|-
+2025-11-12T16:34:40.406-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-job-2|decomposing|-|-
+2025-11-12T16:34:40.407-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 1 Programmer tasks|-|test-job-2|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:34:40.408-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-job-2|delegating|-|-
+2025-11-12T16:34:40.762-05:00|Prog-008|Mgr-Code-01|RESPONSE|Task completed: Add a comment '# Parallel test 2' to the top of a ...|-|test-job-2|completed|-|-
+2025-11-12T16:34:40.763-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job completed successfully|-|test-job-2|completed|-|%7B%22duration_s%22%3A0.357571%7D
+2025-11-12T16:34:43.409-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Add a comment '# Parallel test 3' to the top of a ...|-|test-job-3|-|-|%7B%22job_card_id%22%3A%22test-job-3%22%7D
+2025-11-12T16:34:43.411-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Add a comment '# Parallel test 3' to the top of a ...|-|test-job-3|planning|-|-
+2025-11-12T16:34:43.412-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-job-3|decomposing|-|-
+2025-11-12T16:34:43.413-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 1 Programmer tasks|-|test-job-3|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:34:43.413-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-job-3|delegating|-|-
+2025-11-12T16:34:43.771-05:00|Prog-009|Mgr-Code-01|RESPONSE|Task completed: Add a comment '# Parallel test 3' to the top of a ...|-|test-job-3|completed|-|-
+2025-11-12T16:34:43.772-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job completed successfully|-|test-job-3|completed|-|%7B%22duration_s%22%3A0.361055%7D
+2025-11-12T16:47:16.487-05:00|Mgr-Models-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:47:16.495-05:00|Mgr-Code-02|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:47:16.496-05:00|Mgr-Code-03|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:47:16.516-05:00|Mgr-Devsecops-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:47:16.535-05:00|Mgr-Data-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:47:16.563-05:00|Mgr-Docs-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:47:18.743-05:00|Mgr-Code-02|System|STATUS|Manager service started on port 6142|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-02%22%2C%22port%22%3A6142%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:47:18.855-05:00|Mgr-Code-03|System|STATUS|Manager service started on port 6143|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-03%22%2C%22port%22%3A6143%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:47:38.613-05:00|Dir-Code|Mgr-Code-02|CMD|Job card received: Add a simple hello world function...|-|test-mgr-02-1762984058|-|-|%7B%22job_card_id%22%3A%22test-mgr-02-1762984058%22%7D
+2025-11-12T16:47:38.615-05:00|Mgr-Code-02|Dir-Code|RESPONSE|Accepted job card: Add a simple hello world function...|-|test-mgr-02-1762984058|planning|-|-
+2025-11-12T16:47:38.616-05:00|Mgr-Code-02|Mgr-Code-02|STATUS|Decomposing job card into Programmer tasks|-|test-mgr-02-1762984058|decomposing|-|-
+2025-11-12T16:47:38.616-05:00|Mgr-Code-02|Mgr-Code-02|STATUS|Decomposed into 1 Programmer tasks|-|test-mgr-02-1762984058|decomposing|-|%7B%22task_count%22%3A1%7D
+2025-11-12T16:47:38.617-05:00|Mgr-Code-02|Mgr-Code-02|STATUS|Delegating to Programmers|-|test-mgr-02-1762984058|delegating|-|-
+2025-11-12T16:47:38.673-05:00|Prog-001|Mgr-Code-02|RESPONSE|Task completed: Add a simple hello world function in /tmp/test_fil...|-|test-mgr-02-1762984058|completed|-|-
+2025-11-12T16:47:38.674-05:00|Mgr-Code-02|Dir-Code|RESPONSE|Job completed successfully|-|test-mgr-02-1762984058|completed|-|%7B%22duration_s%22%3A0.059357%7D
+2025-11-12T16:49:26.721-05:00|Mgr-Code-01|System|STATUS|Manager service shutdown|-|-|shutdown|-|-
+2025-11-12T16:49:27.825-05:00|Mgr-Code-01|System|STATUS|Manager service started on port 6141|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-01%22%2C%22port%22%3A6141%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T16:49:55.165-05:00|Dir-Code|Mgr-Code-01|CMD|Job card received: Add user authentication with JWT tokens to the API...|-|test-llm-decomp-1762984195|-|-|%7B%22job_card_id%22%3A%22test-llm-decomp-1762984195%22%7D
+2025-11-12T16:49:55.166-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Accepted job card: Add user authentication with JWT tokens to the API...|-|test-llm-decomp-1762984195|planning|-|-
+2025-11-12T16:49:55.167-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposing job card into Programmer tasks|-|test-llm-decomp-1762984195|decomposing|-|-
+2025-11-12T16:50:00.769-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 5 tasks using LLM decomposition|-|-|-|-|%7B%22task_count%22%3A5%2C%22llm_enabled%22%3Atrue%2C%22llm_model%22%3A%22llama3.1%3A8b%22%7D
+2025-11-12T16:50:00.770-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Decomposed into 5 Programmer tasks|-|test-llm-decomp-1762984195|decomposing|-|%7B%22task_count%22%3A5%7D
+2025-11-12T16:50:00.771-05:00|Mgr-Code-01|Mgr-Code-01|STATUS|Delegating to Programmers|-|test-llm-decomp-1762984195|delegating|-|-
+2025-11-12T16:50:01.268-05:00|Prog-007|Mgr-Code-01|RESPONSE|Task completed: Update tests/test_auth.py to include JWT token val...|-|test-llm-decomp-1762984195|completed|-|-
+2025-11-12T16:50:01.271-05:00|Prog-009|Mgr-Code-01|RESPONSE|Task completed: Run all tests and ensure they pass...|-|test-llm-decomp-1762984195|completed|-|-
+2025-11-12T16:50:01.275-05:00|Prog-005|Mgr-Code-01|RESPONSE|Task completed: Add authentication middleware to protected endpoin...|-|test-llm-decomp-1762984195|completed|-|-
+2025-11-12T16:50:01.277-05:00|Prog-001|Mgr-Code-01|RESPONSE|Task completed: Implement JWT token generation in utils/jwt.py...|-|test-llm-decomp-1762984195|completed|-|-
+2025-11-12T16:50:01.278-05:00|Prog-003|Mgr-Code-01|RESPONSE|Task completed: Create login endpoint in auth.py to return valid t...|-|test-llm-decomp-1762984195|completed|-|-
+2025-11-12T16:50:01.278-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job completed successfully|-|test-llm-decomp-1762984195|completed|-|%7B%22duration_s%22%3A6.112668%7D
