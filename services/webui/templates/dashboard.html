@@ -203,6 +203,49 @@
         </div>
     </div>
 
+    <!-- TRON HHMRS Status Section -->
+    <div class="section-container">
+        <div class="section-header" onclick="toggleSection('tron-status')">
+            <h2>⚡ TRON HHMRS <span class="section-badge" id="tron-badge">0 events</span></h2>
+            <div class="section-toggle">
+                <span class="section-toggle-text">Collapse</span>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+        </div>
+        <div class="section-content" id="tron-status-content">
+            <div class="metrics-row" style="margin-top: 1rem;">
+                <div class="metric-card">
+                    <h3>⏱️ Timeouts</h3>
+                    <div class="value" id="tron-timeouts">0</div>
+                    <div class="subtext">Agents timed out</div>
+                </div>
+                <div class="metric-card">
+                    <h3>🔄 Restarts</h3>
+                    <div class="value" id="tron-restarts">0</div>
+                    <div class="subtext">Agents restarted</div>
+                </div>
+                <div class="metric-card">
+                    <h3>⬆️ Escalations</h3>
+                    <div class="value" id="tron-escalations">0</div>
+                    <div class="subtext">LLM switches</div>
+                </div>
+                <div class="metric-card">
+                    <h3>❌ Failures</h3>
+                    <div class="value" id="tron-failures">0</div>
+                    <div class="subtext">Permanent failures</div>
+                </div>
+            </div>
+
+            <!-- Recent TRON Events List -->
+            <div style="margin-top: 1.5rem; background: linear-gradient(135deg, #1e2747 0%, #2a3558 100%); border: 1px solid #3a4568; border-radius: 12px; padding: 1.5rem;">
+                <h3 style="color: #fff; margin-bottom: 1rem; font-size: 1rem;">Recent Events</h3>
+                <div id="tron-events-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto;">
+                    <p style="color: #9ca3af; font-size: 0.875rem;">No TRON events yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Core Services Section -->
     <div class="section-container">
         <div class="section-header" onclick="toggleSection('core-services')">
@@ -365,6 +408,15 @@
         }
     }
 
+    // Track TRON events for dashboard display
+    window.dashboardTronEvents = [];
+    window.dashboardTronCounts = {
+        timeouts: 0,
+        restarts: 0,
+        escalations: 0,
+        failures: 0
+    };
+
     // Override the base event handler
     function handleRealtimeEvent(event) {
         console.log('Dashboard received event:', event.event_type, event);
@@ -379,9 +431,98 @@
             case 'alert':
                 showAlert(event.data);
                 break;
+            case 'hhmrs_timeout':
+            case 'hhmrs_restart':
+            case 'hhmrs_escalation':
+            case 'hhmrs_failure':
+                updateTRONDashboard(event.event_type, event.data);
+                break;
             default:
                 console.log('Unhandled event type:', event.event_type);
         }
+    }
+
+    // Update TRON dashboard section with new event
+    function updateTRONDashboard(eventType, data) {
+        // Update counters
+        if (eventType === 'hhmrs_timeout') {
+            window.dashboardTronCounts.timeouts++;
+            document.getElementById('tron-timeouts').textContent = window.dashboardTronCounts.timeouts;
+        } else if (eventType === 'hhmrs_restart') {
+            window.dashboardTronCounts.restarts++;
+            document.getElementById('tron-restarts').textContent = window.dashboardTronCounts.restarts;
+        } else if (eventType === 'hhmrs_escalation') {
+            window.dashboardTronCounts.escalations++;
+            document.getElementById('tron-escalations').textContent = window.dashboardTronCounts.escalations;
+        } else if (eventType === 'hhmrs_failure') {
+            window.dashboardTronCounts.failures++;
+            document.getElementById('tron-failures').textContent = window.dashboardTronCounts.failures;
+        }
+
+        // Update total events badge
+        const totalEvents = Object.values(window.dashboardTronCounts).reduce((sum, val) => sum + val, 0);
+        document.getElementById('tron-badge').textContent = `${totalEvents} event${totalEvents !== 1 ? 's' : ''}`;
+
+        // Add to events list
+        const eventIcons = {
+            'hhmrs_timeout': '⏱️',
+            'hhmrs_restart': '🔄',
+            'hhmrs_escalation': '⬆️',
+            'hhmrs_failure': '❌'
+        };
+        const eventLabels = {
+            'hhmrs_timeout': 'Timeout',
+            'hhmrs_restart': 'Restart',
+            'hhmrs_escalation': 'Escalation',
+            'hhmrs_failure': 'Failure'
+        };
+
+        const event = {
+            type: eventType,
+            icon: eventIcons[eventType] || '📌',
+            label: eventLabels[eventType] || eventType,
+            agent_id: data.agent_id || 'Unknown',
+            timestamp: Date.now()
+        };
+
+        // Add to beginning of array
+        window.dashboardTronEvents.unshift(event);
+
+        // Keep only last 20 events
+        if (window.dashboardTronEvents.length > 20) {
+            window.dashboardTronEvents.pop();
+        }
+
+        // Render events list
+        const eventsList = document.getElementById('tron-events-list');
+        if (window.dashboardTronEvents.length === 0) {
+            eventsList.innerHTML = '<p style="color: #9ca3af; font-size: 0.875rem;">No TRON events yet</p>';
+        } else {
+            eventsList.innerHTML = window.dashboardTronEvents.map(evt => {
+                const timeAgo = formatTimeAgo(evt.timestamp);
+                return `
+                    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 6px; border-left: 3px solid #ff6c00;">
+                        <span style="font-size: 1.25rem;">${evt.icon}</span>
+                        <div style="flex: 1;">
+                            <div style="color: #fff; font-weight: 600; font-size: 0.875rem;">${evt.label}: ${evt.agent_id}</div>
+                            <div style="color: #9ca3af; font-size: 0.75rem;">${timeAgo}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    // Format timestamp to "5m ago", "2h ago", etc.
+    function formatTimeAgo(timestamp) {
+        const seconds = Math.floor((Date.now() - timestamp) / 1000);
+        if (seconds < 60) return `${seconds}s ago`;
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        return `${days}d ago`;
     }
 
     function updateServiceCard(data) {
