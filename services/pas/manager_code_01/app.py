@@ -43,6 +43,7 @@ from services.common.heartbeat import get_monitor, AgentState
 from services.common.job_queue import get_queue, JobCard, Lane, Role, Priority
 from services.common.comms_logger import get_logger, MessageType
 from services.common.programmer_pool import get_programmer_pool
+from services.common.llm_task_decomposer import get_task_decomposer
 
 app = FastAPI(title="Manager-Code-01", version="1.0.0")
 
@@ -51,6 +52,7 @@ heartbeat_monitor = get_monitor()
 job_queue = get_queue()
 logger = get_logger()
 programmer_pool = get_programmer_pool()
+task_decomposer = get_task_decomposer()
 
 # Service configuration
 SERVICE_NAME = "Manager-Code-01"
@@ -360,37 +362,24 @@ async def decompose_into_programmer_tasks(job_card: Dict[str, Any]) -> List[Dict
         4. Update existing endpoints to require auth (app/api/*.py)
         5. Add tests (tests/test_auth.py)
     """
-    # TODO: Implement LLM-powered decomposition (Phase 2)
-    # For now, create a simple 1:1 mapping (P0 fallback)
+    # Use LLM-powered decomposition (with fallback to simple 1:1)
+    programmer_tasks = task_decomposer.decompose(
+        job_card=job_card,
+        max_tasks=5,  # Up to 5 parallel Programmers
+        fallback=True  # Fall back to simple decomposition if LLM fails
+    )
 
-    task = job_card.get("task", "")
-    files = job_card.get("inputs", [])
-    file_paths = [f["path"] for f in files if f.get("type") == "file"]
-
-    # Simple decomposition: 1 Programmer task per file
-    programmer_tasks = []
-    for idx, file_path in enumerate(file_paths):
-        programmer_tasks.append({
-            "task": f"{task} in {file_path}",
-            "files": [file_path],
-            "operation": "modify",
-            "context": file_paths,  # All files for context
-            "acceptance": job_card.get("acceptance", []),
-            "budget": job_card.get("budget", {}),
-            "timeout_s": 300
-        })
-
-    # If no files, create a single generic task
-    if not programmer_tasks:
-        programmer_tasks.append({
-            "task": task,
-            "files": [],
-            "operation": "create",
-            "context": [],
-            "acceptance": job_card.get("acceptance", []),
-            "budget": job_card.get("budget", {}),
-            "timeout_s": 300
-        })
+    logger.log(
+        from_agent=AGENT_ID,
+        to_agent=AGENT_ID,
+        msg_type=MessageType.STATUS,
+        message=f"Decomposed into {len(programmer_tasks)} tasks using {'LLM' if task_decomposer.enabled else 'simple'} decomposition",
+        metadata={
+            "task_count": len(programmer_tasks),
+            "llm_enabled": task_decomposer.enabled,
+            "llm_model": task_decomposer.model
+        }
+    )
 
     return programmer_tasks
 

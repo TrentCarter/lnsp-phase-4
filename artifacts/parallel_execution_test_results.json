@@ -1,0 +1,9 @@
+{
+  "timestamp": 1762983286.415731,
+  "num_tasks": 3,
+  "parallel_elapsed": 3.1159071922302246,
+  "sequential_elapsed": 9.022887229919434,
+  "speedup": 2.8957496720116565,
+  "parallel_success_rate": 1.0,
+  "sequential_success_rate": 1.0
+}

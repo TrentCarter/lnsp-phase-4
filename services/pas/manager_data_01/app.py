@@ -42,6 +42,8 @@ import asyncio
 from services.common.heartbeat import get_monitor, AgentState
 from services.common.job_queue import get_queue, JobCard, Lane, Role, Priority
 from services.common.comms_logger import get_logger, MessageType
+from services.common.programmer_pool import get_programmer_pool
+from services.common.llm_task_decomposer import get_task_decomposer
 
 app = FastAPI(title="Manager-Data-01", version="1.0.0")
 
@@ -49,6 +51,8 @@ app = FastAPI(title="Manager-Data-01", version="1.0.0")
 heartbeat_monitor = get_monitor()
 job_queue = get_queue()
 logger = get_logger()
+programmer_pool = get_programmer_pool()
+task_decomposer = get_task_decomposer()
 
 # Service configuration
 SERVICE_NAME = "Manager-Data-01"
@@ -193,7 +197,7 @@ async def submit_job_card(input: JobCardInput, background_tasks: BackgroundTasks
     # Update heartbeat
     heartbeat_monitor.heartbeat(
         agent=AGENT_ID,
-        state=AgentState.EXECUTING,
+        state=AgentState.PLANNING,
         message=f"Processing {job_card_id}",
         metadata={"job_card_id": job_card_id}
     )
@@ -249,7 +253,7 @@ async def process_job_card(job_card_id: str):
 
         programmer_tasks = await decompose_into_programmer_tasks(job_card)
         job["programmer_tasks"] = programmer_tasks
-        job["programmers"] = {task["programmer_id"]: "pending" for task in programmer_tasks}
+        job["programmers"] = {}  # Will be populated by delegate_to_programmers
 
         logger.log(
             from_agent=AGENT_ID,
@@ -273,6 +277,12 @@ async def process_job_card(job_card_id: str):
         )
 
         results = await delegate_to_programmers(job_card_id, programmer_tasks)
+
+        # Update programmers dict with results
+        for result in results:
+            prog_id = result.get("programmer_id", "unknown")
+            status = "completed" if result["success"] else "failed"
+            job["programmers"][prog_id] = status
 
         # Step 3: Validate results
         job["state"] = "validating"
@@ -352,124 +362,135 @@ async def decompose_into_programmer_tasks(job_card: Dict[str, Any]) -> List[Dict
         4. Update existing endpoints to require auth (app/api/*.py)
         5. Add tests (tests/test_auth.py)
     """
-    # TODO: Implement LLM-powered decomposition (Phase 2)
-    # For now, create a simple 1:1 mapping (P0 fallback)
+    # Use LLM-powered decomposition (with fallback to simple 1:1)
+    programmer_tasks = task_decomposer.decompose(
+        job_card=job_card,
+        max_tasks=5,  # Up to 5 parallel Programmers
+        fallback=True  # Fall back to simple decomposition if LLM fails
+    )
 
-    task = job_card.get("task", "")
-    files = job_card.get("inputs", [])
-    file_paths = [f["path"] for f in files if f.get("type") == "file"]
-
-    # Simple decomposition: 1 Programmer task per file
-    programmer_tasks = []
-    for idx, file_path in enumerate(file_paths):
-        programmer_tasks.append({
-            "programmer_id": f"Prog-Qwen-{(idx % 5) + 1:03d}",  # Round-robin across 5 Qwens
-            "task": f"{task} in {file_path}",
-            "files": [file_path],
-            "operation": "modify",
-            "context": file_paths,  # All files for context
-            "acceptance": job_card.get("acceptance", []),
-            "budget": job_card.get("budget", {}),
-            "timeout_s": 300
-        })
-
-    # If no files, create a single generic task
-    if not programmer_tasks:
-        programmer_tasks.append({
-            "programmer_id": "Prog-Qwen-001",
-            "task": task,
-            "files": [],
-            "operation": "create",
-            "context": [],
-            "acceptance": job_card.get("acceptance", []),
-            "budget": job_card.get("budget", {}),
-            "timeout_s": 300
-        })
+    logger.log(
+        from_agent=AGENT_ID,
+        to_agent=AGENT_ID,
+        msg_type=MessageType.STATUS,
+        message=f"Decomposed into {len(programmer_tasks)} tasks using {'LLM' if task_decomposer.enabled else 'simple'} decomposition",
+        metadata={
+            "task_count": len(programmer_tasks),
+            "llm_enabled": task_decomposer.enabled,
+            "llm_model": task_decomposer.model
+        }
+    )
 
     return programmer_tasks
 
 
+
+
 async def delegate_to_programmers(job_card_id: str, programmer_tasks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
-    Delegate tasks to Programmers in parallel
+    Delegate tasks to Programmers in parallel using Programmer Pool
 
     Steps:
-    1. Load Programmer Pool (get available Programmers)
-    2. For each task, POST to Programmer's /execute endpoint
-    3. Poll for completion (async, parallel)
-    4. Collect results
+    1. Discover available Programmers from pool
+    2. For each task, assign to next available Programmer (round-robin)
+    3. POST to Programmer's /execute endpoint
+    4. Execute in parallel (asyncio.gather)
+    5. Collect results
     """
-    # TODO: Implement Programmer Pool integration (Phase 2)
-    # For now, use legacy Aider RPC (6130) as fallback
+    # Discover Programmers (auto-discovery)
+    programmer_pool.discover_programmers()
 
-    results = []
-
-    for task in programmer_tasks:
+    # Execute tasks in parallel
+    async def execute_task(task: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute single task on assigned Programmer"""
         try:
-            # Use legacy Aider RPC for now (will switch to Programmer services in Phase 2)
-            response = requests.post(
-                "http://localhost:6130/execute",
-                json={
-                    "message": task["task"],
-                    "files": task["files"],
-                    "timeout": task["timeout_s"]
-                },
-                timeout=task["timeout_s"] + 10
-            )
+            # Assign Programmer from pool (round-robin)
+            programmer_info = programmer_pool.assign_task(task["task"])
 
-            if response.status_code == 200:
-                result = response.json()
-                results.append({
-                    "success": True,
-                    "programmer_id": task["programmer_id"],
-                    "task": task["task"],
-                    "result": result
-                })
-
-                logger.log(
-                    from_agent=task["programmer_id"],
-                    to_agent=AGENT_ID,
-                    msg_type=MessageType.RESPONSE,
-                    message=f"Task completed: {task['task'][:50]}...",
-                    run_id=job_card_id,
-                    status="completed"
-                )
-            else:
-                results.append({
+            if not programmer_info:
+                return {
                     "success": False,
-                    "programmer_id": task["programmer_id"],
+                    "programmer_id": task.get("programmer_id", "unknown"),
                     "task": task["task"],
-                    "error": f"Programmer returned {response.status_code}"
-                })
+                    "error": "No available Programmers in pool"
+                }
 
-                logger.log(
-                    from_agent=task["programmer_id"],
-                    to_agent=AGENT_ID,
-                    msg_type=MessageType.RESPONSE,
-                    message=f"Task failed: {task['task'][:50]}...",
-                    run_id=job_card_id,
-                    status="failed",
-                    metadata={"status_code": response.status_code}
+            # POST to Programmer's /execute endpoint
+            async with httpx.AsyncClient(timeout=task["timeout_s"] + 10) as client:
+                response = await client.post(
+                    f"{programmer_info.endpoint}/execute",
+                    json={
+                        "task": task["task"],
+                        "files": task["files"],
+                        "llm_provider": "ollama",  # Default to free local model
+                        "llm_model": "qwen2.5-coder:7b-instruct",
+                        "run_id": job_card_id,
+                        "timeout_s": task["timeout_s"]
+                    }
                 )
+
+                # Release Programmer back to pool
+                success = response.status_code == 200
+                programmer_pool.release_task(programmer_info.agent_id, success=success)
+
+                if success:
+                    result = response.json()
+                    logger.log(
+                        from_agent=programmer_info.agent_id,
+                        to_agent=AGENT_ID,
+                        msg_type=MessageType.RESPONSE,
+                        message=f"Task completed: {task['task'][:50]}...",
+                        run_id=job_card_id,
+                        status="completed"
+                    )
+
+                    return {
+                        "success": True,
+                        "programmer_id": programmer_info.agent_id,
+                        "task": task["task"],
+                        "result": result,
+                        "metrics": result.get("metrics", {})
+                    }
+                else:
+                    logger.log(
+                        from_agent=programmer_info.agent_id,
+                        to_agent=AGENT_ID,
+                        msg_type=MessageType.RESPONSE,
+                        message=f"Task failed: {task['task'][:50]}...",
+                        run_id=job_card_id,
+                        status="failed",
+                        metadata={"status_code": response.status_code}
+                    )
+
+                    return {
+                        "success": False,
+                        "programmer_id": programmer_info.agent_id,
+                        "task": task["task"],
+                        "error": f"Programmer returned {response.status_code}"
+                    }
 
         except Exception as e:
-            results.append({
-                "success": False,
-                "programmer_id": task["programmer_id"],
-                "task": task["task"],
-                "error": str(e)
-            })
-
             logger.log(
-                from_agent=task["programmer_id"],
+                from_agent=AGENT_ID,
                 to_agent=AGENT_ID,
-                msg_type=MessageType.RESPONSE,
+                msg_type=MessageType.STATUS,
                 message=f"Task error: {str(e)}",
                 run_id=job_card_id,
                 status="error"
             )
 
-    return results
+            return {
+                "success": False,
+                "programmer_id": task.get("programmer_id", "unknown"),
+                "task": task["task"],
+                "error": str(e)
+            }
+
+    # Execute all tasks in parallel
+    results = await asyncio.gather(*[execute_task(task) for task in programmer_tasks])
+    return list(results)
+
+
 
 
 # === Startup Event ===
