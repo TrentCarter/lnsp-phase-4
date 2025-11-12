@@ -238,10 +238,13 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
     Handle child agent timeout alert from TRON
 
     HHMRS Phase 1 retry strategy:
-    - restart_count < 3: Restart child with same config
-    - restart_count >= 3: Escalate to grandparent (PAS Root)
+    - restart_count < max_restarts: Restart child with same config
+    - restart_count >= max_restarts: Escalate to grandparent (PAS Root)
+
+    Note: max_restarts is loaded from settings (artifacts/pas_settings.json)
     """
-    MAX_RESTARTS = 3
+    # Load max_restarts from TRON settings
+    max_restarts = heartbeat_monitor.max_restarts
     child_id = alert.child_id
     restart_count = alert.restart_count
 
@@ -258,7 +261,7 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
     )
 
     # Check if we should escalate to grandparent
-    if restart_count >= MAX_RESTARTS:
+    if restart_count >= max_restarts:
         # Escalate to PAS Root
         try:
             pas_root_url = os.getenv("PAS_ROOT_URL", "http://127.0.0.1:6100")

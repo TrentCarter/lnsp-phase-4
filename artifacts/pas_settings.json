@@ -1,0 +1,43 @@
+{
+  "hhmrs": {
+    "heartbeat_interval_s": 30,
+    "timeout_threshold_s": 60,
+    "max_restarts": 3,
+    "max_llm_retries": 3,
+    "enable_auto_restart": true,
+    "enable_llm_switching": true
+  },
+  "tron_chime": {
+    "enabled": true,
+    "sound": "ping",
+    "volume": 50,
+    "chime_on_timeout": true,
+    "chime_on_restart": false,
+    "chime_on_escalation": true,
+    "chime_on_permanent_failure": true
+  },
+  "hmi_display": {
+    "show_tron_status_bar": true,
+    "auto_refresh_interval_s": 5,
+    "theme": "light",
+    "show_agent_tree": true,
+    "show_metrics_panel": true
+  },
+  "tasks": {
+    "task_timeout_minutes": 30,
+    "max_concurrent_tasks": 5,
+    "enable_task_priority": true,
+    "auto_archive_completed": true,
+    "auto_cleanup_days": 7,
+    "retry_failed_tasks": true,
+    "max_task_retries": 2
+  },
+  "notifications": {
+    "email_enabled": false,
+    "email_address": "",
+    "slack_enabled": false,
+    "slack_webhook_url": "",
+    "notify_on_permanent_failure": true,
+    "notify_on_completion": false
+  }
+}

@@ -63,6 +63,15 @@ DEFAULT_SETTINGS = {
         "show_agent_tree": True,
         "show_metrics_panel": True
     },
+    "tasks": {
+        "task_timeout_minutes": 30,
+        "max_concurrent_tasks": 5,
+        "enable_task_priority": True,
+        "auto_archive_completed": True,
+        "auto_cleanup_days": 7,
+        "retry_failed_tasks": True,
+        "max_task_retries": 2
+    },
     "notifications": {
         "email_enabled": False,
         "email_address": "",
@@ -270,7 +279,7 @@ input[type="checkbox"] {
     </nav>
 
     <h1>PAS Settings</h1>
-    <p class="subtitle">Configure HHMRS, TRON notifications, and HMI display preferences</p>
+    <p class="subtitle">Configure HHMRS, TRON notifications, task management, and HMI display preferences</p>
 
     <div id="alert" class="alert"></div>
 
@@ -416,6 +425,59 @@ input[type="checkbox"] {
             </div>
         </div>
 
+        <!-- Task Settings -->
+        <div class="section">
+            <h2>📋 Task Management</h2>
+
+            <div class="form-group">
+                <label>Task Timeout (minutes)</label>
+                <input type="number" id="task_timeout_minutes" min="5" max="480" value="30">
+                <div class="help-text">Max duration before marking task as failed (default: 30 minutes)</div>
+            </div>
+
+            <div class="form-group">
+                <label>Max Concurrent Tasks</label>
+                <input type="number" id="max_concurrent_tasks" min="1" max="20" value="5">
+                <div class="help-text">Maximum number of tasks that can run simultaneously (default: 5)</div>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="enable_task_priority" checked>
+                    Enable task priority queue
+                </label>
+                <div class="help-text">Process high-priority tasks before low-priority tasks</div>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="auto_archive_completed" checked>
+                    Auto-archive completed tasks
+                </label>
+                <div class="help-text">Automatically move completed tasks to archive after 24 hours</div>
+            </div>
+
+            <div class="form-group">
+                <label>Auto-cleanup After (days)</label>
+                <input type="number" id="auto_cleanup_days" min="1" max="90" value="7">
+                <div class="help-text">Delete archived tasks older than this many days (default: 7)</div>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="retry_failed_tasks" checked>
+                    Auto-retry failed tasks
+                </label>
+                <div class="help-text">Automatically retry tasks that fail due to transient errors</div>
+            </div>
+
+            <div class="form-group">
+                <label>Max Task Retries</label>
+                <input type="number" id="max_task_retries" min="0" max="5" value="2">
+                <div class="help-text">Maximum number of automatic retries for failed tasks (default: 2)</div>
+            </div>
+        </div>
+
         <!-- Notification Settings -->
         <div class="section">
             <h2>📧 External Notifications</h2>
@@ -499,6 +561,15 @@ async function loadSettings() {
         document.getElementById('show_agent_tree').checked = data.hmi_display.show_agent_tree;
         document.getElementById('show_metrics_panel').checked = data.hmi_display.show_metrics_panel;
 
+        // Tasks
+        document.getElementById('task_timeout_minutes').value = data.tasks.task_timeout_minutes;
+        document.getElementById('max_concurrent_tasks').value = data.tasks.max_concurrent_tasks;
+        document.getElementById('enable_task_priority').checked = data.tasks.enable_task_priority;
+        document.getElementById('auto_archive_completed').checked = data.tasks.auto_archive_completed;
+        document.getElementById('auto_cleanup_days').value = data.tasks.auto_cleanup_days;
+        document.getElementById('retry_failed_tasks').checked = data.tasks.retry_failed_tasks;
+        document.getElementById('max_task_retries').value = data.tasks.max_task_retries;
+
         // Notifications
         document.getElementById('email_enabled').checked = data.notifications.email_enabled;
         document.getElementById('email_address').value = data.notifications.email_address;
@@ -540,6 +611,15 @@ async function saveSettings(event) {
             theme: document.getElementById('theme').value,
             show_agent_tree: document.getElementById('show_agent_tree').checked,
             show_metrics_panel: document.getElementById('show_metrics_panel').checked
+        },
+        tasks: {
+            task_timeout_minutes: parseInt(document.getElementById('task_timeout_minutes').value),
+            max_concurrent_tasks: parseInt(document.getElementById('max_concurrent_tasks').value),
+            enable_task_priority: document.getElementById('enable_task_priority').checked,
+            auto_archive_completed: document.getElementById('auto_archive_completed').checked,
+            auto_cleanup_days: parseInt(document.getElementById('auto_cleanup_days').value),
+            retry_failed_tasks: document.getElementById('retry_failed_tasks').checked,
+            max_task_retries: parseInt(document.getElementById('max_task_retries').value)
         },
         notifications: {
             email_enabled: document.getElementById('email_enabled').checked,

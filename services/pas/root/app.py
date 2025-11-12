@@ -54,7 +54,7 @@ heartbeat_monitor.register_agent(
 )
 
 # HHMRS Phase 2 constants
-MAX_FAILED_TASKS = 3  # Max LLM retries before permanent failure
+# MAX_FAILED_TASKS moved to settings (artifacts/pas_settings.json) as max_llm_retries
 GATEWAY_URL = os.getenv("GATEWAY_URL", "http://127.0.0.1:6120")
 
 # Get programmer agent name from Aider RPC (fallback to "Prog-Qwen-001")
@@ -559,12 +559,13 @@ class GrandchildFailureAlert(BaseModel):
 async def mark_task_failed(agent_id: str, run_id: Optional[str] = None) -> dict:
     """Mark task as permanently failed after max failures exceeded"""
 
+    max_llm_retries = heartbeat_monitor.max_llm_retries
     logger.log_message(
         from_agent="PAS Root",
         to_agent="PAS Root",
-        message=f"Task {agent_id} permanently failed after {MAX_FAILED_TASKS} attempts",
+        message=f"Task {agent_id} permanently failed after {max_llm_retries} attempts",
         run_id=run_id,
-        metadata={"agent_id": agent_id, "max_failures": MAX_FAILED_TASKS}
+        metadata={"agent_id": agent_id, "max_failures": max_llm_retries}
     )
 
     # Update run status if we have a run_id
@@ -634,8 +635,9 @@ async def handle_grandchild_failure(alert: GrandchildFailureAlert):
         }
     )
 
-    # Check if we've exceeded max failures
-    if failure_count >= MAX_FAILED_TASKS:
+    # Check if we've exceeded max failures (load from settings)
+    max_llm_retries = heartbeat_monitor.max_llm_retries
+    if failure_count >= max_llm_retries:
         # Permanent failure
         return await mark_task_failed(grandchild_id, run_id=None)
 

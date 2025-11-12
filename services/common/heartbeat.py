@@ -93,10 +93,12 @@ class HeartbeatMonitor:
     _instance: Optional['HeartbeatMonitor'] = None
     _lock = threading.Lock()
 
-    # Constants
-    HEARTBEAT_INTERVAL_S = 30  # Expected heartbeat interval (updated to 30s per HHMRS Phase 1)
+    # Default constants (can be overridden by settings)
+    DEFAULT_HEARTBEAT_INTERVAL_S = 30
+    DEFAULT_TIMEOUT_THRESHOLD_S = 60
+    DEFAULT_MAX_RESTARTS = 3
+    DEFAULT_MAX_LLM_RETRIES = 3
     MISS_THRESHOLD = 2  # Number of missed heartbeats before escalation
-    MISS_TIMEOUT_S = HEARTBEAT_INTERVAL_S * MISS_THRESHOLD  # 60s timeout (2 missed @ 30s)
 
     def __new__(cls):
         """Singleton pattern - only one monitor instance"""
@@ -118,6 +120,24 @@ class HeartbeatMonitor:
         "Director-Docs": 6115,
     }
 
+    def _load_settings(self) -> Dict[str, Any]:
+        """
+        Load settings from artifacts/pas_settings.json
+        Falls back to defaults if file doesn't exist or is invalid
+        """
+        settings_file = Path("artifacts/pas_settings.json")
+        if settings_file.exists():
+            try:
+                with open(settings_file, 'r') as f:
+                    settings = json.load(f)
+                    logger.info(f"TRON loaded settings from {settings_file}")
+                    return settings.get("hhmrs", {})
+            except Exception as e:
+                logger.warning(f"Failed to load settings from {settings_file}: {e}, using defaults")
+        else:
+            logger.info(f"Settings file not found at {settings_file}, using defaults")
+        return {}
+
     def __init__(self):
         """Initialize heartbeat monitor (only once)"""
         if self._initialized:
@@ -131,6 +151,21 @@ class HeartbeatMonitor:
         # HHMRS Phase 1: Retry tracking
         self._retry_counts: Dict[str, int] = {}  # agent_id -> restart_count
         self._failure_counts: Dict[str, int] = {}  # agent_id -> failure_count
+
+        # Load settings and apply to instance
+        hhmrs_settings = self._load_settings()
+        self.heartbeat_interval_s = hhmrs_settings.get("heartbeat_interval_s", self.DEFAULT_HEARTBEAT_INTERVAL_S)
+        self.timeout_threshold_s = hhmrs_settings.get("timeout_threshold_s", self.DEFAULT_TIMEOUT_THRESHOLD_S)
+        self.max_restarts = hhmrs_settings.get("max_restarts", self.DEFAULT_MAX_RESTARTS)
+        self.max_llm_retries = hhmrs_settings.get("max_llm_retries", self.DEFAULT_MAX_LLM_RETRIES)
+        self.enable_auto_restart = hhmrs_settings.get("enable_auto_restart", True)
+        self.enable_llm_switching = hhmrs_settings.get("enable_llm_switching", True)
+
+        logger.info(
+            f"TRON initialized with: heartbeat_interval={self.heartbeat_interval_s}s, "
+            f"timeout_threshold={self.timeout_threshold_s}s, "
+            f"max_restarts={self.max_restarts}, max_llm_retries={self.max_llm_retries}"
+        )
 
         # Start background checker thread
         self._checker_thread = threading.Thread(target=self._check_health_loop, daemon=True)
@@ -226,10 +261,10 @@ class HeartbeatMonitor:
             record = self._heartbeats[agent]
             now = time.time()
             time_since_last = now - record.timestamp
-            missed_count = int(time_since_last / self.HEARTBEAT_INTERVAL_S)
+            missed_count = int(time_since_last / self.heartbeat_interval_s)
 
-            # Healthy if last heartbeat within timeout
-            healthy = time_since_last < self.MISS_TIMEOUT_S
+            # Healthy if last heartbeat within timeout (use settings value)
+            healthy = time_since_last < self.timeout_threshold_s
             reason = None if healthy else f"No heartbeat for {time_since_last:.0f}s ({missed_count} missed)"
 
             return AgentHealth(
