@@ -23,19 +23,39 @@ import time
 import pathlib
 import sys
 import asyncio
+import sqlite3
+import subprocess
+import signal
+from datetime import datetime
+from typing import Optional
 
 # Add services/common to path for comms_logger and title_generator
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.parent))
 from common.comms_logger import get_logger, MessageType
 from common.title_generator import generate_short_title_async
+from common.heartbeat import get_monitor, AgentState
 
 AIDER_RPC = os.getenv("AIDER_RPC_URL", "http://127.0.0.1:6130")
 ARCHITECT_URL = os.getenv("ARCHITECT_URL", "http://127.0.0.1:6110")
 
 app = FastAPI(title="PAS Root", version="1.0")
 
-# Initialize comms logger
+# Initialize comms logger and heartbeat monitor
 logger = get_logger()
+heartbeat_monitor = get_monitor()
+
+# Register PAS Root agent
+heartbeat_monitor.register_agent(
+    agent="PAS Root",
+    parent=None,  # Root has no parent
+    llm_model=None,  # PAS Root doesn't use LLM directly
+    role="orchestrator",
+    tier="root"
+)
+
+# HHMRS Phase 2 constants
+MAX_FAILED_TASKS = 3  # Max LLM retries before permanent failure
+GATEWAY_URL = os.getenv("GATEWAY_URL", "http://127.0.0.1:6120")
 
 # Get programmer agent name from Aider RPC (fallback to "Prog-Qwen-001")
 PROG_AGENT_NAME = "Prog-Qwen-001"  # Default
@@ -88,6 +108,73 @@ def _artifact_dir(run_id: str) -> pathlib.Path:
     p = pathlib.Path(f"artifacts/runs/{run_id}")
     p.mkdir(parents=True, exist_ok=True)
     return p
+
+
+# === HHMRS Phase 2: Database Helper Functions ===
+
+def _get_failure_count(agent_id: str) -> int:
+    """Get failure count for agent from heartbeat monitor"""
+    return heartbeat_monitor._failure_counts.get(agent_id, 0)
+
+
+def _increment_failure_count(agent_id: str) -> int:
+    """Increment and return failure count for agent"""
+    current = _get_failure_count(agent_id)
+    new_count = current + 1
+    heartbeat_monitor._failure_counts[agent_id] = new_count
+    return new_count
+
+
+def _record_retry(agent_id: str, retry_type: str, retry_count: int, reason: str,
+                  old_config: dict, new_config: dict, run_id: Optional[str] = None) -> None:
+    """Record retry in retry_history table"""
+    try:
+        db_path = pathlib.Path("artifacts/registry/registry.db")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO retry_history (
+                run_id, task_id, agent_id, retry_type, retry_count,
+                reason, old_config, new_config, timestamp, outcome
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            run_id,
+            None,  # task_id
+            agent_id,
+            retry_type,
+            retry_count,
+            reason,
+            json.dumps(old_config) if old_config else None,
+            json.dumps(new_config) if new_config else None,
+            datetime.now().isoformat(),
+            "pending"  # Will be updated after retry attempt
+        ))
+
+        conn.commit()
+        conn.close()
+
+    except Exception as e:
+        logger.log_message(
+            from_agent="PAS Root",
+            to_agent="PAS Root",
+            message=f"Failed to record retry in database: {e}",
+            run_id=run_id,
+            metadata={"error": str(e)}
+        )
+
+
+def _get_agent_port(agent_id: str) -> Optional[int]:
+    """Get port for agent from AGENT_PORT_MAP"""
+    port_map = {
+        "Architect": 6110,
+        "Director-Code": 6111,
+        "Director-Models": 6112,
+        "Director-Data": 6113,
+        "Director-DevSecOps": 6114,
+        "Director-Docs": 6115,
+    }
+    return port_map.get(agent_id)
 
 
 async def _execute_prime_directive(run_id: str, pd: PrimeDirective):
@@ -456,6 +543,165 @@ def list_runs(limit: int = 50, status: Optional[str] = None):
             "ts": data.get("ts")
         })
     return {"runs": runs, "total": len(runs)}
+
+
+# === HHMRS Phase 2: Grandchild Failure Handler ===
+
+class GrandchildFailureAlert(BaseModel):
+    """Grandchild failure alert from parent (Architect/Director)"""
+    type: str  # "grandchild_failure"
+    grandchild_id: str
+    parent_id: str
+    failure_count: int
+    reason: str
+
+
+async def mark_task_failed(agent_id: str, run_id: Optional[str] = None) -> dict:
+    """Mark task as permanently failed after max failures exceeded"""
+
+    logger.log_message(
+        from_agent="PAS Root",
+        to_agent="PAS Root",
+        message=f"Task {agent_id} permanently failed after {MAX_FAILED_TASKS} attempts",
+        run_id=run_id,
+        metadata={"agent_id": agent_id, "max_failures": MAX_FAILED_TASKS}
+    )
+
+    # Update run status if we have a run_id
+    if run_id and run_id in RUNS:
+        RUNS[run_id].update({
+            "status": "failed",
+            "message": f"Permanently failed: {agent_id} (max failures exceeded)",
+            "completed_at": time.time()
+        })
+
+    # Alert Gateway
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(
+                f"{GATEWAY_URL}/notify_run_failed",
+                json={
+                    "agent_id": agent_id,
+                    "run_id": run_id,
+                    "reason": "max_failures_exceeded"
+                }
+            )
+
+        logger.log_message(
+            from_agent="PAS Root",
+            to_agent="Gateway",
+            message=f"Notified Gateway of permanent failure: {agent_id}",
+            run_id=run_id,
+            metadata={"agent_id": agent_id}
+        )
+    except Exception as e:
+        logger.log_message(
+            from_agent="PAS Root",
+            to_agent="PAS Root",
+            message=f"Failed to notify Gateway: {e}",
+            run_id=run_id,
+            metadata={"error": str(e)}
+        )
+
+    return {"status": "permanently_failed", "agent_id": agent_id}
+
+
+@app.post("/handle_grandchild_failure")
+async def handle_grandchild_failure(alert: GrandchildFailureAlert):
+    """
+    Handle grandchild failure escalation from Architect/Directors
+
+    HHMRS Phase 2 escalation strategy:
+    - failure_count < 3: Retry with different LLM (Anthropic ↔ Ollama)
+    - failure_count >= 3: Mark as permanently failed
+    """
+    grandchild_id = alert.grandchild_id
+    parent_id = alert.parent_id
+
+    # Get current failure count
+    failure_count = _get_failure_count(grandchild_id)
+
+    logger.log_message(
+        from_agent=parent_id,
+        to_agent="PAS Root",
+        message=f"Grandchild escalation: {grandchild_id} (failure_count={failure_count})",
+        run_id=None,
+        metadata={
+            "grandchild_id": grandchild_id,
+            "parent_id": parent_id,
+            "failure_count": failure_count,
+            "reason": alert.reason
+        }
+    )
+
+    # Check if we've exceeded max failures
+    if failure_count >= MAX_FAILED_TASKS:
+        # Permanent failure
+        return await mark_task_failed(grandchild_id, run_id=None)
+
+    # Try different LLM
+    # Phase 2 simplified: Just log the LLM change intent
+    # In full implementation, would restart agent with different LLM
+    try:
+        # Determine current and new LLM
+        # For Phase 2, we'll just simulate the LLM switch
+        old_llm = "claude-sonnet-4-5"  # Assume current is Anthropic
+        new_llm = "llama3.1:8b"  # Switch to Ollama
+
+        # If failure_count is even, switch back to Anthropic
+        if failure_count % 2 == 1:
+            old_llm = "llama3.1:8b"
+            new_llm = "claude-sonnet-4-5"
+
+        logger.log_message(
+            from_agent="PAS Root",
+            to_agent=grandchild_id,
+            message=f"Retrying {grandchild_id} with different LLM: {old_llm} → {new_llm}",
+            run_id=None,
+            metadata={
+                "grandchild_id": grandchild_id,
+                "old_llm": old_llm,
+                "new_llm": new_llm,
+                "retry_count": failure_count + 1
+            }
+        )
+
+        # Increment failure count
+        new_failure_count = _increment_failure_count(grandchild_id)
+
+        # Record retry in database
+        _record_retry(
+            agent_id=grandchild_id,
+            retry_type="llm_change",
+            retry_count=new_failure_count,
+            reason="max_restarts_exceeded",
+            old_config={"llm": old_llm},
+            new_config={"llm": new_llm},
+            run_id=None
+        )
+
+        # TODO Phase 2: Implement actual process restart with different LLM
+        # For now, just acknowledge the escalation
+        return {
+            "status": "retrying_with_different_llm",
+            "grandchild_id": grandchild_id,
+            "old_llm": old_llm,
+            "new_llm": new_llm,
+            "failure_count": new_failure_count,
+            "note": "Phase 2: LLM switching not yet fully implemented"
+        }
+
+    except Exception as e:
+        logger.log_message(
+            from_agent="PAS Root",
+            to_agent="PAS Root",
+            message=f"Failed to retry {grandchild_id} with different LLM: {e}",
+            run_id=None,
+            metadata={"grandchild_id": grandchild_id, "error": str(e)}
+        )
+
+        # If retry failed, mark as permanently failed
+        return await mark_task_failed(grandchild_id, run_id=None)
 
 
 if __name__ == "__main__":

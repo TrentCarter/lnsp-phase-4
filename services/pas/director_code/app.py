@@ -140,6 +140,130 @@ async def get_status(job_card_id: str):
     }
 
 
+# === HHMRS Phase 1: Child Timeout Handler ===
+
+class ChildTimeoutAlert(BaseModel):
+    """Timeout alert from TRON (HeartbeatMonitor)"""
+    type: str  # "child_timeout"
+    child_id: str
+    reason: str
+    restart_count: int
+    last_seen_timestamp: float
+    timeout_duration_s: float
+
+
+@app.post("/handle_child_timeout")
+async def handle_child_timeout(alert: ChildTimeoutAlert):
+    """
+    Handle child agent timeout alert from TRON
+
+    HHMRS Phase 1 retry strategy:
+    - restart_count < 3: Restart child (Manager) with same config
+    - restart_count >= 3: Escalate to grandparent (Architect)
+    """
+    MAX_RESTARTS = 3
+    child_id = alert.child_id
+    restart_count = alert.restart_count
+
+    logger.log_message(
+        from_agent="TRON",
+        to_agent="Dir-Code",
+        message=f"Child timeout alert: {child_id} (restart_count={restart_count})",
+        run_id=None,
+        metadata={
+            "child_id": child_id,
+            "restart_count": restart_count,
+            "timeout_duration_s": alert.timeout_duration_s
+        }
+    )
+
+    # Check if we should escalate to grandparent
+    if restart_count >= MAX_RESTARTS:
+        # Escalate to Architect
+        try:
+            architect_url = os.getenv("ARCHITECT_URL", "http://127.0.0.1:6110")
+            escalation = {
+                "type": "grandchild_failure",
+                "grandchild_id": child_id,
+                "parent_id": "Dir-Code",
+                "failure_count": restart_count,
+                "reason": "max_restarts_exceeded"
+            }
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{architect_url}/handle_grandchild_failure",
+                    json=escalation,
+                    timeout=10.0
+                )
+
+            if response.status_code == 200:
+                logger.log_message(
+                    from_agent="Dir-Code",
+                    to_agent="Architect",
+                    message=f"Escalated {child_id} failure to Architect",
+                    run_id=None,
+                    metadata={"child_id": child_id, "restart_count": restart_count}
+                )
+                return {
+                    "status": "escalated",
+                    "message": f"Escalated {child_id} to Architect",
+                    "restart_count": restart_count
+                }
+            else:
+                logger.log_message(
+                    from_agent="Dir-Code",
+                    to_agent="Dir-Code",
+                    message=f"Failed to escalate {child_id} to Architect: {response.text}",
+                    run_id=None,
+                    metadata={"child_id": child_id, "status_code": response.status_code}
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Grandparent escalation failed: {response.text}"
+                )
+
+        except Exception as e:
+            logger.log_message(
+                from_agent="Dir-Code",
+                to_agent="Dir-Code",
+                message=f"Error escalating {child_id}: {str(e)}",
+                run_id=None,
+                metadata={"child_id": child_id, "error": str(e)}
+            }
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to escalate to grandparent: {str(e)}"
+            )
+
+    # Attempt restart (simplified for Phase 1 - just log the action)
+    # In a full implementation, this would:
+    # 1. Kill child Manager process
+    # 2. Clear Manager state
+    # 3. Restart Manager
+    # 4. Update retry count in TRON
+
+    logger.log_message(
+        from_agent="Dir-Code",
+        to_agent=child_id,
+        message=f"Restarting {child_id} (attempt {restart_count + 1})",
+        run_id=None,
+        metadata={"child_id": child_id, "restart_count": restart_count + 1}
+    )
+
+    # Update TRON retry count
+    heartbeat_monitor._retry_counts[child_id] = restart_count + 1
+
+    # TODO Phase 1: Implement actual Manager restart
+    # For now, just acknowledge the timeout
+    return {
+        "status": "restarted",
+        "message": f"Acknowledged timeout for {child_id}, restart scheduled",
+        "restart_count": restart_count + 1,
+        "note": "Phase 1: Manager restart not yet implemented"
+    }
+
+
 # === Main Job Card Submission Endpoint ===
 
 @app.post("/submit")
@@ -525,9 +649,13 @@ async def report_to_architect(run_id: str, lane_report: LaneReport):
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
+            # Add run_id to the lane report for Architect
+            report_data = lane_report.dict()
+            report_data["run_id"] = run_id
+
             response = await client.post(
                 f"{architect_url}/lane_report",
-                json=lane_report.dict()
+                json=report_data
             )
             response.raise_for_status()
 

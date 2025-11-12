@@ -220,6 +220,130 @@ async def receive_lane_report(request: LaneReportRequest):
     }
 
 
+# === HHMRS Phase 1: Child Timeout Handler ===
+
+class ChildTimeoutAlert(BaseModel):
+    """Timeout alert from TRON (HeartbeatMonitor)"""
+    type: str  # "child_timeout"
+    child_id: str
+    reason: str
+    restart_count: int
+    last_seen_timestamp: float
+    timeout_duration_s: float
+
+
+@app.post("/handle_child_timeout")
+async def handle_child_timeout(alert: ChildTimeoutAlert):
+    """
+    Handle child agent timeout alert from TRON
+
+    HHMRS Phase 1 retry strategy:
+    - restart_count < 3: Restart child with same config
+    - restart_count >= 3: Escalate to grandparent (PAS Root)
+    """
+    MAX_RESTARTS = 3
+    child_id = alert.child_id
+    restart_count = alert.restart_count
+
+    logger.log_message(
+        from_agent="TRON",
+        to_agent="Architect",
+        message=f"Child timeout alert: {child_id} (restart_count={restart_count})",
+        run_id=None,
+        metadata={
+            "child_id": child_id,
+            "restart_count": restart_count,
+            "timeout_duration_s": alert.timeout_duration_s
+        }
+    )
+
+    # Check if we should escalate to grandparent
+    if restart_count >= MAX_RESTARTS:
+        # Escalate to PAS Root
+        try:
+            pas_root_url = os.getenv("PAS_ROOT_URL", "http://127.0.0.1:6100")
+            escalation = {
+                "type": "grandchild_failure",
+                "grandchild_id": child_id,
+                "parent_id": "Architect",
+                "failure_count": restart_count,
+                "reason": "max_restarts_exceeded"
+            }
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{pas_root_url}/handle_grandchild_failure",
+                    json=escalation,
+                    timeout=10.0
+                )
+
+            if response.status_code == 200:
+                logger.log_message(
+                    from_agent="Architect",
+                    to_agent="PAS Root",
+                    message=f"Escalated {child_id} failure to PAS Root",
+                    run_id=None,
+                    metadata={"child_id": child_id, "restart_count": restart_count}
+                )
+                return {
+                    "status": "escalated",
+                    "message": f"Escalated {child_id} to PAS Root",
+                    "restart_count": restart_count
+                }
+            else:
+                logger.log_message(
+                    from_agent="Architect",
+                    to_agent="Architect",
+                    message=f"Failed to escalate {child_id} to PAS Root: {response.text}",
+                    run_id=None,
+                    metadata={"child_id": child_id, "status_code": response.status_code}
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Grandparent escalation failed: {response.text}"
+                )
+
+        except Exception as e:
+            logger.log_message(
+                from_agent="Architect",
+                to_agent="Architect",
+                message=f"Error escalating {child_id}: {str(e)}",
+                run_id=None,
+                metadata={"child_id": child_id, "error": str(e)}
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to escalate to grandparent: {str(e)}"
+            )
+
+    # Attempt restart (simplified for Phase 1 - just log the action)
+    # In a full implementation, this would:
+    # 1. Kill child process
+    # 2. Clear child state
+    # 3. Restart Director service
+    # 4. Update retry count in TRON
+
+    logger.log_message(
+        from_agent="Architect",
+        to_agent=child_id,
+        message=f"Restarting {child_id} (attempt {restart_count + 1})",
+        run_id=None,
+        metadata={"child_id": child_id, "restart_count": restart_count + 1}
+    )
+
+    # Update TRON retry count
+    heartbeat_monitor._retry_counts[child_id] = restart_count + 1
+
+    # TODO Phase 1: Implement actual process restart
+    # For now, just acknowledge the timeout
+    return {
+        "status": "restarted",
+        "message": f"Acknowledged timeout for {child_id}, restart scheduled",
+        "restart_count": restart_count + 1,
+        "note": "Phase 1: Process restart not yet implemented"
+    }
+
+
 # === Main Prime Directive Endpoint ===
 
 @app.post("/submit")

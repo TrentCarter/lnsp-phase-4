@@ -28,6 +28,12 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 import json
 from pathlib import Path
+import sqlite3
+import requests
+import logging
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 class AgentState(str, Enum):
@@ -88,9 +94,9 @@ class HeartbeatMonitor:
     _lock = threading.Lock()
 
     # Constants
-    HEARTBEAT_INTERVAL_S = 60  # Expected heartbeat interval
+    HEARTBEAT_INTERVAL_S = 30  # Expected heartbeat interval (updated to 30s per HHMRS Phase 1)
     MISS_THRESHOLD = 2  # Number of missed heartbeats before escalation
-    MISS_TIMEOUT_S = HEARTBEAT_INTERVAL_S * MISS_THRESHOLD + 30  # 150s grace period
+    MISS_TIMEOUT_S = HEARTBEAT_INTERVAL_S * MISS_THRESHOLD  # 60s timeout (2 missed @ 30s)
 
     def __new__(cls):
         """Singleton pattern - only one monitor instance"""
@@ -101,6 +107,17 @@ class HeartbeatMonitor:
                     cls._instance._initialized = False
         return cls._instance
 
+    # Agent port mapping (for HHMRS Phase 1 parent alerting)
+    AGENT_PORT_MAP = {
+        "PAS Root": 6100,
+        "Architect": 6110,
+        "Director-Code": 6111,
+        "Director-Models": 6112,
+        "Director-Data": 6113,
+        "Director-DevSecOps": 6114,
+        "Director-Docs": 6115,
+    }
+
     def __init__(self):
         """Initialize heartbeat monitor (only once)"""
         if self._initialized:
@@ -110,6 +127,10 @@ class HeartbeatMonitor:
         self._heartbeats: Dict[str, HeartbeatRecord] = {}  # agent -> latest heartbeat
         self._registry: Dict[str, Dict[str, Any]] = {}  # agent -> metadata
         self._lock = threading.RLock()  # Reentrant lock for nested access
+
+        # HHMRS Phase 1: Retry tracking
+        self._retry_counts: Dict[str, int] = {}  # agent_id -> restart_count
+        self._failure_counts: Dict[str, int] = {}  # agent_id -> failure_count
 
         # Start background checker thread
         self._checker_thread = threading.Thread(target=self._check_health_loop, daemon=True)
@@ -338,6 +359,153 @@ class HeartbeatMonitor:
             }
             self._registry = snapshot["registry"]
 
+    def _get_agent_url(self, agent_id: str) -> str:
+        """
+        Resolve agent ID to URL
+
+        Args:
+            agent_id: Agent identifier (e.g., "Architect", "Director-Code")
+
+        Returns:
+            Full URL for the agent (e.g., "http://127.0.0.1:6110")
+        """
+        port = self.AGENT_PORT_MAP.get(agent_id)
+        if not port:
+            raise ValueError(f"Unknown agent ID: {agent_id}")
+        return f"http://127.0.0.1:{port}"
+
+    def _record_timeout(self, agent_id: str, parent_id: str, restart_count: int) -> None:
+        """
+        Record timeout event in retry_history table
+
+        Args:
+            agent_id: Child agent that timed out
+            parent_id: Parent agent being alerted
+            restart_count: Current restart count for this agent
+        """
+        try:
+            db_path = Path("artifacts/registry/registry.db")
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Get run_id from heartbeat record if available
+            record = self._heartbeats.get(agent_id)
+            run_id = record.run_id if record else None
+
+            cursor.execute("""
+                INSERT INTO retry_history (
+                    run_id, task_id, agent_id, retry_type, retry_count,
+                    reason, old_config, new_config, timestamp, outcome
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                run_id,
+                None,  # task_id - not available at this level
+                agent_id,
+                "child_timeout",
+                restart_count,
+                "heartbeat_timeout",
+                None,  # old_config
+                None,  # new_config
+                datetime.now().isoformat(),
+                "pending"  # Will be updated by parent handler
+            ))
+
+            conn.commit()
+            conn.close()
+
+            logger.info(f"Recorded timeout for {agent_id} (restart_count={restart_count})")
+
+        except Exception as e:
+            logger.error(f"Failed to record timeout in database: {e}")
+
+    def _alert_parent(
+        self,
+        parent_id: str,
+        child_id: str,
+        reason: str,
+        restart_count: int,
+        last_seen: float
+    ) -> None:
+        """
+        Send timeout alert to parent via RPC
+
+        Args:
+            parent_id: Parent agent ID
+            child_id: Child agent that timed out
+            reason: Reason for timeout
+            restart_count: Current restart count
+            last_seen: Timestamp of last heartbeat
+        """
+        try:
+            parent_url = self._get_agent_url(parent_id)
+
+            alert = {
+                "type": "child_timeout",
+                "child_id": child_id,
+                "reason": reason,
+                "restart_count": restart_count,
+                "last_seen_timestamp": last_seen,
+                "timeout_duration_s": time.time() - last_seen
+            }
+
+            # POST to parent's /handle_child_timeout endpoint
+            response = requests.post(
+                f"{parent_url}/handle_child_timeout",
+                json=alert,
+                timeout=10.0
+            )
+
+            if response.status_code == 200:
+                logger.info(f"Alerted parent {parent_id} about {child_id} timeout")
+            else:
+                logger.error(f"Parent {parent_id} rejected timeout alert: {response.text}")
+
+        except Exception as e:
+            logger.error(f"Failed to alert parent {parent_id}: {e}")
+
+    def _handle_timeout(self, agent_id: str, health: AgentHealth) -> None:
+        """
+        Handle agent timeout - alert parent
+
+        Args:
+            agent_id: Agent that timed out
+            health: Health status of the agent
+        """
+        with self._lock:
+            record = self._heartbeats.get(agent_id)
+            if not record:
+                logger.warning(f"No heartbeat record for {agent_id}")
+                return
+
+            parent_id = record.parent_agent
+            if not parent_id:
+                logger.warning(f"Agent {agent_id} has no parent, cannot escalate")
+                return
+
+            # Get retry count
+            restart_count = self._retry_counts.get(agent_id, 0)
+
+            logger.warning(
+                f"Agent {agent_id} timeout detected "
+                f"(last_seen={health.last_heartbeat:.1f}s ago, restart_count={restart_count})"
+            )
+
+            # Alert parent via RPC
+            try:
+                self._alert_parent(
+                    parent_id=parent_id,
+                    child_id=agent_id,
+                    reason="timeout",
+                    restart_count=restart_count,
+                    last_seen=health.last_heartbeat
+                )
+
+                # Write to retry_history table
+                self._record_timeout(agent_id, parent_id, restart_count)
+
+            except Exception as e:
+                logger.error(f"Failed to handle timeout for {agent_id}: {e}")
+
     def _check_health_loop(self) -> None:
         """Background thread to check agent health periodically"""
         while True:
@@ -346,12 +514,21 @@ class HeartbeatMonitor:
 
                 unhealthy = self.get_unhealthy_agents()
                 if unhealthy:
-                    # Log unhealthy agents (could escalate here)
-                    # For now, just track - Directors will handle escalation
-                    pass
+                    # HHMRS Phase 1: Handle timeouts for unhealthy agents
+                    for agent_id in unhealthy:
+                        health = self.get_health(agent_id)
 
-            except Exception:
-                # Silently continue (monitoring thread should never crash)
+                        # Only handle if agent has exceeded miss threshold
+                        if health.missed_count >= self.MISS_THRESHOLD:
+                            logger.warning(
+                                f"TRON detected timeout: {agent_id} "
+                                f"(missed={health.missed_count}, threshold={self.MISS_THRESHOLD})"
+                            )
+                            self._handle_timeout(agent_id, health)
+
+            except Exception as e:
+                # Log errors but continue monitoring (thread should never crash)
+                logger.error(f"Health check loop error: {e}")
                 pass
 
 
