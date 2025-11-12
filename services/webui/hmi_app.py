@@ -2826,15 +2826,24 @@ def get_system_status():
     try:
         # Required ports (count against health if down)
         required_ports = [
-            6100, 6101, 6102, 6103, 6120, 6121,  # P0 Stack (exclude 6130)
-            8050, 8051, 8052,  # Model Pool (exclude 8053)
+            # Core Services
+            6120, 6100, 6121, 6101, 6102, 6103,  # Gateway, PAS Root, Registry, HMI, Events, Router
+            # PAS Agent Tiers
+            6110,  # Architect
+            6111, 6112, 6113, 6114, 6115,  # Directors (Code, Models, Data, DevSecOps, Docs)
+            6141, 6142, 6143, 6144, 6145, 6146, 6147,  # Managers (Code 1-3, Models, Data, DevSecOps, Docs)
+            6151, 6152, 6153, 6154, 6155, 6156, 6157, 6158, 6159, 6160,  # Programmers 1-10
+            # LLM Services
             11434  # Ollama
         ]
 
         # Optional ports (don't count against health if down)
         optional_ports = {
             6130: 'Aider-LCO (on-demand)',
-            8053: 'Model Pool Spare Port'
+            8050: 'Model Pool (hibernated)',
+            8051: 'Model: Qwen (hibernated)',
+            8052: 'Model: Llama (hibernated)',
+            8053: 'Model: DeepSeek (hibernated)'
         }
 
         all_ports = required_ports + list(optional_ports.keys())

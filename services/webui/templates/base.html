@@ -1522,10 +1522,10 @@
                     <div class="settings-section">
                         <h3>🔌 Port Status</h3>
                         <div style="margin-bottom: 1rem;">
-                            <span style="font-size: 0.875rem; color: #9ca3af;">Hover over ports for details</span>
+                            <span style="font-size: 0.875rem; color: #9ca3af;">Hover over ports for details • Click groups to expand/collapse</span>
                         </div>
-                        <div id="port-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 0.5rem; margin-bottom: 1rem;">
-                            <!-- Ports will be populated here -->
+                        <div id="port-groups-container">
+                            <!-- Port groups will be populated here -->
                         </div>
                         <div style="display: flex; gap: 1.5rem; font-size: 0.75rem; color: #9ca3af; margin-top: 1rem;">
                             <div><span style="display: inline-block; width: 12px; height: 12px; background: #10b981; border-radius: 2px; margin-right: 0.25rem;"></span> UP</div>
@@ -3836,21 +3836,69 @@ The system should be production-ready, secure, and scalable.`;
         // ===== System Status Functions =====
 
         let systemStatusRefreshInterval = null;
+        let expandedGroups = JSON.parse(localStorage.getItem('expandedPortGroups') || '["core", "pas_tier", "llm"]');
 
-        const PORT_DEFINITIONS = [
-            { port: 6100, name: 'PAS Root', service: 'PAS' },
-            { port: 6101, name: 'HMI', service: 'WebUI' },
-            { port: 6102, name: 'Event Bus', service: 'Events' },
-            { port: 6103, name: 'Provider Router', service: 'Router' },
-            { port: 6120, name: 'Gateway', service: 'Gateway' },
-            { port: 6121, name: 'PAS Registry', service: 'Registry' },
-            { port: 6130, name: 'Aider-LCO', service: 'Aider' },
-            { port: 8050, name: 'Model Pool', service: 'Model Pool' },
-            { port: 8051, name: 'Model:qwen', service: 'Model' },
-            { port: 8052, name: 'Model:llama', service: 'Model' },
-            { port: 8053, name: 'Model:deepseek', service: 'Model' },
-            { port: 11434, name: 'Ollama', service: 'LLM' }
-        ];
+        const PORT_GROUPS = {
+            core: {
+                name: '🏢 Core Services',
+                expanded: true,
+                ports: [
+                    { port: 6120, name: 'Gateway', service: 'Gateway' },
+                    { port: 6100, name: 'PAS Root', service: 'PAS' },
+                    { port: 6121, name: 'Registry', service: 'Registry' },
+                    { port: 6101, name: 'HMI', service: 'WebUI' },
+                    { port: 6102, name: 'Event Bus', service: 'Events' },
+                    { port: 6103, name: 'Router', service: 'Router' },
+                    { port: 6130, name: 'Aider-LCO', service: 'Aider' }
+                ]
+            },
+            pas_tier: {
+                name: '🤖 PAS Agent Tiers',
+                expanded: true,
+                ports: [
+                    { port: 6110, name: 'Architect', service: 'Architect' },
+                    { port: 6111, name: 'Dir-Code', service: 'Director' },
+                    { port: 6112, name: 'Dir-Models', service: 'Director' },
+                    { port: 6113, name: 'Dir-Data', service: 'Director' },
+                    { port: 6114, name: 'Dir-DevSecOps', service: 'Director' },
+                    { port: 6115, name: 'Dir-Docs', service: 'Director' },
+                    { port: 6141, name: 'Mgr-Code-01', service: 'Manager' },
+                    { port: 6142, name: 'Mgr-Code-02', service: 'Manager' },
+                    { port: 6143, name: 'Mgr-Code-03', service: 'Manager' },
+                    { port: 6144, name: 'Mgr-Models-01', service: 'Manager' },
+                    { port: 6145, name: 'Mgr-Data-01', service: 'Manager' },
+                    { port: 6146, name: 'Mgr-DevSecOps-01', service: 'Manager' },
+                    { port: 6147, name: 'Mgr-Docs-01', service: 'Manager' }
+                ]
+            },
+            programmers: {
+                name: '💻 Programmers',
+                expanded: true,
+                ports: [
+                    { port: 6151, name: 'Prog-001', service: 'Programmer' },
+                    { port: 6152, name: 'Prog-002', service: 'Programmer' },
+                    { port: 6153, name: 'Prog-003', service: 'Programmer' },
+                    { port: 6154, name: 'Prog-004', service: 'Programmer' },
+                    { port: 6155, name: 'Prog-005', service: 'Programmer' },
+                    { port: 6156, name: 'Prog-006', service: 'Programmer' },
+                    { port: 6157, name: 'Prog-007', service: 'Programmer' },
+                    { port: 6158, name: 'Prog-008', service: 'Programmer' },
+                    { port: 6159, name: 'Prog-009', service: 'Programmer' },
+                    { port: 6160, name: 'Prog-010', service: 'Programmer' }
+                ]
+            },
+            llm: {
+                name: '🔮 LLM Services',
+                expanded: true,
+                ports: [
+                    { port: 11434, name: 'Ollama', service: 'LLM' },
+                    { port: 8050, name: 'Model Pool', service: 'Model Pool' },
+                    { port: 8051, name: 'Model:qwen', service: 'Model' },
+                    { port: 8052, name: 'Model:llama', service: 'Model' },
+                    { port: 8053, name: 'Model:deepseek', service: 'Model' }
+                ]
+            }
+        };
 
         async function refreshSystemStatus() {
             try {
@@ -3886,55 +3934,126 @@ The system should be production-ready, secure, and scalable.`;
             }
         }
 
+        function togglePortGroup(groupId) {
+            const index = expandedGroups.indexOf(groupId);
+            if (index > -1) {
+                expandedGroups.splice(index, 1);
+            } else {
+                expandedGroups.push(groupId);
+            }
+            localStorage.setItem('expandedPortGroups', JSON.stringify(expandedGroups));
+
+            // Re-render the current status
+            refreshSystemStatus();
+        }
+
         function renderPortGrid(portsData) {
-            const grid = document.getElementById('port-grid');
+            const container = document.getElementById('port-groups-container');
 
-            grid.innerHTML = PORT_DEFINITIONS.map((portDef, index) => {
-                const portStatus = portsData[portDef.port] || { status: 'unknown', latency_ms: null };
-                const statusColors = {
-                    'up': '#10b981',
-                    'down': '#ef4444',
-                    'degraded': '#f59e0b',
-                    'hibernated': '#6b7280',  // Grey for hibernated/optional ports
-                    'unknown': '#6b7280'
-                };
-                const statusIcons = {
-                    'up': '✓',
-                    'down': '✗',
-                    'degraded': '⚠',
-                    'hibernated': '○',  // Empty circle for hibernated ports
-                    'unknown': '?'
-                };
-                const bgColor = statusColors[portStatus.status] || '#6b7280';
-                const icon = statusIcons[portStatus.status] || '?';
+            const statusColors = {
+                'up': '#10b981',
+                'down': '#ef4444',
+                'degraded': '#f59e0b',
+                'hibernated': '#6b7280',
+                'unknown': '#6b7280'
+            };
+            const statusIcons = {
+                'up': '✓',
+                'down': '✗',
+                'degraded': '⚠',
+                'hibernated': '○',
+                'unknown': '?'
+            };
 
-                return `
-                    <div
-                        data-port="${portDef.port}"
-                        data-port-name="${portDef.name}"
-                        data-port-service="${portDef.service}"
-                        data-port-status="${portStatus.status}"
-                        data-port-latency="${portStatus.latency_ms || 'N/A'}"
-                        data-port-error="${portStatus.error || ''}"
-                        data-port-note="${portStatus.note || ''}"
-                        onmouseenter="showPortTooltip(event, this)"
-                        onmouseleave="hidePortTooltip()"
-                        style="
-                            background: ${bgColor};
-                            color: white;
-                            padding: 0.75rem;
-                            border-radius: 6px;
-                            text-align: center;
-                            font-weight: 600;
+            container.innerHTML = Object.entries(PORT_GROUPS).map(([groupId, group]) => {
+                const isExpanded = expandedGroups.includes(groupId);
+
+                // Count ports by status
+                const statusCounts = { up: 0, down: 0, degraded: 0, unknown: 0 };
+                group.ports.forEach(portDef => {
+                    const portStatus = portsData[portDef.port] || { status: 'unknown' };
+                    statusCounts[portStatus.status] = (statusCounts[portStatus.status] || 0) + 1;
+                });
+
+                const totalPorts = group.ports.length;
+                const healthPercent = Math.round((statusCounts.up / totalPorts) * 100);
+
+                // Group header with summary
+                let groupHtml = `
+                    <div style="margin-bottom: 1rem; background: #1e293b; border: 1px solid #4a5578; border-radius: 8px; overflow: hidden;">
+                        <div onclick="togglePortGroup('${groupId}')" style="
+                            padding: 0.75rem 1rem;
+                            background: #2d3748;
                             cursor: pointer;
-                            position: relative;
-                            font-size: 0.875rem;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            user-select: none;
                         ">
-                        <div style="font-size: 1.25rem; margin-bottom: 0.25rem;">${icon}</div>
-                        <div style="font-size: 0.625rem; opacity: 0.9;">${portDef.port}</div>
-                        <div style="font-size: 0.625rem; opacity: 0.7; margin-top: 0.125rem;">${portDef.service}</div>
-                    </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 1rem;">${isExpanded ? '▼' : '▶'}</span>
+                                <span style="font-weight: 600; font-size: 0.875rem;">${group.name}</span>
+                                <span style="font-size: 0.75rem; color: #9ca3af;">(${totalPorts} ports)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div style="display: flex; gap: 0.5rem; font-size: 0.75rem;">
+                                    ${statusCounts.up > 0 ? `<span style="color: #10b981;">✓ ${statusCounts.up}</span>` : ''}
+                                    ${statusCounts.down > 0 ? `<span style="color: #ef4444;">✗ ${statusCounts.down}</span>` : ''}
+                                    ${statusCounts.degraded > 0 ? `<span style="color: #f59e0b;">⚠ ${statusCounts.degraded}</span>` : ''}
+                                    ${statusCounts.unknown > 0 ? `<span style="color: #6b7280;">? ${statusCounts.unknown}</span>` : ''}
+                                </div>
+                                <div style="font-size: 0.75rem; font-weight: 600; color: ${healthPercent === 100 ? '#10b981' : healthPercent >= 70 ? '#f59e0b' : '#ef4444'};">
+                                    ${healthPercent}%
+                                </div>
+                            </div>
+                        </div>
                 `;
+
+                // Port grid (only if expanded)
+                if (isExpanded) {
+                    groupHtml += `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 0.4rem; padding: 0.75rem;">
+                    `;
+
+                    group.ports.forEach(portDef => {
+                        const portStatus = portsData[portDef.port] || { status: 'unknown', latency_ms: null };
+                        const bgColor = statusColors[portStatus.status] || '#6b7280';
+                        const icon = statusIcons[portStatus.status] || '?';
+
+                        groupHtml += `
+                            <div
+                                data-port="${portDef.port}"
+                                data-port-name="${portDef.name}"
+                                data-port-service="${portDef.service}"
+                                data-port-status="${portStatus.status}"
+                                data-port-latency="${portStatus.latency_ms || 'N/A'}"
+                                data-port-error="${portStatus.error || ''}"
+                                data-port-note="${portStatus.note || ''}"
+                                onmouseenter="showPortTooltip(event, this)"
+                                onmouseleave="hidePortTooltip()"
+                                style="
+                                    background: ${bgColor};
+                                    color: white;
+                                    padding: 0.5rem;
+                                    border-radius: 4px;
+                                    text-align: center;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    position: relative;
+                                    font-size: 0.75rem;
+                                ">
+                                <div style="font-size: 1rem; margin-bottom: 0.15rem;">${icon}</div>
+                                <div style="font-size: 0.55rem; opacity: 0.9;">${portDef.port}</div>
+                                <div style="font-size: 0.55rem; opacity: 0.7; margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${portDef.service}</div>
+                            </div>
+                        `;
+                    });
+
+                    groupHtml += `</div>`;
+                }
+
+                groupHtml += `</div>`;
+                return groupHtml;
             }).join('');
         }
 

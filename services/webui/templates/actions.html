@@ -15,16 +15,23 @@
         width: 350px;
         background: linear-gradient(135deg, #0f1423 0%, #1a1f3a 100%);
         border-radius: 12px;
-        padding: 1.5rem;
-        overflow-y: auto;
+        padding: 0;
+        overflow: hidden;
         flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
     }
 
     .tasks-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1rem;
+        padding: 1.5rem 1.5rem 1rem 1.5rem;
+        background: linear-gradient(135deg, #0f1423 0%, #1a1f3a 100%);
+        border-bottom: 1px solid #3a4568;
     }
 
     .tasks-title {
@@ -49,6 +56,15 @@
         transform: translateY(-1px);
     }
 
+    .search-box-container {
+        position: sticky;
+        top: 68px;
+        z-index: 9;
+        padding: 0 1.5rem 1rem 1.5rem;
+        background: linear-gradient(135deg, #0f1423 0%, #1a1f3a 100%);
+        border-bottom: 1px solid #3a4568;
+    }
+
     .search-box {
         width: 100%;
         padding: 0.75rem;
@@ -57,12 +73,17 @@
         border-radius: 6px;
         color: #e0e0e0;
         font-size: 0.875rem;
-        margin-bottom: 1rem;
     }
 
     .search-box:focus {
         outline: none;
         border-color: #3b82f6;
+    }
+
+    .task-list-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem 1.5rem 1.5rem 1.5rem;
     }
 
     .task-list {
@@ -410,11 +431,15 @@
             <button class="refresh-button" onclick="refreshTasks()">🔄 Refresh</button>
         </div>
 
-        <input type="text" class="search-box" id="task-search" placeholder="Search prime directives..." oninput="filterTasks()">
+        <div class="search-box-container">
+            <input type="text" class="search-box" id="task-search" placeholder="Search prime directives..." oninput="filterTasks()">
+        </div>
 
-        <div id="task-list" class="task-list">
-            <div class="loading">
-                <div class="spinner"></div>
+        <div class="task-list-container">
+            <div id="task-list" class="task-list">
+                <div class="loading">
+                    <div class="spinner"></div>
+                </div>
             </div>
         </div>
     </div>

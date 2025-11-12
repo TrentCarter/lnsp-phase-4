@@ -333,6 +333,21 @@
 <script>
     let metricsUpdateInterval = null;
 
+    // Toggle agent group (Directors, Managers, Programmers)
+    function toggleAgentGroup(groupId) {
+        const collapsedGroups = JSON.parse(localStorage.getItem('collapsedAgentGroups') || '[]');
+        const index = collapsedGroups.indexOf(groupId);
+
+        if (index > -1) {
+            collapsedGroups.splice(index, 1);
+        } else {
+            collapsedGroups.push(groupId);
+        }
+
+        localStorage.setItem('collapsedAgentGroups', JSON.stringify(collapsedGroups));
+        fetchAgents(); // Re-render with new collapsed state
+    }
+
     // Collapsible Section Toggle
     function toggleSection(sectionId) {
         const content = document.getElementById(`${sectionId}-content`);
@@ -665,7 +680,39 @@
                     </div>
                 `).join('');
             } else {
-                container.innerHTML = agents.map(agent => `
+                // Group agents by role
+                const grouped = {
+                    core: [],
+                    architect: [],
+                    directors: [],
+                    managers: [],
+                    programmers: [],
+                    other: []
+                };
+
+                agents.forEach(agent => {
+                    const role = (agent.labels?.agent_role || '').toLowerCase();
+                    const name = (agent.name || '').toLowerCase();
+
+                    if (role === 'architect' || name.includes('architect')) {
+                        grouped.architect.push(agent);
+                    } else if (role === 'director' || name.includes('director') || name.includes('dir-')) {
+                        grouped.directors.push(agent);
+                    } else if (role === 'manager' || name.includes('manager') || name.includes('mgr-')) {
+                        grouped.managers.push(agent);
+                    } else if (role === 'programmer' || name.includes('programmer') || name.includes('prog-')) {
+                        grouped.programmers.push(agent);
+                    } else if (name.includes('gateway') || name.includes('pas root') || name.includes('registry')) {
+                        grouped.core.push(agent);
+                    } else {
+                        grouped.other.push(agent);
+                    }
+                });
+
+                // Retrieve collapsed state from localStorage
+                const collapsedGroups = JSON.parse(localStorage.getItem('collapsedAgentGroups') || '[]');
+
+                const renderAgentCard = (agent) => `
                     <div class="service-card" data-service-id="${agent.service_id}">
                         <div class="service-header">
                             <div class="service-name">${agent.name}</div>
@@ -687,7 +734,58 @@
                         </div>
                         <div class="last-update">Last heartbeat: ${agent.last_heartbeat_ts ? new Date(agent.last_heartbeat_ts * 1000).toLocaleTimeString() : 'Never'}</div>
                     </div>
-                `).join('');
+                `;
+
+                const renderGroup = (groupId, groupName, groupIcon, agentsList) => {
+                    if (agentsList.length === 0) return '';
+
+                    const isCollapsed = collapsedGroups.includes(groupId);
+                    const healthyCount = agentsList.filter(a => a.status === 'ok').length;
+                    const healthPercent = Math.round((healthyCount / agentsList.length) * 100);
+
+                    return `
+                        <div style="margin-bottom: 1rem; background: #1e293b; border: 1px solid #4a5578; border-radius: 8px; overflow: hidden;">
+                            <div onclick="toggleAgentGroup('${groupId}')" style="
+                                padding: 0.75rem 1rem;
+                                background: #2d3748;
+                                cursor: pointer;
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                user-select: none;
+                            ">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-size: 1rem;">${isCollapsed ? '▶' : '▼'}</span>
+                                    <span style="font-size: 1.25rem;">${groupIcon}</span>
+                                    <span style="font-weight: 600; font-size: 0.875rem;">${groupName}</span>
+                                    <span style="font-size: 0.75rem; color: #9ca3af;">(${agentsList.length})</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <div style="font-size: 0.75rem;">
+                                        <span style="color: #10b981;">✓ ${healthyCount}</span>
+                                        ${agentsList.length - healthyCount > 0 ? `<span style="color: #ef4444;"> ✗ ${agentsList.length - healthyCount}</span>` : ''}
+                                    </div>
+                                    <div style="font-size: 0.75rem; font-weight: 600; color: ${healthPercent === 100 ? '#10b981' : healthPercent >= 70 ? '#f59e0b' : '#ef4444'};">
+                                        ${healthPercent}%
+                                    </div>
+                                </div>
+                            </div>
+                            ${!isCollapsed ? `
+                                <div class="service-cards" style="padding: 0.75rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                                    ${agentsList.map(renderAgentCard).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                };
+
+                container.innerHTML =
+                    renderGroup('core', 'Core Services', '🏢', grouped.core) +
+                    renderGroup('architect', 'Architect', '🏗️', grouped.architect) +
+                    renderGroup('directors', 'Directors', '🎯', grouped.directors) +
+                    renderGroup('managers', 'Managers', '📋', grouped.managers) +
+                    renderGroup('programmers', 'Programmers', '💻', grouped.programmers) +
+                    renderGroup('other', 'Other Services', '🔧', grouped.other);
             }
 
         } catch (error) {
