@@ -99,6 +99,15 @@ class ManagerExecutor:
             }
         )
 
+        # Convert relative file paths to absolute paths for Aider RPC allowlist
+        repo_root = Path.cwd()  # Current working directory is repo root
+        absolute_files = []
+        for file in files:
+            file_path = Path(file)
+            if not file_path.is_absolute():
+                file_path = (repo_root / file_path).resolve()
+            absolute_files.append(str(file_path))
+
         try:
             # Call Aider RPC
             async with httpx.AsyncClient(timeout=1800.0) as client:  # 30 min timeout
@@ -106,7 +115,7 @@ class ManagerExecutor:
                     f"{self.aider_rpc_url}/aider/edit",
                     json={
                         "message": task,
-                        "files": files,
+                        "files": absolute_files,  # Use absolute paths
                         "dry_run": False,
                         "run_id": run_id
                     }

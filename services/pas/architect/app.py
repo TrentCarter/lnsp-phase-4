@@ -30,6 +30,7 @@ import httpx
 import json
 import uuid
 import asyncio
+from dataclasses import asdict
 
 # PAS common services
 from services.common.heartbeat import get_monitor, AgentState
@@ -433,7 +434,7 @@ async def delegate_to_directors(run_id: str, plan: ArchitectPlan):
             endpoint = DIRECTOR_ENDPOINTS.get(director)
             if endpoint:
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    response = await client.post(f"{endpoint}/submit", json={"job_card": job_card.model_dump()})
+                    response = await client.post(f"{endpoint}/submit", json={"job_card": asdict(job_card)})
                     response.raise_for_status()
 
                 logger.log_cmd(
