@@ -507,7 +507,7 @@ lnsp-phase-4/
 | **Contract Tester (6106)**         | system | Director‑Models | Trainers/Evaluator  | Schema validate + mini‑replay              | task | rpc               | [F:rw][P:x]                      | 0.20/0.40    | 60 |
 | **Experiment Ledger (6107)**       | system | Architect       | All                 | Run cards, seeds, costs, repro             | long | rpc               | [F:rw]                           | n/a          | 60 |
 | **Peer Review Coordinator (6108)** | system | Director‑Code   | Reviewers           | Cross‑vendor PR enforcement                | task | rpc/rest          | [F:rw][G:x][N:rw]                | 0.30/0.50    | 60 |
-| **Heartbeat Monitor (6109)**       | system | Registry        | —                   | Detect missed beats, escalate              | long | rpc               | [F:rw]                           | n/a          | 30 |
+| **Heartbeat Monitor aka TRON (6109)**       | system | Registry        | —                   | Detect missed beats, escalate              | long | rpc               | [F:rw]                           | n/a          | 30 |
 | **File Queue Watcher (6110)**      | system | Registry        | —                   | Atomic LDJSON inbox/outbox                 | long | file              | [F:rw]                           | n/a          | 60 |
 | **Error Tracking & Recovery(6112)**| system | Architect       | All agents          | Classify errors (transient/perm), trigger recovery/rollback | long | rpc | [F:rw][P:x][N:rw] | n/a | 30 |
 | **Backup & Recovery Mgr (6113)**   | system | Architect       | —                   | Manage backups, retention, recovery        | long | rpc               | [F:rw][B:x][P:x][S:x]            | n/a          | 60 |

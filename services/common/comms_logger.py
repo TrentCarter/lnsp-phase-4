@@ -59,11 +59,11 @@ class CommsLogger:
         # Global log file (daily rotation)
         self._global_log_path = self._get_daily_log_path()
         self._global_log_file = None
-        self._last_flush = datetime.now(timezone.utc)
+        self._last_flush = datetime.now()
 
     def _get_daily_log_path(self) -> pathlib.Path:
-        """Get log file path for today (UTC)"""
-        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        """Get log file path for today (local timezone)"""
+        date_str = datetime.now().strftime("%Y-%m-%d")
         return self.log_dir / f"pas_comms_{date_str}.txt"
 
     def _escape(self, s: str) -> str:
@@ -99,7 +99,7 @@ class CommsLogger:
 
         Format: timestamp|from|to|type|message|llm_model|run_id|status|progress|metadata
         """
-        timestamp = datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+        timestamp = datetime.now().isoformat(timespec='milliseconds')
 
         # Format fields (use '-' for missing optional fields)
         fields = [
@@ -156,7 +156,7 @@ class CommsLogger:
             conn = sqlite3.connect(str(self.db_path), timeout=5.0)
             cursor = conn.cursor()
 
-            timestamp = datetime.now(timezone.utc).isoformat(timespec='milliseconds')
+            timestamp = datetime.now().isoformat(timespec='milliseconds')
             task_id = run_id if run_id and run_id != "-" else "unknown"
 
             # Map MessageType to action_type/action_name

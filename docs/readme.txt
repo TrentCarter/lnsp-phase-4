@@ -2,6 +2,11 @@
 source .venv/bin/activate
 claude --dangerously-skip-permissions
 
+
+
+/docs/SERVICE_PORTS.md
+ that includes:
+
 # ========================================================================
 # 📝 SESSION WORKFLOW - START HERE (Added 11/11/2025)
 # ========================================================================
@@ -89,7 +94,7 @@ claude --dangerously-skip-permissions
   Export to JSON:
   ./tools/parse_comms_log.py --format json > logs.json
 
-  
+
 
 # ========================================================================
 # 🚨 CURRENT PROJECT: POLYGLOT AGENT SWARM (PAS) + HMI

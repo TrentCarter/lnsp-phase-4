@@ -15,6 +15,8 @@ artifacts/lvm/models/*.json
 !artifacts/**/*.txt
 !artifacts/**/*.sh
 !artifacts/**/
+# Runtime job artifacts - never commit
+artifacts/runs/
 # But still ignore these even if they match above patterns
 artifacts/**/*.npy
 artifacts/**/*.npz

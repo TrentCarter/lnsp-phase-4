@@ -679,6 +679,108 @@ function showAlert(message, type) {
     }, 5000);
 }
 
+// Web Audio API - Chime Sound System
+let audioContext = null;
+
+function getAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioContext;
+}
+
+function playChime(soundType, volume) {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+    const volumeGain = volume / 100;  // Convert 0-100 to 0-1
+
+    switch (soundType) {
+        case 'ping':
+            // Soft ping: 300Hz sine wave, short decay
+            playTone(ctx, 300, now, 0.15, volumeGain * 0.3, 'sine');
+            break;
+
+        case 'bell':
+            // Bell: 523Hz (C5) with harmonics, medium decay
+            playTone(ctx, 523, now, 0.4, volumeGain * 0.25, 'sine');
+            playTone(ctx, 1046, now, 0.3, volumeGain * 0.15, 'sine');  // Octave harmonic
+            break;
+
+        case 'chime':
+            // Pleasant chime: C-E-G chord (261Hz, 329Hz, 392Hz)
+            playTone(ctx, 261, now, 0.6, volumeGain * 0.2, 'sine');
+            playTone(ctx, 329, now + 0.05, 0.6, volumeGain * 0.2, 'sine');
+            playTone(ctx, 392, now + 0.1, 0.6, volumeGain * 0.2, 'sine');
+            break;
+
+        case 'alert':
+            // Attention alert: 800Hz pulsing
+            playPulse(ctx, 800, now, 0.5, volumeGain * 0.3, 3);
+            break;
+
+        case 'alarm':
+            // Urgent alarm: alternating 1000Hz and 1200Hz
+            playTone(ctx, 1000, now, 0.2, volumeGain * 0.35, 'square');
+            playTone(ctx, 1200, now + 0.2, 0.2, volumeGain * 0.35, 'square');
+            playTone(ctx, 1000, now + 0.4, 0.2, volumeGain * 0.35, 'square');
+            break;
+
+        default:
+            playTone(ctx, 440, now, 0.2, volumeGain * 0.3, 'sine');
+    }
+}
+
+function playTone(ctx, frequency, startTime, duration, volume, waveType = 'sine') {
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.type = waveType;
+    oscillator.frequency.value = frequency;
+
+    gainNode.gain.setValueAtTime(volume, startTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration);
+}
+
+function playPulse(ctx, frequency, startTime, duration, volume, pulseCount) {
+    const pulseDuration = duration / pulseCount;
+    const onTime = pulseDuration * 0.4;
+    const offTime = pulseDuration * 0.6;
+
+    for (let i = 0; i < pulseCount; i++) {
+        const pulseStart = startTime + (i * pulseDuration);
+        playTone(ctx, frequency, pulseStart, onTime, volume, 'sine');
+    }
+}
+
+// Test chime button functionality
+function testChime() {
+    const soundType = document.getElementById('chime_sound').value;
+    const volume = parseInt(document.getElementById('chime_volume').value);
+    playChime(soundType, volume);
+}
+
+// Add test button next to chime sound selector (if it doesn't exist)
+window.addEventListener('DOMContentLoaded', () => {
+    const chimeSoundGroup = document.getElementById('chime_sound').parentElement;
+    if (!document.getElementById('test-chime-btn')) {
+        const testBtn = document.createElement('button');
+        testBtn.id = 'test-chime-btn';
+        testBtn.type = 'button';
+        testBtn.textContent = '🔊 Test Sound';
+        testBtn.style.marginLeft = '10px';
+        testBtn.style.padding = '5px 15px';
+        testBtn.style.cursor = 'pointer';
+        testBtn.onclick = testChime;
+        chimeSoundGroup.appendChild(testBtn);
+    }
+});
+
 document.getElementById('settings-form').addEventListener('submit', saveSettings);
 loadSettings();
 </script>
