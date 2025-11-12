@@ -26,7 +26,11 @@ class TaskDecomposer:
 
     def __init__(self):
         """Initialize decomposer with LLM configuration"""
-        self.llm_provider = os.getenv("ARCHITECT_LLM_PROVIDER", "anthropic")
+        # In test mode, default to Ollama instead of Anthropic
+        test_mode = os.getenv("LNSP_TEST_MODE", "0") == "1"
+        default_provider = "ollama" if test_mode else "anthropic"
+
+        self.llm_provider = os.getenv("ARCHITECT_LLM_PROVIDER", default_provider)
         self.llm_model = os.getenv("ARCHITECT_LLM", "claude-sonnet-4-5-20250929")
         self.llm_endpoint = self._get_llm_endpoint()
 

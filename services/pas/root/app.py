@@ -73,6 +73,10 @@ class RunStatus(BaseModel):
     started_at: Optional[float] = None
     completed_at: Optional[float] = None
     duration_s: Optional[float] = None
+    artifacts: Optional[Dict[str, Any]] = None
+    acceptance_results: Optional[Dict[str, Any]] = None
+    actuals: Optional[Dict[str, Any]] = None
+    lanes: Optional[Dict[str, Any]] = None
 
 
 # In-memory run tracking (P0 only, will move to SQLite in P1)
@@ -385,19 +389,55 @@ async def submit_prime_directive(pd: PrimeDirective, bg: BackgroundTasks):
 
 
 @app.get("/pas/runs/{run_id}", response_model=RunStatus)
-def get_status(run_id: str):
+async def get_status(run_id: str):
     """Get run status by ID"""
     if run_id not in RUNS:
         raise HTTPException(404, "run not found")
 
     st = RUNS[run_id]
+
+    # Query Architect for detailed lane information (artifacts, acceptance_results, actuals)
+    artifacts = None
+    acceptance_results = None
+    actuals = None
+    lanes = None
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            architect_r = await client.get(f"{ARCHITECT_URL}/status/{run_id}")
+
+        if architect_r.status_code == 200:
+            architect_data = architect_r.json()
+            lanes = architect_data.get("lanes", {})
+
+            # Extract artifacts, acceptance_results, actuals from completed lanes
+            # For now, take data from the "Code" lane (primary lane in P0)
+            if lanes:
+                for lane_name, lane_data in lanes.items():
+                    if lane_data.get("state") in ["completed", "failed"]:
+                        # Use the first completed lane's data
+                        # (In multi-lane scenarios, might want to aggregate)
+                        artifacts = lane_data.get("artifacts")
+                        acceptance_results = lane_data.get("acceptance_results")
+                        actuals = lane_data.get("actuals")
+                        break
+
+    except Exception:
+        # If Architect query fails, just return basic status
+        # (run might not have reached Architect yet)
+        pass
+
     return RunStatus(
         run_id=run_id,
         status=st["status"],
         message=st.get("message"),
         started_at=st.get("started_at"),
         completed_at=st.get("completed_at"),
-        duration_s=st.get("duration_s")
+        duration_s=st.get("duration_s"),
+        artifacts=artifacts,
+        acceptance_results=acceptance_results,
+        actuals=actuals,
+        lanes=lanes
     )
 
 

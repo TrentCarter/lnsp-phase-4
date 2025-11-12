@@ -19,6 +19,10 @@ import sys
 import os
 from pathlib import Path
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 # Add parent directories to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
@@ -109,6 +113,16 @@ class RunStatus(BaseModel):
     duration_s: Optional[float] = None
 
 
+class LaneReport(BaseModel):
+    """Lane report from Director"""
+    lane: str
+    state: str  # completed | failed
+    artifacts: Dict[str, str] = Field(default_factory=dict)
+    acceptance_results: Dict[str, Any] = Field(default_factory=dict)
+    actuals: Dict[str, Any] = Field(default_factory=dict)
+    managers_used: Dict[str, str] = Field(default_factory=dict)
+
+
 # === Health & Status Endpoints ===
 
 @app.get("/health")
@@ -146,6 +160,64 @@ async def get_status(run_id: str) -> RunStatus:
         completed_at=run_data.get("completed_at"),
         duration_s=run_data.get("duration_s")
     )
+
+
+class LaneReportRequest(BaseModel):
+    """Lane report request with run_id"""
+    run_id: str
+    lane: str
+    state: str  # completed | failed
+    artifacts: Dict[str, str] = Field(default_factory=dict)
+    acceptance_results: Dict[str, Any] = Field(default_factory=dict)
+    actuals: Dict[str, Any] = Field(default_factory=dict)
+    managers_used: Dict[str, str] = Field(default_factory=dict)
+
+
+@app.post("/lane_report")
+async def receive_lane_report(request: LaneReportRequest):
+    """
+    Receive lane completion report from Director
+
+    Directors call this endpoint when they complete (or fail) their lane work.
+    Updates run state and triggers completion checks.
+    """
+    if request.run_id not in RUNS:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    lane_name = request.lane
+
+    # Update lane state in RUNS
+    if lane_name not in RUNS[request.run_id]["lanes"]:
+        RUNS[request.run_id]["lanes"][lane_name] = {}
+
+    RUNS[request.run_id]["lanes"][lane_name].update({
+        "state": request.state,
+        "artifacts": request.artifacts,
+        "acceptance_results": request.acceptance_results,
+        "actuals": request.actuals,
+        "managers_used": request.managers_used,
+        "completed_at": time.time()
+    })
+
+    # Log receipt
+    logger.log_response(
+        from_agent=f"Dir-{lane_name}",
+        to_agent="Architect",
+        message=f"Lane report received: {request.state}",
+        run_id=request.run_id,
+        status=request.state,
+        metadata={
+            "lane": lane_name,
+            "artifacts_count": len(request.artifacts),
+            "managers_used": len(request.managers_used)
+        }
+    )
+
+    return {
+        "status": "ok",
+        "message": f"Lane report received for {lane_name}",
+        "run_id": request.run_id
+    }
 
 
 # === Main Prime Directive Endpoint ===
@@ -489,22 +561,9 @@ async def monitor_directors(run_id: str, plan: ArchitectPlan):
             if lane_state not in ["completed", "failed"]:
                 all_complete = False
 
-                # Check Director health
-                director = f"Dir-{lane}"
-                health = heartbeat_monitor.get_health(director)
-
-                if not health.healthy:
-                    # Director unhealthy - escalate
-                    RUNS[run_id]["lanes"][lane]["state"] = "failed"
-                    RUNS[run_id]["lanes"][lane]["message"] = health.reason
-
-                    logger.log_status(
-                        from_agent="Architect",
-                        to_agent="PAS Root",
-                        message=f"Director {director} unhealthy: {health.reason}",
-                        run_id=run_id,
-                        status="failed"
-                    )
+                # Don't check health aggressively - Directors report back via /lane_report
+                # when they complete or fail. Just wait for their reports.
+                # Only fail on actual timeout (handled below).
 
         if all_complete:
             break
