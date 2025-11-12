@@ -600,6 +600,7 @@
     let verticalOffset = 0; // NEW: Vertical pan offset in pixels (for scrolling up/down)
     let projectName = 'Project Timeline'; // Project/task name for header
     let projectTaskId = null; // Current task ID
+    let initialLoadComplete = false; // Track if initial load is done to prevent zoom reset on refresh
 
     // Console flood protection
     let frameCounter = 0;
@@ -903,7 +904,7 @@
         drawSequencer();
     }
 
-    async function fetchSequencerData() {
+    async function fetchSequencerData(shouldResetZoom = false) {
         try {
             // Check if a task is selected from URL params
             const urlParams = new URLSearchParams(window.location.search);
@@ -1016,15 +1017,19 @@
 
             drawSequencer();
 
-            // 🆕 Auto-fit zoom to screen whenever new data is loaded
-            // This ensures fitAll() is called both on page load AND when selecting a different Prime Directive
-            console.log('🎯 [AUTO-FIT] Scheduling zoom to fit screen after canvas resize');
-            // Wait for next frame to ensure canvas is properly resized
-            requestAnimationFrame(() => {
-                console.log('🎯 [AUTO-FIT] Applying zoom to fit screen');
-                resizeCanvas(); // Ensure canvas is properly sized first
-                fitAll();
-            });
+            // 🆕 Auto-fit zoom to screen ONLY on initial load or Prime Directive change
+            // During auto-refresh, preserve user's current zoom level
+            if (shouldResetZoom) {
+                console.log('🎯 [AUTO-FIT] Scheduling zoom to fit screen after canvas resize');
+                // Wait for next frame to ensure canvas is properly resized
+                requestAnimationFrame(() => {
+                    console.log('🎯 [AUTO-FIT] Applying zoom to fit screen');
+                    resizeCanvas(); // Ensure canvas is properly sized first
+                    fitAll();
+                });
+            } else {
+                console.log('🎯 [AUTO-FIT] Skipping zoom reset - preserving user zoom during refresh');
+            }
         } catch (error) {
             console.error('Error fetching sequencer data:', error);
         }
@@ -1872,7 +1877,7 @@
             console.log('▶️ [PLAY] Starting playback for task:', projectTaskId);
 
             // Immediate refresh on play to get latest task data
-            fetchSequencerData().then(() => {
+            fetchSequencerData(false).then(() => {
                 console.log('✅ [PLAY] Data refreshed before playback');
                 startPlayback();
             });
@@ -2215,7 +2220,7 @@
             lastStopClickTime = 0; // Reset to prevent triple-click
 
             // Immediate refresh on rewind to get latest data
-            fetchSequencerData().then(() => {
+            fetchSequencerData(false).then(() => {
                 console.log('✅ [REWIND] Data refreshed');
                 drawSequencer();
             });
@@ -2453,35 +2458,25 @@
             return;
         }
 
-        // HORIZONTAL ZOOM: Fit all tasks in viewport width
+        // HORIZONTAL ZOOM: Fit all tasks to fill viewport width
         const taskTimes = tasks.flatMap(t => [t.start_time, t.end_time || t.start_time]);
         const earliestTime = Math.min(...taskTimes);
         const latestTime = Math.max(...taskTimes);
-        const totalDuration = latestTime - earliestTime || 300; // Default 5 min if no duration
+        const totalDuration = latestTime - earliestTime || 1; // Use actual duration or 1 second minimum
 
         const canvasWrapper = document.getElementById('sequencer-canvas-wrapper');
         const availableWidth = canvasWrapper.clientWidth - AGENT_LABEL_WIDTH - 50; // 50px padding
         const requiredPixels = totalDuration * PIXELS_PER_SECOND;
 
-        if (requiredPixels > availableWidth) {
-            // Zoom out to fit
-            zoomLevel = availableWidth / requiredPixels;
-        } else {
-            // Zoom in to fill viewport (but don't over-zoom)
-            zoomLevel = Math.min(availableWidth / requiredPixels, 2.0); // Max 2x zoom for fit
-        }
+        // Calculate zoom to fill the viewport (zoom in or out as needed)
+        zoomLevel = availableWidth / requiredPixels;
 
-        // VERTICAL ZOOM: Fit all agents in viewport height
+        // VERTICAL ZOOM: Fit all agents to fill viewport height
         const availableHeight = canvasWrapper.clientHeight - HEADER_HEIGHT - 50; // 50px padding
         const requiredHeight = agents.length * ROW_HEIGHT;
-        
-        if (requiredHeight > availableHeight) {
-            // Zoom out to fit all agents
-            verticalZoom = availableHeight / requiredHeight;
-        } else {
-            // Zoom in to fill viewport (but don't over-zoom)
-            verticalZoom = Math.min(availableHeight / requiredHeight, 2.0); // Max 2x zoom for fit
-        }
+
+        // Calculate zoom to fill the viewport (zoom in or out as needed)
+        verticalZoom = availableHeight / requiredHeight;
 
         // Clamp zoom levels
         zoomLevel = Math.max(0.1, Math.min(zoomLevel, 10.0)); // Clamp between 0.1x and 10x
@@ -2583,11 +2578,11 @@
         localStorage.setItem('sequencer_timeRange', timeRangeSeconds); // Persist selection
         playheadPosition = 0;
         updatePlayhead();
-        fetchSequencerData();
+        fetchSequencerData(true);  // Reset zoom when changing time range
     }
 
     async function refreshSequencer() {
-        await fetchSequencerData();
+        await fetchSequencerData(false);  // Preserve user's zoom during auto-refresh
     }
 
     /**
@@ -2840,7 +2835,7 @@
                 window.history.pushState({}, '', url);
 
                 // Load the new task data
-                await fetchSequencerData();
+                await fetchSequencerData(true);  // Reset zoom for new task
 
                 // Auto-start scrolling to show the new task in real-time
                 if (!isPlaying) {
@@ -2889,7 +2884,7 @@
                     selector.appendChild(option);
 
                     // Set first (most recent) as default and load it
-                    if (index === 0 && !getTaskIdFromUrl()) {
+                    if (index === 0 && !getTaskIdFromUrl() && !initialLoadComplete) {
                         option.selected = true;
                         currentTaskId = project.task_id;
                         // Update URL with task_id and auto-load
@@ -2898,17 +2893,19 @@
                         window.history.replaceState({}, '', url);
                         // Auto-load the most recent task immediately
                         console.log(`[Auto-load] Loading most recent task: ${project.task_id}`);
-                        fetchSequencerData();
+                        fetchSequencerData(true);  // Reset zoom on initial load
+                        initialLoadComplete = true;
                     }
                 });
 
-                // If URL has task_id, select it and load data
+                // If URL has task_id, select it and load data (ONLY on initial load)
                 const urlTaskId = getTaskIdFromUrl();
-                if (urlTaskId) {
+                if (urlTaskId && !initialLoadComplete) {
                     selector.value = urlTaskId;
                     currentTaskId = urlTaskId;
                     console.log(`[Auto-load] Loading task from URL: ${urlTaskId}`);
-                    fetchSequencerData(); // Load the selected task
+                    fetchSequencerData(true); // Load the selected task and reset zoom
+                    initialLoadComplete = true;
                 }
             } else {
                 // No projects found - this is OK, just show placeholder
@@ -2943,7 +2940,8 @@
             window.history.pushState({}, '', url);
 
             currentTaskId = selectedTaskId;
-            fetchSequencerData();  // Reload with new task_id
+            fetchSequencerData(true);  // Reload with new task_id and reset zoom
+            // Note: initialLoadComplete stays true - we only reset zoom when user changes PD, not on auto-refresh
         }
     }
 

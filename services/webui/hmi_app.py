@@ -2695,10 +2695,10 @@ def get_system_status():
                 if not is_optional:
                     required_ports_up += 1
             else:
-                # Optional ports down = 'optional_down' (grey/yellow)
+                # Optional ports down = 'hibernated' (grey)
                 # Required ports down = 'down' (red)
                 ports_status[port] = {
-                    'status': 'optional_down' if is_optional else 'down',
+                    'status': 'hibernated' if is_optional else 'down',
                     'latency_ms': None,
                     'error': 'Connection refused',
                     'optional': is_optional,

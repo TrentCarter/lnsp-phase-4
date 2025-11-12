@@ -56,6 +56,7 @@ class Status(Enum):
     OK = "OK"
     WARN = "WARN"
     FAIL = "FAIL"
+    HIBERNATED = "HIBERNATED"
 
 
 # ---- Frozen TMD label sets and lookups (used by tests) ----

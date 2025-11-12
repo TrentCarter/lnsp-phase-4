@@ -3136,14 +3136,14 @@ The system should be production-ready, secure, and scalable.`;
                     'up': '#10b981',
                     'down': '#ef4444',
                     'degraded': '#f59e0b',
-                    'optional_down': '#6b7280',  // Grey for optional ports that are down
+                    'hibernated': '#6b7280',  // Grey for hibernated/optional ports
                     'unknown': '#6b7280'
                 };
                 const statusIcons = {
                     'up': '✓',
                     'down': '✗',
                     'degraded': '⚠',
-                    'optional_down': '○',  // Empty circle for optional ports that are down
+                    'hibernated': '○',  // Empty circle for hibernated ports
                     'unknown': '?'
                 };
                 const bgColor = statusColors[portStatus.status] || '#6b7280';
@@ -3201,7 +3201,7 @@ The system should be production-ready, secure, and scalable.`;
                         <div style="font-weight: 600;">${service}</div>
 
                         <div style="color: #9ca3af;">Status:</div>
-                        <div style="font-weight: 600; text-transform: uppercase;">${status === 'optional_down' ? 'OPTIONAL (DOWN)' : status}</div>
+                        <div style="font-weight: 600; text-transform: uppercase;">${status === 'hibernated' ? 'HIBERNATED' : status}</div>
             `;
 
             if (latency !== 'N/A') {
@@ -3262,8 +3262,8 @@ The system should be production-ready, secure, and scalable.`;
                     const portStatus = data.ports[portDef.port] || { status: 'unknown' };
                     const icon = portStatus.status === 'up' ? '✓' :
                                 portStatus.status === 'down' ? '✗' :
-                                portStatus.status === 'optional_down' ? '○' : '⚠';
-                    const statusText = portStatus.status === 'optional_down' ? 'OPTIONAL (DOWN)' : portStatus.status.toUpperCase();
+                                portStatus.status === 'hibernated' ? '○' : '⚠';
+                    const statusText = portStatus.status === 'hibernated' ? 'HIBERNATED' : portStatus.status.toUpperCase();
                     summary += `${icon} Port ${portDef.port} (${portDef.name}): ${statusText}`;
                     if (portStatus.latency_ms !== null && portStatus.latency_ms !== undefined) {
                         summary += ` - ${portStatus.latency_ms}ms`;
