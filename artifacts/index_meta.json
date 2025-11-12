@@ -1,0 +1,16 @@
+{
+  "/fake/path/test.index": {
+    "test": "data",
+    "vectors": 1000,
+    "nlist": 256,
+    "requested_nlist": 300,
+    "max_safe_nlist": 250
+  },
+  "/new/path.index": {
+    "test": "data",
+    "vectors": 1000
+  },
+  "/test/path.index": {
+    "test": "data"
+  }
+}

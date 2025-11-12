@@ -11,6 +11,12 @@ COST_DIR = pathlib.Path("artifacts/costs"); COST_DIR.mkdir(parents=True, exist_o
 
 app = FastAPI(title="PAS HMI", version="0.1.0")
 
+@app.get("/")
+def root():
+    """Redirect root to settings page"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/settings")
+
 def _load_actions() -> List[Dict[str, Any]]:
     items = []
     for p in ACTIONS_DIR.glob("*.json"):

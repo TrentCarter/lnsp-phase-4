@@ -623,14 +623,13 @@
     <div id="tron-bar" style="
         display: none;
         position: fixed;
-        top: 0;
+        top: var(--header-height, 60px);
         left: 0;
         right: 0;
         height: 24px;
         background: linear-gradient(90deg, #ff6c00 0%, #ff8c00 100%);
         border-bottom: 1px solid #ff4500;
         z-index: 9999;
-        display: flex;
         align-items: center;
         padding: 0 0.75rem;
         font-family: 'Courier New', monospace;
@@ -642,7 +641,23 @@
             <span style="font-size: 0.75rem; letter-spacing: 0.03em;">⚡ TRON</span>
             <div id="tron-event-list" style="display: flex; gap: 0.4rem; flex: 1;"></div>
         </div>
-        <div style="font-size: 0.65rem; opacity: 0.8;">HHMRS Phase 1</div>
+        <div style="font-size: 0.65rem; opacity: 0.8; margin-right: 0.5rem;">HHMRS Phase 1</div>
+        <button id="tron-dismiss" onclick="dismissTronBar()" style="
+            background: transparent;
+            border: none;
+            color: #000;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        " onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">✕</button>
     </div>
 
     <main style="margin-top: 0;">
@@ -1653,6 +1668,20 @@
                 return;
             }
 
+            // Check if user dismissed the banner recently (within last 5 minutes)
+            const dismissedUntil = localStorage.getItem('tronBarDismissedUntil');
+            if (dismissedUntil) {
+                const dismissTime = parseInt(dismissedUntil);
+                const now = Date.now();
+                if (now < dismissTime) {
+                    // Still dismissed, don't show
+                    return;
+                } else {
+                    // Dismiss period expired, clear it
+                    localStorage.removeItem('tronBarDismissedUntil');
+                }
+            }
+
             // Show TRON bar
             tronBar.style.display = 'flex';
 
@@ -1695,6 +1724,55 @@
             window.tronBarHideTimer = setTimeout(() => {
                 eventListEl.innerHTML = '';  // Clear events
             }, 30000);
+        }
+
+        // Dismiss TRON bar manually
+        function dismissTronBar() {
+            const tronBar = document.getElementById('tron-bar');
+            if (!tronBar) return;
+
+            tronBar.style.display = 'none';
+
+            // Clear the auto-hide timer
+            clearTimeout(window.tronBarHideTimer);
+
+            // Clear all events
+            const eventListEl = document.getElementById('tron-event-list');
+            if (eventListEl) {
+                eventListEl.innerHTML = '';
+            }
+
+            // Save dismiss state for 5 minutes (persists across page navigation)
+            const dismissUntil = Date.now() + (5 * 60 * 1000); // 5 minutes from now
+            localStorage.setItem('tronBarDismissedUntil', dismissUntil.toString());
+        }
+
+        // Calculate and set header height for TRON bar positioning
+        function setHeaderHeight() {
+            const header = document.querySelector('.header');
+            if (header) {
+                const headerHeight = header.offsetHeight;
+                document.documentElement.style.setProperty('--header-height', headerHeight + 'px');
+            }
+        }
+
+        // Check if TRON bar should stay hidden on page load
+        function checkTronBarDismissState() {
+            const dismissedUntil = localStorage.getItem('tronBarDismissedUntil');
+            if (dismissedUntil) {
+                const dismissTime = parseInt(dismissedUntil);
+                const now = Date.now();
+                if (now < dismissTime) {
+                    // Still within dismiss period, keep hidden
+                    const tronBar = document.getElementById('tron-bar');
+                    if (tronBar) {
+                        tronBar.style.display = 'none';
+                    }
+                } else {
+                    // Dismiss period expired, clear it
+                    localStorage.removeItem('tronBarDismissedUntil');
+                }
+            }
         }
 
         // Task Status Management
@@ -2450,6 +2528,12 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Load settings first
             loadSettings();
+
+            // Calculate header height for TRON bar positioning
+            setHeaderHeight();
+
+            // Check if TRON bar should stay hidden (user dismissed it)
+            checkTronBarDismissState();
 
             // Then connect WebSocket
             connectWebSocket();
