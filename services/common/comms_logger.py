@@ -30,6 +30,90 @@ class MessageType(str, Enum):
     RESPONSE = "RESPONSE"    # Response to a command
 
 
+def get_llm_code(llm_model: Optional[str]) -> str:
+    """
+    Extract 6-character LLM code from model string.
+
+    Examples:
+        "anthropic/claude-4.5-sonnet" -> "CLD450"
+        "anthropic/claude-3-opus" -> "CLD30O"
+        "openai/gpt-4.5-turbo" -> "GPT450"
+        "google/gemini-2.5-flash" -> "GMI250"
+        "ollama/qwen2.5-coder:7b-instruct" -> "QWE250"
+        None or "-" -> "------"
+    """
+    if not llm_model or llm_model == "-":
+        return "------"
+
+    llm_lower = llm_model.lower()
+
+    # Claude models
+    if "claude" in llm_lower:
+        if "4.5" in llm_lower or "sonnet-4" in llm_lower:
+            return "CLD450"
+        elif "3.7" in llm_lower:
+            return "CLD370"
+        elif "3.5" in llm_lower:
+            return "CLD350"
+        elif "3" in llm_lower:
+            if "opus" in llm_lower:
+                return "CLD30O"
+            elif "sonnet" in llm_lower:
+                return "CLD30S"
+            elif "haiku" in llm_lower:
+                return "CLD30H"
+            return "CLD300"
+        return "CLAUDE"
+
+    # GPT models
+    if "gpt" in llm_lower:
+        if "4.5" in llm_lower or "4-5" in llm_lower:
+            return "GPT450"
+        elif "3.5" in llm_lower or "3-5" in llm_lower:
+            return "GPT350"
+        elif "5" in llm_lower and "3.5" not in llm_lower and "4.5" not in llm_lower:
+            return "GPT500"
+        elif "4" in llm_lower:
+            return "GPT400"
+        elif "3" in llm_lower:
+            return "GPT300"
+        return "GPTXXX"
+
+    # Gemini models
+    if "gemini" in llm_lower:
+        if "2.5" in llm_lower:
+            if "flash" in llm_lower:
+                return "GMI250"
+            return "GM250P"
+        elif "2" in llm_lower:
+            return "GMI200"
+        elif "1.5" in llm_lower:
+            return "GMI150"
+        return "GEMINI"
+
+    # Qwen models
+    if "qwen" in llm_lower:
+        if "2.5" in llm_lower:
+            return "QWE250"
+        elif "2" in llm_lower:
+            return "QWE200"
+        return "QWENXX"
+
+    # Llama models
+    if "llama" in llm_lower:
+        if "3.1" in llm_lower or "31" in llm_lower:
+            return "LMA310"
+        elif "3" in llm_lower:
+            return "LMA300"
+        elif "2" in llm_lower:
+            return "LMA200"
+        return "LLAMAX"
+
+    # Unknown - return first 6 chars of model name (uppercase)
+    model_name = llm_model.split("/")[-1].split(":")[0][:6].upper()
+    return model_name.ljust(6, "X")
+
+
 class CommsLogger:
     """
     Flat file logger for PAS parent-child communications.
@@ -101,9 +185,12 @@ class CommsLogger:
         """
         Format a log line according to spec.
 
-        Format: timestamp|from|to|type|message|llm_model|run_id|status|progress|metadata
+        Format: timestamp|from|to|type|llm_code|message|llm_model|run_id|status|progress|metadata
         """
         timestamp = datetime.now(self.est_tz).isoformat(timespec='milliseconds')
+
+        # Get LLM code (5-char identifier)
+        llm_code = get_llm_code(llm_model)
 
         # Format fields (use '-' for missing optional fields)
         fields = [
@@ -111,6 +198,7 @@ class CommsLogger:
             self._escape(from_agent),
             self._escape(to_agent),
             msg_type.value,
+            llm_code,  # NEW: 5-char LLM code
             self._escape(message),
             self._escape(llm_model or "-"),
             self._escape(run_id or "-"),
@@ -124,8 +212,8 @@ class CommsLogger:
         # Truncate if too long
         if len(line.encode('utf-8')) > self.max_line_bytes:
             truncated_msg = message[:1000] + "...[truncated]"
-            fields[4] = self._escape(truncated_msg)
-            fields[9] = "-"  # Drop metadata if line too long
+            fields[5] = self._escape(truncated_msg)  # Updated index (was 4, now 5)
+            fields[10] = "-"  # Drop metadata if line too long (was 9, now 10)
             line = "|".join(fields) + "\n"
 
         return line

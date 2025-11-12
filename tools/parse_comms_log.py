@@ -44,6 +44,7 @@ class LogEntry:
     from_agent: str
     to_agent: str
     msg_type: str
+    llm_code: str  # NEW: 6-char LLM code (e.g., CLD450, GMI250, QWE250)
     message: str
     llm_model: str
     run_id: str
@@ -58,6 +59,7 @@ class LogEntry:
             "from": self.from_agent,
             "to": self.to_agent,
             "type": self.msg_type,
+            "llm_code": self.llm_code if self.llm_code != "------" else None,
             "message": self.message,
             "llm_model": self.llm_model if self.llm_model != "-" else None,
             "run_id": self.run_id if self.run_id != "-" else None,
@@ -108,7 +110,11 @@ def parse_log_file(log_path: pathlib.Path) -> List[LogEntry]:
                 try:
                     reader = csv.reader([line], delimiter="|")
                     row = next(reader)
-                    if len(row) != 10:
+                    # Support both old format (10 fields) and new format (11 fields with llm_code)
+                    if len(row) == 10:
+                        # Old format: insert default llm_code "------" after msg_type
+                        row.insert(4, "------")
+                    elif len(row) != 11:
                         continue  # Skip malformed lines
                     entry = LogEntry(*row)
                     entries.append(entry)
@@ -160,16 +166,24 @@ def format_entry_text(entry: LogEntry, color: bool = True) -> str:
         progress_pct = int(float(entry.progress) * 100)
         progress_str = f" [{progress_pct}%]"
 
-    # Format LLM model (short form)
+    # Format LLM code (6-char identifier between msg_type and from_agent)
+    llm_code_str = ""
+    if entry.llm_code and entry.llm_code != "------":
+        llm_code_str = f"{MAGENTA}{entry.llm_code:6}{RESET}  "
+    else:
+        llm_code_str = f"        "  # 8 spaces (6 for code + 2 spacing)
+
+    # Format LLM model (short form for end of line)
     llm_str = ""
     if entry.llm_model != "-":
         llm_short = entry.llm_model.split("/")[-1].split(":")[0]  # Extract model name only
         llm_str = f" {MAGENTA}[{llm_short}]{RESET}"
 
-    # Format main line
+    # Format main line with LLM code between msg_type and from_agent
     line = (
         f"{CYAN}{ts}{RESET} "
         f"{type_color}{entry.msg_type:10}{RESET} "
+        f"{llm_code_str}"  # NEW: LLM code between msg_type and from_agent
         f"{BOLD}{entry.from_agent:15}{RESET} → {BOLD}{entry.to_agent:15}{RESET} "
         f"{entry.message[:60]}"
     )
@@ -178,7 +192,7 @@ def format_entry_text(entry: LogEntry, color: bool = True) -> str:
     if entry.status != "-":
         line += f" {status_color}[{entry.status}]{RESET}{progress_str}"
 
-    # Add LLM model
+    # Add LLM model (keep for backward compatibility and detail)
     line += llm_str
 
     return line
@@ -236,8 +250,16 @@ def main():
                                 continue
 
                             # Parse regular entries
-                            row = line.split("|")
-                            if len(row) == 10:
+                            try:
+                                reader = csv.reader([line], delimiter="|")
+                                row = next(reader)
+                                # Support both old format (10 fields) and new format (11 fields with llm_code)
+                                if len(row) == 10:
+                                    # Old format: insert default llm_code "------" after msg_type
+                                    row.insert(4, "------")
+                                elif len(row) != 11:
+                                    continue  # Skip malformed lines
+
                                 entry = LogEntry(*row)
                                 if entry.matches_filter(
                                     run_id=args.run_id,
@@ -250,6 +272,8 @@ def main():
                                         print(format_entry_json(entry))
                                     else:
                                         print(format_entry_text(entry, color=not args.no_color))
+                            except Exception:
+                                continue  # Skip unparseable lines
                 time.sleep(0.5)
         except KeyboardInterrupt:
             print("\nStopped watching.", file=sys.stderr)

@@ -1,141 +1,131 @@
 # Last Session Summary
 
-**Date:** 2025-11-12 (Session: HMI Enhancements - System Status Ports + Dashboard Grouping + Actions Sticky Header)
+**Date:** 2025-11-12 (Session: LLM Code Implementation for Communication Logs)
 **Duration:** ~1 hour
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Enhanced HMI with comprehensive system monitoring and improved UX: (1) Added all 35 P0 stack ports to System Status page with collapsible grouping (Core/PAS Tiers/Programmers/LLM), (2) Fixed 4 missing Manager services that were showing Connection Refused, (3) Grouped Dashboard Registered Agents into collapsible categories (Core/Architect/Directors/Managers/Programmers), and (4) Made Actions tab header and search box sticky so they don't scroll off screen.
+Implemented 6-character LLM codes in communication logs to provide quick visual identification of which AI model handled each operation. Codes appear between message type and FROM agent (e.g., `STATUS GMI250 Mgr-Code-02 → System`). Supports 21+ different LLM models with backward compatibility for old log formats.
 
 ## Key Changes
 
-### 1. System Status Port Groups with All P0 Stack Ports
-**Files:** `services/webui/templates/base.html:1521-1536,3836-4058` (375 lines modified), `services/webui/hmi_app.py:2827-2849` (23 lines modified)
-**Summary:** Expanded port monitoring from 12 to 35 ports covering entire P0 stack (Core Services, Architect, 5 Directors, 7 Managers, 10 Programmers, LLM services). Implemented collapsible port groups with health summaries (✓/✗ counts, health %), smaller compact icons (50px min-width), and localStorage persistence. Moved Model Pool ports (8050-8053) from required to optional/hibernated status to prevent false alarms.
+### 1. Core Logger LLM Code Extraction
+**Files:** `services/common/comms_logger.py:33-114` (82 lines added)
+**Summary:** Added `get_llm_code()` function that extracts 6-character codes from full model names (e.g., `anthropic/claude-4.5-sonnet` → `CLD450`). Supports Claude, GPT, Gemini, Qwen, and Llama models with extensible pattern matching.
 
-### 2. Fixed Manager Services Connection Refused Issue
-**Files:** None (operational fix via script)
-**Summary:** Diagnosed ports 6144-6147 showing Connection Refused because Manager services (Models, Data, DevSecOps, Docs lanes) were not running. Executed `bash scripts/start_all_managers.sh` to start all 7 Manager services successfully. System health improved from 88.7% to 96.7%.
+### 2. Log Format Update with LLM Code Field
+**Files:** `services/common/comms_logger.py:171-217` (updated `_format_line()`)
+**Summary:** Modified log format from 10 to 11 fields by inserting `llm_code` after message type. New format: `timestamp|from|to|type|llm_code|message|llm_model|run_id|status|progress|metadata`. Returns `------` (6 dashes) when no LLM is used.
 
-### 3. Dashboard Agent Grouping with Collapsible Sections
-**Files:** `services/webui/templates/dashboard.html:667-774,336-349` (125 lines modified)
-**Summary:** Refactored `fetchAgents()` to group Registered Agents into 6 collapsible categories: Core Services, Architect, Directors, Managers, Programmers, Other Services. Each group shows emoji icon, count, health stats (✓/✗), and health %. Added `toggleAgentGroup()` function with localStorage persistence. Matches UX pattern from System Status port groups for consistency.
+### 3. Parser Updates for New Format
+**Files:** `tools/parse_comms_log.py:40-70,109-122,169-174` (3 sections modified)
+**Summary:** Updated `LogEntry` dataclass with `llm_code` field. Parser handles both old (10-field) and new (11-field) formats for backward compatibility. Tail mode (`--tail`) fixed to use CSV reader and proper field conversion. LLM codes display in magenta between message type and from_agent.
 
-### 4. Sticky Header on Actions/Prime Directives Tab
-**Files:** `services/webui/templates/actions.html:14-93,427-445` (60 lines modified)
-**Summary:** Made "Prime Directives" header and search box sticky at top of sidebar using CSS `position: sticky` with proper z-index layering. Restructured sidebar as flexbox column with separate scrollable task list container. Header and search remain visible while scrolling through long Prime Directive lists.
+### 4. Documentation and Reference Guide
+**Files:** `docs/COMMS_LOGGING_GUIDE.md:45-128` (updated format spec + LLM codes table), `docs/LLM_CODES_REFERENCE.md` (NEW, 7.2KB)
+**Summary:** Updated main logging guide with complete 6-digit code reference table and all examples. Created dedicated reference guide with implementation details, usage examples, and instructions for adding new LLM codes.
+
+### 5. Test Suite for LLM Codes
+**Files:** `tests/test_llm_codes.py` (NEW, 2.1KB)
+**Summary:** Comprehensive unit tests for 21 LLM code mappings covering Claude (6 variants), GPT (5 variants), Gemini (4 variants), Qwen (2 variants), Llama (3 variants), and edge cases. All tests passing.
 
 ## Files Created/Modified
 
+**Created:**
+- `docs/LLM_CODES_REFERENCE.md` - Quick reference guide for LLM codes
+- `tests/test_llm_codes.py` - Unit tests for code extraction
+
 **Modified (Core):**
-- `services/webui/templates/base.html` - Port groups with 35 ports, collapsible UI
-- `services/webui/hmi_app.py` - Updated required/optional ports list
-- `services/webui/templates/dashboard.html` - Agent grouping with collapse logic
-- `services/webui/templates/actions.html` - Sticky header and search box
+- `services/common/comms_logger.py` - LLM code function + format update
+- `tools/parse_comms_log.py` - Parser with 11-field support + tail mode fix
+- `docs/COMMS_LOGGING_GUIDE.md` - Updated format spec and examples
 
 ## Current State
 
 **What's Working:**
-- ✅ System Status: 35 ports monitored, 4 collapsible groups, 96.7% health
-- ✅ All Manager Services: 7 managers running (6141-6147)
-- ✅ Dashboard: Agents grouped by role with collapse/expand
-- ✅ Actions Tab: Sticky header and search box stay visible while scrolling
-- ✅ Port Groups: Persist expanded/collapsed state in localStorage
+- ✅ LLM codes extracted from 21+ model types with 6-char identifiers
+- ✅ Logs display codes in magenta between msg_type and from_agent
+- ✅ Backward compatibility: old logs show `------` for missing codes
+- ✅ Tail mode (`--tail`) works with both old and new formats
+- ✅ All 21 unit tests passing for code extraction
+- ✅ Documentation complete with reference table and examples
 
 **What Needs Work:**
-- [ ] Task 1: Add timestamps and bulk delete functionality to Prime Directives list (currently shows N/A)
-- [ ] Task 5: Add explanatory paragraphs to all HMI Settings cards (like HHMRS page)
-- [ ] WebSocket integration for real-time port status updates (currently polls on refresh)
-- [ ] Historical metrics for port uptime tracking
+- [ ] None - feature is production-ready
+
+## LLM Codes Supported
+
+| Vendor | Codes | Examples |
+|--------|-------|----------|
+| Claude | `CLD450`, `CLD370`, `CLD350`, `CLD30O`, `CLD30S`, `CLD30H` | Claude 4.5 Sonnet, Claude 3 Opus |
+| GPT | `GPT500`, `GPT450`, `GPT400`, `GPT350` | GPT-4.5 Turbo, GPT-4 |
+| Gemini | `GMI250`, `GM250P`, `GMI200`, `GMI150` | Gemini 2.5 Flash, Gemini 2.5 Pro |
+| Qwen | `QWE250`, `QWE200` | Qwen 2.5 Coder |
+| Llama | `LMA310`, `LMA300`, `LMA200` | Llama 3.1, Llama 3 |
+| None | `------` | Gateway commands (no LLM) |
 
 ## Important Context for Next Session
 
-1. **System Status Port Groups**: Now monitors full P0 stack (35 ports). Model Pool ports 8050-8053 marked as "hibernated" (optional) to avoid false red alerts. Groups: Core Services (7), PAS Agent Tiers (20), Programmers (10), LLM Services (5).
+1. **Log Format Change**: Format changed from 10 to 11 fields with `llm_code` as 5th field. Parser automatically converts old format by inserting `------` for backward compatibility.
 
-2. **Manager Services Running**: All 7 Manager services now operational on ports 6141-6147 after running `start_all_managers.sh`. They use Gemini 2.5 Flash as LLM and are part of Tier 4 in P0 stack.
+2. **Display Position**: LLM codes appear between message type and FROM agent in parsed output: `STATUS GMI250 Mgr-Code-02 → System`. This makes it easy to scan logs and identify which LLM handled each task.
 
-3. **Dashboard Agent Grouping**: Uses role detection from `agent.labels.agent_role` and name pattern matching. Groups stored in localStorage key `collapsedAgentGroups`. Similar UX to System Status port groups for consistency.
+3. **Code Extraction Logic**: `get_llm_code()` function in `comms_logger.py` uses pattern matching on model strings. To add new LLM support, add detection logic and follow naming pattern: `[VENDOR(3)][VERSION(2-3)]` = 6 chars total.
 
-4. **Actions Tab Layout**: Uses flexbox with sticky positioning. Header sticky at `top: 0`, search box at `top: 68px`, task list scrolls independently. If modifying layout, maintain z-index hierarchy (header=10, search=9).
+4. **Tail Mode Fixed**: Previously broken `--tail` mode now works correctly with both old and new log formats using CSV reader and proper field count conversion.
 
-5. **Pending Features**: User requested (1) timestamps + bulk delete for Prime Directives, and (2) explanatory paragraphs for all Settings pages. These are partially implemented but need completion.
+5. **Test Coverage**: All 21 LLM code mappings validated with unit tests. Run `./.venv/bin/python tests/test_llm_codes.py` to verify.
 
-6. **Port Status Colors**: UP=green (#10b981), DOWN=red (#ef4444), DEGRADED=orange (#f59e0b), HIBERNATED=grey (#6b7280, for optional services). Hibernated services don't count against overall health score.
+6. **Color Coding**: LLM codes display in magenta in terminal output for quick visual scanning. Blank spaces displayed when no LLM used (e.g., Gateway system messages).
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **View System Status enhancements:**
+2. **View logs with LLM codes:**
    ```bash
-   open http://localhost:6101/
-   # Navigate to Settings > System Status
-   # Try collapsing/expanding port groups
+   ./tools/parse_comms_log.py --limit 10
+   ./tools/parse_comms_log.py --tail  # Real-time monitoring
    ```
-3. **View Dashboard agent groups:**
+3. **Test LLM code extraction:**
    ```bash
-   open http://localhost:6101/
-   # Scroll to "Registered Agents" section
-   # Click group headers to collapse/expand
+   ./.venv/bin/python tests/test_llm_codes.py
    ```
-4. **Test Actions sticky header:**
-   ```bash
-   open http://localhost:6101/actions
-   # Scroll down the Prime Directives list
-   # Header and search box should stay at top
-   ```
-5. **Continue with remaining tasks:**
-   - Add timestamps to Prime Directives (backend + frontend)
-   - Add bulk delete checkboxes and button
-   - Add explanatory paragraphs to Settings pages
+4. **Reference documentation:**
+   - Full guide: `docs/COMMS_LOGGING_GUIDE.md`
+   - Quick reference: `docs/LLM_CODES_REFERENCE.md`
+
+## Example Output
+
+**Before:**
+```
+2025-11-12 17:30:01 STATUS     Mgr-Code-02     → System          Manager service started [started]
+```
+
+**After:**
+```
+2025-11-12 17:30:01 STATUS     GMI250  Mgr-Code-02     → System          Manager service started [started]
+```
 
 ## Test Results
 
-**System Status API:**
-```json
-{
-  "overall_health": 96.7%,
-  "issues": 1,
-  "port_count": 35,
-  "ports_up": 31,
-  "ports_hibernated": 4
-}
+```
+Testing LLM code extraction:
+✓ PASS: anthropic/claude-4.5-sonnet → CLD450
+✓ PASS: openai/gpt-4.5-turbo → GPT450
+✓ PASS: google/gemini-2.5-flash → GMI250
+✓ PASS: ollama/qwen2.5-coder:7b-instruct → QWE250
+✓ PASS: ollama/llama3.1:8b → LMA310
+[... 16 more tests ...]
+✅ All tests passed! (21/21)
 ```
 
-**Manager Services Health Check:**
-```
-✓ Manager-Code-01 (6141) - Gemini 2.5 Flash
-✓ Manager-Code-02 (6142) - Gemini 2.5 Flash
-✓ Manager-Code-03 (6143) - Gemini 2.5 Flash
-✓ Manager-Models-01 (6144) - Gemini 2.5 Flash
-✓ Manager-Data-01 (6145) - Gemini 2.5 Flash
-✓ Manager-DevSecOps-01 (6146) - Gemini 2.5 Flash
-✓ Manager-Docs-01 (6147) - Gemini 2.5 Flash
-```
+## Benefits Delivered
 
-**Port Group Structure:**
-- 🏢 Core Services: 7 ports, 100% health
-- 🤖 PAS Agent Tiers: 20 ports, 100% health (Architect + Directors + Managers)
-- 💻 Programmers: 10 ports, 100% health
-- 🔮 LLM Services: 5 ports, 60% health (Ollama up, Model Pool hibernated)
+1. **Quick Scanning**: Instantly identify which LLM handled each task
+2. **Performance Analysis**: Compare completion times across different LLMs
+3. **Cost Tracking**: Identify usage patterns for different LLM tiers
+4. **Debugging**: Trace issues back to specific LLM versions
+5. **Auditing**: Verify which LLM was used for compliance/quality checks
 
-## Services Running (Preserve Between Sessions)
-
-**DO NOT KILL THESE SERVICES:**
-- HMI Dashboard (port 6101) - MUST stay running
-- Programmer-001 to Prog-010 (ports 6151-6160) - All operational
-- Manager-Code-01, 02, 03 (ports 6141-6143)
-- Manager-Models-01 (port 6144) - ✅ NOW RUNNING
-- Manager-Data-01 (port 6145) - ✅ NOW RUNNING
-- Manager-DevSecOps-01 (port 6146) - ✅ NOW RUNNING
-- Manager-Docs-01 (port 6147) - ✅ NOW RUNNING
-- Gateway, PAS Root, Architect, Directors (existing P0 stack)
-- Ollama LLM Server (port 11434)
-- Vec2Text Encoder/Decoder (ports 7001, 7002, if running)
-
-**Logs Location:**
-- HMI: `artifacts/logs/hmi.log`
-- Managers: `artifacts/logs/manager_*.log`
-- Programmers: `artifacts/logs/programmer_*.log`
-
-**Code Confidence:** HIGH - All 4 implemented features tested and working. System Status shows correct port counts, groups collapse/expand properly, Dashboard agents grouped correctly, Actions header stays sticky during scroll.
+**Code Confidence:** HIGH - All tests pass, backward compatibility verified, tail mode fixed, production-ready.

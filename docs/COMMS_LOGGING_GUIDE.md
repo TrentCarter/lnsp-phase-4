@@ -45,32 +45,60 @@ artifacts/runs/abc123-def456/comms.txt
 ## 📝 Log Format
 
 ```
-timestamp|from|to|type|message|llm_model|run_id|status|progress|metadata
+timestamp|from|to|type|llm_code|message|llm_model|run_id|status|progress|metadata
 ```
 
 ### Example Log Lines
 
 ```txt
-2025-11-10T18:31:37.429Z|Gateway|PAS Root|CMD|Submit Prime Directive: Add docstrings|-|test-run-001|-|-|%7B%22files%22%3A%5B%22app.py%22%5D%7D
-2025-11-10T18:31:37.430Z|PAS Root|Aider-LCO|CMD|Execute: Add docstrings to app.py|ollama/qwen2.5-coder:7b-instruct|test-run-001|queued|0.0|-
-2025-11-10T18:31:45.123Z|Aider-LCO|PAS Root|HEARTBEAT|Processing file 3 of 5|ollama/qwen2.5-coder:7b-instruct|test-run-001|running|0.60|%7B%22files_done%22%3A3%7D
-2025-11-10T18:32:10.456Z|Aider-LCO|PAS Root|RESPONSE|Execution completed successfully|ollama/qwen2.5-coder:7b-instruct|test-run-001|completed|1.0|%7B%22rc%22%3A0%7D
+2025-11-12T17:41:29.113Z|Gateway|PAS Root|CMD|------|Submit Prime Directive: Add docstrings|-|test-run-001|-|-|%7B%22files%22%3A%5B%22app.py%22%5D%7D
+2025-11-12T17:41:29.114Z|PAS Root|Aider-LCO|CMD|QWE250|Execute: Add docstrings to app.py|ollama/qwen2.5-coder:7b-instruct|test-run-001|queued|0.0|-
+2025-11-12T17:41:29.115Z|Aider-LCO|PAS Root|HEARTBEAT|QWE250|Processing file 3 of 5|ollama/qwen2.5-coder:7b-instruct|test-run-001|running|0.60|%7B%22files_done%22%3A3%7D
+2025-11-12T17:41:29.116Z|Aider-LCO|PAS Root|RESPONSE|QWE250|Execution completed successfully|ollama/qwen2.5-coder:7b-instruct|test-run-001|completed|1.0|%7B%22rc%22%3A0%7D
 ```
 
 ### Field Definitions
 
 | Field | Required | Description | Example |
 |-------|----------|-------------|---------|
-| `timestamp` | ✅ | ISO8601 timestamp (UTC) | `2025-11-10T18:31:37.429Z` |
+| `timestamp` | ✅ | ISO8601 timestamp (EST) | `2025-11-12T17:41:29.113-05:00` |
 | `from` | ✅ | Source agent name | `Gateway`, `PAS Root`, `Aider-LCO` |
 | `to` | ✅ | Destination agent name | `PAS Root`, `Aider-LCO`, `Mgr Backend` |
 | `type` | ✅ | Message type | `CMD`, `STATUS`, `HEARTBEAT`, `RESPONSE` |
+| `llm_code` | ✅ | 6-char LLM identifier | `CLD450`, `GMI250`, `QWE250`, `GPT450`, `------` |
 | `message` | ✅ | Human-readable message | `Submit Prime Directive: Add docstrings` |
-| `llm_model` | ❌ | LLM model name | `ollama/qwen2.5-coder:7b-instruct` |
+| `llm_model` | ❌ | Full LLM model name | `ollama/qwen2.5-coder:7b-instruct` |
 | `run_id` | ❌ | Run identifier (UUID) | `abc123-def456` |
 | `status` | ❌ | Agent status | `queued`, `running`, `completed`, `error` |
 | `progress` | ❌ | Progress (0.0-1.0) | `0.75` |
 | `metadata` | ❌ | URL-encoded JSON | `%7B%22files%22%3A%5B%22app.py%22%5D%7D` |
+
+### LLM Codes
+
+The `llm_code` field provides a quick visual identifier for which LLM was used:
+
+| Code | LLM Model | Example Full Name |
+|------|-----------|-------------------|
+| `CLD450` | Claude 4.5 Sonnet | `anthropic/claude-4.5-sonnet` |
+| `CLD370` | Claude 3.7 Sonnet | `anthropic/claude-3.7-sonnet` |
+| `CLD350` | Claude 3.5 Sonnet | `anthropic/claude-3.5-sonnet` |
+| `CLD30O` | Claude 3 Opus | `anthropic/claude-3-opus` |
+| `CLD30S` | Claude 3 Sonnet | `anthropic/claude-3-sonnet` |
+| `CLD30H` | Claude 3 Haiku | `anthropic/claude-3-haiku` |
+| `GPT500` | GPT-5 | `openai/gpt-5` |
+| `GPT450` | GPT-4.5 | `openai/gpt-4.5-turbo` |
+| `GPT400` | GPT-4 | `openai/gpt-4` |
+| `GPT350` | GPT-3.5 | `openai/gpt-3.5-turbo` |
+| `GMI250` | Gemini 2.5 Flash | `google/gemini-2.5-flash` |
+| `GM250P` | Gemini 2.5 Pro | `google/gemini-2.5-pro` |
+| `GMI200` | Gemini 2.0 | `google/gemini-2.0-flash` |
+| `GMI150` | Gemini 1.5 | `google/gemini-1.5-pro` |
+| `QWE250` | Qwen 2.5 | `ollama/qwen2.5-coder:7b-instruct` |
+| `QWE200` | Qwen 2.0 | `ollama/qwen2-coder` |
+| `LMA310` | Llama 3.1 | `ollama/llama3.1:8b` |
+| `LMA300` | Llama 3 | `ollama/llama3` |
+| `LMA200` | Llama 2 | `ollama/llama2` |
+| `------` | No LLM | N/A (e.g., Gateway commands) |
 
 ---
 
@@ -91,11 +119,13 @@ timestamp|from|to|type|message|llm_model|run_id|status|progress|metadata
 
 **Output:**
 ```
-2025-11-10 18:31:37 CMD        Gateway         → PAS Root        Submit Prime Directive: Add docstrings
-2025-11-10 18:31:37 STATUS     PAS Root        → Gateway         Started execution [running] [10%]
-2025-11-10 18:31:37 HEARTBEAT  Aider-LCO       → PAS Root        Processing file 3 of 5 [running] [60%] [qwen2.5-coder]
-2025-11-10 18:31:37 RESPONSE   Aider-LCO       → PAS Root        Execution completed successfully [completed] [qwen2.5-coder]
+2025-11-12 17:41:29 CMD                Gateway         → PAS Root        Submit Prime Directive: Add docstrings
+2025-11-12 17:41:29 STATUS     QWE250  PAS Root        → Gateway         Started execution [running] [10%] [qwen2.5-coder]
+2025-11-12 17:41:29 HEARTBEAT  QWE250  Aider-LCO       → PAS Root        Processing file 3 of 5 [running] [60%] [qwen2.5-coder]
+2025-11-12 17:41:29 RESPONSE   QWE250  Aider-LCO       → PAS Root        Execution completed successfully [completed] [qwen2.5-coder]
 ```
+
+Note: The LLM code (e.g., `QWE250`) appears between the message type and the from_agent for quick identification.
 
 ### 2. Filtering
 
