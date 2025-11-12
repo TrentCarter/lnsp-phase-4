@@ -539,3 +539,50 @@ _monitor = HeartbeatMonitor()
 def get_monitor() -> HeartbeatMonitor:
     """Get global heartbeat monitor instance"""
     return _monitor
+
+
+def send_progress_heartbeat(agent: str, message: str) -> None:
+    """
+    Send a progress heartbeat from an agent during long operations.
+
+    This helper function is designed for agents to send heartbeats every 30s
+    during long-running operations (LLM calls, waiting for responses, data processing, etc.)
+    to prevent TRON timeout detection.
+
+    Args:
+        agent: Agent ID (e.g., "Architect", "Dir-Code", "Dir-Models")
+        message: Progress message describing current operation
+                (e.g., "Step 3/5: Allocating resources", "Epoch 5/10, loss=0.45")
+
+    Example:
+        from services.common.heartbeat import send_progress_heartbeat
+
+        # During long operation
+        send_progress_heartbeat(
+            agent="Architect",
+            message="Waiting for Dir-Code response (3/5 Directors)"
+        )
+
+    Note:
+        - Call this every 30s during operations longer than 30s
+        - TRON detects timeout after 60s (2 missed heartbeats)
+        - Automatic heartbeats sent every 30s when agent registered
+        - Only use for operations that might take >30s
+
+    See: docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md
+    """
+    from services.common.comms_logger import get_logger, MessageType
+
+    monitor = get_monitor()
+    logger = get_logger()
+
+    # Send heartbeat to TRON
+    monitor.heartbeat(agent)
+
+    # Log progress message for debugging/audit
+    logger.log(
+        msg_type=MessageType.INFO,
+        sender=agent,
+        receiver="TRON",
+        content=f"Progress heartbeat: {message}"
+    )

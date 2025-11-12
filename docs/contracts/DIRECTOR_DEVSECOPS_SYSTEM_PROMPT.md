@@ -190,6 +190,50 @@ grype sbom.json --fail-on critical
 | Production encoder   | 7001 | Production  | Yes       | `curl http://localhost:7001/health` |
 | Production decoder   | 7002 | Production  | Yes       | `curl http://localhost:7002/health` |
 
+### 3.5 HHMRS Heartbeat Requirements (Phase 3)
+**Background:** The Hierarchical Health Monitoring & Retry System (HHMRS) monitors all agents via TRON (HeartbeatMonitor). TRON detects timeouts after 60s (2 missed heartbeats @ 30s intervals) and triggers 3-tier retry: restart (Level 1) → LLM switch (Level 2) → permanent failure (Level 3).
+
+**Your responsibilities:**
+1. **Send progress heartbeats every 30s** during long operations (CI/CD pipeline execution, LLM task decomposition, waiting for Manager responses, deployment)
+   - Use `send_progress_heartbeat(agent="Dir-DevSecOps", message="Running CI gates: 3/5 complete")` helper
+   - Example: During CI/CD execution → send heartbeat after each gate or every 30s
+   - Example: When decomposing job card → send heartbeat before each Manager allocation
+   - Example: During deployment → send heartbeat every 30s while deploying
+   - Example: During security scan → send heartbeat every 30s while scanning
+
+2. **Understand timeout detection:**
+   - TRON detects timeout after 60s (2 consecutive missed heartbeats)
+   - Architect will restart you up to 3 times with same config (Level 1 retry)
+   - If 3 restarts fail, escalated to PAS Root for LLM switch (Level 2 retry)
+   - After 6 total attempts (~6 min max), task marked as permanently failed
+
+3. **Handle restart gracefully:**
+   - On restart, check for partial work in `artifacts/runs/{RUN_ID}/devsecops/`
+   - Resume from last successful gate (e.g., if SBOM exists, skip regenerating it)
+   - Log restart context: `logger.log(MessageType.INFO, "Dir-DevSecOps restarted (attempt {N}/3)")`
+
+4. **When NOT to send heartbeats:**
+   - Short operations (<10s): Single RPC call, file read, health check
+   - Already covered by automatic heartbeat: Background thread sends heartbeat every 30s when agent registered
+
+5. **Helper function signature:**
+   ```python
+   from services.common.heartbeat import send_progress_heartbeat
+
+   # Send progress update during long operation
+   send_progress_heartbeat(
+       agent="Dir-DevSecOps",
+       message="Deploying to staging: Health check passed, running smoke tests"
+   )
+   ```
+
+**Failure scenarios:**
+- If deployment hangs → TRON will detect timeout and Architect will restart you
+- If restart fails 3 times → Architect escalates to PAS Root for LLM switch
+- If LLM switch fails 3 times → Task marked as permanently failed, Architect notified
+
+**See:** `docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md` for complete HHMRS specification
+
 ---
 
 ## 4) Fail-Safe & Recovery

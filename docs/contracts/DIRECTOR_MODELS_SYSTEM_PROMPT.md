@@ -240,6 +240,49 @@ budget:
 - **Retraining with production data** (if dataset > 100k samples)
 - **GPU cluster use** (if training requires > 4 hours)
 
+### 3.6 HHMRS Heartbeat Requirements (Phase 3)
+**Background:** The Hierarchical Health Monitoring & Retry System (HHMRS) monitors all agents via TRON (HeartbeatMonitor). TRON detects timeouts after 60s (2 missed heartbeats @ 30s intervals) and triggers 3-tier retry: restart (Level 1) → LLM switch (Level 2) → permanent failure (Level 3).
+
+**Your responsibilities:**
+1. **Send progress heartbeats every 30s** during long operations (model training, LLM task decomposition, waiting for Manager responses)
+   - Use `send_progress_heartbeat(agent="Dir-Models", message="Epoch 5/10, loss=0.45")` helper
+   - Example: During training → send heartbeat after each epoch or every 30s (whichever is more frequent)
+   - Example: When decomposing job card → send heartbeat before each Manager allocation
+   - Example: When waiting for training completion → send heartbeat every 30s while polling
+
+2. **Understand timeout detection:**
+   - TRON detects timeout after 60s (2 consecutive missed heartbeats)
+   - Architect will restart you up to 3 times with same config (Level 1 retry)
+   - If 3 restarts fail, escalated to PAS Root for LLM switch (Level 2 retry)
+   - After 6 total attempts (~6 min max), task marked as permanently failed
+
+3. **Handle restart gracefully:**
+   - On restart, check for partial work in `artifacts/runs/{RUN_ID}/models/`
+   - Resume from last checkpoint (e.g., if checkpoints exist, resume training)
+   - Log restart context: `logger.log(MessageType.INFO, "Dir-Models restarted (attempt {N}/3)")`
+
+4. **When NOT to send heartbeats:**
+   - Short operations (<10s): Single RPC call, file read, acceptance validation
+   - Already covered by automatic heartbeat: Background thread sends heartbeat every 30s when agent registered
+
+5. **Helper function signature:**
+   ```python
+   from services.common.heartbeat import send_progress_heartbeat
+
+   # Send progress update during long operation
+   send_progress_heartbeat(
+       agent="Dir-Models",
+       message="Training Query Tower: Epoch 3/10, loss=0.52"
+   )
+   ```
+
+**Failure scenarios:**
+- If training hangs → TRON will detect timeout and Architect will restart you
+- If restart fails 3 times → Architect escalates to PAS Root for LLM switch
+- If LLM switch fails 3 times → Task marked as permanently failed, Architect notified
+
+**See:** `docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md` for complete HHMRS specification
+
 ---
 
 ## 4) Lane-Specific Workflows

@@ -204,6 +204,49 @@ notes: "Use Aider RPC for actual code edits"
 - **File deletions** (requires human approval if > 10 files)
 - **PR merges** to protected paths (requires cross-vendor review)
 
+### 3.6 HHMRS Heartbeat Requirements (Phase 3)
+**Background:** The Hierarchical Health Monitoring & Retry System (HHMRS) monitors all agents via TRON (HeartbeatMonitor). TRON detects timeouts after 60s (2 missed heartbeats @ 30s intervals) and triggers 3-tier retry: restart (Level 1) → LLM switch (Level 2) → permanent failure (Level 3).
+
+**Your responsibilities:**
+1. **Send progress heartbeats every 30s** during long operations (LLM task decomposition, waiting for Manager responses, cross-vendor review)
+   - Use `send_progress_heartbeat(agent="Dir-Code", message="Step 2/4: Waiting for Mgr-Code-01")` helper
+   - Example: When decomposing job card → send heartbeat before each Manager allocation
+   - Example: When waiting for Manager artifacts → send heartbeat every 30s while polling
+   - Example: During cross-vendor review → send heartbeat while waiting for reviewer
+
+2. **Understand timeout detection:**
+   - TRON detects timeout after 60s (2 consecutive missed heartbeats)
+   - Architect will restart you up to 3 times with same config (Level 1 retry)
+   - If 3 restarts fail, escalated to PAS Root for LLM switch (Level 2 retry)
+   - After 6 total attempts (~6 min max), task marked as permanently failed
+
+3. **Handle restart gracefully:**
+   - On restart, check for partial work in `artifacts/runs/{RUN_ID}/code/`
+   - Resume from last successful step (e.g., if Manager tasks exist, skip decomposition)
+   - Log restart context: `logger.log(MessageType.INFO, "Dir-Code restarted (attempt {N}/3)")`
+
+4. **When NOT to send heartbeats:**
+   - Short operations (<10s): Single RPC call, file read, acceptance validation
+   - Already covered by automatic heartbeat: Background thread sends heartbeat every 30s when agent registered
+
+5. **Helper function signature:**
+   ```python
+   from services.common.heartbeat import send_progress_heartbeat
+
+   # Send progress update during long operation
+   send_progress_heartbeat(
+       agent="Dir-Code",
+       message="Waiting for cross-vendor review (2/3 Managers complete)"
+   )
+   ```
+
+**Failure scenarios:**
+- If you're stuck waiting for Manager → TRON will detect timeout and Architect will restart you
+- If restart fails 3 times → Architect escalates to PAS Root for LLM switch
+- If LLM switch fails 3 times → Task marked as permanently failed, Architect notified
+
+**See:** `docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md` for complete HHMRS specification
+
 ---
 
 ## 4) Lane-Specific Workflows
