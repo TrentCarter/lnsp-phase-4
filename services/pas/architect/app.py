@@ -18,6 +18,8 @@ Contract: docs/contracts/ARCHITECT_SYSTEM_PROMPT.md
 import sys
 import os
 from pathlib import Path
+import subprocess
+import signal
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -257,6 +259,224 @@ async def receive_lane_report(request: LaneReportRequest):
     }
 
 
+# === HHMRS Phase 3: Process Restart Logic ===
+
+# Agent restart configuration
+AGENT_RESTART_CONFIG = {
+    "Dir-Code": {
+        "port": 6111,
+        "module": "services.pas.director_code.app:app",
+        "log_file": "logs/pas/director_code.log",
+        "env_vars": {
+            "DIR_CODE_LLM_PROVIDER": os.getenv("DIR_CODE_LLM_PROVIDER", "google"),
+            "DIR_CODE_LLM": os.getenv("DIR_CODE_LLM", "gemini-2.5-flash"),
+        }
+    },
+    "Dir-Models": {
+        "port": 6112,
+        "module": "services.pas.director_models.app:app",
+        "log_file": "logs/pas/director_models.log",
+        "env_vars": {
+            "DIR_MODELS_LLM_PROVIDER": os.getenv("DIR_MODELS_LLM_PROVIDER", "anthropic"),
+            "DIR_MODELS_LLM": os.getenv("DIR_MODELS_LLM", "claude-sonnet-4-5-20250929"),
+        }
+    },
+    "Dir-Data": {
+        "port": 6113,
+        "module": "services.pas.director_data.app:app",
+        "log_file": "logs/pas/director_data.log",
+        "env_vars": {
+            "DIR_DATA_LLM_PROVIDER": os.getenv("DIR_DATA_LLM_PROVIDER", "anthropic"),
+            "DIR_DATA_LLM": os.getenv("DIR_DATA_LLM", "claude-sonnet-4-5-20250929"),
+        }
+    },
+    "Dir-DevSecOps": {
+        "port": 6114,
+        "module": "services.pas.director_devsecops.app:app",
+        "log_file": "logs/pas/director_devsecops.log",
+        "env_vars": {
+            "DIR_DEVSECOPS_LLM_PROVIDER": os.getenv("DIR_DEVSECOPS_LLM_PROVIDER", "google"),
+            "DIR_DEVSECOPS_LLM": os.getenv("DIR_DEVSECOPS_LLM", "gemini-2.5-flash"),
+        }
+    },
+    "Dir-Docs": {
+        "port": 6115,
+        "module": "services.pas.director_docs.app:app",
+        "log_file": "logs/pas/director_docs.log",
+        "env_vars": {
+            "DIR_DOCS_LLM_PROVIDER": os.getenv("DIR_DOCS_LLM_PROVIDER", "anthropic"),
+            "DIR_DOCS_LLM": os.getenv("DIR_DOCS_LLM", "claude-sonnet-4-5-20250929"),
+        }
+    },
+}
+
+
+def _restart_child_process(child_id: str) -> bool:
+    """
+    Restart a child Director process
+
+    Steps:
+    1. Find process on child's port
+    2. Kill process gracefully (SIGTERM), then forcefully (SIGKILL) if needed
+    3. Start new process with same configuration
+    4. Wait for health check
+
+    Returns:
+        True if restart successful, False otherwise
+    """
+    if child_id not in AGENT_RESTART_CONFIG:
+        logger.log_message(
+            from_agent="Architect",
+            to_agent="Architect",
+            message=f"Cannot restart {child_id}: no restart config found",
+            run_id=None,
+            metadata={"child_id": child_id, "error": "unknown_agent"}
+        )
+        return False
+
+    config = AGENT_RESTART_CONFIG[child_id]
+    port = config["port"]
+    module = config["module"]
+    log_file = config["log_file"]
+    env_vars = config.get("env_vars", {})
+
+    try:
+        # Step 1: Kill process on port
+        logger.log_message(
+            from_agent="Architect",
+            to_agent=child_id,
+            message=f"Killing process on port {port}",
+            run_id=None,
+            metadata={"child_id": child_id, "port": port}
+        )
+
+        # Find PID using lsof
+        find_pid = subprocess.run(
+            ["lsof", "-ti", f":{port}"],
+            capture_output=True,
+            text=True
+        )
+
+        if find_pid.returncode == 0 and find_pid.stdout.strip():
+            pid = int(find_pid.stdout.strip())
+            logger.log_message(
+                from_agent="Architect",
+                to_agent=child_id,
+                message=f"Found process PID {pid} on port {port}",
+                run_id=None,
+                metadata={"child_id": child_id, "port": port, "pid": pid}
+            )
+
+            # Try graceful shutdown (SIGTERM)
+            try:
+                os.kill(pid, signal.SIGTERM)
+                time.sleep(2)  # Wait for graceful shutdown
+
+                # Check if still alive
+                try:
+                    os.kill(pid, 0)  # Check if process exists
+                    # Still alive, force kill
+                    os.kill(pid, signal.SIGKILL)
+                    time.sleep(1)
+                except OSError:
+                    # Process already dead
+                    pass
+
+            except OSError as e:
+                logger.log_message(
+                    from_agent="Architect",
+                    to_agent="Architect",
+                    message=f"Error killing PID {pid}: {e}",
+                    run_id=None,
+                    metadata={"child_id": child_id, "pid": pid, "error": str(e)}
+                )
+        else:
+            logger.log_message(
+                from_agent="Architect",
+                to_agent=child_id,
+                message=f"No process found on port {port}",
+                run_id=None,
+                metadata={"child_id": child_id, "port": port}
+            )
+
+        # Step 2: Start new process
+        logger.log_message(
+            from_agent="Architect",
+            to_agent=child_id,
+            message=f"Starting new process on port {port}",
+            run_id=None,
+            metadata={"child_id": child_id, "port": port, "module": module}
+        )
+
+        # Ensure log directory exists
+        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+
+        # Build environment (copy current + add child-specific)
+        child_env = os.environ.copy()
+        child_env.update(env_vars)
+
+        # Open log file
+        log_handle = open(log_file, "a")
+
+        # Start uvicorn process
+        process = subprocess.Popen(
+            [
+                sys.executable, "-m", "uvicorn", module,
+                "--host", "127.0.0.1",
+                "--port", str(port)
+            ],
+            stdout=log_handle,
+            stderr=subprocess.STDOUT,
+            env=child_env,
+            preexec_fn=os.setpgrp  # Create new process group
+        )
+
+        logger.log_message(
+            from_agent="Architect",
+            to_agent=child_id,
+            message=f"Started new process PID {process.pid}",
+            run_id=None,
+            metadata={"child_id": child_id, "port": port, "pid": process.pid}
+        )
+
+        # Step 3: Health check (wait up to 10 seconds)
+        max_retries = 10
+        for i in range(max_retries):
+            time.sleep(1)
+            try:
+                response = requests.get(f"http://127.0.0.1:{port}/health", timeout=2)
+                if response.status_code == 200:
+                    logger.log_message(
+                        from_agent="Architect",
+                        to_agent=child_id,
+                        message=f"Health check passed after {i+1} seconds",
+                        run_id=None,
+                        metadata={"child_id": child_id, "port": port}
+                    )
+                    return True
+            except:
+                pass
+
+        logger.log_message(
+            from_agent="Architect",
+            to_agent="Architect",
+            message=f"Health check failed after {max_retries} seconds",
+            run_id=None,
+            metadata={"child_id": child_id, "port": port, "error": "health_check_timeout"}
+        )
+        return False
+
+    except Exception as e:
+        logger.log_message(
+            from_agent="Architect",
+            to_agent="Architect",
+            message=f"Error restarting {child_id}: {str(e)}",
+            run_id=None,
+            metadata={"child_id": child_id, "error": str(e)}
+        )
+        return False
+
+
 # === HHMRS Phase 1: Child Timeout Handler ===
 
 class ChildTimeoutAlert(BaseModel):
@@ -374,17 +594,11 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
         'message': f"Restarting {child_id} (attempt {restart_count + 1})"
     })
 
-    # Attempt restart (simplified for Phase 1 - just log the action)
-    # In a full implementation, this would:
-    # 1. Kill child process
-    # 2. Clear child state
-    # 3. Restart Director service
-    # 4. Update retry count in TRON
-
+    # Phase 3: Attempt actual process restart
     logger.log_message(
         from_agent="Architect",
         to_agent=child_id,
-        message=f"Restarting {child_id} (attempt {restart_count + 1})",
+        message=f"Attempting process restart for {child_id} (attempt {restart_count + 1})",
         run_id=None,
         metadata={"child_id": child_id, "restart_count": restart_count + 1}
     )
@@ -392,14 +606,38 @@ async def handle_child_timeout(alert: ChildTimeoutAlert):
     # Update TRON retry count
     heartbeat_monitor._retry_counts[child_id] = restart_count + 1
 
-    # TODO Phase 1: Implement actual process restart
-    # For now, just acknowledge the timeout
-    return {
-        "status": "restarted",
-        "message": f"Acknowledged timeout for {child_id}, restart scheduled",
-        "restart_count": restart_count + 1,
-        "note": "Phase 1: Process restart not yet implemented"
-    }
+    # Restart the child process
+    restart_success = _restart_child_process(child_id)
+
+    if restart_success:
+        logger.log_message(
+            from_agent="Architect",
+            to_agent=child_id,
+            message=f"Successfully restarted {child_id}",
+            run_id=None,
+            metadata={"child_id": child_id, "restart_count": restart_count + 1, "status": "success"}
+        )
+
+        return {
+            "status": "restarted",
+            "message": f"Successfully restarted {child_id}",
+            "restart_count": restart_count + 1
+        }
+    else:
+        logger.log_message(
+            from_agent="Architect",
+            to_agent=child_id,
+            message=f"Failed to restart {child_id}, may need manual intervention",
+            run_id=None,
+            metadata={"child_id": child_id, "restart_count": restart_count + 1, "status": "failed"}
+        )
+
+        return {
+            "status": "restart_failed",
+            "message": f"Failed to restart {child_id}",
+            "restart_count": restart_count + 1,
+            "note": "Manual intervention may be required"
+        }
 
 
 # === Main Prime Directive Endpoint ===

@@ -626,23 +626,23 @@
         top: 0;
         left: 0;
         right: 0;
-        height: 40px;
+        height: 24px;
         background: linear-gradient(90deg, #ff6c00 0%, #ff8c00 100%);
-        border-bottom: 2px solid #ff4500;
+        border-bottom: 1px solid #ff4500;
         z-index: 9999;
         display: flex;
         align-items: center;
-        padding: 0 1.5rem;
+        padding: 0 0.75rem;
         font-family: 'Courier New', monospace;
         font-weight: bold;
         color: #000;
         box-shadow: 0 2px 8px rgba(255, 108, 0, 0.5);
     ">
-        <div style="display: flex; align-items: center; gap: 1rem; flex: 1;">
-            <span style="font-size: 0.875rem; letter-spacing: 0.05em;">⚡ TRON INTERVENTION ACTIVE</span>
-            <div id="tron-event-list" style="display: flex; gap: 0.5rem; flex: 1;"></div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+            <span style="font-size: 0.75rem; letter-spacing: 0.03em;">⚡ TRON</span>
+            <div id="tron-event-list" style="display: flex; gap: 0.4rem; flex: 1;"></div>
         </div>
-        <div style="font-size: 0.75rem; opacity: 0.8;">HHMRS Phase 1</div>
+        <div style="font-size: 0.65rem; opacity: 0.8;">HHMRS Phase 1</div>
     </div>
 
     <main style="margin-top: 0;">
@@ -689,6 +689,10 @@
                 <div class="settings-sidebar-item" onclick="switchSettingsPage('audio')">
                     <span>🔊</span>
                     <span>Audio</span>
+                </div>
+                <div class="settings-sidebar-item" onclick="switchSettingsPage('hhmrs')">
+                    <span>⚡</span>
+                    <span>HHMRS</span>
                 </div>
                 <div class="settings-sidebar-item" onclick="switchSettingsPage('tasks')">
                     <span>📋</span>
@@ -1033,6 +1037,106 @@
                                 <div class="setting-control">
                                     <div id="chime-on-failure-toggle" class="toggle-switch" onclick="toggleChimeOnFailure()"></div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HHMRS Page -->
+                <div id="page-hhmrs" class="settings-page">
+                    <div class="settings-section">
+                        <h3>⚡ Health & Heartbeat Monitoring (HHMRS)</h3>
+                        <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">
+                            Configure timeout detection, automatic restarts, and LLM retry strategies for PAS agents.
+                        </p>
+
+                        <!-- Heartbeat Interval -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Heartbeat Interval</div>
+                                <div class="setting-description">How often agents send health check signals (seconds)</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="hhmrs-heartbeat-interval" class="setting-input" min="5" max="120" value="30">
+                                <span style="color: #9ca3af; font-size: 0.875rem;">sec</span>
+                            </div>
+                        </div>
+
+                        <!-- Timeout Threshold -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Timeout Threshold</div>
+                                <div class="setting-description">Time without heartbeat before timeout detected (seconds)</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="hhmrs-timeout-threshold" class="setting-input" min="10" max="300" value="60">
+                                <span style="color: #9ca3af; font-size: 0.875rem;">sec</span>
+                            </div>
+                        </div>
+
+                        <!-- Max Restarts -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Max Restarts</div>
+                                <div class="setting-description">Maximum child agent restart attempts before escalation</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="hhmrs-max-restarts" class="setting-input" min="1" max="10" value="3">
+                                <span style="color: #9ca3af; font-size: 0.875rem;">restarts</span>
+                            </div>
+                        </div>
+
+                        <!-- Max LLM Retries -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Max LLM Retries</div>
+                                <div class="setting-description">Maximum LLM model switches before permanent failure</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="hhmrs-max-llm-retries" class="setting-input" min="1" max="10" value="3">
+                                <span style="color: #9ca3af; font-size: 0.875rem;">retries</span>
+                            </div>
+                        </div>
+
+                        <!-- Enable Auto Restart -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Enable Auto Restart</div>
+                                <div class="setting-description">Automatically restart failed child agents</div>
+                            </div>
+                            <div class="setting-control">
+                                <div id="hhmrs-auto-restart-toggle" class="toggle-switch active" onclick="toggleHHMRSAutoRestart()"></div>
+                            </div>
+                        </div>
+
+                        <!-- Enable LLM Switching -->
+                        <div class="setting-row">
+                            <div>
+                                <div class="setting-label">Enable LLM Switching</div>
+                                <div class="setting-description">Try different LLM models after max restarts exceeded</div>
+                            </div>
+                            <div class="setting-control">
+                                <div id="hhmrs-llm-switching-toggle" class="toggle-switch active" onclick="toggleHHMRSLLMSwitching()"></div>
+                            </div>
+                        </div>
+
+                        <!-- Save Button -->
+                        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #3a4568;">
+                            <button onclick="saveHHMRSSettings()" style="padding: 10px 20px; cursor: pointer; background: #2f80ed; color: white; border: none; border-radius: 6px; font-size: 0.875rem; font-weight: 500;">
+                                💾 Save HHMRS Settings
+                            </button>
+                            <span id="hhmrs-save-status" style="margin-left: 1rem; color: #9ca3af; font-size: 0.875rem;"></span>
+                        </div>
+
+                        <!-- Information Box -->
+                        <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(47, 128, 237, 0.1); border: 1px solid rgba(47, 128, 237, 0.3); border-radius: 6px;">
+                            <div style="color: #60a5fa; font-weight: 500; margin-bottom: 0.5rem;">ℹ️ How HHMRS Works</div>
+                            <div style="color: #9ca3af; font-size: 0.875rem; line-height: 1.5;">
+                                <strong>Level 1 (Child Restart):</strong> When an agent times out, parent restarts it up to <strong>max_restarts</strong> times.<br>
+                                <strong>Level 2 (LLM Switching):</strong> After max restarts exceeded, task escalates to grandparent who switches to a different LLM model, up to <strong>max_llm_retries</strong> times.<br>
+                                <strong>Level 3 (Permanent Failure):</strong> After all retries exhausted, task permanently fails and Gateway is notified.<br><br>
+                                <strong>Total attempts:</strong> max_restarts × max_llm_retries (default: 3 × 3 = 9 attempts)<br>
+                                <strong>Estimated worst-case time:</strong> ~6-9 minutes for graceful failure detection
                             </div>
                         </div>
                     </div>
@@ -1559,7 +1663,7 @@
             // Add event to list (show last 5 events)
             const eventItem = document.createElement('div');
             eventItem.className = 'tron-event-item';
-            eventItem.style.cssText = 'margin-right: 1rem; padding: 0.25rem 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 4px; font-size: 0.75rem;';
+            eventItem.style.cssText = 'margin-right: 0.5rem; padding: 0.15rem 0.4rem; background: rgba(0, 0, 0, 0.3); border-radius: 3px; font-size: 0.65rem;';
 
             const eventIcon = {
                 'hhmrs_timeout': '⏱️',
@@ -2028,6 +2132,8 @@
                 'tree': '🌳 Tree View',
                 'sequencer': '🎹 Sequencer',
                 'audio': '🔊 Audio',
+                'hhmrs': '⚡ HHMRS',
+                'tasks': '📋 Tasks',
                 'llm': '🤖 LLM Models',
                 'model-pool': '🔥 Model Pool',
                 'advanced': '⚙️ Advanced Models',
@@ -2038,6 +2144,11 @@
             // Initialize advanced model settings sliders if switching to advanced page
             if (pageId === 'advanced') {
                 initAdvancedModelSettings();
+            }
+
+            // Initialize HHMRS settings page
+            if (pageId === 'hhmrs') {
+                loadHHMRSSettings();
             }
 
             // Initialize Model Pool page
@@ -2215,6 +2326,96 @@
 
         function toggleChimeOnFailure() {
             document.getElementById('chime-on-failure-toggle').classList.toggle('active');
+        }
+
+        // HHMRS Settings toggle functions
+        function toggleHHMRSAutoRestart() {
+            document.getElementById('hhmrs-auto-restart-toggle').classList.toggle('active');
+        }
+
+        function toggleHHMRSLLMSwitching() {
+            document.getElementById('hhmrs-llm-switching-toggle').classList.toggle('active');
+        }
+
+        // Load HHMRS settings from backend
+        async function loadHHMRSSettings() {
+            try {
+                const response = await fetch('/api/settings/hhmrs');
+                if (!response.ok) throw new Error('Failed to load HHMRS settings');
+
+                const data = await response.json();
+                const hhmrs = data.hhmrs || {};
+
+                // Load numeric values
+                document.getElementById('hhmrs-heartbeat-interval').value = hhmrs.heartbeat_interval_s || 30;
+                document.getElementById('hhmrs-timeout-threshold').value = hhmrs.timeout_threshold_s || 60;
+                document.getElementById('hhmrs-max-restarts').value = hhmrs.max_restarts || 3;
+                document.getElementById('hhmrs-max-llm-retries').value = hhmrs.max_llm_retries || 3;
+
+                // Load toggle states
+                const autoRestartToggle = document.getElementById('hhmrs-auto-restart-toggle');
+                if (hhmrs.enable_auto_restart !== false) {
+                    autoRestartToggle.classList.add('active');
+                } else {
+                    autoRestartToggle.classList.remove('active');
+                }
+
+                const llmSwitchingToggle = document.getElementById('hhmrs-llm-switching-toggle');
+                if (hhmrs.enable_llm_switching !== false) {
+                    llmSwitchingToggle.classList.add('active');
+                } else {
+                    llmSwitchingToggle.classList.remove('active');
+                }
+
+                console.log('✓ HHMRS settings loaded successfully');
+            } catch (error) {
+                console.error('Failed to load HHMRS settings:', error);
+                document.getElementById('hhmrs-save-status').textContent = '❌ Failed to load settings';
+                document.getElementById('hhmrs-save-status').style.color = '#ef4444';
+            }
+        }
+
+        // Save HHMRS settings to backend
+        async function saveHHMRSSettings() {
+            const statusEl = document.getElementById('hhmrs-save-status');
+            statusEl.textContent = '⏳ Saving...';
+            statusEl.style.color = '#9ca3af';
+
+            try {
+                const hhmrsSettings = {
+                    heartbeat_interval_s: parseInt(document.getElementById('hhmrs-heartbeat-interval').value),
+                    timeout_threshold_s: parseInt(document.getElementById('hhmrs-timeout-threshold').value),
+                    max_restarts: parseInt(document.getElementById('hhmrs-max-restarts').value),
+                    max_llm_retries: parseInt(document.getElementById('hhmrs-max-llm-retries').value),
+                    enable_auto_restart: document.getElementById('hhmrs-auto-restart-toggle').classList.contains('active'),
+                    enable_llm_switching: document.getElementById('hhmrs-llm-switching-toggle').classList.contains('active')
+                };
+
+                const response = await fetch('/api/settings/hhmrs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ hhmrs: hhmrsSettings })
+                });
+
+                if (!response.ok) throw new Error('Failed to save HHMRS settings');
+
+                const data = await response.json();
+                statusEl.textContent = '✓ Saved successfully! Restart services to apply.';
+                statusEl.style.color = '#10b981';
+
+                // Clear success message after 5 seconds
+                setTimeout(() => {
+                    statusEl.textContent = '';
+                }, 5000);
+
+                console.log('✓ HHMRS settings saved successfully:', hhmrsSettings);
+            } catch (error) {
+                console.error('Failed to save HHMRS settings:', error);
+                statusEl.textContent = '❌ Failed to save settings';
+                statusEl.style.color = '#ef4444';
+            }
         }
 
         // Update volume and note duration displays as sliders move

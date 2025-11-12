@@ -16,6 +16,7 @@ import json
 import pathlib
 import sqlite3
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Optional, Dict, Any
 from urllib.parse import quote
 from enum import Enum
@@ -56,14 +57,17 @@ class CommsLogger:
         self.flush_interval_s = flush_interval_s
         self.max_line_bytes = max_line_bytes
 
+        # Use EST timezone for all timestamps
+        self.est_tz = ZoneInfo("America/New_York")
+
         # Global log file (daily rotation)
         self._global_log_path = self._get_daily_log_path()
         self._global_log_file = None
-        self._last_flush = datetime.now()
+        self._last_flush = datetime.now(self.est_tz)
 
     def _get_daily_log_path(self) -> pathlib.Path:
-        """Get log file path for today (local timezone)"""
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        """Get log file path for today (EST timezone)"""
+        date_str = datetime.now(self.est_tz).strftime("%Y-%m-%d")
         return self.log_dir / f"pas_comms_{date_str}.txt"
 
     def _escape(self, s: str) -> str:
@@ -99,7 +103,7 @@ class CommsLogger:
 
         Format: timestamp|from|to|type|message|llm_model|run_id|status|progress|metadata
         """
-        timestamp = datetime.now().isoformat(timespec='milliseconds')
+        timestamp = datetime.now(self.est_tz).isoformat(timespec='milliseconds')
 
         # Format fields (use '-' for missing optional fields)
         fields = [
@@ -156,7 +160,7 @@ class CommsLogger:
             conn = sqlite3.connect(str(self.db_path), timeout=5.0)
             cursor = conn.cursor()
 
-            timestamp = datetime.now().isoformat(timespec='milliseconds')
+            timestamp = datetime.now(self.est_tz).isoformat(timespec='milliseconds')
             task_id = run_id if run_id and run_id != "-" else "unknown"
 
             # Map MessageType to action_type/action_name

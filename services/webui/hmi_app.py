@@ -2628,6 +2628,93 @@ def get_advanced_model_settings_api():
 
 
 # ============================================================================
+# HHMRS SETTINGS API
+# ============================================================================
+
+@app.route('/api/settings/hhmrs', methods=['GET'])
+def get_hhmrs_settings():
+    """Get HHMRS (Health Heartbeat Monitoring) settings from pas_settings.json"""
+    try:
+        settings_path = Path('artifacts/pas_settings.json')
+
+        if settings_path.exists():
+            with open(settings_path, 'r') as f:
+                all_settings = json.load(f)
+        else:
+            # Return default settings if file doesn't exist
+            all_settings = {
+                'hhmrs': {
+                    'heartbeat_interval_s': 30,
+                    'timeout_threshold_s': 60,
+                    'max_restarts': 3,
+                    'max_llm_retries': 3,
+                    'enable_auto_restart': True,
+                    'enable_llm_switching': True
+                }
+            }
+
+        return jsonify(all_settings)
+
+    except Exception as e:
+        logger.error(f"Error getting HHMRS settings: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/settings/hhmrs', methods=['POST'])
+def save_hhmrs_settings():
+    """Save HHMRS settings to pas_settings.json"""
+    try:
+        data = request.get_json()
+        hhmrs_settings = data.get('hhmrs', {})
+
+        # Validate settings
+        required_keys = ['heartbeat_interval_s', 'timeout_threshold_s', 'max_restarts', 'max_llm_retries']
+        for key in required_keys:
+            if key not in hhmrs_settings:
+                return jsonify({
+                    'status': 'error',
+                    'error': f'Missing required key: {key}'
+                }), 400
+
+        # Validate numeric ranges
+        if not (5 <= hhmrs_settings['heartbeat_interval_s'] <= 120):
+            return jsonify({'status': 'error', 'error': 'heartbeat_interval_s must be between 5 and 120'}), 400
+
+        if not (10 <= hhmrs_settings['timeout_threshold_s'] <= 300):
+            return jsonify({'status': 'error', 'error': 'timeout_threshold_s must be between 10 and 300'}), 400
+
+        if not (1 <= hhmrs_settings['max_restarts'] <= 10):
+            return jsonify({'status': 'error', 'error': 'max_restarts must be between 1 and 10'}), 400
+
+        if not (1 <= hhmrs_settings['max_llm_retries'] <= 10):
+            return jsonify({'status': 'error', 'error': 'max_llm_retries must be between 1 and 10'}), 400
+
+        # Load existing settings
+        settings_path = Path('artifacts/pas_settings.json')
+        settings_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if settings_path.exists():
+            with open(settings_path, 'r') as f:
+                all_settings = json.load(f)
+        else:
+            all_settings = {}
+
+        # Update HHMRS section
+        all_settings['hhmrs'] = hhmrs_settings
+
+        # Save back to file
+        with open(settings_path, 'w') as f:
+            json.dump(all_settings, f, indent=2)
+
+        logger.info(f"✓ Saved HHMRS settings: {hhmrs_settings}")
+        return jsonify({'status': 'ok', 'message': 'HHMRS settings saved successfully'})
+
+    except Exception as e:
+        logger.error(f"Error saving HHMRS settings: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+# ============================================================================
 # SYSTEM STATUS API
 # ============================================================================
 
