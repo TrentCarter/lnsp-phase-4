@@ -354,3 +354,6 @@ flask_session/
 training_history.json
 lvm_eval/sessions/
 .aider*
+
+# Service-level artifacts (runtime data from services)
+services/**/artifacts/

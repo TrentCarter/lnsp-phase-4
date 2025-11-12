@@ -191,9 +191,9 @@ async def submit_job_card(input: JobCardInput, background_tasks: BackgroundTasks
     }
 
     # Update heartbeat
-    heartbeat_monitor.update_heartbeat(
+    heartbeat_monitor.heartbeat(
         agent=AGENT_ID,
-        state=AgentState.BUSY,
+        state=AgentState.EXECUTING,
         message=f"Processing {job_card_id}",
         metadata={"job_card_id": job_card_id}
     )
@@ -310,7 +310,7 @@ async def process_job_card(job_card_id: str):
             )
 
         # Update heartbeat
-        heartbeat_monitor.update_heartbeat(
+        heartbeat_monitor.heartbeat(
             agent=AGENT_ID,
             state=AgentState.IDLE,
             message=f"Completed {job_card_id}"
@@ -329,9 +329,9 @@ async def process_job_card(job_card_id: str):
             status="error"
         )
 
-        heartbeat_monitor.update_heartbeat(
+        heartbeat_monitor.heartbeat(
             agent=AGENT_ID,
-            state=AgentState.ERROR,
+            state=AgentState.FAILED,
             message=f"Error: {str(e)}"
         )
 

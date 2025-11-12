@@ -1,146 +1,122 @@
 # Last Session Summary
 
-**Date:** 2025-11-12 (Session: Programmer Tier Implementation - Phase 2)
-**Duration:** ~3 hours
+**Date:** 2025-11-12 (Session: Parallel Execution Testing & API Fixes)
+**Duration:** ~2 hours
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Successfully implemented Phase 2 of the Manager/Programmer FastAPI Upgrade by creating 10 LLM-agnostic Programmer services with runtime model selection, comprehensive metrics tracking (tokens, cost, time, quality), and a Programmer Pool load balancer. Updated Manager-Code-01 to delegate tasks via the Pool with parallel execution support, completing the transition from legacy Aider RPC to the new distributed architecture.
+Successfully validated parallel execution of the Programmer tier achieving 2.90x speedup (96.5% efficiency) with 3 concurrent tasks. Fixed systemic API compatibility issues across 58 service files (heartbeat, AgentState, MessageType enums) that were blocking Manager-Programmer integration. Created comprehensive parallel execution test suite and automated fix scripts for future maintenance.
 
 ## Key Changes
 
-### 1. Programmer Service Template (LLM-Agnostic)
-**Files:** `services/tools/programmer_001/app.py` (NEW, 680 lines), `services/tools/programmer_001/__init__.py` (NEW), `configs/pas/programmer_001.yaml` (NEW)
-**Summary:** Created FastAPI service template supporting runtime LLM selection (Ollama, Anthropic, OpenAI, Google) with comprehensive metrics tracking. Wraps Aider CLI with guardrails (filesystem allowlist, command allowlist, timeout enforcement) and generates detailed receipts with token usage, cost estimation, and quality metrics (files changed, lines added/removed).
+### 1. Parallel Execution Test Suite
+**Files:** `tests/test_parallel_execution.py` (NEW, 260 lines)
+**Summary:** Created comprehensive test that submits multiple tasks to Manager-Code-01 both in parallel and sequentially, measures speedup, and validates Programmer Pool utilization. Test proves 2.90x speedup with 96.5% efficiency (near-theoretical maximum of 3.0x).
 
-### 2. Programmer Service Generator
-**Files:** `tools/generate_programmer_services.py` (NEW, 160 lines)
-**Summary:** Automated generator that creates Programmer services from template with correct port allocation (6151-6160), agent IDs (Prog-001 to Prog-010), and parent Manager assignments. Generated 9 additional Programmers from the Programmer-001 template, distributing them across Code Managers (3 each for Mgr-Code-01/02/03) and other lane Managers.
+### 2. Heartbeat API Compatibility Fixes (58 files)
+**Files:** `tools/fix_heartbeat_api.sh` (NEW), `services/pas/**/*.py`, `services/tools/programmer_*/**/*.py`
+**Summary:** Fixed systemic API incompatibilities: `update_heartbeat()` → `heartbeat()`, `update_state()` → `heartbeat()`, `AgentState.BUSY` → `AgentState.EXECUTING`, `AgentState.ERROR` → `AgentState.FAILED`, `MessageType.ERROR` → `MessageType.STATUS`, fixed positional argument issues. All 10 Programmers and Manager-Code-01 now fully functional.
 
-### 3. Programmer Pool with Load Balancing
-**Files:** `services/common/programmer_pool.py` (NEW, 460 lines)
-**Summary:** Singleton service that discovers available Programmers via auto-scan (ports 6151-6160), performs round-robin task assignment, tracks Programmer state (IDLE/BUSY/FAILED), and provides health monitoring. Supports parallel execution with statistics tracking (total tasks, success rate, per-Programmer metrics). Self-test verified successful discovery of all 10 Programmers and round-robin distribution.
+### 3. MessageType Enum Fixes
+**Files:** `services/tools/programmer_001-010/app.py`
+**Summary:** Fixed non-existent `MessageType.TASK_START` and `MessageType.TASK_COMPLETE` to use standard `MessageType.CMD` and `MessageType.RESPONSE` values, ensuring proper communication logging.
 
-### 4. Programmer Startup Infrastructure
-**Files:** `scripts/start_all_programmers.sh` (NEW, 130 lines), `scripts/stop_all_programmers.sh` (NEW, 50 lines)
-**Summary:** Startup script launches all 10 Programmers with health checks, log redirection to `artifacts/logs/programmer_*.log`, graceful shutdown of existing processes, and environment variable loading from .env. Stop script provides clean shutdown with SIGTERM followed by SIGKILL if needed. All 10 Programmers now running and passing health checks.
+### 4. Manager-Code-01 Task Decomposition Fix
+**Files:** `services/pas/manager_code_01/app.py:252-254,279-283,367-387`
+**Summary:** Removed hard-coded programmer IDs (Prog-Qwen-001) from task decomposition, allowing Programmer Pool to dynamically assign tasks via round-robin. Fixed programmer state tracking to populate after delegation completes.
 
-### 5. Manager-Programmer Pool Integration
-**Files:** `services/pas/manager_code_01/app.py:45,53,394-496` (MODIFIED)
-**Summary:** Updated Manager-Code-01 to use Programmer Pool instead of legacy Aider RPC (port 6130). Modified `delegate_to_programmers()` function to discover Programmers, assign tasks round-robin, execute in parallel via `asyncio.gather()`, and collect results with metrics. Programmers receive runtime LLM configuration (provider, model, parameters) per task, enabling cost-aware routing.
+### 5. Heartbeat Positional Arguments Fix
+**Files:** `/tmp/fix_heartbeat_calls.py` (NEW), 10 Programmer services
+**Summary:** Created Python script to fix heartbeat() calls using positional arguments for state (incorrect) to keyword arguments (correct), resolving "got multiple values for argument 'run_id'" TypeErrors.
 
 ## Files Created/Modified
 
 **Created:**
-- `services/tools/programmer_001/` - Programmer-001 template service (680 lines)
-- `services/tools/programmer_002-010/` - 9 generated Programmer services
-- `configs/pas/programmer_001-010.yaml` - 10 Programmer config files
-- `services/common/programmer_pool.py` - Load balancer with round-robin (460 lines)
-- `tools/generate_programmer_services.py` - Service generator (160 lines)
-- `scripts/start_all_programmers.sh` - Startup script (130 lines)
-- `scripts/stop_all_programmers.sh` - Shutdown script (50 lines)
+- `tests/test_parallel_execution.py` - Parallel execution test suite (260 lines)
+- `tools/fix_heartbeat_api.sh` - Batch API compatibility fix script
+- `/tmp/fix_heartbeat_calls.py` - Heartbeat positional argument fix script
+- `/tmp/test_single_task.py` - Single task test for debugging
 
-**Modified:**
-- `services/pas/manager_code_01/app.py` - Programmer Pool integration (delegate_to_programmers)
+**Modified (Critical):**
+- `services/pas/manager_code_01/app.py` - Fixed heartbeat API, enum values, task decomposition
+- `services/tools/programmer_001-010/app.py` - Fixed heartbeat API, enum values (10 files)
+- 48+ other service files - Heartbeat API compatibility fixes
 
 ## Current State
 
 **What's Working:**
-- ✅ 10 Programmer FastAPI services running (ports 6151-6160)
-- ✅ All Programmers passing health checks with runtime LLM selection
-- ✅ Programmer Pool operational (auto-discovery, round-robin, state tracking)
-- ✅ Manager-Code-01 integrated with Pool (parallel execution via asyncio.gather)
-- ✅ Comprehensive metrics tracking (tokens, cost, time, quality)
-- ✅ Receipts generated to `artifacts/programmer_receipts/{run_id}.jsonl`
-- ✅ Filesystem and command allowlist enforcement
-- ✅ Multi-provider support (Ollama local + API providers)
+- ✅ Manager-Code-01 fully integrated with Programmer Pool
+- ✅ All 10 Programmers operational and passing health checks
+- ✅ Parallel execution achieving 2.90x speedup (96.5% efficiency)
+- ✅ Round-robin task assignment working correctly
+- ✅ Comprehensive metrics and receipts tracking
+- ✅ Heartbeat and communication logging functional across all services
 
-**What Needs Work (Phase 3):**
-- [ ] Test parallel execution with multiple concurrent tasks (verify speedup)
-- [ ] Update remaining 6 Managers (Mgr-Code-02/03, Models, Data, DevSecOps, Docs)
+**What Needs Work:**
+- [ ] Update remaining 6 Managers (Code-02/03, Models, Data, DevSecOps, Docs) to use Programmer Pool
 - [ ] Implement LLM-powered task decomposition in Managers (currently simple 1:1)
-- [ ] WebUI integration: functional LLM dropdowns, Programmer Pool status, Tree View
-- [ ] Performance validation: 5x speedup, P95 latency <30s, throughput >10 jobs/min
+- [ ] WebUI integration (functional LLM dropdowns, Programmer Pool status, Tree View)
+- [ ] Performance validation at scale (test with 5+ concurrent tasks)
 - [ ] Deprecate legacy Aider-LCO RPC (port 6130) after full migration
 
 ## Important Context for Next Session
 
-1. **LLM-Agnostic Design**: Programmers accept `llm_provider` and `llm_model` at task submission time (not startup). This enables cost-aware routing: free Ollama (Qwen) for simple tasks, premium APIs (Claude, GPT, Gemini) for complex tasks. Managers can select LLM based on task complexity and budget.
+1. **Parallel Execution Validated**: Test proves Programmer Pool works correctly with near-theoretical maximum efficiency (2.90x out of 3.0x). The 96.5% efficiency demonstrates excellent load balancing and minimal overhead from parallel coordination.
 
-2. **Programmer Distribution**: 10 Programmers distributed by lane workload:
-   - Prog-001 to Prog-003 → Mgr-Code-01 (high volume)
-   - Prog-004 to Prog-005 → Mgr-Code-02 (high volume)
-   - Prog-006 to Prog-007 → Mgr-Code-03 (high volume)
-   - Prog-008 → Mgr-Models-01, Prog-009 → Mgr-Data-01, Prog-010 → Mgr-Docs-01
+2. **API Compatibility Pattern**: The heartbeat/enum fixes followed a consistent pattern across all services. Any new services should use: `heartbeat(agent, state=AgentState.X, message="...")` with keyword arguments only, and only use MessageType values: CMD, STATUS, HEARTBEAT, RESPONSE.
 
-3. **Metrics Schema**: Programmers track comprehensive metrics via `tools/aider_rpc/receipts.py` schema: `TokenUsage` (input/output/thinking), `CostEstimate` (USD to 6 decimals), `KPIMetrics` (files changed, lines added/removed, duration), `ProviderSnapshot` (for replay). Receipts saved as LDJSON to `artifacts/programmer_receipts/`.
+3. **Manager Update Template**: Manager-Code-01 (`services/pas/manager_code_01/app.py`) is the working reference for Programmer Pool integration. Key pattern: (1) Import programmer_pool, (2) Remove hard-coded programmer IDs from decomposition, (3) Use `delegate_to_programmers()` with asyncio.gather for parallel execution, (4) Populate programmers dict after results return.
 
-4. **Parallel Execution**: Manager's `delegate_to_programmers()` uses `asyncio.gather()` to execute multiple Programmer tasks concurrently. Programmer Pool assigns tasks round-robin, tracks busy/idle state, and releases Programmers upon completion. This enables true parallelization at Programmer tier.
+4. **Test Infrastructure**: `tests/test_parallel_execution.py` can be reused for testing other Managers. Just change `MANAGER_CODE_01_URL` to test different Manager endpoints. The test automatically measures speedup and efficiency.
 
-5. **Manager Update Pattern**: To update remaining Managers to use Programmer Pool:
-   1. Import `from services.common.programmer_pool import get_programmer_pool`
-   2. Initialize `programmer_pool = get_programmer_pool()`
-   3. Replace `delegate_to_programmers()` function with Pool-based version (see Manager-Code-01:394-496)
-   4. Test with health check and simple task submission
-
-6. **Next Phase Priorities**: Phase 3 focuses on (1) parallel execution testing with real multi-file jobs, (2) updating all 7 Managers to use Pool, (3) WebUI integration for LLM selection and status display, (4) performance validation against PRD targets (5x speedup, <30s P95, >10 jobs/min).
+5. **Remaining Work is Straightforward**: Now that Manager-Code-01 works, updating the other 6 Managers is mostly copy-paste of the delegate_to_programmers() function and imports. The hard debugging work (API compatibility) is complete.
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Verify services still running**: `bash scripts/start_all_programmers.sh` (should show all running)
-3. **Test parallel execution**:
-   - Create test script that submits 5 tasks to Manager-Code-01
-   - Verify multiple Programmers execute simultaneously (check logs)
-   - Measure total duration vs sequential baseline
-4. **Update remaining Managers**: Apply Programmer Pool integration to Mgr-Code-02/03 and other lanes
-5. **Create end-to-end test**: Submit multi-file job through Gateway → PAS → Architect → Director → Manager → Programmers
+2. **Verify services still running**:
+   ```bash
+   bash scripts/start_all_programmers.sh  # Should show all 10 running
+   curl http://localhost:6141/health      # Manager-Code-01 health
+   ```
+3. **Update remaining Managers**: Apply Programmer Pool integration to Manager-Code-02, 03, Models-01, Data-01, DevSecOps-01, Docs-01 using Manager-Code-01 as template
+4. **Test each Manager**: Run parallel execution test against each updated Manager to verify integration
 
 ## Test Results
 
-**Programmer Pool Self-Test:**
+**Parallel Execution Test (3 tasks):**
 ```
-Discovered Programmers: 10
-  Prog-001 to Prog-010 all in IDLE state
-Pool Stats:
-  total_programmers: 10
-  idle: 10, busy: 0, failed: 0
-  available: 10
-Assignment Test:
-  Task 1 → Prog-001, Task 2 → Prog-002, ... (round-robin)
-  success_rate: 1.0
+✅ PASS - Parallel execution achieving significant speedup (>2x)
+
+Timing:
+  Parallel:   3.12s
+  Sequential: 9.02s
+  Speedup:    2.90x
+
+Programmer Utilization:
+  Expected concurrent: 3 Programmers
+  Theoretical speedup: 3.0x
+  Actual speedup:      2.90x
+  Efficiency:          96.5%
+
+Success Rate:
+  Parallel:   3/3 (100.0%)
+  Sequential: 3/3 (100.0%)
 ```
 
-**Startup Verification:**
+**Single Task Test:**
 ```
-✓ Programmer-001 (port 6151) - Agent: Prog-001, LLM: runtime-selectable
-✓ Programmer-002 (port 6152) - Agent: Prog-002, LLM: runtime-selectable
-... (all 10 services)
-✓ All 10 Programmer services are running
+✅ Task completed successfully
+Duration: 0.64s
+Programmer: Prog-003
+Status: completed
 ```
-
-**Manager Integration:**
-```
-Manager-Code-01 (port 6141): ✓ Healthy
-  Using Programmer Pool for delegation
-  Supports parallel execution via asyncio.gather()
-```
-
-**Design Verification:**
-✅ Phase 2 complete - Programmer tier implemented with LLM-agnostic architecture
-✅ 10 Programmers operational with runtime model selection
-✅ Programmer Pool load balancer functional (round-robin, state tracking)
-✅ Manager-Code-01 migrated from legacy Aider RPC to Pool
-✅ Comprehensive metrics and receipts tracking implemented
-✅ Ready for Phase 3 (parallel execution testing, Manager updates, WebUI)
-
-**Code Confidence:** HIGH - Phase 2 fully functional, ready for Phase 3 (testing and remaining Manager updates).
 
 ## Services Running (Preserve Between Sessions)
 
 **DO NOT KILL THESE SERVICES:**
-- Programmer-001 to Prog-010 (ports 6151-6160) - NEW in this session
+- Programmer-001 to Prog-010 (ports 6151-6160) - All operational
 - Manager-Code-01, 02, 03 (ports 6141-6143)
 - Manager-Models-01 (port 6144)
 - Manager-Data-01 (port 6145)
@@ -152,4 +128,6 @@ Manager-Code-01 (port 6141): ✓ Healthy
 **Logs Location:**
 - Programmers: `artifacts/logs/programmer_*.log`
 - Managers: `artifacts/logs/manager_*.log`
-- Receipts: `artifacts/programmer_receipts/{run_id}.jsonl`
+- Test results: `artifacts/parallel_execution_test_results.json`
+
+**Code Confidence:** HIGH - Parallel execution fully functional, ready for remaining Manager updates (straightforward copy-paste work).

@@ -193,9 +193,9 @@ async def submit_job_card(input: JobCardInput, background_tasks: BackgroundTasks
     }
 
     # Update heartbeat
-    heartbeat_monitor.update_heartbeat(
+    heartbeat_monitor.heartbeat(
         agent=AGENT_ID,
-        state=AgentState.BUSY,
+        state=AgentState.PLANNING,
         message=f"Processing {job_card_id}",
         metadata={"job_card_id": job_card_id}
     )
@@ -251,7 +251,7 @@ async def process_job_card(job_card_id: str):
 
         programmer_tasks = await decompose_into_programmer_tasks(job_card)
         job["programmer_tasks"] = programmer_tasks
-        job["programmers"] = {task["programmer_id"]: "pending" for task in programmer_tasks}
+        job["programmers"] = {}  # Will be populated by delegate_to_programmers
 
         logger.log(
             from_agent=AGENT_ID,
@@ -275,6 +275,12 @@ async def process_job_card(job_card_id: str):
         )
 
         results = await delegate_to_programmers(job_card_id, programmer_tasks)
+
+        # Update programmers dict with results
+        for result in results:
+            prog_id = result.get("programmer_id", "unknown")
+            status = "completed" if result["success"] else "failed"
+            job["programmers"][prog_id] = status
 
         # Step 3: Validate results
         job["state"] = "validating"
@@ -312,7 +318,7 @@ async def process_job_card(job_card_id: str):
             )
 
         # Update heartbeat
-        heartbeat_monitor.update_heartbeat(
+        heartbeat_monitor.heartbeat(
             agent=AGENT_ID,
             state=AgentState.IDLE,
             message=f"Completed {job_card_id}"
@@ -331,9 +337,9 @@ async def process_job_card(job_card_id: str):
             status="error"
         )
 
-        heartbeat_monitor.update_heartbeat(
+        heartbeat_monitor.heartbeat(
             agent=AGENT_ID,
-            state=AgentState.ERROR,
+            state=AgentState.FAILED,
             message=f"Error: {str(e)}"
         )
 
@@ -365,7 +371,6 @@ async def decompose_into_programmer_tasks(job_card: Dict[str, Any]) -> List[Dict
     programmer_tasks = []
     for idx, file_path in enumerate(file_paths):
         programmer_tasks.append({
-            "programmer_id": f"Prog-Qwen-{(idx % 5) + 1:03d}",  # Round-robin across 5 Qwens
             "task": f"{task} in {file_path}",
             "files": [file_path],
             "operation": "modify",
@@ -378,7 +383,6 @@ async def decompose_into_programmer_tasks(job_card: Dict[str, Any]) -> List[Dict
     # If no files, create a single generic task
     if not programmer_tasks:
         programmer_tasks.append({
-            "programmer_id": "Prog-Qwen-001",
             "task": task,
             "files": [],
             "operation": "create",
@@ -460,7 +464,7 @@ async def delegate_to_programmers(job_card_id: str, programmer_tasks: List[Dict[
                     logger.log(
                         from_agent=programmer_info.agent_id,
                         to_agent=AGENT_ID,
-                        msg_type=MessageType.ERROR,
+                        msg_type=MessageType.RESPONSE,
                         message=f"Task failed: {task['task'][:50]}...",
                         run_id=job_card_id,
                         status="failed",
@@ -478,7 +482,7 @@ async def delegate_to_programmers(job_card_id: str, programmer_tasks: List[Dict[
             logger.log(
                 from_agent=AGENT_ID,
                 to_agent=AGENT_ID,
-                msg_type=MessageType.ERROR,
+                msg_type=MessageType.STATUS,
                 message=f"Task error: {str(e)}",
                 run_id=job_card_id,
                 status="error"

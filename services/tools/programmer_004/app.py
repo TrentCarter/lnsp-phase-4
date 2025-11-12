@@ -403,13 +403,13 @@ async def execute(request: ExecuteRequest, background_tasks: BackgroundTasks):
     job_id = request.job_id or f"job-{run_id[:8]}"
 
     # Update heartbeat state
-    heartbeat_monitor.update_state(AGENT_ID, AgentState.BUSY, run_id=run_id)
+    heartbeat_monitor.heartbeat(AGENT_ID, state=AgentState.EXECUTING, run_id=run_id)
 
     # Log task start
     log_id = logger.log(
         from_agent=AGENT_ID,
         to_agent=PARENT_AGENT,
-        msg_type=MessageType.TASK_START,
+        msg_type=MessageType.CMD,
         message=f"Executing: {request.task[:100]}",
         run_id=run_id,
         status="in_progress"
@@ -472,14 +472,14 @@ async def execute(request: ExecuteRequest, background_tasks: BackgroundTasks):
     logger.log(
         from_agent=AGENT_ID,
         to_agent=PARENT_AGENT,
-        msg_type=MessageType.TASK_COMPLETE if receipt.status == "success" else MessageType.ERROR,
+        msg_type=MessageType.RESPONSE if receipt.status == "success" else MessageType.STATUS,
         message=f"Status: {receipt.status}, Tokens: {receipt.usage.total_tokens}, Cost: ${receipt.cost.total_cost:.4f}",
         run_id=run_id,
         status=receipt.status
     )
 
     # Update heartbeat state
-    heartbeat_monitor.update_state(AGENT_ID, AgentState.IDLE)
+    heartbeat_monitor.heartbeat(AGENT_ID, state=AgentState.IDLE)
 
     # Prepare response
     return ExecuteResponse(
