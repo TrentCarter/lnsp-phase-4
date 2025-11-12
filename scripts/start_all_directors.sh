@@ -38,6 +38,16 @@ if [ ! -d ".venv" ]; then
     exit 1
 fi
 
+# Load .env file for API keys
+if [ -f ".env" ]; then
+    echo -e "${BLUE}Loading environment variables from .env${NC}"
+    set -a  # automatically export all variables
+    source .env
+    set +a
+else
+    echo -e "${YELLOW}⚠ .env file not found, skipping environment variables${NC}"
+fi
+
 # Function to check if port is in use
 port_in_use() {
     lsof -i ":$1" >/dev/null 2>&1
