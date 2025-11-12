@@ -123,6 +123,8 @@ After 8 failed training attempts (P1-P8) and decisive narrative delta test (Δ=0
 
 **Full Command Reference**: `docs/QUICK_COMMANDS.md` | `CLAUDE_Artifacts_Old.md` (Section 10)
 
+**All ports and service mappings**: `docs/SERVICE_PORTS.md` - Complete port mapping for Multi-Tier PAS architecture
+
 ```bash
 # Service Management
 ./scripts/start_all_fastapi_services.sh  # Start all services

@@ -39,7 +39,7 @@ from services.common.comms_logger import get_logger, MessageType
 from services.pas.director_docs.decomposer import ManagerTaskDecomposer
 
 
-app = FastAPI(title="Director-Code", version="1.0.0")
+app = FastAPI(title="Director-Docs", version="1.0.0")
 
 # Initialize systems
 heartbeat_monitor = get_monitor()
@@ -102,9 +102,9 @@ async def health():
     """Health check endpoint"""
     return {
         "status": "ok",
-        "service": "Director-Code",
+        "service": "Director-Docs",
         "version": "1.0.0",
-        "port": 6111,
+        "port": 6115,
         "agent": "Dir-Docs",
         "llm_model": os.getenv("DIR_DOCS_LLM", "anthropic/claude-sonnet-4-5"),
         "agent_metadata": {

@@ -39,7 +39,7 @@ from services.common.comms_logger import get_logger, MessageType
 from services.pas.director_devsecops.decomposer import ManagerTaskDecomposer
 
 
-app = FastAPI(title="Director-Code", version="1.0.0")
+app = FastAPI(title="Director-DevSecOps", version="1.0.0")
 
 # Initialize systems
 heartbeat_monitor = get_monitor()
@@ -102,9 +102,9 @@ async def health():
     """Health check endpoint"""
     return {
         "status": "ok",
-        "service": "Director-Code",
+        "service": "Director-DevSecOps",
         "version": "1.0.0",
-        "port": 6111,
+        "port": 6114,
         "agent": "Dir-DevSecOps",
         "llm_model": os.getenv("DIR_DEVSECOPS_LLM", "google/gemini-2.5-flash"),
         "agent_metadata": {
