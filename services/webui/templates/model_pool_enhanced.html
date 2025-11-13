@@ -241,7 +241,10 @@
 <div class="content">
     <div class="page-header">
         <h1>🤖 Model Pool Dashboard</h1>
-        <button class="refresh-btn" onclick="refreshAll()">🔄 Refresh All</button>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span id="last-refresh" style="color: #9ca3af; font-size: 0.875rem;">Loading...</span>
+            <button class="refresh-btn" onclick="refreshAll()">🔄 Refresh All</button>
+        </div>
     </div>
 
     <div class="nav-tabs">
@@ -525,16 +528,29 @@ function renderApiModels() {
 
 async function loadUsageStats() {
     try {
+        console.log('[Model Pool] Fetching usage stats from /api/models/usage');
         const response = await fetch('/api/models/usage');
         const data = await response.json();
 
+        console.log('[Model Pool] Usage data received:', data);
+
         if (data.status === 'ok') {
             usageData = data.usage;
+            console.log('[Model Pool] Total tokens:', data.usage.total_tokens);
+            console.log('[Model Pool] Total cost:', data.usage.total_cost);
             renderUsageStats(data);
+            updateRefreshTimestamp();
         }
     } catch (error) {
+        console.error('[Model Pool] Error loading usage data:', error);
         document.getElementById('usage-stats').innerHTML = '<div class="error">Error loading usage data</div>';
     }
+}
+
+function updateRefreshTimestamp() {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString();
+    document.getElementById('last-refresh').textContent = `Last updated: ${timeStr}`;
 }
 
 function renderUsageStats(data) {
@@ -618,6 +634,12 @@ async function refreshAll() {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     refreshAll();
+
+    // Auto-refresh every 10 seconds
+    setInterval(function() {
+        console.log('[Model Pool] Auto-refreshing usage stats...');
+        loadUsageStats();
+    }, 10000);
 });
 </script>
 {% endblock %}
