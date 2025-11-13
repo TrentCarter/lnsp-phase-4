@@ -1,0 +1,172 @@
+<!-- Complete updated LLM template with multi-select checkboxes -->
+<!-- Replace the existing createSessionItem function with this version -->
+
+<style>
+    /* Add these styles for multi-select checkboxes */
+    .session-item.selected {
+        background: rgba(59, 130, 246, 0.2);
+        border-color: #3b82f6;
+    }
+
+    .session-checkbox {
+        accent-color: #3b82f6;
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .session-item:hover .session-checkbox {
+        visibility: visible;
+    }
+
+    .session-item .session-checkbox {
+        visibility: hidden;
+    }
+
+    .session-item.selected .session-checkbox,
+    .session-item:hover .session-checkbox {
+        visibility: visible;
+    }
+
+    .session-item-content {
+        flex: 1;
+        min-width: 0;
+    }
+</style>
+
+<!-- Updated createSessionItem function -->
+<script>
+function createSessionItemWithCheckboxes(session) {
+    const div = document.createElement('div');
+    div.className = 'session-item';
+    div.dataset.sessionId = session.session_id;
+    if (session.session_id === currentSessionId) {
+        div.classList.add('active');
+    }
+    if (session.status === 'archived') {
+        div.classList.add('archived');
+    }
+
+    const messageCount = session.metadata?.message_count || 0;
+    const timestamp = formatRelativeTime(session.updated_at);
+    const title = session.title || 'New conversation';
+    const titleClass = session.title ? '' : 'untitled';
+    const archivedBadge = session.status === 'archived' ? '<span class="archived-badge">📦</span>' : '';
+
+    div.innerHTML = `
+        <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+            <input type="checkbox" class="session-checkbox" data-session-id="${session.session_id}" 
+                   style="margin-top: 0.25rem; cursor: pointer; accent-color: #3b82f6;" 
+                   onchange="handleCheckboxChange(this, '${session.session_id}')">
+            <div class="session-item-content">
+                <div class="session-item-header">
+                    <div class="session-title ${titleClass}" title="${escapeHtml(title)}">
+                        ${archivedBadge}${escapeHtml(title)}
+                    </div>
+                    <div class="session-actions">
+                        <button class="session-action-btn" onclick="renameSession('${session.session_id}')" title="Rename">
+                            ✎
+                        </button>
+                        <button class="session-action-btn" onclick="exportSession('${session.session_id}')" title="Export">
+                            ↓
+                        </button>
+                        <button class="session-action-btn" onclick="deleteSession('${session.session_id}')" title="Delete">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+                <div class="session-meta">
+                    <div class="session-agent">
+                        <span>${getAgentIcon(session.agent_id)}</span>
+                        <span>${session.agent_name}</span>
+                    </div>
+                    <div class="session-timestamp">${timestamp}</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Handle checkbox sync
+    const checkbox = div.querySelector('.session-checkbox');
+    if (selectedSessions.has(session.session_id)) {
+        checkbox.checked = true;
+        div.classList.add('selected');
+    }
+
+    // Click handling - checkbox handles selection, rest handles session switching
+    div.addEventListener('click', (e) => {
+        // Ignore clicks on action buttons and checkboxes
+        if (e.target.closest('.session-action-btn') || e.target.classList.contains('session-checkbox')) return;
+        switchSession(session.session_id);
+    });
+
+    return div;
+}
+
+// Checkbox change handler
+function handleCheckboxChange(checkbox, sessionId) {
+    if (checkbox.checked) {
+        selectedSessions.add(sessionId);
+        checkbox.closest('.session-item').classList.add('selected');
+    } else {
+        selectedSessions.delete(sessionId);
+        checkbox.closest('.session-item').classList.remove('selected');
+    }
+    updateDeleteSelectedButton();
+    updateSelectAllButton();
+}
+
+// Update the renderSessions function to use checkboxes
+function renderSessionsWithCheckboxes(sessions) {
+    sessionsList.innerHTML = '';
+
+    if (sessions.length === 0) {
+        sessionsList.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 2rem; font-size: 0.875rem;">No conversations yet</div>';
+        return;
+    }
+
+    sessions.forEach(session => {
+        const sessionItem = createSessionItemWithCheckboxes(session);
+        sessionsList.appendChild(sessionItem);
+    });
+}
+
+// Update loadSessions to use checkbox version
+async function loadSessionsWithCheckboxes() {
+    try {
+        const response = await fetch('/api/chat/sessions');
+        const data = await response.json();
+
+        if (data.status === 'ok') {
+            renderSessionsWithCheckboxes(data.sessions);
+        }
+    } catch (error) {
+        console.error('Error loading sessions:', error);
+    }
+}
+</script>
+
+<!-- Updated sidebar buttons -->
+<div style="padding: 1rem; border-bottom: 1px solid #3a4568;">
+    <button class="new-chat-button" id="new-chat-button" style="margin: 0 0 0.5rem 0; width: 100%;">
+        ✨ New Chat
+    </button>
+    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <button id="select-all-btn" class="session-action-btn" 
+                style="background: #1e2747; border: 1px solid #3a4568; padding: 0.5rem; font-size: 0.75rem; flex: 1;"
+                onclick="selectAllSessions()">
+            📋 Select All
+        </button>
+        <button id="delete-selected-btn" class="session-action-btn" 
+                style="background: #7f1d1d; border: 1px solid #dc2626; padding: 0.5rem; font-size: 0.75rem; flex: 1;" 
+                onclick="deleteSelectedSessions()" disabled>
+            🗑️ Delete Selected (0)
+        </button>
+    </div>
+    <button id="delete-all-btn" class="session-action-btn" 
+            style="background: #7f1d1d; border: 1px solid #dc2626; padding: 0.5rem; font-size: 0.75rem; width: 100%;"
+            onclick="deleteAllSessions()">
+        ⚠️ Delete All History
+    </button>
+</div>

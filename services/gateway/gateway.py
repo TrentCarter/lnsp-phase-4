@@ -11,7 +11,10 @@ This service:
 import asyncio
 import httpx
 import time
+import json
+import os
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -45,6 +48,15 @@ class RoutingRequest(BaseModel):
     payload: Optional[Dict[str, Any]] = None
 
 
+class ChatStreamRequest(BaseModel):
+    """Request to stream chat response"""
+    session_id: str = Field(..., min_length=1)
+    message_id: str = Field(..., min_length=1)
+    agent_id: str = Field(..., min_length=1)
+    model: str = Field(default="llama3.1:8b")
+    content: str = Field(..., min_length=1)
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Gateway",
@@ -61,6 +73,7 @@ http_client = httpx.AsyncClient(timeout=30.0)
 # Configuration
 PROVIDER_ROUTER_URL = "http://localhost:6103"
 EVENT_STREAM_URL = "http://localhost:6102"
+OLLAMA_URL = "http://localhost:11434"
 
 
 @app.get("/health")
@@ -332,6 +345,285 @@ async def get_budget_status(run_id: str):
     return cost_tracker.get_budget_status(run_id)
 
 
+@app.post("/chat/stream")
+async def chat_stream_post(request: ChatStreamRequest):
+    """
+    POST endpoint for streaming chat responses (legacy support)
+
+    Routes to appropriate provider based on model prefix:
+    - ollama/* → Ollama local models
+    - anthropic/* → Anthropic API (Claude)
+    - openai/* → OpenAI API (GPT)
+    - google/* → Google API (Gemini)
+    - auto → Auto-select provider
+
+    SSE Event Types:
+    - status_update: Task progress (planning, executing, complete)
+    - token: Streaming text chunks
+    - usage: Token/cost tracking
+    - done: Stream complete signal
+    """
+    # Route based on model prefix
+    model = request.model.lower()
+
+    if model.startswith("ollama/"):
+        return StreamingResponse(
+            _stream_ollama_response(request),
+            media_type="text/event-stream"
+        )
+    elif model.startswith("anthropic/"):
+        return StreamingResponse(
+            _stream_anthropic_response(request),
+            media_type="text/event-stream"
+        )
+    elif model.startswith("openai/"):
+        return StreamingResponse(
+            _stream_openai_response(request),
+            media_type="text/event-stream"
+        )
+    elif model.startswith("google/"):
+        return StreamingResponse(
+            _stream_google_response(request),
+            media_type="text/event-stream"
+        )
+    elif model == "auto":
+        # Auto-select: default to Ollama qwen2.5-coder
+        # Create a modified request with a specific model
+        auto_request = ChatStreamRequest(
+            session_id=request.session_id,
+            message_id=request.message_id,
+            agent_id=request.agent_id,
+            model="ollama/qwen2.5-coder:7b-instruct",  # Default auto-select model
+            content=request.content
+        )
+        return StreamingResponse(
+            _stream_ollama_response(auto_request),
+            media_type="text/event-stream"
+        )
+    else:
+        # Unknown provider: try Ollama as fallback
+        return StreamingResponse(
+            _stream_ollama_response(request),
+            media_type="text/event-stream"
+        )
+
+
+@app.get("/chat/stream/{session_id}")
+async def chat_stream_get(session_id: str):
+    """
+    GET endpoint for streaming chat responses (PRD-aligned)
+
+    Note: This endpoint expects chat context to be retrieved from
+    a session store. For now, returns an error directing to POST endpoint.
+    """
+    raise HTTPException(
+        status_code=501,
+        detail="GET /chat/stream/{session_id} not implemented. Use POST /chat/stream with full context."
+    )
+
+
+async def _stream_ollama_response(request: ChatStreamRequest):
+    """
+    Stream chat response from Ollama with SSE formatting.
+
+    Yields SSE events:
+    - status_update: Progress indicators
+    - token: Text chunks from LLM
+    - usage: Token/cost metadata
+    - done: Completion signal
+    """
+    try:
+        # Status: Planning
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'planning', 'detail': 'Preparing request...'})}\n\n"
+
+        # Prepare Ollama request (use /api/chat for conversational models)
+        # Strip ollama/ prefix if present
+        model_name = request.model
+        if model_name.startswith("ollama/"):
+            model_name = model_name[7:]  # Remove "ollama/" prefix
+
+        ollama_payload = {
+            "model": model_name,
+            "messages": [
+                {"role": "user", "content": request.content}
+            ],
+            "stream": True
+        }
+
+        # Debug logging
+        print(f"[GATEWAY] Ollama request: model={request.model}, prompt_len={len(request.content)}, url={OLLAMA_URL}/api/chat")
+
+        # Status: Executing
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'executing', 'detail': 'Generating response...'})}\n\n"
+
+        # Track tokens for cost calculation
+        total_tokens = 0
+        response_text = ""
+
+        # Stream from Ollama
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            async with client.stream(
+                "POST",
+                f"{OLLAMA_URL}/api/chat",
+                json=ollama_payload,
+                headers={"Content-Type": "application/json"}
+            ) as response:
+                response.raise_for_status()
+
+                async for line in response.aiter_lines():
+                    if not line:
+                        continue
+
+                    try:
+                        chunk = json.loads(line)
+
+                        # Extract token from Ollama /api/chat response
+                        if "message" in chunk and "content" in chunk["message"]:
+                            token = chunk["message"]["content"]
+                            if token:
+                                response_text += token
+                                total_tokens += 1
+
+                                # Send token event
+                                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+
+                        # Check if done
+                        if chunk.get("done", False):
+                            # Status: Complete
+                            yield f"data: {json.dumps({'type': 'status_update', 'status': 'complete', 'detail': 'Response generated'})}\n\n"
+
+                            # Usage tracking (Ollama returns actual counts in final chunk)
+                            prompt_tokens = chunk.get("prompt_eval_count", 0)
+                            completion_tokens = chunk.get("eval_count", total_tokens)
+
+                            # Calculate cost (Llama 3.1 local is free, but track for consistency)
+                            usage_data = {
+                                'type': 'usage',
+                                'usage': {
+                                    'prompt_tokens': prompt_tokens,
+                                    'completion_tokens': completion_tokens,
+                                    'total_tokens': prompt_tokens + completion_tokens
+                                },
+                                'cost_usd': 0.0,  # Local LLM is free
+                                'model': request.model
+                            }
+                            yield f"data: {json.dumps(usage_data)}\n\n"
+
+                            # Done signal
+                            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                            break
+
+                    except json.JSONDecodeError:
+                        # Skip malformed lines
+                        continue
+
+    except httpx.HTTPError as e:
+        # Error status
+        import traceback
+        error_msg = f"Ollama unavailable: {str(e)}"
+        print(f"[GATEWAY ERROR] {error_msg}")
+        print(f"[GATEWAY ERROR] Traceback: {traceback.format_exc()}")
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    except Exception as e:
+        # Unexpected error
+        import traceback
+        error_msg = f"Streaming error: {str(e)}"
+        print(f"[GATEWAY ERROR] {error_msg}")
+        print(f"[GATEWAY ERROR] Traceback: {traceback.format_exc()}")
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+
+async def _stream_anthropic_response(request: ChatStreamRequest):
+    """Stream chat response from Anthropic API (Claude)"""
+    try:
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'planning', 'detail': 'Preparing Anthropic request...'})}\n\n"
+
+        # Check for API key
+        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not anthropic_api_key:
+            error_msg = "Anthropic API key not configured. Set ANTHROPIC_API_KEY environment variable."
+            yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+
+        # Strip anthropic/ prefix
+        model_name = request.model[10:] if request.model.startswith("anthropic/") else request.model
+
+        # Import Anthropic SDK
+        try:
+            from anthropic import Anthropic
+        except ImportError:
+            error_msg = "Anthropic SDK not installed. Run: pip install anthropic"
+            yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'executing', 'detail': 'Generating response...'})}\n\n"
+
+        # Call Anthropic API
+        client = Anthropic(api_key=anthropic_api_key)
+        response_text = ""
+        prompt_tokens = 0
+        completion_tokens = 0
+
+        with client.messages.stream(
+            model=model_name,
+            max_tokens=1024,
+            messages=[{"role": "user", "content": request.content}]
+        ) as stream:
+            for text in stream.text_stream:
+                response_text += text
+                completion_tokens += 1
+                yield f"data: {json.dumps({'type': 'token', 'content': text})}\n\n"
+
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'complete', 'detail': 'Response generated'})}\n\n"
+
+        # Usage tracking
+        usage_data = {
+            'type': 'usage',
+            'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': prompt_tokens + completion_tokens},
+            'cost_usd': 0.0,  # TODO: Calculate actual Anthropic cost
+            'model': request.model
+        }
+        yield f"data: {json.dumps(usage_data)}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    except Exception as e:
+        import traceback
+        error_msg = f"Anthropic API error: {str(e)}"
+        print(f"[GATEWAY ERROR] {error_msg}")
+        print(f"[GATEWAY ERROR] Traceback: {traceback.format_exc()}")
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+
+async def _stream_openai_response(request: ChatStreamRequest):
+    """Stream chat response from OpenAI API (GPT)"""
+    try:
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'planning', 'detail': 'Preparing OpenAI request...'})}\n\n"
+        error_msg = "OpenAI API not yet implemented. Please use Ollama models."
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+    except Exception as e:
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': str(e)})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+
+async def _stream_google_response(request: ChatStreamRequest):
+    """Stream chat response from Google API (Gemini)"""
+    try:
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'planning', 'detail': 'Preparing Google request...'})}\n\n"
+        error_msg = "Google API not yet implemented. Please use Ollama models."
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+    except Exception as e:
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': str(e)})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+
 @app.get("/")
 async def root():
     """Root endpoint with service info"""
@@ -342,6 +634,8 @@ async def root():
         "endpoints": {
             "health": "/health",
             "route": "POST /route",
+            "chat_stream_post": "POST /chat/stream",
+            "chat_stream_get": "GET /chat/stream/{session_id}",
             "metrics": "GET /metrics?window=minute|hour|day",
             "receipts": "GET /receipts/{run_id}",
             "set_budget": "POST /budget?run_id=X&budget_usd=Y",

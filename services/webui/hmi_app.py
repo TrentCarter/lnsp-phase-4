@@ -3535,7 +3535,7 @@ def send_chat_message():
         session_id = data.get('session_id')
         message_content = data.get('message', '').strip()
         agent_id = data.get('agent_id', 'architect')
-        model_name = data.get('model', 'Claude Sonnet 4')
+        model_name = data.get('model', 'llama3.1:8b')
 
         # Validation
         if not message_content:
@@ -3578,6 +3578,15 @@ def send_chat_message():
                 content=message_content
             )
             db.add(user_message)
+
+            # Auto-generate title from first user message if session has no title
+            if not session.title:
+                # Take first 50 chars of message as title
+                title = message_content[:50]
+                if len(message_content) > 50:
+                    title += '...'
+                session.title = title
+
             db.commit()
 
             # V2: Create placeholder assistant message (will be streamed via SSE)
@@ -3654,9 +3663,9 @@ def get_chat_sessions():
         db = get_db_session()
 
         try:
-            # Load sessions (TODO: Filter by user_id in V2)
+            # Load sessions (both active and archived, TODO: Filter by user_id in V2)
             sessions = db.query(ConversationSession)\
-                .filter(ConversationSession.status == 'active')\
+                .filter(ConversationSession.status.in_(['active', 'archived']))\
                 .order_by(ConversationSession.updated_at.desc())\
                 .all()
 
@@ -3794,6 +3803,46 @@ def delete_session(session_id):
 
     except Exception as e:
         logger.error(f"Error deleting session: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/chat/sessions', methods=['DELETE'])
+def delete_all_sessions():
+    """
+    Delete ALL conversation sessions permanently.
+    
+    This is a hard delete - all sessions and their messages will be cascade deleted.
+    Use with extreme caution!
+    """
+    try:
+        db = get_db_session()
+
+        try:
+            # Count sessions before deletion for response
+            session_count = db.query(ConversationSession).count()
+            
+            if session_count == 0:
+                return jsonify({
+                    'status': 'ok',
+                    'deleted_count': 0,
+                    'message': 'No sessions to delete'
+                })
+
+            # Delete all sessions (messages cascade deleted automatically)
+            db.query(ConversationSession).delete()
+            db.commit()
+
+            return jsonify({
+                'status': 'ok',
+                'deleted_count': session_count,
+                'message': f'Successfully deleted {session_count} sessions'
+            })
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error deleting all sessions: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -3984,25 +4033,50 @@ def stream_chat_response(session_id):
 
             # Forward request to Gateway for real agent communication
             try:
-                gateway_response = requests.post(
-                    f'{GATEWAY_URL}/chat/stream',
-                    json={
-                        'session_id': session_id,
-                        'message_id': user_message.message_id,
-                        'agent_id': agent_id,
-                        'model': model,
-                        'content': user_message.content
-                    },
-                    stream=True,
-                    timeout=300  # 5 minute timeout for long responses
-                )
+                # PRD-aligned: try GET first
+                try:
+                    gateway_response = requests.get(
+                        f'{GATEWAY_URL}/chat/stream/{session_id}',
+                        stream=True,
+                        timeout=300
+                    )
+                except requests.exceptions.RequestException:
+                    gateway_response = None
+
+                if gateway_response is None or gateway_response.status_code != 200:
+                    # Fallback to legacy POST body streaming
+                    gateway_response = requests.post(
+                        f'{GATEWAY_URL}/chat/stream',
+                        json={
+                            'session_id': session_id,
+                            'message_id': user_message.message_id,
+                            'agent_id': agent_id,
+                            'model': model,
+                            'content': user_message.content
+                        },
+                        stream=True,
+                        timeout=300
+                    )
 
                 if gateway_response.status_code != 200:
                     # Fallback to mock streaming if Gateway unavailable
                     logger.warning(f"Gateway returned {gateway_response.status_code}, using mock streaming")
 
-                    # Manually iterate through mock stream to accumulate content
+                    # Manually iterate through mock stream to accumulate content, honoring cancel
                     for event in _mock_stream_response(user_message.content):
+                        # Check cancellation
+                        with _CANCEL_LOCK:
+                            cancelled = session_id in _CANCELLED_SESSIONS
+                        if cancelled:
+                            # Mark DB and clear cancel flag
+                            assistant_message.content = accumulated_content
+                            assistant_message.status = 'cancelled'
+                            db.commit()
+                            with _CANCEL_LOCK:
+                                _CANCELLED_SESSIONS.discard(session_id)
+                            yield "data: {\"type\": \"done\"}\n\n"
+                            return
+
                         yield event
                         # Parse to accumulate content
                         if event.startswith('data: '):
@@ -4030,6 +4104,22 @@ def stream_chat_response(session_id):
                     # Decode line
                     line_str = line.decode('utf-8')
 
+                    # Honor cancellation mid-stream
+                    with _CANCEL_LOCK:
+                        cancelled = session_id in _CANCELLED_SESSIONS
+                    if cancelled:
+                        try:
+                            requests.post(f"{GATEWAY_URL}/chat/{session_id}/cancel", timeout=2)
+                        except Exception:
+                            pass
+                        assistant_message.content = accumulated_content
+                        assistant_message.status = 'cancelled'
+                        db.commit()
+                        with _CANCEL_LOCK:
+                            _CANCELLED_SESSIONS.discard(session_id)
+                        yield "data: {\"type\": \"done\"}\n\n"
+                        break
+
                     # Forward SSE event
                     if line_str.startswith('data: '):
                         yield f"{line_str}\n\n"
@@ -4043,6 +4133,12 @@ def stream_chat_response(session_id):
 
                             elif event_data.get('type') == 'usage':
                                 usage_info = event_data.get('usage', {})
+                                # Persist cost_usd if provided
+                                if 'cost_usd' in event_data and event_data['cost_usd'] is not None:
+                                    try:
+                                        usage_info['cost_usd'] = float(event_data['cost_usd'])
+                                    except (TypeError, ValueError):
+                                        pass
 
                             elif event_data.get('type') == 'done':
                                 # Update assistant message in database
@@ -4065,8 +4161,20 @@ def stream_chat_response(session_id):
                 logger.error(f"Gateway connection error: {e}", exc_info=True)
                 # Fallback to mock streaming
 
-                # Manually iterate through mock stream to accumulate content
+                # Manually iterate through mock stream to accumulate content, honoring cancel
                 for event in _mock_stream_response(user_message.content):
+                    # Check cancellation
+                    with _CANCEL_LOCK:
+                        cancelled = session_id in _CANCELLED_SESSIONS
+                    if cancelled:
+                        assistant_message.content = accumulated_content
+                        assistant_message.status = 'cancelled'
+                        db.commit()
+                        with _CANCEL_LOCK:
+                            _CANCELLED_SESSIONS.discard(session_id)
+                        yield "data: {\"type\": \"done\"}\n\n"
+                        return
+
                     yield event
                     # Parse to accumulate content
                     if event.startswith('data: '):
@@ -4090,6 +4198,20 @@ def stream_chat_response(session_id):
                 db.close()
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
+
+
+# --- Cancellation support ---
+from threading import Lock
+_CANCEL_LOCK = Lock()
+_CANCELLED_SESSIONS = set()
+
+
+@app.route('/api/chat/sessions/<session_id>/cancel', methods=['POST'])
+def cancel_chat_session(session_id):
+    """Cancel an active streaming session."""
+    with _CANCEL_LOCK:
+        _CANCELLED_SESSIONS.add(session_id)
+    return jsonify({'status': 'cancelled', 'session_id': session_id})
 
 
 def _mock_stream_response(original_message: str):

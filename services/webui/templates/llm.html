@@ -120,6 +120,33 @@
         opacity: 0.8;
     }
 
+    .session-item.selected {
+        background: rgba(59, 130, 246, 0.2);
+        border-color: #3b82f6;
+        position: relative;
+    }
+
+    .session-item.selected::before {
+        content: '✓';
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        background: #3b82f6;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        z-index: 10;
+    }
+
+    .session-item.selected .session-title {
+        color: #60a5fa;
+    }
+
     .archived-badge {
         font-size: 0.875rem;
         margin-right: 0.25rem;
@@ -612,9 +639,22 @@
                     ◀
                 </button>
             </div>
-            <button class="new-chat-button" id="new-chat-button">
-                ✨ New Chat
-            </button>
+            <div style="padding: 1rem; border-bottom: 1px solid #3a4568;">
+                <button class="new-chat-button" id="new-chat-button" style="margin: 0 0 0.5rem 0;">
+                    ✨ New Chat
+                </button>
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <button id="select-all-btn" class="session-action-btn" style="background: #1e2747; border: 1px solid #3a4568; padding: 0.5rem; font-size: 0.75rem; flex: 1;">
+                        📋 Select All
+                    </button>
+                    <button id="delete-selected-btn" class="session-action-btn" style="background: #7f1d1d; border: 1px solid #dc2626; padding: 0.5rem; font-size: 0.75rem; flex: 1;" disabled>
+                        🗑️ Delete Selected
+                    </button>
+                </div>
+                <button id="delete-all-btn" class="session-action-btn" style="background: #7f1d1d; border: 1px solid #dc2626; padding: 0.5rem; font-size: 0.75rem; width: 100%;">
+                    ⚠️ Delete All History
+                </button>
+            </div>
             <div class="sessions-list" id="sessions-list">
                 <!-- Sessions will be loaded here dynamically -->
             </div>
@@ -659,14 +699,16 @@
 </div>
 
 <script>
+    // Version: 2025-11-13-1026 - CACHE BUST: Fixed input re-enabling + model ID defaults
     // State management
     let currentSessionId = null;
     let currentAgentId = 'architect';
-    let currentModelId = 'llama3.1:8b';  // Store model ID, not display name
-    let currentModelName = 'Llama 3.1 8B (Local)';  // Store display name for UI
+    let currentModelId = 'ollama/qwen2.5-coder:7b-instruct';  // Store model ID, not display name
+    let currentModelName = 'Ollama Qwen 2.5 Coder 7B';  // Store display name for UI
     let isSending = false;
     let currentEventSource = null;
     let currentAssistantRefs = null;
+    let selectedSessions = new Set();
 
     // DOM elements
     const messagesContainer = document.getElementById('messages-container');
@@ -685,6 +727,9 @@
     const sidebarExpandBtn = document.getElementById('sidebar-expand-btn');
     const newChatButton = document.getElementById('new-chat-button');
     const sessionsList = document.getElementById('sessions-list');
+    const selectAllBtn = document.getElementById('select-all-btn');
+    const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+    const deleteAllBtn = document.getElementById('delete-all-btn');
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
@@ -767,6 +812,128 @@
 
         // New chat button
         newChatButton.addEventListener('click', startNewChat);
+        
+        // Multi-select history buttons
+        selectAllBtn.addEventListener('click', selectAllSessions);
+        deleteSelectedBtn.addEventListener('click', deleteSelectedSessions);
+        deleteAllBtn.addEventListener('click', deleteAllSessions);
+    }
+
+    // Multi-select history functions
+    function selectAllSessions() {
+        const sessionItems = document.querySelectorAll('.session-item');
+        const allSelected = sessionItems.length === selectedSessions.size;
+        
+        if (allSelected) {
+            // Deselect all
+            selectedSessions.clear();
+            sessionItems.forEach(item => item.classList.remove('selected'));
+            selectAllBtn.textContent = '📋 Select All';
+        } else {
+            // Select all
+            selectedSessions.clear();
+            sessionItems.forEach(item => {
+                const sessionId = item.dataset.sessionId;
+                if (sessionId) {
+                    selectedSessions.add(sessionId);
+                    item.classList.add('selected');
+                }
+            });
+            selectAllBtn.textContent = '❌ Deselect All';
+        }
+        
+        updateDeleteSelectedButton();
+    }
+
+    function updateDeleteSelectedButton() {
+        deleteSelectedBtn.disabled = selectedSessions.size === 0;
+        deleteSelectedBtn.textContent = `🗑️ Delete Selected (${selectedSessions.size})`;
+    }
+
+    function toggleSessionSelection(sessionId, element) {
+        if (selectedSessions.has(sessionId)) {
+            selectedSessions.delete(sessionId);
+            element.classList.remove('selected');
+        } else {
+            selectedSessions.add(sessionId);
+            element.classList.add('selected');
+        }
+        
+        updateDeleteSelectedButton();
+        updateSelectAllButton();
+    }
+
+    function updateSelectAllButton() {
+        const sessionItems = document.querySelectorAll('.session-item');
+        const allSelected = sessionItems.length > 0 && sessionItems.length === selectedSessions.size;
+        selectAllBtn.textContent = allSelected ? '❌ Deselect All' : '📋 Select All';
+    }
+
+    async function deleteSelectedSessions() {
+        if (selectedSessions.size === 0) return;
+        
+        const confirmed = confirm(`Delete ${selectedSessions.size} selected conversation(s)? This cannot be undone.`);
+        if (!confirmed) return;
+
+        let deletedCount = 0;
+        const promises = Array.from(selectedSessions).map(async sessionId => {
+            try {
+                const response = await fetch(`/api/chat/sessions/${sessionId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                if (data.status === 'deleted') {
+                    deletedCount++;
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error(`Error deleting session ${sessionId}:`, error);
+                return false;
+            }
+        });
+
+        await Promise.all(promises);
+        
+        // Clear selection and refresh
+        selectedSessions.clear();
+        updateDeleteSelectedButton();
+        updateSelectAllButton();
+        loadSessions();
+        
+        // If current session was deleted, reset
+        if (currentSessionId && !Array.from(document.querySelectorAll('.session-item')).some(item => item.dataset.sessionId === currentSessionId)) {
+            currentSessionId = null;
+            clearMessages();
+        }
+    }
+
+    async function deleteAllSessions() {
+        const confirmed = confirm('⚠️ Delete ALL conversation history? This cannot be undone.');
+        if (!confirmed) return;
+
+        const doubleConfirmed = confirm('⚠️ FINAL WARNING: This will permanently delete ALL conversations. Are you absolutely sure?');
+        if (!doubleConfirmed) return;
+
+        try {
+            const response = await fetch('/api/chat/sessions', {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+            
+            if (data.status === 'ok') {
+                selectedSessions.clear();
+                currentSessionId = null;
+                clearMessages();
+                loadSessions();
+                alert('All conversations deleted successfully.');
+            } else {
+                alert('Failed to delete all conversations: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error deleting all sessions:', error);
+            alert('Failed to delete all conversations.');
+        }
     }
 
     async function loadAgents() {
@@ -794,24 +961,59 @@
 
     async function loadModels() {
         try {
-            const response = await fetch('/api/models');
+            const response = await fetch('/api/models/available');
             const data = await response.json();
 
-            if (data.status === 'ok' && data.models.length > 0) {
+            if (data.status === 'ok' && Object.keys(data.models).length > 0) {
                 modelSelector.innerHTML = '';
-                data.models.forEach(model => {
+                const models = Object.entries(data.models);
+                
+                // Filter only available models
+                const availableModels = models.filter(([_, model]) => model.available && model.status === 'OK');
+                
+                availableModels.forEach(([modelId, model]) => {
                     const option = document.createElement('option');
-                    option.value = model.model_id;
-                    option.textContent = model.model_name;
+                    option.value = modelId;
+                    
+                    // Add health status icon
+                    const healthIcon = model.status === 'OK' ? '✅' : 
+                                     model.status === 'API' ? '🌐' : 
+                                     model.status === 'DOWN' ? '❌' : 
+                                     model.status === 'TIMEOUT' ? '⏰' : '⚠️';
+                    
+                    option.textContent = `${healthIcon} ${model.name}`;
                     modelSelector.appendChild(option);
                 });
 
-                // Set default - store BOTH ID and display name
-                currentModelId = data.models[0].model_id;
-                currentModelName = data.models[0].model_name;
+                // Set default from available models
+                if (availableModels.length > 0) {
+                    const [firstId, firstModel] = availableModels[0];
+                    currentModelId = firstId;
+                    currentModelName = firstModel.name;
+                } else {
+                    // Fallback to basic local models
+                    modelSelector.innerHTML = `
+                        <option value="llama3.1:8b">Llama 3.1 8B (Local)</option>
+                    `;
+                    currentModelId = 'llama3.1:8b';
+                    currentModelName = 'Llama 3.1 8B (Local)';
+                }
+            } else {
+                // Fallback to basic local models
+                modelSelector.innerHTML = `
+                    <option value="llama3.1:8b">Llama 3.1 8B (Local)</option>
+                `;
+                currentModelId = 'llama3.1:8b';
+                currentModelName = 'Llama 3.1 8B (Local)';
             }
         } catch (error) {
             console.error('Error loading models:', error);
+            // Fallback to basic local models
+            modelSelector.innerHTML = `
+                <option value="llama3.1:8b">Llama 3.1 8B (Local)</option>
+            `;
+            currentModelId = 'llama3.1:8b';
+            currentModelName = 'Llama 3.1 8B (Local)';
         }
     }
 
@@ -921,6 +1123,10 @@
                             typingIndicator.classList.remove('active');
                             // Ensure cursor removed
                             if (cursorEl && cursorEl.parentNode) cursorEl.parentNode.removeChild(cursorEl);
+                            // Re-enable input for next message
+                            isSending = false;
+                            sendButton.disabled = false;
+                            messageInput.disabled = false;
                             // Reload sessions to update sidebar with new title
                             loadSessions();
                         }
@@ -935,7 +1141,17 @@
                                 openSSE();
                             }, delay);
                         } else {
+                            // Max retries exhausted or done already received
                             typingIndicator.classList.remove('active');
+                            // Re-enable input
+                            isSending = false;
+                            sendButton.disabled = false;
+                            messageInput.disabled = false;
+                            // Show error message if not already done
+                            if (!doneReceived) {
+                                bubble.textContent = '⚠️ Connection failed after multiple retries. Please try again.';
+                                if (cursorEl && cursorEl.parentNode) cursorEl.parentNode.removeChild(cursorEl);
+                            }
                         }
                     };
                 }
@@ -1248,39 +1464,63 @@
         const archivedBadge = session.status === 'archived' ? '<span class="archived-badge">📦</span>' : '';
 
         div.innerHTML = `
-            <div class="session-item-header">
-                <div class="session-title ${titleClass}" title="${title}">
-                    ${archivedBadge}${escapeHtml(title)}
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem;" onclick="switchSession('${session.session_id}')">
+                <input type="checkbox" class="session-checkbox" data-session-id="${session.session_id}" 
+                       style="margin-top: 0.25rem; cursor: pointer; pointer-events: none;" 
+                       onchange="handleCheckboxChange(this, '${session.session_id}')">
+                <div style="flex: 1; pointer-events: none;">
+                    <div class="session-item-header">
+                        <div class="session-title ${titleClass}" title="${title}">
+                            ${archivedBadge}${escapeHtml(title)}
+                        </div>
+                        <div class="session-actions" style="pointer-events: auto;">
+                            <button class="session-action-btn" onclick="event.stopPropagation(); renameSession('${session.session_id}')" title="Rename">
+                                ✎
+                            </button>
+                            <button class="session-action-btn" onclick="event.stopPropagation(); exportSession('${session.session_id}')" title="Export">
+                                ↓
+                            </button>
+                            <button class="session-action-btn" onclick="event.stopPropagation(); deleteSession('${session.session_id}')" title="Delete">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                    <div class="session-meta">
+                        <div class="session-agent">
+                            <span>${getAgentIcon(session.agent_id)}</span>
+                            <span>${session.agent_name}</span>
+                        </div>
+                        <div class="session-timestamp">${timestamp}</div>
+                    </div>
                 </div>
-                <div class="session-actions">
-                    <button class="session-action-btn" onclick="renameSession('${session.session_id}')" title="Rename">
-                        ✎
-                    </button>
-                    <button class="session-action-btn" onclick="exportSession('${session.session_id}')" title="Export">
-                        ↓
-                    </button>
-                    <button class="session-action-btn" onclick="deleteSession('${session.session_id}')" title="Delete">
-                        ✕
-                    </button>
-                </div>
-            </div>
-            <div class="session-meta">
-                <div class="session-agent">
-                    <span>${getAgentIcon(session.agent_id)}</span>
-                    <span>${session.agent_name}</span>
-                </div>
-                <div class="session-timestamp">${timestamp}</div>
             </div>
         `;
 
-        // Click to switch session
-        div.addEventListener('click', (e) => {
-            // Ignore clicks on action buttons
-            if (e.target.closest('.session-action-btn')) return;
-            switchSession(session.session_id);
+        // Handle checkbox sync
+        const checkbox = div.querySelector('.session-checkbox');
+        if (selectedSessions.has(session.session_id)) {
+            checkbox.checked = true;
+            div.classList.add('selected');
+        }
+
+        // Fix checkbox click propagation
+        checkbox.addEventListener('click', (e) => {
+            e.stopPropagation();
         });
 
         return div;
+    }
+
+    function handleCheckboxChange(checkbox, sessionId) {
+        if (checkbox.checked) {
+            selectedSessions.add(sessionId);
+            checkbox.closest('.session-item').classList.add('selected');
+        } else {
+            selectedSessions.delete(sessionId);
+            checkbox.closest('.session-item').classList.remove('selected');
+        }
+        updateDeleteSelectedButton();
+        updateSelectAllButton();
     }
 
     async function switchSession(sessionId) {
@@ -1426,6 +1666,12 @@
         return then.toLocaleDateString();
     }
 
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     function getAgentIcon(agentId) {
         const lower = agentId.toLowerCase();
         if (lower === 'architect') return '🏛️';
@@ -1433,12 +1679,6 @@
         if (lower.startsWith('mgr-')) return '⚙️';
         if (lower.startsWith('programmer-')) return '👨‍💻';
         return '🤖';
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     }
 </script>
 {% endblock %}
