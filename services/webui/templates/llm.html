@@ -1,0 +1,577 @@
+{% extends "base.html" %}
+
+{% block title %}LLM Task Interface - PAS Agent Swarm HMI{% endblock %}
+
+{% block content %}
+<style>
+    .llm-container {
+        max-width: 1400px;
+        margin: 2rem auto;
+        padding: 0 2rem;
+        height: calc(100vh - 120px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .llm-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .llm-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #fff;
+    }
+
+    .llm-toolbar {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .selector-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .selector-label {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .selector {
+        background: #1e2747;
+        border: 1px solid #3a4568;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        color: #e0e0e0;
+        font-size: 0.875rem;
+        cursor: pointer;
+        min-width: 180px;
+    }
+
+    .selector:hover {
+        background: #252f4d;
+        border-color: #4a5578;
+    }
+
+    .role-indicator {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid #3b82f6;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        color: #3b82f6;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .chat-area {
+        flex: 1;
+        background: #1a1f3a;
+        border: 1px solid #3a4568;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    .messages-container {
+        flex: 1;
+        padding: 1.5rem;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        min-height: 0;
+    }
+
+    .message {
+        display: flex;
+        gap: 0.75rem;
+        max-width: 80%;
+        animation: fadeIn 0.2s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+    }
+
+    .message.assistant {
+        align-self: flex-start;
+    }
+
+    .message-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .message.user .message-avatar {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+    }
+
+    .message.assistant .message-avatar {
+        background: linear-gradient(135deg, #10b981, #059669);
+    }
+
+    .message-content-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .message-bubble {
+        padding: 0.875rem 1.125rem;
+        border-radius: 12px;
+        line-height: 1.6;
+        word-wrap: break-word;
+    }
+
+    .message.user .message-bubble {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+    }
+
+    .message.assistant .message-bubble {
+        background: #252f4d;
+        color: #e0e0e0;
+        border: 1px solid #3a4568;
+    }
+
+    .message-metadata {
+        display: flex;
+        gap: 0.75rem;
+        font-size: 0.75rem;
+        color: #9ca3af;
+        align-items: center;
+    }
+
+    .message.user .message-metadata {
+        justify-content: flex-end;
+    }
+
+    .typing-indicator {
+        display: none;
+        padding: 1rem;
+        color: #9ca3af;
+        font-style: italic;
+    }
+
+    .typing-indicator.active {
+        display: block;
+    }
+
+    .input-area {
+        padding: 1.5rem;
+        border-top: 1px solid #3a4568;
+        background: #0f1629;
+        flex-shrink: 0;
+    }
+
+    .input-container {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .message-input {
+        flex: 1;
+        background: #1e2747;
+        border: 1px solid #3a4568;
+        border-radius: 8px;
+        padding: 0.875rem 1rem;
+        color: #e0e0e0;
+        font-size: 0.9375rem;
+        font-family: inherit;
+        resize: none;
+        min-height: 44px;
+        max-height: 120px;
+    }
+
+    .message-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+
+    .send-button {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        border: none;
+        border-radius: 8px;
+        padding: 0 1.5rem;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .send-button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+
+    .send-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #9ca3af;
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.3;
+    }
+
+    .empty-state-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #e0e0e0;
+    }
+
+    .empty-state-desc {
+        font-size: 0.9375rem;
+        max-width: 400px;
+    }
+
+    /* Scrollbar styling */
+    .messages-container::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .messages-container::-webkit-scrollbar-track {
+        background: #0f1629;
+        border-radius: 4px;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb {
+        background: #3a4568;
+        border-radius: 4px;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb:hover {
+        background: #4a5578;
+    }
+</style>
+
+<div class="llm-container">
+    <div class="llm-header">
+        <div class="llm-title">💬 LLM Task Interface</div>
+        <div class="llm-toolbar">
+            <div class="selector-group">
+                <div class="selector-label">Agent</div>
+                <select id="agent-selector" class="selector">
+                    <option value="architect">🏛️ Architect (6110)</option>
+                </select>
+            </div>
+            <div class="selector-group">
+                <div class="selector-label">Model</div>
+                <select id="model-selector" class="selector">
+                    <option value="claude-sonnet-4">Claude Sonnet 4</option>
+                </select>
+            </div>
+            <div class="role-indicator" id="role-indicator">
+                Your Role: PAS Root → Directing: Architect
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-area">
+        <div class="messages-container" id="messages-container">
+            <div class="empty-state" id="empty-state">
+                <div class="empty-state-icon">💬</div>
+                <div class="empty-state-title">Start a Conversation</div>
+                <div class="empty-state-desc">
+                    Send a Prime Directive to the Architect or "SSH" into any agent in the hierarchy to communicate directly.
+                </div>
+            </div>
+        </div>
+        <div class="typing-indicator" id="typing-indicator">
+            🤖 <span id="typing-agent">Architect</span> is thinking...
+        </div>
+        <div class="input-area">
+            <div class="input-container">
+                <textarea
+                    id="message-input"
+                    class="message-input"
+                    placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
+                    rows="1"
+                ></textarea>
+                <button id="send-button" class="send-button">
+                    Send →
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // State management
+    let currentSessionId = null;
+    let currentAgentId = 'architect';
+    let currentModelName = 'Claude Sonnet 4';
+    let isSending = false;
+
+    // DOM elements
+    const messagesContainer = document.getElementById('messages-container');
+    const emptyState = document.getElementById('empty-state');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-button');
+    const typingIndicator = document.getElementById('typing-indicator');
+    const agentSelector = document.getElementById('agent-selector');
+    const modelSelector = document.getElementById('model-selector');
+    const roleIndicator = document.getElementById('role-indicator');
+    const typingAgent = document.getElementById('typing-agent');
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAgents();
+        loadModels();
+        setupEventListeners();
+    });
+
+    function setupEventListeners() {
+        // Send button
+        sendButton.addEventListener('click', sendMessage);
+
+        // Enter key to send (Shift+Enter for new line)
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Auto-resize textarea
+        messageInput.addEventListener('input', () => {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+        });
+
+        // Agent selection change
+        agentSelector.addEventListener('change', (e) => {
+            currentAgentId = e.target.value;
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            const agentName = selectedOption.textContent.split('(')[0].trim();
+            const parentRole = getParentRole(currentAgentId);
+            roleIndicator.textContent = `Your Role: ${parentRole} → Directing: ${agentName}`;
+            typingAgent.textContent = agentName;
+
+            // Context isolation: Confirm agent switch if session exists
+            if (currentSessionId) {
+                const confirmed = confirm(
+                    `Switch to ${agentName}? This will start a new conversation thread. ` +
+                    `Previous messages will not be shared (context isolation).`
+                );
+                if (confirmed) {
+                    currentSessionId = null; // Start new session
+                    clearMessages();
+                } else {
+                    // Revert selection
+                    e.target.value = currentAgentId;
+                }
+            }
+        });
+
+        // Model selection change
+        modelSelector.addEventListener('change', (e) => {
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            currentModelName = selectedOption.textContent;
+        });
+    }
+
+    async function loadAgents() {
+        try {
+            const response = await fetch('/api/agents');
+            const data = await response.json();
+
+            if (data.status === 'ok' && data.agents.length > 0) {
+                agentSelector.innerHTML = '';
+                data.agents.forEach(agent => {
+                    const option = document.createElement('option');
+                    option.value = agent.agent_id;
+                    const portInfo = agent.port ? ` (${agent.port})` : '';
+                    option.textContent = `${agent.role_icon} ${agent.agent_name}${portInfo}`;
+                    agentSelector.appendChild(option);
+                });
+
+                // Set default
+                currentAgentId = data.agents[0].agent_id;
+            }
+        } catch (error) {
+            console.error('Error loading agents:', error);
+        }
+    }
+
+    async function loadModels() {
+        try {
+            const response = await fetch('/api/models');
+            const data = await response.json();
+
+            if (data.status === 'ok' && data.models.length > 0) {
+                modelSelector.innerHTML = '';
+                data.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.model_id;
+                    option.textContent = model.model_name;
+                    modelSelector.appendChild(option);
+                });
+
+                // Set default
+                currentModelName = data.models[0].model_name;
+            }
+        } catch (error) {
+            console.error('Error loading models:', error);
+        }
+    }
+
+    async function sendMessage() {
+        const message = messageInput.value.trim();
+        if (!message || isSending) return;
+
+        isSending = true;
+        sendButton.disabled = true;
+        messageInput.disabled = true;
+
+        try {
+            // Hide empty state
+            emptyState.style.display = 'none';
+
+            // Add user message to UI
+            addMessage('user', message);
+
+            // Clear input
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+
+            // Show typing indicator
+            typingIndicator.classList.add('active');
+
+            // Send to backend
+            const response = await fetch('/api/chat/message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: currentSessionId,
+                    message: message,
+                    agent_id: currentAgentId,
+                    model: currentModelName
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'ok') {
+                // Update session ID
+                currentSessionId = data.session_id;
+
+                // Hide typing indicator
+                typingIndicator.classList.remove('active');
+
+                // Add assistant response
+                addMessage('assistant', data.assistant_message, {
+                    agent_id: currentAgentId,
+                    model: currentModelName
+                });
+            } else {
+                throw new Error(data.error || 'Failed to send message');
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            typingIndicator.classList.remove('active');
+            addMessage('assistant', `⚠️ Error: ${error.message}`, {
+                agent_id: 'system',
+                model: 'System'
+            });
+        } finally {
+            isSending = false;
+            sendButton.disabled = false;
+            messageInput.disabled = false;
+            messageInput.focus();
+        }
+    }
+
+    function addMessage(role, content, metadata = {}) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${role}`;
+
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.textContent = role === 'user' ? '👤' : '🤖';
+
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = 'message-content-wrapper';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        bubble.textContent = content;
+
+        const metadataDiv = document.createElement('div');
+        metadataDiv.className = 'message-metadata';
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        metadataDiv.innerHTML = `<span>${timestamp}</span>`;
+
+        if (metadata.model) {
+            metadataDiv.innerHTML += `<span>Model: ${metadata.model}</span>`;
+        }
+
+        contentWrapper.appendChild(bubble);
+        contentWrapper.appendChild(metadataDiv);
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(contentWrapper);
+
+        messagesContainer.appendChild(messageDiv);
+
+        // Scroll to bottom
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function clearMessages() {
+        messagesContainer.innerHTML = '';
+        const emptyStateClone = emptyState.cloneNode(true);
+        emptyStateClone.style.display = 'flex';
+        messagesContainer.appendChild(emptyStateClone);
+    }
+
+    function getParentRole(agentId) {
+        const lower = agentId.toLowerCase();
+        if (lower === 'architect') return 'PAS Root';
+        if (lower.startsWith('dir-')) return 'Architect';
+        if (lower.startsWith('mgr-')) return 'Director';
+        if (lower.startsWith('programmer-')) return 'Manager';
+        return 'User';
+    }
+</script>
+{% endblock %}

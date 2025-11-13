@@ -15,7 +15,7 @@ from flask_cors import CORS
 import requests
 import logging
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from pathlib import Path
 import json
 import time
@@ -23,6 +23,13 @@ import sqlite3
 import os
 import threading
 import yaml
+
+# LLM Chat Database (SQLAlchemy ORM)
+from llm_chat_db import (
+    ConversationSession,
+    Message,
+    get_session as get_db_session
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -69,6 +76,12 @@ def sequencer_view():
 def actions_view():
     """Actions log view - hierarchical task flow"""
     return render_template('actions.html')
+
+
+@app.route('/llm')
+def llm_view():
+    """LLM Task Interface - conversational AI chat page"""
+    return render_template('llm.html')
 
 
 @app.route('/health', methods=['GET'])
@@ -3357,6 +3370,334 @@ def extend_model_ttl(model_id):
     except Exception as e:
         logger.error(f"Error extending TTL for model {model_id}: {e}")
         return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+# ============================================================================
+# LLM CHAT API ENDPOINTS
+# ============================================================================
+
+@app.route('/api/agents', methods=['GET'])
+def get_agents():
+    """
+    Get list of available agents from Registry.
+
+    Returns agents organized by tier (Architect, Directors, Managers, Programmers).
+    Frontend uses this to populate the agent selector dropdown.
+    """
+    try:
+        # Query Registry @ 6121 for all registered agents
+        response = requests.get(f'{REGISTRY_URL}/services', timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        # Registry returns {"services": {...}} - convert to list format
+        services_dict = data.get('services', {})
+        agents = []
+
+        for service_id, service_data in services_dict.items():
+            # Extract agent info
+            agent_entry = {
+                'agent_id': service_id,
+                'agent_name': service_data.get('name', service_id),
+                'port': service_data.get('port'),
+                'tier': service_data.get('tier', 'unknown'),
+                'status': service_data.get('status', 'unknown'),
+                'role_icon': _get_role_icon(service_data.get('tier'))
+            }
+            agents.append(agent_entry)
+
+        # Sort by tier and name
+        tier_order = {'architect': 1, 'director': 2, 'manager': 3, 'programmer': 4}
+        agents.sort(key=lambda x: (tier_order.get(x['tier'].lower(), 99), x['agent_name']))
+
+        return jsonify({
+            'status': 'ok',
+            'agents': agents,
+            'count': len(agents)
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching agents from Registry: {e}")
+        # Fallback: Return default agents if Registry is unavailable
+        return jsonify({
+            'status': 'ok',
+            'agents': [
+                {
+                    'agent_id': 'architect',
+                    'agent_name': 'Architect',
+                    'port': 6110,
+                    'tier': 'architect',
+                    'status': 'unknown',
+                    'role_icon': '🏛️'
+                }
+            ],
+            'count': 1,
+            'fallback': True
+        })
+
+
+@app.route('/api/models', methods=['GET'])
+def get_models():
+    """
+    Get list of available LLM models.
+
+    Returns model metadata including context window, cost, and capabilities.
+    Frontend uses this to populate the model selector dropdown.
+    """
+    # Hardcoded model list for V1 (TODO: Load from Settings service in V2)
+    models = [
+        {
+            'model_id': 'claude-sonnet-4',
+            'model_name': 'Claude Sonnet 4',
+            'provider': 'anthropic',
+            'context_window': 200000,
+            'cost_per_1m_input': 3.00,
+            'cost_per_1m_output': 15.00,
+            'capabilities': ['streaming', 'tools', 'vision']
+        },
+        {
+            'model_id': 'claude-opus-4',
+            'model_name': 'Claude Opus 4',
+            'provider': 'anthropic',
+            'context_window': 200000,
+            'cost_per_1m_input': 15.00,
+            'cost_per_1m_output': 75.00,
+            'capabilities': ['streaming', 'tools', 'vision']
+        },
+        {
+            'model_id': 'gpt-4-turbo',
+            'model_name': 'GPT-4 Turbo',
+            'provider': 'openai',
+            'context_window': 128000,
+            'cost_per_1m_input': 10.00,
+            'cost_per_1m_output': 30.00,
+            'capabilities': ['streaming', 'tools', 'vision']
+        },
+        {
+            'model_id': 'llama-3.1-8b',
+            'model_name': 'Llama 3.1 8B (Local)',
+            'provider': 'local',
+            'context_window': 8192,
+            'cost_per_1m_input': 0.00,
+            'cost_per_1m_output': 0.00,
+            'capabilities': ['streaming']
+        }
+    ]
+
+    return jsonify({
+        'status': 'ok',
+        'models': models,
+        'count': len(models)
+    })
+
+
+@app.route('/api/chat/message', methods=['POST'])
+def send_chat_message():
+    """
+    Submit a chat message to an agent.
+
+    Body:
+        session_id: Optional[str] - Resume existing session or None for new
+        message: str - User message content
+        agent_id: str - Target agent ID (e.g., "architect", "dir-code")
+        model: str - Model name
+
+    Returns:
+        session_id: str - Session ID (new or existing)
+        message_id: str - ID of user's message
+        status: str - "processing"
+
+    V1: No streaming, synchronous response.
+    V2: Will trigger streaming via SSE.
+    """
+    try:
+        data = request.get_json()
+
+        # Extract parameters
+        session_id = data.get('session_id')
+        message_content = data.get('message', '').strip()
+        agent_id = data.get('agent_id', 'architect')
+        model_name = data.get('model', 'Claude Sonnet 4')
+
+        # Validation
+        if not message_content:
+            return jsonify({'error': 'Message content is required'}), 400
+
+        # Database session
+        db = get_db_session()
+
+        try:
+            # Create or load conversation session
+            if session_id:
+                # Resume existing session
+                session = db.query(ConversationSession).filter_by(session_id=session_id).first()
+                if not session:
+                    return jsonify({'error': 'Session not found'}), 404
+
+                # Update timestamp
+                session.updated_at = datetime.utcnow().isoformat() + 'Z'
+            else:
+                # Create new session
+                # Determine parent role based on agent
+                parent_role = _get_parent_role(agent_id)
+                agent_name = _get_agent_name(agent_id)
+
+                session = ConversationSession(
+                    user_id='default_user',  # TODO: Add authentication in V2
+                    agent_id=agent_id,
+                    agent_name=agent_name,
+                    parent_role=parent_role,
+                    model_name=model_name
+                )
+                db.add(session)
+                db.commit()
+                session_id = session.session_id
+
+            # Create user message
+            user_message = Message(
+                session_id=session_id,
+                message_type='user',
+                content=message_content
+            )
+            db.add(user_message)
+            db.commit()
+
+            # V1: Create mock assistant response (synchronous)
+            # V2: This will trigger Gateway call + SSE streaming
+            assistant_response_content = f"[Mock Response] Received your message: '{message_content[:50]}...'"
+
+            assistant_message = Message(
+                session_id=session_id,
+                message_type='assistant',
+                content=assistant_response_content,
+                agent_id=agent_id,
+                model_name=model_name,
+                status='complete'
+            )
+            db.add(assistant_message)
+            db.commit()
+
+            return jsonify({
+                'status': 'ok',
+                'session_id': session_id,
+                'message_id': user_message.message_id,
+                'assistant_message_id': assistant_message.message_id,
+                'assistant_message': assistant_response_content
+            })
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error sending chat message: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/chat/sessions/<session_id>/messages', methods=['GET'])
+def get_session_messages(session_id):
+    """
+    Get all messages for a conversation session.
+
+    Returns messages in chronological order.
+    """
+    try:
+        db = get_db_session()
+
+        try:
+            # Load session
+            session = db.query(ConversationSession).filter_by(session_id=session_id).first()
+            if not session:
+                return jsonify({'error': 'Session not found'}), 404
+
+            # Load messages
+            messages = db.query(Message).filter_by(session_id=session_id).order_by(Message.timestamp).all()
+
+            return jsonify({
+                'status': 'ok',
+                'session': session.to_dict(),
+                'messages': [msg.to_dict() for msg in messages],
+                'count': len(messages)
+            })
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error fetching session messages: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/chat/sessions', methods=['GET'])
+def get_chat_sessions():
+    """
+    Get all conversation sessions for the current user.
+
+    Returns sessions sorted by most recent first.
+    """
+    try:
+        db = get_db_session()
+
+        try:
+            # Load sessions (TODO: Filter by user_id in V2)
+            sessions = db.query(ConversationSession)\
+                .filter(ConversationSession.status == 'active')\
+                .order_by(ConversationSession.updated_at.desc())\
+                .all()
+
+            return jsonify({
+                'status': 'ok',
+                'sessions': [session.to_dict() for session in sessions],
+                'count': len(sessions)
+            })
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error fetching chat sessions: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+# Helper functions for LLM chat
+
+def _get_role_icon(tier: str) -> str:
+    """Get emoji icon for agent tier"""
+    tier_lower = tier.lower() if tier else ''
+    icons = {
+        'architect': '🏛️',
+        'director': '💻',
+        'manager': '⚙️',
+        'programmer': '👨‍💻'
+    }
+    return icons.get(tier_lower, '🤖')
+
+
+def _get_agent_name(agent_id: str) -> str:
+    """Get display name for agent ID"""
+    name_map = {
+        'architect': 'Architect',
+        'dir-code': 'Dir-Code',
+        'dir-models': 'Dir-Models',
+        'dir-data': 'Dir-Data',
+        'dir-devsecops': 'Dir-DevSecOps',
+        'dir-docs': 'Dir-Docs'
+    }
+    return name_map.get(agent_id.lower(), agent_id.title())
+
+
+def _get_parent_role(agent_id: str) -> str:
+    """Determine parent role based on target agent"""
+    agent_lower = agent_id.lower()
+    if agent_lower == 'architect':
+        return 'PAS Root'
+    elif agent_lower.startswith('dir-'):
+        return 'Architect'
+    elif agent_lower.startswith('mgr-'):
+        return 'Director'
+    elif agent_lower.startswith('programmer-'):
+        return 'Manager'
+    else:
+        return 'User'
 
 
 if __name__ == '__main__':

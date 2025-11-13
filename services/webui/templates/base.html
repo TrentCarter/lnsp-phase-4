@@ -615,6 +615,7 @@
             <a href="/tree" {% if request.path == '/tree' %}class="active"{% endif %}>Tree View</a>
             <a href="/sequencer" {% if request.path == '/sequencer' %}class="active"{% endif %}>Sequencer</a>
             <a href="/actions" {% if request.path == '/actions' %}class="active"{% endif %}>Actions</a>
+            <a href="/llm" {% if request.path == '/llm' %}class="active"{% endif %}>LLM Chat</a>
             <button id="prime-directive-button" class="settings-button" onclick="startPrimeDirective()" style="background: #3b82f6;" title="Send real Prime Directive to PAS Root">🚀 Prime Directive</button>
             <button id="stop-demo-button" class="settings-button" onclick="stopDemo()" style="background: #ef4444; display: none;">⏹️ Stop Demo</button>
             <button id="master-stop-button" class="settings-button" onclick="masterStopDemo()" style="background: #dc2626; display: none; font-weight: bold; border: 2px solid #fbbf24;" title="EMERGENCY: Force kill ALL demo processes immediately">🛑 MASTER STOP</button>

@@ -57,7 +57,7 @@
 
 ### Why Now?
 - PAS P0 stack is production-ready (Gateway → PAS Root → Aider-LCO working end-to-end)
-- HMI infrastructure mature (Flask @ 6101, WebSocket/SSE streaming @ 6102)
+- HMI infrastructure mature (Flask @ 6101; SSE proxied via HMI 6101 → Gateway 6120)
 - Users requesting "ChatGPT-like interface" for task submission
 - Need bridge between conversational task intake and visual progress monitoring
 
@@ -85,7 +85,7 @@
 - [ ] **Model selection dropdown** (populated from Settings → LLM Models)
 - [ ] **Real-time token tracking**: tokens/message, cumulative, context %, cost
 - [ ] **Token meter** visual gauge (progress bar showing context window usage)
-- [ ] Conversation history persisted (SQLite or JSON files)
+- [ ] Conversation history persisted (SQLite via ORM)
 - [ ] Export conversation to markdown/JSON
 - [ ] Clear conversation and start new session
 - [ ] Submit task → selected agent flow working
@@ -200,6 +200,7 @@
   - Dropdown organized by tier with visual separators
   - Role icons displayed next to agent names (🏛️ Architect, 💻 Director, ⚙️ Manager, 👨‍💻 Programmer)
   - Port numbers shown in dropdown (e.g., "Architect (6110)")
+  - Note: Port numbers are informational only; the frontend sends only `agent_id`. Gateway resolves `agent_id → port` internally.
   - Agent selection persists per conversation
   - When switched, next message goes to new agent (can switch mid-conversation)
 - **Context Isolation on Agent Switch** (CRITICAL):
@@ -262,8 +263,8 @@
   - Cost for that message: `Cost: $0.015`
 - **Token Count Finalization** (IMPORTANT):
   - **During Streaming**: Token count shows estimated/incremental value (e.g., "~1,200 tokens" with spinning indicator)
-  - **After Streaming Completes**: Final token count is calculated and displayed (e.g., "1,234 tokens" - no indicator)
-  - **Timing**: Token metadata is finalized at the end of the streaming response (SSE stream sends `[DONE]` event with final token count)
+  - **Finalization**: Upon receiving the `usage` event, final token count and cost are calculated and displayed (e.g., "1,234 tokens")
+  - **Timing**: SSE stream emits a `usage` event with finalized token metrics right before the `done` event
   - **Visual Indicator**: Use spinner or "..." next to token count during streaming to set correct user expectations
   - **Rationale**: Accurate token counting requires full response completion. Incremental counts during streaming are estimates.
 - **Color Coding** (Context Window %):
@@ -290,8 +291,9 @@
   - 🟣 Awaiting Approval
 
 #### Conversation History
-- **Persistence**: SQLite table `llm_conversations`
-  - Columns: `id`, `session_id`, `role` (user/assistant), `content`, `model`, `timestamp`, `metadata` (JSON)
+- **Persistence**: SQLite via ORM with two tables
+  - `llm_conversations`: `session_id`, `user_id`, `agent_id`, `agent_name`, `parent_role`, `model_id`, `model_name`, `created_at`, `updated_at`, `status`, `archived_at`, `title`, `metadata` (JSON serialized)
+  - `llm_messages`: `message_id`, `session_id`, `message_type`, `role`, `content`, `agent_id`, `model_name`, `timestamp`, `status`, `usage` (JSON serialized), `metadata`
 - **Session Management**:
   - Each conversation has unique `session_id`
   - Sessions listed in sidebar (V2) or accessible via "History" dropdown
@@ -319,7 +321,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ User Types Message in HMI Chat Interface                       │
-│ - Selects target agent from dropdown (agent_id, agent_port)    │
+│ - Selects target agent from dropdown (agent_id)                │
 └──────────────────────┬──────────────────────────────────────────┘
                        │
                        ▼
@@ -327,14 +329,14 @@
          │ HMI Flask Route                         │
          │ POST /api/chat/message                  │
          │ (Port 6101)                             │
-         │ - Includes agent_id + agent_port        │
+         │ - Includes agent_id                     │
          └──────────────┬──────────────────────────┘
                         │
-                        ▼ POST /prime_directives (with agent routing)
+                        ▼ Forward to Gateway /chat (with agent routing)
          ┌─────────────────────────────────────────┐
          │ Gateway (Port 6120)                     │
          │ - Idempotency key                       │
-         │ - DYNAMIC ROUTING based on agent_port   │
+         │ - DYNAMIC ROUTING based on agent_id     │
          │ - Routes to Architect, Directors, or    │
          │   Managers based on selection           │
          └──────────────┬──────────────────────────┘
@@ -351,7 +353,8 @@
                         │
                         ▼ Streaming response (SSE)
          ┌─────────────────────────────────────────┐
-         │ Event Stream (Port 6102)                │
+         │ Event Stream (Proxied via HMI 6101 →    │
+         │ Gateway 6120)                           │
          │ - Token-by-token streaming              │
          │ - Status updates                        │
          └──────────────┬──────────────────────────┘
@@ -648,6 +651,7 @@ POST /chat/{session_id}/cancel
 ```
 
 #### PAS Root (FastAPI @ 6100)
+Internal-only; not exposed to HMI.
 ```python
 # Process chat message
 POST /pas/chat
@@ -748,6 +752,7 @@ class ChatInterface {
     this.container = document.getElementById(containerId);
     this.apiUrl = apiBaseUrl;
     this.sessionId = null;
+    this.agentId = null;
     this.model = null;
     this.eventSource = null;
     this.init();
@@ -775,6 +780,7 @@ class ChatInterface {
       body: JSON.stringify({
         session_id: this.sessionId,
         message: message,
+        agent_id: this.agentId,
         model: this.model
       })
     });
@@ -798,12 +804,21 @@ class ChatInterface {
     this.eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      if (data.type === 'token') {
-        currentMessage += data.content;
-        this.updateMessage(messageDiv, currentMessage);
-      } else if (data.type === 'done') {
-        this.eventSource.close();
-        this.finalizeMessage(messageDiv, data.metadata);
+      switch (data.type) {
+        case 'token':
+          currentMessage += data.content;
+          this.updateMessage(messageDiv, currentMessage);
+          break;
+        case 'status_update':
+          this.updateStatusBadge(data.status, data.detail);
+          break;
+        case 'usage':
+          this.updateUsage(data.usage, data.cost_usd);
+          this.finalizeMessage(messageDiv);
+          break;
+        case 'done':
+          this.eventSource.close();
+          break;
       }
     };
   }
@@ -852,31 +867,44 @@ class MarkdownRenderer {
 
 ### 4.6 Database Schema
 
+V2 (Postgres) Reference DDL. V1 uses SQLite via ORM (see Persistence Strategy).
+
 ```sql
--- Conversation sessions
+-- Conversation sessions (V2: Postgres)
 CREATE TABLE llm_conversations (
   session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  agent_name TEXT NOT NULL,
+  parent_role TEXT NOT NULL,
+  model_id TEXT,
   model_name TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   status TEXT NOT NULL DEFAULT 'active',  -- active, archived, deleted
-  metadata JSONB DEFAULT '{}'
+  archived_at TIMESTAMPTZ,
+  title TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb
 );
 
 CREATE INDEX idx_conversations_user ON llm_conversations(user_id);
+CREATE INDEX idx_conversations_agent ON llm_conversations(agent_id);
 CREATE INDEX idx_conversations_status ON llm_conversations(status);
 CREATE INDEX idx_conversations_created ON llm_conversations(created_at DESC);
 
--- Messages
+-- Messages (V2: Postgres)
 CREATE TABLE llm_messages (
   message_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES llm_conversations(session_id) ON DELETE CASCADE,
-  role TEXT NOT NULL,  -- user, assistant, system
+  message_type TEXT NOT NULL,  -- user, assistant, system, status
+  role TEXT,                   -- deprecated; retained for compatibility
   content TEXT NOT NULL,
+  agent_id TEXT,
   model_name TEXT,
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  metadata JSONB DEFAULT '{}'
+  status TEXT,                 -- planning, executing, complete, error, awaiting_approval
+  usage JSONB,                 -- {"prompt_tokens":..., "completion_tokens":..., "total_tokens":..., "cost_usd":...}
+  metadata JSONB DEFAULT '{}'::jsonb
 );
 
 CREATE INDEX idx_messages_session ON llm_messages(session_id, timestamp);
