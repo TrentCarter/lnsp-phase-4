@@ -3410,6 +3410,24 @@ def get_agents():
         tier_order = {'architect': 1, 'director': 2, 'manager': 3, 'programmer': 4}
         agents.sort(key=lambda x: (tier_order.get(x['tier'].lower(), 99), x['agent_name']))
 
+        # Fallback: If registry returns no agents, provide Architect by default
+        if not agents:
+            return jsonify({
+                'status': 'ok',
+                'agents': [
+                    {
+                        'agent_id': 'architect',
+                        'agent_name': 'Architect',
+                        'port': 6110,
+                        'tier': 'architect',
+                        'status': 'unknown',
+                        'role_icon': '🏛️'
+                    }
+                ],
+                'count': 1,
+                'fallback': True
+            })
+
         return jsonify({
             'status': 'ok',
             'agents': agents,
@@ -3654,6 +3672,268 @@ def get_chat_sessions():
     except Exception as e:
         logger.error(f"Error fetching chat sessions: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/chat/sessions/<session_id>', methods=['PUT'])
+def update_session(session_id):
+    """
+    Update a conversation session (e.g., rename title).
+
+    Body: {
+        "title": "New session title"
+    }
+    """
+    try:
+        data = request.get_json()
+        title = data.get('title')
+
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+
+        db = get_db_session()
+
+        try:
+            # Load session
+            session = db.query(ConversationSession).filter_by(session_id=session_id).first()
+            if not session:
+                return jsonify({'error': 'Session not found'}), 404
+
+            # Update title and timestamp
+            session.title = title
+            session.updated_at = datetime.utcnow().isoformat() + 'Z'
+            db.commit()
+
+            return jsonify({
+                'status': 'ok',
+                'session': session.to_dict()
+            })
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error updating session: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/chat/sessions/<session_id>/archive', methods=['POST'])
+def archive_session(session_id):
+    """
+    Archive a conversation session (soft delete).
+
+    Creates a new active session and returns its ID.
+    """
+    try:
+        db = get_db_session()
+
+        try:
+            # Load session to archive
+            session = db.query(ConversationSession).filter_by(session_id=session_id).first()
+            if not session:
+                return jsonify({'error': 'Session not found'}), 404
+
+            # Archive the session
+            session.status = 'archived'
+            session.archived_at = datetime.utcnow().isoformat() + 'Z'
+            session.updated_at = session.archived_at
+            db.commit()
+
+            # Create a new session with same agent/model
+            new_session = ConversationSession(
+                user_id=session.user_id,
+                agent_id=session.agent_id,
+                agent_name=session.agent_name,
+                parent_role=session.parent_role,
+                model_name=session.model_name,
+                model_id=session.model_id
+            )
+            db.add(new_session)
+            db.commit()
+
+            return jsonify({
+                'status': 'archived',
+                'archived_session_id': session_id,
+                'new_session_id': new_session.session_id
+            })
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error archiving session: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/chat/sessions/<session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    """
+    Delete a conversation session permanently.
+
+    This is a hard delete - messages will be cascade deleted.
+    """
+    try:
+        db = get_db_session()
+
+        try:
+            # Load session
+            session = db.query(ConversationSession).filter_by(session_id=session_id).first()
+            if not session:
+                return jsonify({'error': 'Session not found'}), 404
+
+            # Delete session (messages cascade deleted automatically)
+            db.delete(session)
+            db.commit()
+
+            return jsonify({
+                'status': 'deleted',
+                'session_id': session_id
+            })
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error deleting session: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/chat/sessions/<session_id>/export', methods=['GET'])
+def export_session(session_id):
+    """
+    Export a conversation session to Markdown or JSON.
+
+    Query params:
+    - format: 'markdown' or 'json' (default: 'markdown')
+
+    Returns file download with appropriate Content-Disposition header.
+    """
+    try:
+        export_format = request.args.get('format', 'markdown').lower()
+
+        if export_format not in ['markdown', 'json']:
+            return jsonify({'error': 'Invalid format. Use "markdown" or "json"'}), 400
+
+        db = get_db_session()
+
+        try:
+            # Load session with messages
+            session = db.query(ConversationSession).filter_by(session_id=session_id).first()
+            if not session:
+                return jsonify({'error': 'Session not found'}), 404
+
+            messages = db.query(Message)\
+                .filter_by(session_id=session_id)\
+                .order_by(Message.timestamp)\
+                .all()
+
+            # Generate filename
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"pas_conversation_{session_id[:8]}_{timestamp}.{export_format}"
+
+            if export_format == 'markdown':
+                content = _export_to_markdown(session, messages)
+                mimetype = 'text/markdown'
+            else:  # json
+                content = _export_to_json(session, messages)
+                mimetype = 'application/json'
+
+            response = Response(content, mimetype=mimetype)
+            response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Error exporting session: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+def _export_to_markdown(session: ConversationSession, messages: list) -> str:
+    """
+    Convert conversation to Markdown format.
+
+    Includes headers, timestamps, code blocks, and metadata.
+    """
+    lines = []
+
+    # Header
+    lines.append(f"# PAS Conversation Export")
+    lines.append("")
+    lines.append(f"**Session ID:** `{session.session_id}`")
+    lines.append(f"**Agent:** {session.agent_name} ({session.agent_id})")
+    lines.append(f"**Model:** {session.model_name}")
+    lines.append(f"**Your Role:** {session.parent_role}")
+    lines.append(f"**Created:** {session.created_at}")
+    lines.append(f"**Messages:** {len(messages)}")
+    if session.title:
+        lines.append(f"**Title:** {session.title}")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    # Messages
+    for msg in messages:
+        # Role header
+        if msg.message_type == 'user':
+            lines.append(f"## 👤 User")
+        elif msg.message_type == 'assistant':
+            icon = _get_role_icon(session.agent_id.split('-')[0])
+            lines.append(f"## {icon} {session.agent_name}")
+        else:
+            lines.append(f"## 🔔 {msg.message_type.title()}")
+
+        # Timestamp
+        lines.append(f"*{msg.timestamp}*")
+        lines.append("")
+
+        # Content
+        lines.append(msg.content)
+        lines.append("")
+
+        # Metadata (usage, status)
+        if msg.status:
+            lines.append(f"**Status:** {msg.status}")
+
+        usage = msg.get_usage()
+        if usage:
+            prompt_tokens = usage.get('prompt_tokens', 0)
+            completion_tokens = usage.get('completion_tokens', 0)
+            total_tokens = usage.get('total_tokens', 0)
+            cost_usd = usage.get('cost_usd', 0)
+            lines.append(f"**Tokens:** {prompt_tokens} prompt + {completion_tokens} completion = {total_tokens} total")
+            if cost_usd:
+                lines.append(f"**Cost:** ${cost_usd:.4f}")
+
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    # Footer
+    lines.append("")
+    lines.append("*Generated by PAS LLM Task Interface*")
+    lines.append(f"*Exported: {datetime.now().isoformat()}*")
+
+    return "\n".join(lines)
+
+
+def _export_to_json(session: ConversationSession, messages: list) -> str:
+    """
+    Convert conversation to JSON format.
+
+    Includes all metadata, usage tracking, and timestamps.
+    """
+    data = {
+        'session': session.to_dict(),
+        'messages': [msg.to_dict() for msg in messages],
+        'export_metadata': {
+            'exported_at': datetime.now().isoformat() + 'Z',
+            'message_count': len(messages),
+            'format_version': '1.0'
+        }
+    }
+
+    return json.dumps(data, indent=2)
 
 
 @app.route('/api/chat/stream/<session_id>', methods=['GET'])
