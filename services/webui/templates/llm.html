@@ -314,6 +314,42 @@
         font-weight: 600;
     }
 
+    .gateway-status {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid #ef4444;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        color: #f87171;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .gateway-status.connected {
+        background: rgba(34, 197, 94, 0.1);
+        border-color: #22c55e;
+        color: #4ade80;
+    }
+
+    .gateway-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .gateway-status.connected .gateway-status-dot {
+        animation: none;
+    }
+
     .chat-area {
         flex: 1;
         background: #1a1f3a;
@@ -639,6 +675,10 @@
             <div class="role-indicator" id="role-indicator">
                 Your Role: PAS Root → Directing: Architect
             </div>
+            <div class="gateway-status" id="gateway-status">
+                <div class="gateway-status-dot"></div>
+                <span>Gateway Offline</span>
+            </div>
         </div>
     </div>
 
@@ -732,6 +772,7 @@
     const modelSelector = document.getElementById('model-selector');
     const roleIndicator = document.getElementById('role-indicator');
     const typingAgent = document.getElementById('typing-agent');
+    const gatewayStatus = document.getElementById('gateway-status');
 
     // Sidebar elements
     const sidebar = document.getElementById('sidebar');
@@ -743,12 +784,36 @@
     const deleteSelectedBtn = document.getElementById('delete-selected-btn');
     const deleteAllBtn = document.getElementById('delete-all-btn');
 
+    // Gateway status check
+    async function checkGatewayStatus() {
+        try {
+            const response = await fetch('http://localhost:6120/health', {
+                method: 'GET',
+                timeout: 2000
+            });
+            if (response.ok) {
+                gatewayStatus.classList.add('connected');
+                gatewayStatus.querySelector('span').textContent = 'Gateway Online';
+            } else {
+                gatewayStatus.classList.remove('connected');
+                gatewayStatus.querySelector('span').textContent = 'Gateway Offline';
+            }
+        } catch (error) {
+            gatewayStatus.classList.remove('connected');
+            gatewayStatus.querySelector('span').textContent = 'Gateway Offline';
+        }
+    }
+
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
         loadAgents();
         loadModels();
         loadSessions();
         setupEventListeners();
+        checkGatewayStatus();
+
+        // Check Gateway status every 5 seconds
+        setInterval(checkGatewayStatus, 5000);
 
         // Auto-focus input on page load
         setTimeout(() => {
@@ -814,10 +879,15 @@
                 if (confirmed) {
                     currentSessionId = null; // Start new session
                     clearMessages();
+                    // Save agent preference to localStorage
+                    localStorage.setItem('llm_selected_agent', currentAgentId);
                 } else {
                     // Revert selection
                     e.target.value = currentAgentId;
                 }
+            } else {
+                // Save agent preference to localStorage
+                localStorage.setItem('llm_selected_agent', currentAgentId);
             }
         });
 
@@ -826,6 +896,8 @@
             const selectedOption = e.target.options[e.target.selectedIndex];
             currentModelId = e.target.value;  // Store the actual model ID
             currentModelName = selectedOption.textContent;  // Store display name for UI
+            // Save model preference to localStorage
+            localStorage.setItem('llm_selected_model', currentModelId);
         });
 
         // Sidebar toggle
@@ -980,8 +1052,20 @@
                     agentSelector.appendChild(option);
                 });
 
-                // Set default
-                currentAgentId = data.agents[0].agent_id;
+                // Restore saved agent or use default
+                const savedAgent = localStorage.getItem('llm_selected_agent');
+                if (savedAgent && data.agents.some(a => a.agent_id === savedAgent)) {
+                    currentAgentId = savedAgent;
+                    agentSelector.value = savedAgent;
+                    // Update UI
+                    const selectedOption = agentSelector.options[agentSelector.selectedIndex];
+                    const agentName = selectedOption.textContent.split('(')[0].trim();
+                    const parentRole = getParentRole(currentAgentId);
+                    roleIndicator.textContent = `Your Role: ${parentRole} → Directing: ${agentName}`;
+                    typingAgent.textContent = agentName;
+                } else {
+                    currentAgentId = data.agents[0].agent_id;
+                }
             }
         } catch (error) {
             console.error('Error loading agents:', error);
@@ -1005,19 +1089,25 @@
                 availableModels.forEach(([modelId, model]) => {
                     const option = document.createElement('option');
                     option.value = modelId;
-                    
+
                     // Add health status icon
-                    const healthIcon = model.status === 'OK' ? '✅' : 
-                                     model.status === 'API' ? '🌐' : 
-                                     model.status === 'DOWN' ? '❌' : 
+                    const healthIcon = model.status === 'OK' ? '✅' :
+                                     model.status === 'API' ? '🌐' :
+                                     model.status === 'DOWN' ? '❌' :
                                      model.status === 'TIMEOUT' ? '⏰' : '⚠️';
-                    
+
                     option.textContent = `${healthIcon} ${model.name}`;
                     modelSelector.appendChild(option);
                 });
 
-                // Set default from available models
-                if (availableModels.length > 0) {
+                // Restore saved model or use default
+                const savedModel = localStorage.getItem('llm_selected_model');
+                if (savedModel && availableModels.some(([id, _]) => id === savedModel)) {
+                    currentModelId = savedModel;
+                    modelSelector.value = savedModel;
+                    const selectedOption = modelSelector.options[modelSelector.selectedIndex];
+                    currentModelName = selectedOption.textContent;
+                } else if (availableModels.length > 0) {
                     const [firstId, firstModel] = availableModels[0];
                     currentModelId = firstId;
                     currentModelName = firstModel.name;

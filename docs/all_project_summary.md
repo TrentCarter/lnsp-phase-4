@@ -6258,3 +6258,137 @@ Request → get_pricing() → Check SQLite cache
 - Google Gemini 2.5 Flash: $0.000075 input / $0.0003 output
 - OpenAI GPT-4o: $0.0025 input / $0.01 output
 - Kimi Moonshot v1-8k: $0.00012 input / $0.00012 output
+
+===
+2025-11-13 17:16:27
+
+# Last Session Summary
+
+**Date:** 2025-11-13 (Session 86)
+**Duration:** ~45 minutes
+**Branch:** feature/aider-lco-p0
+
+## What Was Accomplished
+
+Fixed critical import errors in HMI app that broke API model endpoints, completely rebuilt `/model-pool` page with comprehensive table view showing all LLM models with cost, usage tracking, and test links, and added port cleanup for Model Pool Manager service in startup scripts.
+
+## Key Changes
+
+### 1. Fixed Critical Import Errors in HMI App
+**Files:** `services/webui/hmi_app.py:3920, 2317, 2335`
+**Summary:** Changed incorrect `from services.webui.llm_pricing import` to `from llm_pricing import` in 3 locations. This was breaking `/api/models/api-status` endpoint with "No module named 'services'" error. HMI uses relative imports (like `from llm_chat_db`) so the absolute path was wrong.
+
+### 2. Rebuilt /model-pool Page with Comprehensive Table
+**Files:** `services/webui/templates/model_pool_enhanced.html` (REPLACED, 624 lines)
+**Summary:** Complete rewrite of model pool dashboard with new table-first design. Added comprehensive table view showing Status (colored icons: Green=OK, Red=Error, Grey=Untested), Model Name, Provider badges, Type (Local/API), Cost per 1K tokens (input/output showing "FREE" for local), Usage in $ and tokens, Last Tested timestamp, and Test link to Settings page. Created 4 tabs: Table View (default), Local Models, API Models, Usage Stats. All data now pulled from unified API endpoints.
+
+### 3. Added Port Cleanup for Model Pool Manager
+**Files:** `scripts/start_all_pas_services.sh:32-58`
+**Summary:** Added graceful shutdown logic for port 8050 (Model Pool Manager) matching the pattern used for HMI (port 6101). Uses TERM signal first, waits 2s, then KILL if needed, with final verification before starting service. User correctly identified that cleanup should auto-run in startup scripts.
+
+## Files Modified
+
+- `services/webui/hmi_app.py` - Fixed 3 import statements (lines 3920, 2317, 2335)
+- `services/webui/templates/model_pool_enhanced.html` - Complete rebuild with table view
+- `scripts/start_all_pas_services.sh` - Added Model Pool Manager port cleanup
+
+## Current State
+
+**What's Working:**
+- ✅ API Models endpoint - `/api/models/api-status` returning 7 models with cost and usage data
+- ✅ Local Models endpoint - `/api/models/local-status` returning 3 Ollama models
+- ✅ Unified Models endpoint - `/api/models/status` combining all models
+- ✅ New /model-pool page - Comprehensive table with cost, usage, status, test links
+- ✅ Settings / Models Remote - Already working with test buttons and cost display
+- ✅ Port cleanup - All services (Phase 0, Phase 1, Model Pool, HMI) have cleanup
+- ✅ HMI restarted successfully with fixes applied
+
+**What Needs Work:**
+- [ ] None - all requested features completed
+
+## Important Context for Next Session
+
+1. **Import Path Pattern**: HMI app uses relative imports (`from llm_chat_db`, `from llm_pricing`) not absolute paths. This is because it runs from `services/webui/` directory. Always use relative imports for files in the same directory.
+
+2. **Model Pool Dashboard**: New comprehensive view at http://localhost:6101/model-pool shows all models (local + API) in one table with cost tracking, usage stats, and status indicators. Links to Settings / Models Remote for testing.
+
+3. **API Endpoints Architecture**:
+   - `/api/models/status` - All models combined (from `get_available_models()`)
+   - `/api/models/api-status` - API models only with usage tracking (7 models)
+   - `/api/models/local-status` - Local Ollama models only (3 models)
+   - `/api/models/usage` - Detailed usage statistics by model
+
+4. **Port Cleanup Pattern**: All service startup scripts now follow consistent pattern:
+   - Check if port in use with `lsof -ti:PORT`
+   - Send TERM signal, wait 2s
+   - Send KILL if still alive, wait 1s
+   - Final verification before proceeding
+
+5. **Anthropic Model Name**: Already fixed in previous session - using `claude-3-5-sonnet-20240620` not `20241022`
+
+## Quick Start Next Session
+
+1. **Use `/restore`** to load this summary
+2. Access new dashboard: http://localhost:6101/model-pool
+3. Test any model from Settings / Models Remote page
+
+===
+2025-11-13 17:28:10
+
+# Last Session Summary
+
+**Date:** 2025-11-13 (Session 87)
+**Duration:** ~20 minutes
+**Branch:** feature/aider-lco-p0
+
+## What Was Accomplished
+
+Fixed critical LLM chat interface issues: started Gateway service, added visual Gateway status indicator to chat page, fixed Kimi model name parsing bug (comment in .env was being included), and enabled CORS on Gateway for proper status checks.
+
+## Key Changes
+
+### 1. Started Gateway Service and Added Status Indicator
+**Files:** `services/webui/templates/llm.html:317-351, 678-681, 775, 787-816`
+**Summary:** Gateway was not running (port 6120). Started it manually, then added visual status indicator to LLM chat page header showing "Gateway Online" (green) or "Gateway Offline" (red) with pulsing dot animation. Status checks every 5 seconds via JavaScript fetch to `/health` endpoint.
+
+### 2. Fixed Kimi Model Name Parsing Bug
+**Files:** `services/webui/hmi_app.py:2887-2891`
+**Summary:** Kimi model name was showing as `kimi/kimi-k2-turbo-preview'  # Latest K2 model (recommended)` because .env parsing included inline comments. Fixed by splitting on `#` to strip comments before processing, so model name is now clean: `kimi/kimi-k2-turbo-preview`.
+
+### 3. Enabled CORS on Gateway Service
+**Files:** `services/gateway/gateway.py:19, 75-82`
+**Summary:** Gateway status checks were failing due to CORS policy blocking cross-origin requests from HMI (localhost:6101) to Gateway (localhost:6120). Added CORSMiddleware configuration allowing requests from HMI origins with full credentials and method support.
+
+## Files Modified
+
+- `services/webui/templates/llm.html` - Added Gateway status indicator, CSS animations, and JavaScript status checker
+- `services/webui/hmi_app.py` - Fixed .env parsing to strip inline comments from KIMI_MODEL_NAME
+- `services/gateway/gateway.py` - Added CORS middleware for HMI cross-origin requests
+
+## Current State
+
+**What's Working:**
+- ✅ Gateway service running on port 6120 with health endpoint
+- ✅ LLM chat page shows live Gateway status (green=online, red=offline)
+- ✅ Kimi model name displays correctly: "🌐 Kimi KIMI-K2-TURBO-PREVIEW"
+- ✅ CORS enabled - status checks from HMI to Gateway working
+- ✅ Chat functionality working with Kimi model via Gateway
+
+**What Needs Work:**
+- [ ] None - all requested features completed
+
+## Important Context for Next Session
+
+1. **Gateway Status Indicator**: Visual indicator in LLM chat header checks `/health` endpoint every 5s. Requires CORS to be enabled on Gateway (already done). Shows connection status between HMI and Gateway in real-time.
+
+2. **.env Comment Parsing**: When parsing .env files manually (line 2887 in hmi_app.py), always split by `#` first to remove inline comments before stripping quotes. Otherwise comments get included in values.
+
+3. **CORS Configuration**: Gateway now allows cross-origin requests from `localhost:6101` and `127.0.0.1:6101` for all methods. This enables JavaScript fetch calls from HMI to Gateway endpoints.
+
+4. **Services Running**: Gateway (6120), HMI (6101), Model Pool Manager (8050), Registry (6121), Heartbeat Monitor (6109), Resource Manager (6104), Token Governor (6105), Ollama (11434) all running.
+
+## Quick Start Next Session
+
+1. **Use `/restore`** to load this summary
+2. Access LLM chat with status indicator: http://localhost:6101/
+3. Gateway status should show green "Gateway Online" in header

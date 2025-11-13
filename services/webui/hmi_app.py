@@ -2314,7 +2314,7 @@ def clear_all_data():
 def get_pricing_stats():
     """Get pricing cache statistics"""
     try:
-        from services.webui.llm_pricing import get_pricing_service
+        from llm_pricing import get_pricing_service
 
         pricing_service = get_pricing_service()
         stats = pricing_service.get_cache_stats()
@@ -2332,7 +2332,7 @@ def get_pricing_stats():
 def refresh_pricing_cache():
     """Refresh all pricing cache entries"""
     try:
-        from services.webui.llm_pricing import get_pricing_service
+        from llm_pricing import get_pricing_service
 
         pricing_service = get_pricing_service()
         stats = pricing_service.refresh_all_cache()
@@ -2884,7 +2884,11 @@ def get_available_models():
                     # Get model name if specified
                     model_name = "kimi-k2"
                     if 'KIMI_MODEL_NAME=' in env_content:
-                        model_name = env_content.split('KIMI_MODEL_NAME=')[1].split('\n')[0].strip().strip("'\"")
+                        raw_value = env_content.split('KIMI_MODEL_NAME=')[1].split('\n')[0]
+                        # Remove inline comments
+                        raw_value = raw_value.split('#')[0].strip()
+                        # Remove quotes
+                        model_name = raw_value.strip("'\"")
 
                     models[f"kimi/{model_name}"] = {
                         "name": f"Kimi {model_name.upper()}",
@@ -3917,7 +3921,7 @@ def _get_model_cost(provider, model_name, output=False):
     Returns:
         float: Cost per 1K tokens
     """
-    from services.webui.llm_pricing import get_pricing_service
+    from llm_pricing import get_pricing_service
 
     try:
         pricing_service = get_pricing_service()
@@ -4769,6 +4773,23 @@ def stream_chat_response(session_id):
             agent_id = session.agent_id
             model = session.model_name
 
+            # Retrieve full conversation history for context
+            all_messages = db.query(Message)\
+                .filter_by(session_id=session_id)\
+                .filter(Message.message_type.in_(['user', 'assistant']))\
+                .order_by(Message.timestamp.asc())\
+                .all()
+
+            # Build messages array for Gateway (exclude empty assistant messages)
+            messages = []
+            for msg in all_messages:
+                if msg.message_type == 'assistant' and not msg.content.strip():
+                    continue  # Skip placeholder assistant messages
+                messages.append({
+                    'role': msg.message_type,
+                    'content': msg.content
+                })
+
             # Forward request to Gateway for real agent communication
             try:
                 # PRD-aligned: try GET first
@@ -4782,7 +4803,7 @@ def stream_chat_response(session_id):
                     gateway_response = None
 
                 if gateway_response is None or gateway_response.status_code != 200:
-                    # Fallback to legacy POST body streaming
+                    # Fallback to legacy POST body streaming with full conversation history
                     gateway_response = requests.post(
                         f'{GATEWAY_URL}/chat/stream',
                         json={
@@ -4790,7 +4811,8 @@ def stream_chat_response(session_id):
                             'message_id': user_message.message_id,
                             'agent_id': agent_id,
                             'model': model,
-                            'content': user_message.content
+                            'content': user_message.content,  # Legacy field for backward compatibility
+                            'messages': messages  # Full conversation history
                         },
                         stream=True,
                         timeout=300

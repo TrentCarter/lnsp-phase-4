@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -55,13 +56,22 @@ class RoutingRequest(BaseModel):
     payload: Optional[Dict[str, Any]] = None
 
 
+class ChatMessage(BaseModel):
+    """Single chat message"""
+    role: str = Field(..., description="Message role: 'user' or 'assistant'")
+    content: str = Field(..., min_length=1)
+
+
 class ChatStreamRequest(BaseModel):
     """Request to stream chat response"""
     session_id: str = Field(..., min_length=1)
     message_id: str = Field(..., min_length=1)
     agent_id: str = Field(..., min_length=1)
     model: str = Field(default="llama3.1:8b")
-    content: str = Field(..., min_length=1)
+    # Legacy field for backward compatibility (single message)
+    content: str = Field(default="", description="Legacy: single user message")
+    # New field for conversation history
+    messages: list[ChatMessage] = Field(default_factory=list, description="Full conversation history")
 
 
 # Initialize FastAPI app
@@ -69,6 +79,15 @@ app = FastAPI(
     title="Gateway",
     description="Central Routing Hub with Cost Tracking",
     version="1.0.0"
+)
+
+# Configure CORS to allow requests from HMI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:6101", "http://127.0.0.1:6101"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Initialize cost tracker
@@ -455,11 +474,16 @@ async def _stream_ollama_response(request: ChatStreamRequest):
         if model_name.startswith("ollama/"):
             model_name = model_name[7:]  # Remove "ollama/" prefix
 
+        # Use messages array if provided, otherwise fall back to legacy content field
+        if request.messages:
+            messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+        else:
+            # Legacy: single user message
+            messages = [{"role": "user", "content": request.content}]
+
         ollama_payload = {
             "model": model_name,
-            "messages": [
-                {"role": "user", "content": request.content}
-            ],
+            "messages": messages,
             "stream": True
         }
 
@@ -782,9 +806,16 @@ async def _stream_kimi_response(request: ChatStreamRequest):
         # Get actual model name from env or use default
         actual_model = os.getenv("KIMI_MODEL_NAME", "moonshot-v1-8k")
 
+        # Use messages array if provided, otherwise fall back to legacy content field
+        if request.messages:
+            messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+        else:
+            # Legacy: single user message
+            messages = [{"role": "user", "content": request.content}]
+
         stream = client.chat.completions.create(
             model=actual_model,
-            messages=[{"role": "user", "content": request.content}],
+            messages=messages,
             stream=True,
             max_tokens=1024
         )
