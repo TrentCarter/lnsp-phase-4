@@ -433,7 +433,10 @@
                 <div class="metric-card">
                     <h3>Total Tokens</h3>
                     <div class="value" id="llm-total-tokens">0</div>
-                    <div class="subtext">All models</div>
+                    <div class="subtext" style="line-height: 1.4;">
+                        <span style="color: #fbbf24;">Paid: <span id="llm-paid-tokens">0</span></span><br>
+                        <span style="color: #10b981;">Free: <span id="llm-free-tokens">0</span></span>
+                    </div>
                 </div>
                 <div class="metric-card">
                     <h3>Total Messages</h3>
@@ -452,12 +455,9 @@
                 </div>
             </div>
 
-            <!-- Per-Model Breakdown -->
-            <div style="margin-top: 2rem; background: linear-gradient(135deg, #1e2747 0%, #2a3558 100%); border: 1px solid #3a4568; border-radius: 12px; padding: 1.5rem;">
-                <h3 style="color: #fff; margin-bottom: 1rem;">Per-Model Usage</h3>
-                <div id="llm-models-breakdown" style="display: flex; flex-direction: column; gap: 1rem;">
-                    <p style="color: #9ca3af;">No LLM usage data available yet</p>
-                </div>
+            <!-- Per-Model Usage Cards (Compact Style) -->
+            <div id="llm-models-breakdown" class="service-cards" style="margin-top: 2rem;">
+                <p style="color: #9ca3af;">No LLM usage data available yet</p>
             </div>
         </div>
     </div>
@@ -1004,6 +1004,10 @@
             // Update totals
             document.getElementById('llm-total-tokens').textContent =
                 (totals.total_tokens || 0).toLocaleString();
+            document.getElementById('llm-paid-tokens').textContent =
+                (totals.paid_tokens || 0).toLocaleString();
+            document.getElementById('llm-free-tokens').textContent =
+                (totals.free_tokens || 0).toLocaleString();
             document.getElementById('llm-total-messages').textContent =
                 (totals.total_messages || 0).toLocaleString();
             document.getElementById('llm-total-sessions').textContent =
@@ -1016,7 +1020,7 @@
             document.getElementById('llm-badge').textContent =
                 `${modelCount} model${modelCount !== 1 ? 's' : ''}`;
 
-            // Update per-model breakdown
+            // Update per-model breakdown (compact card style like Registry)
             const breakdown = document.getElementById('llm-models-breakdown');
             if (modelCount === 0) {
                 breakdown.innerHTML = '<p style="color: #9ca3af;">No LLM usage data available yet</p>';
@@ -1024,53 +1028,47 @@
                 breakdown.innerHTML = Object.entries(models)
                     .sort((a, b) => b[1].total_tokens - a[1].total_tokens)
                     .map(([modelKey, stats]) => {
-                        const costDisplay = stats.total_cost_usd > 0
-                            ? `<span style="color: #fbbf24; font-weight: 600; font-size: 0.75rem;">$${stats.total_cost_usd.toFixed(3)}</span>`
-                            : '<span style="color: #6b7280; font-size: 0.7rem;">Free</span>';
+                        // Use is_free flag (not cost) - API models cost money even with 0 usage
+                        const costDisplay = stats.is_free
+                            ? 'Free'
+                            : `$${stats.total_cost_usd.toFixed(3)}`;
+                        const costColor = stats.is_free ? '#6b7280' : '#fbbf24';
 
                         return `
-                            <div style="
-                                background: rgba(0, 0, 0, 0.3);
-                                padding: 0.5rem 0.75rem;
-                                border-radius: 6px;
-                                border-left: 2px solid #3b82f6;
-                                display: flex;
-                                align-items: center;
-                                justify-content: space-between;
-                                gap: 1rem;
-                            ">
-                                <div style="flex: 0 0 auto; min-width: 150px;">
-                                    <div style="color: #fff; font-weight: 600; font-size: 0.8rem;">
-                                        ${stats.model_name}
-                                    </div>
-                                    <div style="color: #9ca3af; font-size: 0.65rem;">
-                                        ${stats.provider}
-                                    </div>
+                            <div class="service-card">
+                                <div class="service-header">
+                                    <div class="service-name">${stats.model_name}</div>
+                                    <div class="service-status ${stats.total_tokens > 0 ? 'healthy' : ''}"></div>
                                 </div>
-                                <div style="flex: 1; display: flex; gap: 1.5rem; font-size: 0.7rem;">
-                                    <div style="text-align: center;">
-                                        <div style="color: #6b7280;">Tokens</div>
-                                        <div style="color: #e0e0e0; font-weight: 600;">${stats.total_tokens.toLocaleString()}</div>
+                                <div class="service-info">
+                                    <div class="service-info-row">
+                                        <span class="service-info-label">Provider:</span>
+                                        <span class="service-info-value">${stats.provider}</span>
                                     </div>
-                                    <div style="text-align: center;">
-                                        <div style="color: #6b7280;">In</div>
-                                        <div style="color: #10b981; font-weight: 600;">${stats.input_tokens.toLocaleString()}</div>
+                                    <div class="service-info-row">
+                                        <span class="service-info-label">Tokens:</span>
+                                        <span class="service-info-value">${stats.total_tokens.toLocaleString()}</span>
                                     </div>
-                                    <div style="text-align: center;">
-                                        <div style="color: #6b7280;">Out</div>
-                                        <div style="color: #3b82f6; font-weight: 600;">${stats.output_tokens.toLocaleString()}</div>
+                                    <div class="service-info-row">
+                                        <span class="service-info-label">Input:</span>
+                                        <span class="service-info-value" style="color: #10b981;">${stats.input_tokens.toLocaleString()}</span>
                                     </div>
-                                    <div style="text-align: center;">
-                                        <div style="color: #6b7280;">Msgs</div>
-                                        <div style="color: #e0e0e0; font-weight: 600;">${stats.message_count}</div>
+                                    <div class="service-info-row">
+                                        <span class="service-info-label">Output:</span>
+                                        <span class="service-info-value" style="color: #3b82f6;">${stats.output_tokens.toLocaleString()}</span>
                                     </div>
-                                    <div style="text-align: center;">
-                                        <div style="color: #6b7280;">Sessions</div>
-                                        <div style="color: #e0e0e0; font-weight: 600;">${stats.session_count}</div>
+                                    <div class="service-info-row">
+                                        <span class="service-info-label">Messages:</span>
+                                        <span class="service-info-value">${stats.message_count}</span>
                                     </div>
-                                </div>
-                                <div style="flex: 0 0 auto; text-align: right; min-width: 50px;">
-                                    ${costDisplay}
+                                    <div class="service-info-row">
+                                        <span class="service-info-label">Sessions:</span>
+                                        <span class="service-info-value">${stats.session_count}</span>
+                                    </div>
+                                    <div class="service-info-row">
+                                        <span class="service-info-label">Cost:</span>
+                                        <span class="service-info-value" style="color: ${costColor}; font-weight: 600;">${costDisplay}</span>
+                                    </div>
                                 </div>
                             </div>
                         `;
@@ -1096,6 +1094,8 @@
         // TODO: Implement backend endpoint to clear chat database
         // For now, just reset the display
         document.getElementById('llm-total-tokens').textContent = '0';
+        document.getElementById('llm-paid-tokens').textContent = '0';
+        document.getElementById('llm-free-tokens').textContent = '0';
         document.getElementById('llm-total-messages').textContent = '0';
         document.getElementById('llm-total-sessions').textContent = '0';
         document.getElementById('llm-total-cost').textContent = '$0.000';

@@ -938,6 +938,7 @@ def get_llm_stats():
     - llm_chat.db (Message.usage field for token counts)
     - Gateway metrics (cost data)
     - Provider Router (model info)
+    - .env configuration (available API models)
 
     Returns per-model stats:
     {
@@ -972,16 +973,88 @@ def get_llm_stats():
     }
     """
     try:
+        # Get available API models from environment configuration
+        import os
+        available_api_models = {}
+
+        # OpenAI models
+        if os.getenv('OPENAI_API_KEY') and os.getenv('OPENAI_API_KEY') != 'your_openai_api_key_here':
+            openai_model = os.getenv('OPENAI_MODEL_NAME', 'gpt-4')
+            available_api_models[openai_model] = {
+                "model_name": openai_model,
+                "provider": "openai",
+                "total_tokens": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_cost_usd": 0.0,
+                "message_count": 0,
+                "session_count": 0,
+                "is_free": False
+            }
+
+        # Anthropic Claude models
+        if os.getenv('ANTHROPIC_API_KEY') and os.getenv('ANTHROPIC_API_KEY') != 'your_anthropic_api_key_here':
+            for model_key in ['HIGH', 'MEDIUM', 'LOW']:
+                model_name = os.getenv(f'ANTHROPIC_MODEL_NAME_{model_key}')
+                if model_name:
+                    available_api_models[model_name] = {
+                        "model_name": model_name,
+                        "provider": "anthropic",
+                        "total_tokens": 0,
+                        "input_tokens": 0,
+                        "output_tokens": 0,
+                        "total_cost_usd": 0.0,
+                        "message_count": 0,
+                        "session_count": 0,
+                        "is_free": False
+                    }
+
+        # Google Gemini models
+        if os.getenv('GEMINI_API_KEY') and os.getenv('GEMINI_API_KEY') != 'your_gemini_api_key_here':
+            for model_key in ['HIGH', 'MEDIUM', 'LOW']:
+                model_name = os.getenv(f'GEMINI_MODEL_NAME_{model_key}')
+                if model_name:
+                    available_api_models[model_name] = {
+                        "model_name": model_name,
+                        "provider": "google",
+                        "total_tokens": 0,
+                        "input_tokens": 0,
+                        "output_tokens": 0,
+                        "total_cost_usd": 0.0,
+                        "message_count": 0,
+                        "session_count": 0,
+                        "is_free": False
+                    }
+
+        # DeepSeek models
+        if os.getenv('DEEPSEEK_API_KEY') and os.getenv('DEEPSEEK_API_KEY') != 'your_deepseek_api_key_here':
+            deepseek_model = 'deepseek-chat'  # Default DeepSeek model
+            available_api_models[deepseek_model] = {
+                "model_name": deepseek_model,
+                "provider": "deepseek",
+                "total_tokens": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_cost_usd": 0.0,
+                "message_count": 0,
+                "session_count": 0,
+                "is_free": False
+            }
+
+        # Start with available API models (initialize with 0 usage)
+        model_stats = available_api_models.copy()
+
         db = get_db_session()
 
         # Query all messages with usage data
         from sqlalchemy import func
         messages = db.query(Message).filter(Message.usage_json.isnot(None)).all()
 
-        # Aggregate stats by model
-        model_stats = {}
+        # Aggregate stats by model (update or add to model_stats)
         total_tokens = 0
         total_messages = 0
+        total_paid_tokens = 0
+        total_free_tokens = 0
 
         for msg in messages:
             usage = msg.get_usage()
@@ -991,17 +1064,23 @@ def get_llm_stats():
             model_key = msg.model_name or "unknown"
 
             if model_key not in model_stats:
+                # Model used but not in available_api_models (e.g., local Ollama models)
                 model_stats[model_key] = {
                     "model_name": model_key,
-                    "provider": "unknown",  # TODO: Map model to provider
+                    "provider": "ollama",  # Default to ollama for local models
                     "total_tokens": 0,
                     "input_tokens": 0,
                     "output_tokens": 0,
                     "total_cost_usd": 0.0,
                     "message_count": 0,
                     "session_count": 0,
-                    "session_ids": set()
+                    "session_ids": set(),
+                    "is_free": True  # Local models are free
                 }
+
+            # Ensure session_ids exists for API models
+            if "session_ids" not in model_stats[model_key]:
+                model_stats[model_key]["session_ids"] = set()
 
             # Aggregate token counts
             input_tokens = usage.get('input_tokens', 0) or usage.get('prompt_tokens', 0)
@@ -1019,8 +1098,9 @@ def get_llm_stats():
 
         # Count unique sessions per model
         for model_key in model_stats:
-            model_stats[model_key]["session_count"] = len(model_stats[model_key]["session_ids"])
-            del model_stats[model_key]["session_ids"]  # Remove set (not JSON serializable)
+            if "session_ids" in model_stats[model_key]:
+                model_stats[model_key]["session_count"] = len(model_stats[model_key]["session_ids"])
+                del model_stats[model_key]["session_ids"]  # Remove set (not JSON serializable)
 
         # Get cost data from Gateway
         total_cost = 0.0
@@ -1041,6 +1121,22 @@ def get_llm_stats():
         except Exception as e:
             logger.warning(f"Could not fetch cost data from Gateway: {e}")
 
+        # Calculate paid vs free tokens based on provider (not cost, since unused models have 0 cost)
+        for model_key in model_stats:
+            provider = model_stats[model_key]["provider"]
+            model_tokens = model_stats[model_key]["total_tokens"]
+
+            # API providers are ALWAYS paid (openai, anthropic, google, deepseek)
+            # Local providers are free (ollama, unknown local models)
+            if provider in ['openai', 'anthropic', 'google', 'deepseek']:
+                # Paid model (API-based) - costs money even if not used yet
+                total_paid_tokens += model_tokens
+                model_stats[model_key]["is_free"] = False
+            else:
+                # Free model (local like Ollama)
+                total_free_tokens += model_tokens
+                model_stats[model_key]["is_free"] = True
+
         # Count total unique sessions
         total_sessions = db.query(func.count(ConversationSession.session_id)).scalar() or 0
 
@@ -1050,6 +1146,8 @@ def get_llm_stats():
             'models': model_stats,
             'totals': {
                 'total_tokens': total_tokens,
+                'paid_tokens': total_paid_tokens,
+                'free_tokens': total_free_tokens,
                 'total_cost_usd': round(total_cost, 4),
                 'total_messages': total_messages,
                 'total_sessions': total_sessions
@@ -3532,6 +3630,12 @@ def model_pool_api_settings():
     return render_template('settings.html')
 
 
+@app.route('/model-pool')
+def enhanced_model_pool_main():
+    """Enhanced Model Pool dashboard - integrated into main HMI"""
+    return render_template('model_pool_enhanced.html')
+
+
 @app.route('/api/env/config', methods=['GET'])
 def get_env_config():
     """Get .env configuration"""
@@ -3662,63 +3766,6 @@ def get_local_models_status():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
-@app.route('/settings')
-def settings_page():
-    """Main settings page"""
-    return render_template('settings.html')
-
-
-@app.route('/settings/models')
-def model_pool_settings():
-    """Model Pool settings page"""
-    return render_template('settings.html')
-
-
-@app.route('/settings/model-pool')
-def model_pool_dashboard():
-    """Model Pool dashboard"""
-    return render_template('settings.html')
-
-
-@app.route('/settings/llm')
-def llm_settings():
-    """LLM settings page"""
-    return render_template('settings.html')
-
-
-@app.route('/api/env/config', methods=['GET'])
-def get_env_config():
-    """Get .env configuration"""
-    try:
-        env_config = {}
-        key_status = {}
-        
-        if os.path.exists(ENV_FILE_PATH):
-            with open(ENV_FILE_PATH, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and '=' in line and not line.startswith('#'):
-                        key, value = line.split('=', 1)
-                        value = value.strip('"\'')
-                        env_config[key] = value
-                        
-                        # Check key status
-                        if 'API_KEY' in key:
-                            if 'your_' in value or len(value) < 10:
-                                key_status[key.replace('_API_KEY', '')] = 'invalid'
-                            else:
-                                key_status[key.replace('_API_KEY', '')] = 'valid'
-                        elif 'MODEL_NAME' in key and value:
-                            key_status[key.replace('_MODEL_NAME', '')] = 'configured'
-        
-        return jsonify({
-            'status': 'ok',
-            'config': env_config,
-            'keys': key_status
-        })
-    except Exception as e:
-        logger.error(f"Error reading .env: {e}")
-        return jsonify({'status': 'error', 'error': str(e)}), 500
 
 
 # ============================================================================
@@ -3779,11 +3826,17 @@ def unload_model_pool_model(model_id):
     """Proxy for Model Pool Manager POST /models/{id}/unload endpoint"""
     try:
         import httpx
-        response = httpx.post(f'http://localhost:8050/models/{model_id}/unload', timeout=10.0)
+        response = httpx.post(f'http://localhost:8050/models/{model_id}/unload', timeout=30.0)
         return jsonify(response.json())
     except Exception as e:
         logger.error(f"Error unloading model {model_id}: {e}")
         return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/settings/enhanced-model-pool')
+def enhanced_model_pool():
+    """Enhanced Model Pool dashboard with API models"""
+    return render_template('model_pool_enhanced.html')
 
 
 @app.route('/api/model-pool/models/<path:model_id>/extend-ttl', methods=['POST'])

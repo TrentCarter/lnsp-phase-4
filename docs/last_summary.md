@@ -1,69 +1,68 @@
 # Last Session Summary
 
-**Date:** 2025-11-13 (Session: Dashboard Reset Stats + LLM Metrics)
-**Duration:** ~90 minutes
+**Date:** 2025-11-13 (Session: LLM Metrics Redesign + API Model Display)
+**Duration:** ~45 minutes
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Added Reset Stats buttons to dashboard sections (TRON, Programmer Pool) with localStorage persistence, and implemented a comprehensive LLM Metrics section showing per-model token usage and costs with a compact horizontal card layout.
+Redesigned LLM Metrics dashboard section with compact Registry-style cards, added paid/free token breakdown to Total Tokens card, and integrated all configured API models (OpenAI, Anthropic, Google, DeepSeek) to display alongside local Ollama models with correct cost indicators.
 
 ## Key Changes
 
-### 1. Reset Stats Buttons for Dashboard Sections
-**Files:** `services/webui/templates/dashboard.html:250-252, 323-325, 194-216, 643-751`
-**Summary:** Added "🔄 Reset Stats" buttons to TRON HHMRS and Programmer Pool sections with confirmation dialogs. Implemented `resetTronStats()`, `resetPoolStats()`, `saveTronStats()`, and `loadTronStats()` functions with localStorage persistence. TRON stats (timeouts, restarts, escalations, failures) and events are now saved/loaded automatically across page reloads.
+### 1. Per-Model Usage Cards Moved and Redesigned
+**Files:** `services/webui/templates/dashboard.html:455-458, 1020-1075`
+**Summary:** Moved Per-Model Usage section from Cost Tracking back to LLM Metrics where it belongs. Redesigned model cards from horizontal bars to compact rectangular Registry-style cards with service-card styling. Each card shows: model name, provider, status indicator, tokens (total/input/output), messages, sessions, and cost.
 
-### 2. LLM Metrics API Endpoint
-**Files:** `services/webui/hmi_app.py:932-1062` (NEW, 131 lines)
-**Summary:** Created `/api/llm/stats` endpoint that aggregates token usage data from llm_chat.db (Message.usage field) and cost data from Gateway metrics. Returns per-model statistics including total tokens, input/output tokens, message count, session count, and costs. Supports both local models (Ollama, free) and API models (with cost tracking).
+### 2. Total Tokens Card Enhanced with Paid/Free Breakdown
+**Files:** `services/webui/templates/dashboard.html:433-439, 1007-1010, 1096-1097`
+**Summary:** Updated Total Tokens card to display breakdown of paid vs free tokens. Shows "Paid: X" in gold and "Free: X" in green. Backend API now calculates and returns `paid_tokens` and `free_tokens` in totals response.
 
-### 3. LLM Metrics Dashboard Section
-**Files:** `services/webui/templates/dashboard.html:413-462, 992-1115, 1367, 1603`
-**Summary:** Added new "🤖 LLM Metrics" section with 4 summary cards (Total Tokens, Messages, Sessions, Cost) and a compact per-model breakdown. Each model displays in a single horizontal row showing: model name, provider, total tokens, input/output tokens, messages, sessions, and cost ($X.XXX or "Free"). Integrated `fetchLLMMetrics()` into page initialization and auto-refresh intervals.
+### 3. All Configured API Models Now Displayed
+**Files:** `services/webui/hmi_app.py:975-1042` (NEW, 68 lines)
+**Summary:** Enhanced `/api/llm/stats` endpoint to read .env configuration and include all available API models (OpenAI, Anthropic Claude, Google Gemini, DeepSeek) even with 0 usage. Models are pre-initialized with correct provider labels and marked as paid. Currently showing 7 API models + 3 local Ollama models = 10 total.
 
-### 4. Compact Model Card Redesign
-**Files:** `services/webui/templates/dashboard.html:1024-1077`
-**Summary:** Redesigned LLM model cards from large vertical layout (~200px) to compact horizontal layout (~50px, 75% reduction). Single-line display with all metrics visible: [Model] [Tokens] [In] [Out] [Msgs] [Sessions] [Cost]. Smaller fonts (0.7-0.8rem), minimal padding, improved information density.
+### 4. Fixed API Model Cost Display Logic
+**Files:** `services/webui/hmi_app.py:1124-1138`, `services/webui/templates/dashboard.html:1031-1035`
+**Summary:** Fixed logic to determine paid vs free models based on provider (openai/anthropic/google/deepseek) instead of current cost. API models now correctly show gold "$0.000" instead of gray "Free" even with zero usage, reflecting that 100% of API LLMs cost money.
 
 ## Files Modified
 
-- `services/webui/templates/dashboard.html` - Reset Stats buttons (TRON, Pool), LLM Metrics section, compact card layout
-- `services/webui/hmi_app.py` - New `/api/llm/stats` endpoint for aggregated token/cost data
+- `services/webui/templates/dashboard.html` - Per-Model cards redesign, Total Tokens breakdown, cost display logic
+- `services/webui/hmi_app.py` - API model configuration reading, paid/free token calculation, provider-based cost logic
 
 ## Current State
 
 **What's Working:**
-- ✅ Reset Stats buttons on TRON and Programmer Pool sections with localStorage persistence
-- ✅ TRON stats (counters + events) save/load automatically across page reloads
-- ✅ LLM Metrics API endpoint returning real data from 3 models (llama3.1:8b, qwen2.5-coder, auto)
-- ✅ LLM Metrics dashboard section with compact horizontal card layout
-- ✅ Per-model token usage tracking (total, input, output tokens)
-- ✅ Message and session counts per model
-- ✅ Cost display for API models ($X.XXX) and "Free" label for local models
-- ✅ Auto-refresh integration (fetches LLM metrics with other dashboard data)
+- ✅ All 10 LLM models displayed in compact Registry-style cards (7 API + 3 local)
+- ✅ Total Tokens card shows Paid: 0 / Free: 431 breakdown
+- ✅ API models correctly show gold cost indicators ($0.000) instead of "Free"
+- ✅ Local Ollama models show gray "Free" label
+- ✅ Models sorted by token usage (highest first)
+- ✅ Green status indicator for models with usage, gray for unused
+- ✅ Complete metrics per model: tokens, input/output, messages, sessions, cost
 
 **What Needs Work:**
-- [ ] Backend endpoint for LLM Reset Stats (currently UI-only reset)
-- [ ] Provider name mapping (currently shows "unknown" for all models)
-- [ ] Per-model cost calculation (currently proportional distribution from Gateway total)
-- [ ] Handle TOTAL SESSIONS count (currently returns 0 from API - needs fix in query)
+- [ ] Provider name mapping still shows "unknown" for some models (needs enhancement)
+- [ ] Total Sessions count returns 0 (database query needs fixing)
+- [ ] Backend LLM reset endpoint (`/api/llm/reset`) not yet implemented
+- [ ] Actual token cost calculation from Gateway (currently proportional distribution)
 
 ## Important Context for Next Session
 
-1. **LLM Data Source**: Token usage comes from `llm_chat.db` (Message.usage_json field), which stores token counts from LLM responses. The database uses SQLAlchemy ORM with ConversationSession and Message models.
+1. **LLM Model Display**: Dashboard now shows all configured models from .env, not just used models. This gives visibility into available API providers (OpenAI, Anthropic, Google, DeepSeek).
 
-2. **Cost Calculation**: Currently distributes total cost from Gateway proportionally by token count. For accurate per-model costs, would need to track API key usage per request or use provider-specific pricing tables.
+2. **Cost Logic**: Uses `provider` field to determine if model is paid (API) or free (local). API providers are in list: ['openai', 'anthropic', 'google', 'deepseek']. Models with these providers show gold cost, others show "Free".
 
-3. **localStorage Persistence**: TRON stats use two localStorage keys: `dashboardTronCounts` (counters) and `dashboardTronEvents` (event history). Stats are saved after each event and loaded on page initialization.
+3. **Service Startup**: Use `./scripts/start_all_pas_services.sh` to start all services including HMI. HMI is Flask app, not ASGI, so use `python services/webui/hmi_app.py` not uvicorn.
 
-4. **Compact Card Design**: New horizontal layout uses flexbox with three sections: model info (flex: 0 0 auto, 150px), metrics (flex: 1, gap: 1.5rem), and cost (flex: 0 0 auto, 50px). All data fits in ~50px height.
+4. **Model Cards Design**: Matches Registry card style using `.service-card` class - compact rectangular cards in responsive grid, approximately 50-60px height with all info visible.
 
-5. **API Endpoint Testing**: Confirmed working with real data - 3 models total, 431 tokens, 13 messages across 5 sessions. Test with: `curl http://localhost:6101/api/llm/stats`
+5. **Data Source**: Token usage from `llm_chat.db` (Message.usage_json), cost from Gateway `/metrics`, available models from .env configuration.
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **View LLM Metrics**: Visit http://localhost:6101/ and check the 🤖 LLM Metrics section
-3. **Test Reset Buttons**: Click "🔄 Reset Stats" on TRON or Pool sections to verify functionality
-4. **Next Priority**: Implement backend LLM reset endpoint (`/api/llm/reset`) to clear chat database when requested
+2. **View Dashboard**: http://localhost:6101/ - Check LLM Metrics section for all 10 model cards
+3. **Next Priority**: Fix TOTAL SESSIONS count query in `hmi_app.py:1140` (currently returns 0)
+4. **Or**: Implement backend LLM reset endpoint to clear chat database when Reset Stats button is clicked
