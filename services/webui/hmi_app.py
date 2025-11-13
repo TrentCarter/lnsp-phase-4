@@ -3562,17 +3562,15 @@ def send_chat_message():
             db.add(user_message)
             db.commit()
 
-            # V1: Create mock assistant response (synchronous)
-            # V2: This will trigger Gateway call + SSE streaming
-            assistant_response_content = f"[Mock Response] Received your message: '{message_content[:50]}...'"
-
+            # V2: Create placeholder assistant message (will be streamed via SSE)
+            # Frontend should immediately open SSE connection to /api/chat/stream/{session_id}
             assistant_message = Message(
                 session_id=session_id,
                 message_type='assistant',
-                content=assistant_response_content,
+                content='',  # Empty - will be filled via streaming
                 agent_id=agent_id,
                 model_name=model_name,
-                status='complete'
+                status='streaming'  # Status indicates response is being streamed
             )
             db.add(assistant_message)
             db.commit()
@@ -3582,7 +3580,7 @@ def send_chat_message():
                 'session_id': session_id,
                 'message_id': user_message.message_id,
                 'assistant_message_id': assistant_message.message_id,
-                'assistant_message': assistant_response_content
+                'streaming': True  # Signal frontend to open SSE connection
             })
 
         finally:
@@ -3656,6 +3654,211 @@ def get_chat_sessions():
     except Exception as e:
         logger.error(f"Error fetching chat sessions: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/chat/stream/<session_id>', methods=['GET'])
+def stream_chat_response(session_id):
+    """
+    SSE endpoint for streaming chat responses.
+
+    Event Types:
+    - token: Streaming text content
+    - status_update: Task progress updates (planning, executing, complete, error)
+    - usage: Token/cost tracking (sent once before done)
+    - done: Stream complete signal
+
+    Heartbeats: :keep-alive every 15s
+    """
+    def generate():
+        db = None
+        assistant_message = None
+        accumulated_content = ''
+
+        try:
+            db = get_db_session()
+
+            # Verify session exists
+            session = db.query(ConversationSession).filter_by(session_id=session_id).first()
+            if not session:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Session not found'})}\n\n"
+                return
+
+            # Get the latest user and assistant messages
+            user_message = db.query(Message)\
+                .filter_by(session_id=session_id, message_type='user')\
+                .order_by(Message.timestamp.desc())\
+                .first()
+
+            assistant_message = db.query(Message)\
+                .filter_by(session_id=session_id, message_type='assistant')\
+                .order_by(Message.timestamp.desc())\
+                .first()
+
+            if not user_message or not assistant_message:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Messages not found'})}\n\n"
+                return
+
+            # Get agent_id and model from session
+            agent_id = session.agent_id
+            model = session.model_name
+
+            # Forward request to Gateway for real agent communication
+            try:
+                gateway_response = requests.post(
+                    f'{GATEWAY_URL}/chat/stream',
+                    json={
+                        'session_id': session_id,
+                        'message_id': user_message.message_id,
+                        'agent_id': agent_id,
+                        'model': model,
+                        'content': user_message.content
+                    },
+                    stream=True,
+                    timeout=300  # 5 minute timeout for long responses
+                )
+
+                if gateway_response.status_code != 200:
+                    # Fallback to mock streaming if Gateway unavailable
+                    logger.warning(f"Gateway returned {gateway_response.status_code}, using mock streaming")
+
+                    # Manually iterate through mock stream to accumulate content
+                    for event in _mock_stream_response(user_message.content):
+                        yield event
+                        # Parse to accumulate content
+                        if event.startswith('data: '):
+                            try:
+                                event_data = json.loads(event[6:])
+                                if event_data.get('type') == 'token':
+                                    accumulated_content += event_data.get('content', '')
+                            except json.JSONDecodeError:
+                                pass
+
+                    # Update assistant message in database
+                    assistant_message.content = accumulated_content
+                    assistant_message.status = 'complete'
+                    db.commit()
+                    return
+
+                # Stream events from Gateway
+                last_heartbeat = time.time()
+                usage_info = None
+
+                for line in gateway_response.iter_lines():
+                    if not line:
+                        continue
+
+                    # Decode line
+                    line_str = line.decode('utf-8')
+
+                    # Forward SSE event
+                    if line_str.startswith('data: '):
+                        yield f"{line_str}\n\n"
+
+                        # Parse event to accumulate tokens and check for done
+                        try:
+                            event_data = json.loads(line_str[6:])  # Remove 'data: ' prefix
+
+                            if event_data.get('type') == 'token':
+                                accumulated_content += event_data.get('content', '')
+
+                            elif event_data.get('type') == 'usage':
+                                usage_info = event_data.get('usage', {})
+
+                            elif event_data.get('type') == 'done':
+                                # Update assistant message in database
+                                assistant_message.content = accumulated_content
+                                assistant_message.status = 'complete'
+                                if usage_info:
+                                    assistant_message.set_usage(usage_info)
+                                db.commit()
+                                break
+
+                        except json.JSONDecodeError:
+                            pass
+
+                    # Send heartbeat every 15s
+                    if time.time() - last_heartbeat > 15:
+                        yield ":keep-alive\n\n"
+                        last_heartbeat = time.time()
+
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Gateway connection error: {e}", exc_info=True)
+                # Fallback to mock streaming
+
+                # Manually iterate through mock stream to accumulate content
+                for event in _mock_stream_response(user_message.content):
+                    yield event
+                    # Parse to accumulate content
+                    if event.startswith('data: '):
+                        try:
+                            event_data = json.loads(event[6:])
+                            if event_data.get('type') == 'token':
+                                accumulated_content += event_data.get('content', '')
+                        except json.JSONDecodeError:
+                            pass
+
+                # Update assistant message in database
+                assistant_message.content = accumulated_content
+                assistant_message.status = 'complete'
+                db.commit()
+
+        except Exception as e:
+            logger.error(f"Error in stream_chat_response: {e}", exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        finally:
+            if db:
+                db.close()
+
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')
+
+
+def _mock_stream_response(original_message: str):
+    """
+    Mock SSE streaming for testing when Gateway is unavailable.
+    Simulates realistic streaming with all 4 event types.
+    """
+    try:
+        # Status update: Planning
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'planning', 'detail': 'Analyzing your request...'})}\n\n"
+        time.sleep(0.3)
+
+        # Status update: Executing
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'executing', 'detail': 'Generating response...'})}\n\n"
+        time.sleep(0.2)
+
+        # Stream response tokens
+        mock_response = f"I received your message: '{original_message[:50]}...'. This is a mock streaming response while the Gateway is being integrated. Each word will appear progressively to simulate real LLM streaming."
+
+        words = mock_response.split(' ')
+        for i, word in enumerate(words):
+            # Add space before word (except first)
+            token = word if i == 0 else f" {word}"
+            yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+            time.sleep(0.05)  # Simulate typing speed
+
+        # Status update: Complete
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'complete', 'detail': 'Response generated'})}\n\n"
+        time.sleep(0.1)
+
+        # Usage tracking
+        usage_data = {
+            'type': 'usage',
+            'usage': {
+                'prompt_tokens': 50,
+                'completion_tokens': len(words),
+                'total_tokens': 50 + len(words)
+            },
+            'cost_usd': 0.001
+        }
+        yield f"data: {json.dumps(usage_data)}\n\n"
+        time.sleep(0.1)
+
+        # Done signal
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    except Exception as e:
+        logger.error(f"Error in _mock_stream_response: {e}", exc_info=True)
+        yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
 
 # Helper functions for LLM chat

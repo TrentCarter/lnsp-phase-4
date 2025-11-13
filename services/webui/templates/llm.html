@@ -281,6 +281,72 @@
     .messages-container::-webkit-scrollbar-thumb:hover {
         background: #4a5578;
     }
+
+    /* Status badge for streaming */
+    .status-badge {
+        display: inline-block;
+        padding: 0.375rem 0.75rem;
+        border-radius: 4px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        margin-top: 0.5rem;
+        background: #1e2747;
+        color: #9ca3af;
+        border: 1px solid #3a4568;
+    }
+
+    .status-badge.status-planning {
+        background: rgba(251, 191, 36, 0.1);
+        color: #fbbf24;
+        border-color: rgba(251, 191, 36, 0.3);
+    }
+
+    .status-badge.status-executing {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+        border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .status-badge.status-complete {
+        background: rgba(34, 197, 94, 0.1);
+        color: #22c55e;
+        border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    .status-badge.status-error {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    /* Usage info display */
+    .usage-info {
+        margin-top: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        background: rgba(59, 130, 246, 0.05);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-radius: 4px;
+        font-size: 0.8125rem;
+        color: #9ca3af;
+        font-family: 'Courier New', monospace;
+    }
+
+    /* Streaming animation */
+    .message.streaming .message-bubble {
+        position: relative;
+    }
+
+    .message.streaming .message-bubble::after {
+        content: '▊';
+        animation: blink 1s infinite;
+        color: #3b82f6;
+        margin-left: 2px;
+    }
+
+    @keyframes blink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0; }
+    }
 </style>
 
 <div class="llm-container">
@@ -340,6 +406,7 @@
     let currentAgentId = 'architect';
     let currentModelName = 'Claude Sonnet 4';
     let isSending = false;
+    let currentEventSource = null;
 
     // DOM elements
     const messagesContainer = document.getElementById('messages-container');
@@ -476,7 +543,7 @@
             // Show typing indicator
             typingIndicator.classList.add('active');
 
-            // Send to backend
+            // Send to backend (creates placeholder assistant message)
             const response = await fetch('/api/chat/message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -494,14 +561,46 @@
                 // Update session ID
                 currentSessionId = data.session_id;
 
-                // Hide typing indicator
-                typingIndicator.classList.remove('active');
-
-                // Add assistant response
-                addMessage('assistant', data.assistant_message, {
+                const assistantRefs = addMessage('assistant', '', {
                     agent_id: currentAgentId,
                     model: currentModelName
                 });
+
+                if (currentEventSource) {
+                    currentEventSource.close();
+                }
+                const es = new EventSource(`/api/chat/stream/${currentSessionId}`);
+                currentEventSource = es;
+
+                const bubble = assistantRefs.bubble;
+                const metadataDiv = assistantRefs.metadataDiv;
+                const statusSpan = document.createElement('span');
+                metadataDiv.appendChild(statusSpan);
+                const usageSpan = document.createElement('span');
+                metadataDiv.appendChild(usageSpan);
+
+                es.onmessage = (event) => {
+                    let payload;
+                    try { payload = JSON.parse(event.data); } catch (e) { return; }
+                    const t = payload.type;
+                    if (t === 'token') {
+                        bubble.textContent = bubble.textContent + payload.content;
+                    } else if (t === 'status_update') {
+                        statusSpan.textContent = `Status: ${payload.status}`;
+                    } else if (t === 'usage') {
+                        const u = payload.usage || {};
+                        const cost = typeof payload.cost_usd === 'number' ? payload.cost_usd.toFixed(3) : '';
+                        usageSpan.textContent = `Tokens: ${u.total_tokens ?? ''}${cost ? ` | Cost: $${cost}` : ''}`;
+                    } else if (t === 'done') {
+                        es.close();
+                        typingIndicator.classList.remove('active');
+                    }
+                };
+
+                es.onerror = () => {
+                    es.close();
+                    typingIndicator.classList.remove('active');
+                };
             } else {
                 throw new Error(data.error || 'Failed to send message');
             }
@@ -512,12 +611,168 @@
                 agent_id: 'system',
                 model: 'System'
             });
-        } finally {
             isSending = false;
             sendButton.disabled = false;
             messageInput.disabled = false;
-            messageInput.focus();
         }
+    }
+
+    function streamResponse(sessionId, messageId) {
+        // Create SSE connection
+        const eventSource = new EventSource(`/api/chat/stream/${sessionId}`);
+
+        // Create assistant message bubble for streaming
+        const messageDiv = createStreamingMessage();
+        let currentContent = '';
+        let currentStatus = '';
+        let usageData = null;
+
+        eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            switch (data.type) {
+                case 'token':
+                    // Append token to message bubble
+                    currentContent += data.content;
+                    updateStreamingMessage(messageDiv, currentContent);
+                    break;
+
+                case 'status_update':
+                    // Update status badge
+                    currentStatus = data.status;
+                    updateStatusBadge(messageDiv, data.status, data.detail);
+                    break;
+
+                case 'usage':
+                    // Store usage for later display
+                    usageData = data.usage;
+                    updateUsageDisplay(messageDiv, data.usage, data.cost_usd);
+                    break;
+
+                case 'done':
+                    // Finalize message
+                    finalizeStreamingMessage(messageDiv);
+                    typingIndicator.classList.remove('active');
+                    eventSource.close();
+
+                    // Re-enable input
+                    isSending = false;
+                    sendButton.disabled = false;
+                    messageInput.disabled = false;
+                    messageInput.focus();
+                    break;
+
+                case 'error':
+                    // Handle error
+                    console.error('Streaming error:', data.message);
+                    updateStreamingMessage(messageDiv, `⚠️ Error: ${data.message}`);
+                    typingIndicator.classList.remove('active');
+                    eventSource.close();
+
+                    isSending = false;
+                    sendButton.disabled = false;
+                    messageInput.disabled = false;
+                    break;
+            }
+        };
+
+        eventSource.onerror = (error) => {
+            console.error('SSE connection error:', error);
+            updateStreamingMessage(messageDiv, '⚠️ Connection lost. Please try again.');
+            typingIndicator.classList.remove('active');
+            eventSource.close();
+
+            isSending = false;
+            sendButton.disabled = false;
+            messageInput.disabled = false;
+        };
+    }
+
+    function createStreamingMessage() {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message assistant streaming';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.textContent = '🤖';
+
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = 'message-content-wrapper';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        bubble.textContent = '';
+
+        const statusBadge = document.createElement('div');
+        statusBadge.className = 'status-badge';
+        statusBadge.style.display = 'none';
+
+        const usageInfo = document.createElement('div');
+        usageInfo.className = 'usage-info';
+        usageInfo.style.display = 'none';
+
+        const meta = document.createElement('div');
+        meta.className = 'message-meta';
+        meta.innerHTML = `
+            <span class="message-agent">${getAgentNameForDisplay(currentAgentId)}</span>
+            <span class="message-model">${currentModelName}</span>
+            <span class="message-time">${getCurrentTime()}</span>
+        `;
+
+        contentWrapper.appendChild(bubble);
+        contentWrapper.appendChild(statusBadge);
+        contentWrapper.appendChild(usageInfo);
+        contentWrapper.appendChild(meta);
+
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(contentWrapper);
+
+        messagesContainer.appendChild(messageDiv);
+        scrollToBottom();
+
+        return messageDiv;
+    }
+
+    function updateStreamingMessage(messageDiv, content) {
+        const bubble = messageDiv.querySelector('.message-bubble');
+        bubble.textContent = content;
+        scrollToBottom();
+    }
+
+    function updateStatusBadge(messageDiv, status, detail) {
+        const statusBadge = messageDiv.querySelector('.status-badge');
+        statusBadge.textContent = `${status}: ${detail}`;
+        statusBadge.style.display = 'block';
+
+        // Add status-specific classes
+        statusBadge.className = 'status-badge status-' + status;
+    }
+
+    function updateUsageDisplay(messageDiv, usage, cost) {
+        const usageInfo = messageDiv.querySelector('.usage-info');
+        usageInfo.innerHTML = `
+            📊 Tokens: ${usage.total_tokens} (prompt: ${usage.prompt_tokens}, completion: ${usage.completion_tokens})
+            💰 Cost: $${cost.toFixed(4)}
+        `;
+        usageInfo.style.display = 'block';
+    }
+
+    function finalizeStreamingMessage(messageDiv) {
+        messageDiv.classList.remove('streaming');
+        const statusBadge = messageDiv.querySelector('.status-badge');
+        if (statusBadge) {
+            statusBadge.style.display = 'none';
+        }
+    }
+
+    function getAgentNameForDisplay(agentId) {
+        const option = Array.from(agentSelector.options).find(opt => opt.value === agentId);
+        return option ? option.textContent.split('(')[0].trim() : agentId;
+    }
+
+    function getCurrentTime() {
+        const now = new Date();
+        return now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     }
 
     function addMessage(role, content, metadata = {}) {
@@ -556,6 +811,8 @@
 
         // Scroll to bottom
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        return { messageDiv, bubble, metadataDiv };
     }
 
     function clearMessages() {
