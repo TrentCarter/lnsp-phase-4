@@ -17,6 +17,32 @@
     #tree-svg {
         width: 100%;
         height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    #tree-3d {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: none;
+        z-index: 1;  /* Above SVG, below UI elements */
+    }
+
+    #tree-3d canvas {
+        display: block;
+        outline: none;
+        cursor: grab;
+        width: 100% !important;
+        height: 100% !important;
+        touch-action: none;  /* Prevent touch gestures from scrolling */
+    }
+
+    #tree-3d canvas:active {
+        cursor: grabbing;
     }
 
     .node circle {
@@ -142,6 +168,8 @@
         padding: 1rem;
         color: #e0e0e0;
         font-size: 0.875rem;
+        z-index: 100;  /* Above 3D canvas */
+        pointer-events: auto;  /* Legend intercepts mouse events */
     }
 
     .legend-title {
@@ -170,6 +198,8 @@
         left: 1rem;
         display: flex;
         gap: 0.5rem;
+        z-index: 100;  /* Above 3D canvas */
+        pointer-events: auto;  /* Controls intercept mouse events */
     }
 
     .control-button {
@@ -198,7 +228,7 @@
 <div class="container" style="max-width: 100%; padding: 1rem 2rem;">
     <div id="tree-container">
         <svg id="tree-svg"></svg>
-        <div id="tree-3d" style="width: 100%; height: 100%; display: none;"></div>
+        <div id="tree-3d"></div>
 
         <div class="legend">
             <div class="legend-title">Status Legend</div>
@@ -257,9 +287,29 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
-<script>
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    window.THREE = THREE; // Make THREE global for existing code
+    window.OrbitControls = OrbitControls; // Make OrbitControls global if needed
+
+    // Expose functions to global scope for inline event handlers
+    window.changeProject = changeProject;
+    window.changeViewMode = changeViewMode;
+    window.centerTree = centerTree;
+    window.expandAll = expandAll;
+    window.collapseAll = collapseAll;
+    window.refreshTree = refreshTree;
+    window.changeOrientation = changeOrientation;
+    window.changeFilter = changeFilter;
+    // VERSION: 2024-11-12-19:25 - Z-Index + Pointer Events Fix
+    console.log('🎯 Tree View Script Loaded - Version 2024-11-12-19:25');
+    console.log('✅ 3D canvas z-index: 1 (below UI elements)');
+    console.log('✅ Legend/Controls z-index: 100 (above canvas)');
+    console.log('✅ Canvas: touch-action: none, width/height: 100%');
+    console.log('✅ Pointer events configured for proper layering');
+
     // Global variables
     let svg, g, root, tree, zoom;
     let i = 0;
@@ -270,7 +320,7 @@
     let currentOrientation = 'top';  // Default orientation
     let currentFilter = 'all';  // Filter mode: 'all', 'assignments', 'completions', 'work'
     let rawTreeData = null;  // Store unfiltered data
-    let currentViewMode = '2d';  // View mode: '2d' or '3d'
+    let currentViewMode = '2d';  // View mode: '2d' or '3d' - always start in 2D, switch after load
 
     // 3D View variables
     let scene3d, camera3d, renderer3d, controls3d;
@@ -794,10 +844,12 @@
      * @returns {Object|null} Filtered tree data, or null if node and all descendants filtered out
      */
     function applyFilter(data, filter) {
-        // Always show root node (PAS Agent Swarm)
+        // Always show root node (PAS Agent Swarm) - never filter out root
+        const isRoot = data.name === 'PAS Agent Swarm' || !data.parent;
+
         if (!data.children || data.children.length === 0) {
             // Leaf node - check if it matches filter
-            if (filter === 'all' || nodeMatchesFilter(data, filter)) {
+            if (filter === 'all' || nodeMatchesFilter(data, filter) || isRoot) {
                 return { ...data };
             }
             return null;  // Filtered out
@@ -809,9 +861,10 @@
             .filter(child => child !== null);  // Remove filtered-out nodes
 
         // Keep this node if:
-        // 1. It has filtered children (parent of matching nodes)
-        // 2. OR it matches the filter itself
-        if (filteredChildren.length > 0 || nodeMatchesFilter(data, filter)) {
+        // 1. It's the root (always show root)
+        // 2. It has filtered children (parent of matching nodes)
+        // 3. OR it matches the filter itself
+        if (isRoot || filteredChildren.length > 0 || nodeMatchesFilter(data, filter)) {
             return {
                 ...data,
                 children: filteredChildren
@@ -840,17 +893,27 @@
      * Center the tree view based on current orientation
      */
     function centerTree() {
-        const transform = getInitialTransform();
-        const translateMatch = transform.match(/translate\(([^,]+),([^)]+)\)/);
+        if (currentViewMode === '3d') {
+            // Auto-center 3D view
+            if (!scene3d) {
+                console.warn('3D view not initialized yet, cannot center.');
+                return;
+            }
+            autoCenterAndSize3D();
+        } else {
+            // Center 2D view
+            const transform = getInitialTransform();
+            const translateMatch = transform.match(/translate\(([^,]+),([^)]+)\)/);
 
-        if (translateMatch) {
-            const x = parseFloat(translateMatch[1]);
-            const y = parseFloat(translateMatch[2]);
+            if (translateMatch) {
+                const x = parseFloat(translateMatch[1]);
+                const y = parseFloat(translateMatch[2]);
 
-            svg.transition().duration(750).call(
-                zoom.transform,
-                d3.zoomIdentity.translate(x, y).scale(1)
-            );
+                svg.transition().duration(750).call(
+                    zoom.transform,
+                    d3.zoomIdentity.translate(x, y).scale(1)
+                );
+            }
         }
     }
 
@@ -934,6 +997,8 @@
         // Update appropriate view
         if (currentViewMode === '3d') {
             build3DTree(root);
+            // Auto-center and size 3D view after building
+            autoCenterAndSize3D();
         } else {
             update(root);
         }
@@ -1458,19 +1523,30 @@
 
         console.log('Loaded filter:', currentFilter);
 
-        // Load saved view mode
-        currentViewMode = localStorage.getItem('pas_tree_view_mode') || '2d';
-        const viewModeSelect = document.getElementById('view-mode-select');
-        if (viewModeSelect) {
-            viewModeSelect.value = currentViewMode;
-        }
-        console.log('Loaded view mode:', currentViewMode);
+        // Check saved view mode but DON'T apply it yet
+        const savedViewMode = localStorage.getItem('pas_tree_view_mode');
+        console.log('localStorage pas_tree_view_mode:', savedViewMode);
 
+        // Set dropdown to saved value (visual only, don't change currentViewMode yet)
+        const viewModeSelect = document.getElementById('view-mode-select');
+        if (viewModeSelect && savedViewMode) {
+            viewModeSelect.value = savedViewMode;
+            console.log('Set dropdown to saved value:', savedViewMode);
+        }
+
+        // Initialize 2D tree first (currentViewMode stays '2d' during initial load)
+        console.log('Initial currentViewMode:', currentViewMode);
         initializeTree();
 
-        // Load projects first, then refresh tree
+        // Load projects first, then refresh tree IN 2D MODE
         await loadProjects();
         await refreshTree();
+
+        // NOW apply the saved view mode AFTER tree data is loaded
+        if (savedViewMode === '3d') {
+            console.log('Applying saved 3D view mode after tree load');
+            changeViewMode('3d');
+        }
 
         // Connect to SSE for real-time updates
         connectSSE();
@@ -1511,12 +1587,33 @@
         container.appendChild(renderer3d.domElement);
 
         // Add orbit controls
-        controls3d = new THREE.OrbitControls(camera3d, renderer3d.domElement);
+        controls3d = new OrbitControls(camera3d, renderer3d.domElement);
         controls3d.enableDamping = true;
         controls3d.dampingFactor = 0.05;
-        controls3d.screenSpacePanning = false;
-        controls3d.minDistance = 50;
-        controls3d.maxDistance = 1000;
+        controls3d.screenSpacePanning = true; // Enable free panning in screen space
+
+        // Mouse button configuration
+        controls3d.mouseButtons = {
+            LEFT: THREE.MOUSE.ROTATE,        // Left-click to rotate
+            MIDDLE: THREE.MOUSE.DOLLY,       // Middle-click zoom
+            RIGHT: THREE.MOUSE.PAN           // Right-click to pan/move
+        };
+
+        // Distance limits for zoom
+        controls3d.minDistance = 50;         // Minimum zoom (closer)
+        controls3d.maxDistance = 1000;        // Maximum zoom (farther)
+
+        // Sensitivity controls
+        controls3d.panSpeed = 1.0;            // Pan sensitivity
+        controls3d.rotateSpeed = 1.0;         // Rotate sensitivity
+        controls3d.zoomSpeed = 1.2;           // Zoom sensitivity (scroll wheel)
+        controls3d.enableRotate = true;       // Enable rotation
+
+        // Prevent scroll wheel from moving the page
+        renderer3d.domElement.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, { passive: false });
 
         // Add ambient light
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -1585,9 +1682,9 @@
             scene3d.add(sphere);
             nodes3d.push({ mesh: sphere, agentId: agentId });
 
-            // Add label sprite
-            const label = createTextSprite(node.data.name || agentId);
-            label.position.set(x, y - 15, z);
+            // Add label sprite with role icon
+            const label = createTextSprite(node.data.name || agentId, node.data.agent_role || node.data.service_type || 'default');
+            label.position.set(x, y - 20, z);
             scene3d.add(label);
             nodes3d.push({ mesh: label, agentId: agentId });
 
@@ -1624,26 +1721,120 @@
     }
 
     /**
-     * Create text sprite for labels
+     * Get icon/avatar for role
      */
-    function createTextSprite(text) {
+    function getRoleIcon(role) {
+        const roleIcons = {
+            // Top-level
+            'PAS Root': '👑',
+            'Gateway': '🚪',
+
+            // Architecture tier
+            'Architect': '📐',
+
+            // Director tier
+            'Director': '🎯',
+            'Dir-Code': '💻',
+            'Dir-Data': '📊',
+            'Dir-Docs': '📚',
+            'Dir-Models': '🤖',
+            'Dir-DevSecOps': '🔐',
+
+            // Manager tier
+            'Manager': '📋',
+            'Mgr-Code': '⚙️',
+            'Mgr-Data': '🗄️',
+            'Mgr-Docs': '📝',
+            'Mgr-Models': '🧠',
+            'Mgr-DevSecOps': '🛡️',
+
+            // Worker tier
+            'Programmer': '👨‍💻',
+            'Data Engineer': '📈',
+            'Tech Writer': '✍️',
+            'ML Engineer': '🔬',
+            'DevOps Engineer': '🔧',
+
+            // External tools
+            'Aider-LCO': '🤖',
+            'Aider': '✨',
+            'LLM': '🧠',
+
+            // Services
+            'PLMS': '📊',
+            'Model Pool': '🎱',
+            'HMI': '🖥️',
+            'HHMRS': '⏱️',
+
+            // Default
+            'default': '●'
+        };
+
+        return roleIcons[role] || roleIcons['default'];
+    }
+
+    /**
+     * Create enhanced text sprite with role icon
+     */
+    function createTextSprite(text, role) {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        canvas.width = 256;
-        canvas.height = 64;
+        canvas.width = 512;
+        canvas.height = 96;
 
-        context.fillStyle = 'rgba(30, 39, 71, 0.8)';
-        context.fillRect(0, 0, canvas.width, canvas.height);
+        // Background with gradient
+        const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, 'rgba(30, 39, 71, 0.95)');
+        gradient.addColorStop(1, 'rgba(20, 25, 50, 0.95)');
+        context.fillStyle = gradient;
+        context.roundRect = function(x, y, w, h, r) {
+            this.beginPath();
+            this.moveTo(x + r, y);
+            this.lineTo(x + w - r, y);
+            this.arcTo(x + w, y, x + w, y + r, r);
+            this.lineTo(x + w, y + h - r);
+            this.arcTo(x + w, y + h, x + w - r, y + h, r);
+            this.lineTo(x + r, y + h);
+            this.arcTo(x, y + h, x, y + h - r, r);
+            this.lineTo(x, y + r);
+            this.arcTo(x, y, x + r, y, r);
+            this.closePath();
+            return this;
+        };
+        context.roundRect(0, 0, canvas.width, canvas.height, 12);
+        context.fill();
 
-        context.font = 'Bold 20px Arial';
+        // Border
+        context.strokeStyle = 'rgba(100, 120, 180, 0.6)';
+        context.lineWidth = 3;
+        context.roundRect(2, 2, canvas.width - 4, canvas.height - 4, 10);
+        context.stroke();
+
+        // Role icon (left side, larger)
+        const icon = getRoleIcon(role);
+        context.font = 'Bold 48px Arial, sans-serif';
+        context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        context.textAlign = 'left';
+        context.textBaseline = 'middle';
+        context.fillText(icon, 24, canvas.height / 2);
+
+        // Text (right side)
+        context.font = 'Bold 28px Arial, sans-serif';
         context.fillStyle = 'white';
-        context.textAlign = 'center';
-        context.fillText(text, canvas.width / 2, canvas.height / 2 + 7);
+        context.textAlign = 'left';
+        context.textBaseline = 'middle';
+        context.fillText(text, 90, canvas.height / 2);
 
         const texture = new THREE.CanvasTexture(canvas);
-        const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+        texture.needsUpdate = true;
+        const spriteMaterial = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false
+        });
         const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(40, 10, 1);
+        sprite.scale.set(80, 15, 1); // Wider sprite for icon + text
 
         return sprite;
     }
@@ -1676,10 +1867,50 @@
     }
 
     /**
+     * Auto-center and auto-size the 3D view based on tree bounds
+     */
+    function autoCenterAndSize3D() {
+        if (!camera3d || !controls3d || nodes3d.length === 0) {
+            console.warn('Cannot auto-center: missing camera, controls, or nodes');
+            return;
+        }
+
+        // Calculate bounding box of all nodes
+        const bbox = new THREE.Box3();
+        nodes3d.forEach(node => {
+            bbox.expandByObject(node.mesh);
+        });
+
+        // Get center and size
+        const center = bbox.getCenter(new THREE.Vector3());
+        const size = bbox.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+
+        // Calculate optimal camera distance
+        const fov = camera3d.fov * (Math.PI / 180);
+        const cameraDistance = Math.abs(maxDim / (2 * Math.tan(fov / 2)));
+        const distance = cameraDistance * 1.5; // Add 50% padding
+
+        // Position camera to look at center from above and front
+        camera3d.position.set(
+            center.x,
+            center.y + distance * 0.5,
+            center.z + distance
+        );
+        camera3d.lookAt(center);
+
+        // Set controls target to center
+        controls3d.target.copy(center);
+        controls3d.update();
+
+        console.log('Auto-centered 3D view:', { center, size, distance });
+    }
+
+    /**
      * Switch between 2D and 3D view modes
      */
     function changeViewMode(mode) {
-        console.log('Changing view mode to:', mode);
+        console.log('changeViewMode called with mode:', mode);
         currentViewMode = mode;
 
         const svg2d = document.getElementById('tree-svg');
@@ -1688,10 +1919,14 @@
         const expandButton = document.getElementById('expand-button');
         const collapseButton = document.getElementById('collapse-button');
 
+        console.log('svg2d:', svg2d, 'container3d:', container3d);
+
         if (mode === '3d') {
             // Switch to 3D
+            console.log('Switching to 3D mode');
             svg2d.style.display = 'none';
             container3d.style.display = 'block';
+            console.log('Set container3d display to block');
             orientationSelect.disabled = true;
             orientationSelect.style.opacity = '0.5';
             expandButton.disabled = true;
@@ -1699,12 +1934,17 @@
             collapseButton.disabled = true;
             collapseButton.style.opacity = '0.5';
 
-            // Build 3D tree
+            // Initialize 3D view if needed
             if (!scene3d) {
                 initialize3DView();
             }
+
+            // Build 3D tree from current root
             if (root) {
                 build3DTree(root);
+                autoCenterAndSize3D();
+            } else {
+                console.warn('No tree data available for 3D view');
             }
         } else {
             // Switch to 2D
@@ -1726,6 +1966,8 @@
 
         // Save preference
         localStorage.setItem('pas_tree_view_mode', mode);
+        console.log('Saved to localStorage: pas_tree_view_mode =', mode);
+        console.log('Verify localStorage:', localStorage.getItem('pas_tree_view_mode'));
     }
 
     // ========== END 3D VIEW IMPLEMENTATION ==========

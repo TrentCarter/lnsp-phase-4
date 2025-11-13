@@ -256,6 +256,15 @@ class ModelPoolManager:
             try:
                 await asyncio.sleep(self.config["check_interval_seconds"])
 
+                # Update memory stats for all HOT models
+                for model_id, model in self.models.items():
+                    if model.state == ModelState.HOT and model.process:
+                        try:
+                            process = psutil.Process(model.process)
+                            model.memory_mb = int(process.memory_info().rss / (1024 * 1024))
+                        except (psutil.NoSuchProcess, AttributeError):
+                            model.memory_mb = None
+
                 if not self.config["auto_unload"]:
                     continue
 
@@ -323,6 +332,13 @@ class ModelPoolManager:
 
         # Verify Ollama has model loaded
         await self._verify_ollama_model(model_id)
+
+        # Get memory usage for the model service process
+        try:
+            process = psutil.Process(model.process)
+            model.memory_mb = int(process.memory_info().rss / (1024 * 1024))
+        except (psutil.NoSuchProcess, AttributeError):
+            model.memory_mb = None
 
         model.state = ModelState.HOT
         print(f"✅ {model_id} ready on port {model.port}")

@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}PAS Agent Swarm HMI{% endblock %}</title>
 
+    <!-- Import Map for Three.js ES Modules -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
     <!-- D3.js for tree visualization -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
 
@@ -2778,12 +2788,19 @@
         // Global AudioContext (initialized on user interaction)
         let audioContext = null;
         let masterGainNode = null;
+        let userInteracted = false;
+
+        // Listen for the first user interaction
+        document.addEventListener('click', () => {
+            userInteracted = true;
+            initAudioContext(); // Try to init audio on first click
+        }, { once: true });
 
         /**
          * Initialize Web Audio API (call on first user interaction)
          */
         function initAudioContext() {
-            if (audioContext) return; // Already initialized
+            if (audioContext || !userInteracted) return; // Already initialized or no interaction yet
 
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();

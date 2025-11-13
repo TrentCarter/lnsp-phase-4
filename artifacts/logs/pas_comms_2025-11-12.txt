@@ -385,3 +385,20 @@
 2025-11-12T16:50:01.277-05:00|Prog-001|Mgr-Code-01|RESPONSE|Task completed: Implement JWT token generation in utils/jwt.py...|-|test-llm-decomp-1762984195|completed|-|-
 2025-11-12T16:50:01.278-05:00|Prog-003|Mgr-Code-01|RESPONSE|Task completed: Create login endpoint in auth.py to return valid t...|-|test-llm-decomp-1762984195|completed|-|-
 2025-11-12T16:50:01.278-05:00|Mgr-Code-01|Dir-Code|RESPONSE|Job completed successfully|-|test-llm-decomp-1762984195|completed|-|%7B%22duration_s%22%3A6.112668%7D
+2025-11-12T17:30:00.499-05:00|Mgr-Code-01|System|STATUS|Manager service started on port 6141|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-01%22%2C%22port%22%3A6141%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T17:30:01.496-05:00|Mgr-Code-02|System|STATUS|Manager service started on port 6142|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-02%22%2C%22port%22%3A6142%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T17:30:02.503-05:00|Mgr-Code-03|System|STATUS|Manager service started on port 6143|-|-|started|-|%7B%22agent%22%3A%22Mgr-Code-03%22%2C%22port%22%3A6143%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Code%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T17:30:03.507-05:00|Mgr-Models-01|System|STATUS|Manager service started on port 6144|-|-|started|-|%7B%22agent%22%3A%22Mgr-Models-01%22%2C%22port%22%3A6144%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Models%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T17:30:04.518-05:00|Mgr-Data-01|System|STATUS|Manager service started on port 6145|-|-|started|-|%7B%22agent%22%3A%22Mgr-Data-01%22%2C%22port%22%3A6145%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Data%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T17:30:05.522-05:00|Mgr-Devsecops-01|System|STATUS|Manager service started on port 6146|-|-|started|-|%7B%22agent%22%3A%22Mgr-Devsecops-01%22%2C%22port%22%3A6146%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Devsecops%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T17:30:06.532-05:00|Mgr-Docs-01|System|STATUS|Manager service started on port 6147|-|-|started|-|%7B%22agent%22%3A%22Mgr-Docs-01%22%2C%22port%22%3A6147%2C%22tier%22%3A%22manager%22%2C%22lane%22%3A%22Docs%22%2C%22llm_model%22%3A%22google/gemini-2.5-flash%22%7D
+2025-11-12T17:41:29.111-05:00|Mgr-Code-02|System|STATUS|GMI25|Manager service started on port 6142|google/gemini-2.5-flash|test-run-001|started|-|-
+2025-11-12T17:41:29.112-05:00|Prog-Qwen-001|Mgr-Code-01|RESPONSE|QWE25|Aider execution completed successfully|ollama/qwen2.5-coder:7b-instruct|test-run-002|completed|1.00|-
+2025-11-12T17:41:29.112-05:00|Architect|PAS Root|STATUS|CLD45|Analyzing Prime Directive|anthropic/claude-4.5-sonnet|test-run-003|running|0.50|-
+2025-11-12T17:41:29.113-05:00|Gateway|PAS Root|CMD|-----|Submit Prime Directive: Add docstrings|-|test-run-004|-|-|-
+2025-11-12T17:41:29.114-05:00|Dir-Code|Mgr-Backend|CMD|GPT45|Implement API endpoint|openai/gpt-4.5-turbo|test-run-005|-|-|-
+2025-11-12T17:43:55.830-05:00|Mgr-Code-02|System|STATUS|GMI250|Manager service started on port 6142|google/gemini-2.5-flash|test-run-001|started|-|-
+2025-11-12T17:43:55.831-05:00|Prog-Qwen-001|Mgr-Code-01|RESPONSE|QWE250|Aider execution completed successfully|ollama/qwen2.5-coder:7b-instruct|test-run-002|completed|1.00|-
+2025-11-12T17:43:55.832-05:00|Architect|PAS Root|STATUS|CLD450|Analyzing Prime Directive|anthropic/claude-4.5-sonnet|test-run-003|running|0.50|-
+2025-11-12T17:43:55.833-05:00|Gateway|PAS Root|CMD|------|Submit Prime Directive: Add docstrings|-|test-run-004|-|-|-
+2025-11-12T17:43:55.833-05:00|Dir-Code|Mgr-Backend|CMD|GPT450|Implement API endpoint|openai/gpt-4.5-turbo|test-run-005|-|-|-

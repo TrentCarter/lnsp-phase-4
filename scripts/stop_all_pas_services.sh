@@ -11,6 +11,14 @@ lsof -ti:6105 | xargs kill -9 2>/dev/null && echo "  ✓ Token Governor stopped"
 
 echo ""
 
+# Stop LLM Services
+echo "LLM Services:"
+lsof -ti:8050 | xargs kill -9 2>/dev/null && echo "  ✓ Model Pool Manager stopped" || echo "  (Model Pool Manager not running)"
+lsof -ti:8051 | xargs kill -9 2>/dev/null && echo "  ✓ Qwen 2.5 Coder service stopped" || echo "  (Qwen 2.5 Coder not running)"
+lsof -ti:8052 | xargs kill -9 2>/dev/null && echo "  ✓ Llama 3.1 8B service stopped" || echo "  (Llama 3.1 8B not running)"
+
+echo ""
+
 # Stop HMI
 echo "HMI:"
 lsof -ti:6101 | xargs kill -9 2>/dev/null && echo "  ✓ HMI Web Dashboard stopped" || echo "  (HMI Web Dashboard not running)"

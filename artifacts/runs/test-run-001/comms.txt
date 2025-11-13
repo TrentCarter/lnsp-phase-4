@@ -10,3 +10,5 @@
 2025-11-12T01:56:31.205Z|PAS Root|Gateway|STATUS|Started execution|-|test-run-001|running|0.10|-
 2025-11-12T01:56:31.205Z|Aider-LCO|PAS Root|HEARTBEAT|Processing file 3 of 5|ollama/qwen2.5-coder:7b-instruct|test-run-001|running|0.60|%7B%22files_done%22%3A3%2C%22files_total%22%3A5%7D
 2025-11-12T01:56:31.206Z|Aider-LCO|PAS Root|RESPONSE|Execution completed successfully|ollama/qwen2.5-coder:7b-instruct|test-run-001|completed|-|%7B%22duration_s%22%3A42.5%2C%22rc%22%3A0%7D
+2025-11-12T17:41:29.111-05:00|Mgr-Code-02|System|STATUS|GMI25|Manager service started on port 6142|google/gemini-2.5-flash|test-run-001|started|-|-
+2025-11-12T17:43:55.830-05:00|Mgr-Code-02|System|STATUS|GMI250|Manager service started on port 6142|google/gemini-2.5-flash|test-run-001|started|-|-

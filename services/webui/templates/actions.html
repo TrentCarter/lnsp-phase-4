@@ -527,7 +527,7 @@
             </div>
             <div class="tasks-toolbar" id="tasks-toolbar">
                 <span class="tasks-toolbar-text"><span id="selected-count">0</span> selected</span>
-                <button class="delete-selected-button" onclick="deleteSelectedTasks()">🗑️ Delete Selected</button>
+                <button class="delete-selected-button" onclick="deleteSelectedTasks()">🗑️ Group Delete</button>
             </div>
         </div>
 
@@ -623,11 +623,14 @@ function renderTaskList() {
                 <div class="task-meta">
                     <div class="task-meta-row">
                         <span>📊 ${task.action_count} actions</span>
-                        <span>${formatTimestamp(task.start_time)}</span>
+                        <span>👥 ${task.agents_involved.length} agents</span>
                     </div>
                     <div class="task-meta-row">
-                        <span>👥 ${task.agents_involved.length} agents</span>
-                        ${task.budget_tokens ? `<span class="token-badge">🪙 ${formatTokens(task.budget_tokens)}</span>` : ''}
+                        <span>🕐 ${formatTimestamp(task.start_time)}</span>
+                        <span>⏱️ ${formatElapsedTime(task.start_time, task.end_time)}</span>
+                    </div>
+                    <div class="task-meta-row">
+                        ${task.budget_tokens ? `<span class="token-badge">🪙 ${formatTokens(task.budget_tokens)} MAX</span>` : '<span style="color: #6b7280;">No budget</span>'}
                     </div>
                 </div>
             </div>
@@ -658,11 +661,14 @@ function filterTasks() {
                 <div class="task-meta">
                     <div class="task-meta-row">
                         <span>📊 ${task.action_count} actions</span>
-                        <span>${formatTimestamp(task.start_time)}</span>
+                        <span>👥 ${task.agents_involved.length} agents</span>
                     </div>
                     <div class="task-meta-row">
-                        <span>👥 ${task.agents_involved.length} agents</span>
-                        ${task.budget_tokens ? `<span class="token-badge">🪙 ${formatTokens(task.budget_tokens)}</span>` : ''}
+                        <span>🕐 ${formatTimestamp(task.start_time)}</span>
+                        <span>⏱️ ${formatElapsedTime(task.start_time, task.end_time)}</span>
+                    </div>
+                    <div class="task-meta-row">
+                        ${task.budget_tokens ? `<span class="token-badge">🪙 ${formatTokens(task.budget_tokens)} MAX</span>` : '<span style="color: #6b7280;">No budget</span>'}
                     </div>
                 </div>
             </div>
@@ -909,14 +915,21 @@ function getStatusClass(status) {
 
 function formatTimestamp(timestamp) {
     // Handle missing, null, or invalid timestamps
-    if (!timestamp || typeof timestamp !== 'number') {
+    if (!timestamp) {
         return 'N/A';
     }
 
-    // FIX: Convert Unix seconds to milliseconds for JavaScript Date
-    // Database stores timestamps as Unix seconds (e.g., 1762618131.642257)
-    // JavaScript Date expects milliseconds, so multiply by 1000
-    const date = new Date(timestamp * 1000);
+    // Parse timestamp - handle both ISO strings and Unix timestamps
+    let date;
+    if (typeof timestamp === 'string') {
+        // ISO format string (e.g., "2025-11-12T17:41:29.114-05:00")
+        date = new Date(timestamp);
+    } else if (typeof timestamp === 'number') {
+        // Unix timestamp in seconds
+        date = new Date(timestamp * 1000);
+    } else {
+        return 'N/A';
+    }
 
     // Check if date is valid
     if (isNaN(date.getTime())) {
@@ -932,6 +945,31 @@ function formatTimestamp(timestamp) {
     if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
 
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+}
+
+function formatElapsedTime(startTime, endTime) {
+    // Calculate elapsed time between start and end timestamps
+    if (!startTime) return 'N/A';
+
+    // Parse timestamps
+    const start = new Date(startTime);
+    const end = endTime ? new Date(endTime) : new Date();
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return 'N/A';
+    }
+
+    const diffMs = end - start;
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+
+    if (diffSecs < 60) return `${diffSecs}s`;
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h ${diffMins % 60}m`;
+
+    const days = Math.floor(diffHours / 24);
+    return `${days}d ${diffHours % 24}h`;
 }
 
 function formatTokens(tokens) {
