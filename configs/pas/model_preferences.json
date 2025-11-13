@@ -1,23 +1,18 @@
 {
-  "_comment": "Multi-tier PAS model assignments - see docs/MODEL_REGISTRY.md for full list",
   "architect": {
     "primary": "anthropic/claude-3-5-sonnet-20240620",
-    "fallback": "google/gemini-2.5-pro",
-    "_note": "Top tier - best reasoning (fixed model name from 20241022 to 20240620)"
+    "fallback": "google/gemini-2.5-pro"
   },
   "director": {
     "primary": "google/gemini-2.5-pro",
-    "fallback": "kimi/kimi-k2-turbo-preview",
-    "_note": "Large context (2M tokens), budget fallback"
+    "fallback": "anthropic/claude-3-5-haiku-20241022"
   },
   "manager": {
-    "primary": "google/gemini-2.5-flash",
-    "fallback": "kimi/kimi-k2-turbo-preview",
-    "_note": "Fast and cheap ($0.075/1M vs $0.12/1M)"
+    "primary": "ollama/deepseek-r1:7b-q4_k_m",
+    "fallback": "ollama/qwen2.5-coder:7b-instruct"
   },
   "programmer": {
     "primary": "ollama/qwen2.5-coder:7b-instruct",
-    "fallback": "kimi/kimi-k2-turbo-preview",
-    "_note": "Local code specialist, cloud fallback"
+    "fallback": "ollama/qwen2.5-coder:7b-instruct"
   }
 }

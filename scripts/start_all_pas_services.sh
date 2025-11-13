@@ -28,6 +28,35 @@ echo ""
 
 # Start Model Pool Manager
 echo "Starting Model Pool Manager..."
+
+# Clean up port 8050 if in use
+echo "🛑 Checking for existing Model Pool Manager on port 8050..."
+PID_8050=$(lsof -ti:8050 2>/dev/null || echo "")
+if [ -n "$PID_8050" ]; then
+    echo "   Found process(es) on port 8050: $PID_8050"
+    for pid in $PID_8050; do
+        echo "   Attempting graceful shutdown of PID $pid..."
+        kill -TERM "$pid" 2>/dev/null || true
+        sleep 2
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "   Force killing PID $pid..."
+            kill -KILL "$pid" 2>/dev/null || true
+            sleep 1
+        fi
+    done
+
+    # Final verification
+    sleep 1
+    if lsof -ti:8050 >/dev/null 2>&1; then
+        echo "❌ ERROR: Port 8050 still in use after cleanup"
+        exit 1
+    else
+        echo "✅ Port 8050 cleared"
+    fi
+else
+    echo "✅ Port 8050 is available"
+fi
+
 ./.venv/bin/python -m uvicorn services.model_pool_manager.model_pool_manager:app \
   --host 127.0.0.1 --port 8050 \
   > artifacts/logs/model_pool_manager.log 2>&1 &

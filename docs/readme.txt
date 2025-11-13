@@ -9,6 +9,19 @@ claude --dangerously-skip-permissions
 /docs/SERVICE_PORTS.md
  that includes:
 
+ #Central Model Datastores:
+   # Local Models Endpoint
+  curl http://localhost:6101/api/models/local-status
+  # → Status: ok, Count: 0 (Ollama not running)
+
+  # API Models Endpoint  
+  curl http://localhost:6101/api/models/api-status
+  # → Status: ok, Count: 7 (All API models from .env)
+
+  # Unified Endpoint
+  curl http://localhost:6101/api/models/status
+  # → Status: ok, Models: 11 (auto + local + API)
+
 # ========================================================================
 # 📝 SESSION WORKFLOW - START HERE (Added 11/11/2025)
 # ========================================================================

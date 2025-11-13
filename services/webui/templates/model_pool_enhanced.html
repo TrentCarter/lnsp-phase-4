@@ -4,14 +4,209 @@
 <style>
     .content {
         padding: 2rem;
-        max-width: 1400px;
+        max-width: 1600px;
         margin: 0 auto;
     }
-    
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        color: #fff;
+        margin: 0;
+    }
+
+    .refresh-btn {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .refresh-btn:hover {
+        background: #2563eb;
+    }
+
+    .nav-tabs {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        border-bottom: 2px solid #3a4568;
+    }
+
+    .nav-tab {
+        padding: 0.75rem 1.5rem;
+        cursor: pointer;
+        color: #9ca3af;
+        transition: all 0.2s;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+    }
+
+    .nav-tab:hover {
+        color: #e0e0e0;
+    }
+
+    .nav-tab.active {
+        color: #fff;
+        border-bottom-color: #3b82f6;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    /* Comprehensive Table Styles */
+    .models-table-container {
+        background: #1a1f3a;
+        border: 1px solid #3a4568;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .models-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .models-table thead {
+        background: #0f1629;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .models-table th {
+        padding: 1rem;
+        text-align: left;
+        color: #9ca3af;
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 2px solid #3a4568;
+    }
+
+    .models-table tbody tr {
+        border-bottom: 1px solid #2a3558;
+        transition: background 0.2s;
+    }
+
+    .models-table tbody tr:hover {
+        background: rgba(59, 130, 246, 0.05);
+    }
+
+    .models-table td {
+        padding: 1rem;
+        color: #e0e0e0;
+        font-size: 0.9rem;
+    }
+
+    .model-name-cell {
+        font-weight: 600;
+        color: #fff;
+    }
+
+    .model-id-sub {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        font-family: monospace;
+        margin-top: 0.25rem;
+    }
+
+    .status-icon {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+
+    .status-ok { background: #22c55e; }
+    .status-error { background: #ef4444; }
+    .status-untested { background: #6b7280; }
+    .status-warning { background: #f59e0b; }
+
+    .provider-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .provider-local { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+    .provider-api { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+
+    .cost-cell {
+        font-family: monospace;
+        font-size: 0.875rem;
+    }
+
+    .cost-free {
+        color: #22c55e;
+        font-weight: 600;
+    }
+
+    .usage-cell {
+        font-size: 0.875rem;
+    }
+
+    .usage-value {
+        font-weight: 600;
+        color: #3b82f6;
+    }
+
+    .test-btn {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .test-btn:hover {
+        background: #2563eb;
+    }
+
+    .test-link {
+        color: #3b82f6;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .test-link:hover {
+        color: #60a5fa;
+        text-decoration: underline;
+    }
+
+    .last-tested {
+        font-size: 0.75rem;
+        color: #9ca3af;
+    }
+
     .model-section {
         margin-bottom: 3rem;
     }
-    
+
     .section-header {
         display: flex;
         justify-content: space-between;
@@ -20,213 +215,106 @@
         padding-bottom: 0.5rem;
         border-bottom: 2px solid #3a4568;
     }
-    
+
     .section-header h2 {
         color: #fff;
         margin: 0;
     }
-    
-    .model-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-        gap: 1.5rem;
+
+    .loading {
+        text-align: center;
+        color: #9ca3af;
+        padding: 3rem;
+        font-size: 1.1rem;
     }
-    
-    .model-card {
-        background: #1a1f3a;
-        border: 1px solid #3a4568;
-        border-radius: 12px;
-        padding: 1.5rem;
-        transition: all 0.2s;
+
+    .error {
+        text-align: center;
+        color: #ef4444;
+        padding: 3rem;
+        font-size: 1.1rem;
     }
-    
-    .model-card:hover {
-        border-color: #4a5578;
-        transform: translateY(-2px);
-    }
-    
-    .model-card.local {
-        border-left: 4px solid #22c55e;
-    }
-    
-    .model-card.api {
-        border-left: 4px solid #3b82f6;
-    }
-    
-    .model-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 1rem;
-    }
-    
-    .model-name {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #fff;
-    }
-    
-    .status-badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.875rem;
-        font-weight: 500;
-    }
-    
-    .status-ok { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
-    .status-error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-    .status-api { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-    .status-warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-    
-    .model-details {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    
-    .detail-item {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.9rem;
-    }
-    
-    .detail-label { color: #9ca3af; }
-    .detail-value { color: #e0e0e0; font-weight: 500; }
-    
-    .nav-tabs {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 2rem;
-        border-bottom: 1px solid #3a4568;
-    }
-    
-    .nav-tab {
-        padding: 0.75rem 1.5rem;
-        background: #1a1f3a;
-        border: 1px solid #3a4568;
-        border-radius: 8px 8px 0 0;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    
-    .nav-tab:hover { background: #2a2f4a; }
-    .nav-tab.active { background: #3b82f6; color: white; border-color: #3b82f6; }
-    
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    
-    .env-section {
-        background: #1e2747;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .env-key {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #3a4568;
-    }
-    
-    .key-name { font-family: 'Courier New', monospace; color: #10b981; }
-    
-    .key-status {
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 500;
-    }
-    
-    .key-valid { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
-    .key-invalid { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-    .key-placeholder { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-    
-    .refresh-btn {
-        background: #10b981;
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 500;
-    }
-    
-    .refresh-btn:hover { background: #059669; }
-    
-    .loading { text-align: center; padding: 2rem; color: #9ca3af; }
-    .error { color: #ef4444; text-align: center; padding: 1rem; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="content">
-    <div class="section-header">
-        <h1>🤖 Enhanced Model Pool Dashboard</h1>
+    <div class="page-header">
+        <h1>🤖 Model Pool Dashboard</h1>
         <button class="refresh-btn" onclick="refreshAll()">🔄 Refresh All</button>
     </div>
-    
+
     <div class="nav-tabs">
-        <div class="nav-tab active" onclick="showTab('all')">🌐 All Models</div>
+        <div class="nav-tab active" onclick="showTab('table')">📊 Table View</div>
         <div class="nav-tab" onclick="showTab('local')">🏠 Local Models</div>
         <div class="nav-tab" onclick="showTab('api')">🔑 API Models</div>
-        <div class="nav-tab" onclick="showTab('keys')">🔐 API Keys</div>
-        <div class="nav-tab" onclick="showTab('usage')">📊 Usage</div>
+        <div class="nav-tab" onclick="showTab('usage')">💰 Usage Stats</div>
     </div>
 
-    <div id="all" class="tab-content active">
+    <!-- Comprehensive Table View -->
+    <div id="table" class="tab-content active">
         <div class="model-section">
             <div class="section-header">
-                <h2>Complete Model Inventory</h2>
-                <span id="all-count">0 models</span>
+                <h2>All LLM Models - Comprehensive View</h2>
+                <span id="table-count">0 models</span>
             </div>
-            <div id="all-models" class="model-grid">
-                <div class="loading">Loading all models...</div>
+            <div class="models-table-container">
+                <table class="models-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Model Name</th>
+                            <th>Provider</th>
+                            <th>Type</th>
+                            <th>Cost (Input/1K)</th>
+                            <th>Cost (Output/1K)</th>
+                            <th>Usage ($)</th>
+                            <th>Usage (Tokens)</th>
+                            <th>Last Tested</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <tr>
+                            <td colspan="10" class="loading">Loading models...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
+    <!-- Local Models Tab -->
     <div id="local" class="tab-content">
         <div class="model-section">
             <div class="section-header">
                 <h2>🏠 Local LLMs</h2>
                 <span id="local-count">0 models</span>
             </div>
-            <div id="local-models" class="model-grid">
+            <div id="local-models">
                 <div class="loading">Loading local models...</div>
             </div>
         </div>
     </div>
 
+    <!-- API Models Tab -->
     <div id="api" class="tab-content">
         <div class="model-section">
             <div class="section-header">
                 <h2>🔑 API Models</h2>
                 <span id="api-count">0 models</span>
             </div>
-            <div id="api-models" class="model-grid">
+            <div id="api-models">
                 <div class="loading">Loading API models...</div>
             </div>
         </div>
     </div>
 
-    <div id="keys" class="tab-content">
-        <div class="model-section">
-            <div class="section-header">
-                <h2>🔐 Environment Configuration</h2>
-            </div>
-            <div id="env-config">
-                <div class="loading">Loading .env configuration...</div>
-            </div>
-        </div>
-    </div>
-
+    <!-- Usage Tab -->
     <div id="usage" class="tab-content">
         <div class="model-section">
             <div class="section-header">
-                <h2>📊 Model Usage Statistics</h2>
+                <h2>💰 Model Usage Statistics</h2>
                 <button class="refresh-btn" onclick="clearUsage()" style="background: #ef4444;">🗑️ Clear Stats</button>
             </div>
             <div id="usage-stats">
@@ -240,6 +328,7 @@
 let allModelsData = {};
 let localModelsData = {};
 let apiModelsData = {};
+let usageData = {};
 
 function showTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -250,295 +339,285 @@ function showTab(tabName) {
 
 async function loadAllModels() {
     try {
-        const [apiStatusResponse, localModelsResponse] = await Promise.all([
+        const [statusResponse, apiStatusResponse, localStatusResponse] = await Promise.all([
+            fetch('/api/models/status'),
             fetch('/api/models/api-status'),
-            fetch('/api/model-pool/models')
+            fetch('/api/models/local-status')
         ]);
 
+        const statusData = await statusResponse.json();
         const apiData = await apiStatusResponse.json();
-        const localData = await localModelsResponse.json();
+        const localData = await localStatusResponse.json();
 
-        let combinedModels = {};
+        if (statusData.status === 'ok') {
+            allModelsData = statusData.models;
+        }
 
         if (apiData.status === 'ok') {
             apiModelsData = apiData.models;
-            Object.assign(combinedModels, apiData.models);
-            renderModels('api-models', apiData.models, 'api-count', 'api');
         }
 
-        if (localData.models) {
-            const adaptedLocalModels = {};
-            localData.models.forEach(model => {
-                const modelId = model.model_id || model.name;
-                adaptedLocalModels[modelId] = {
-                    name: model.name || model.model_id,
-                    provider: 'local',
-                    available: model.state === 'HOT' || model.state === 'WARMUP',
-                    status: model.state || 'UNKNOWN',
-                    port: model.port || 'N/A'
-                };
-                localModelsData[modelId] = adaptedLocalModels[modelId];
-            });
-            Object.assign(combinedModels, adaptedLocalModels);
-            renderLocalModels('local-models', localData.models, 'local-count');
+        if (localData.status === 'ok') {
+            localModelsData = localData.models;
         }
-        
-        allModelsData = combinedModels;
-        renderModels('all-models', combinedModels, 'all-count');
+
+        // Render all views
+        renderTableView();
+        renderLocalModels();
+        renderApiModels();
 
     } catch (error) {
         console.error('Error loading models:', error);
+        document.getElementById('table-body').innerHTML = '<tr><td colspan="10" class="error">Error loading models: ' + error.message + '</td></tr>';
     }
 }
 
-function renderLocalModels(containerId, models, countId) {
-    const container = document.getElementById(containerId);
-    const countEl = document.getElementById(countId);
-    
-    container.innerHTML = '';
-    countEl.textContent = `${models.length} models`;
+function renderTableView() {
+    const tbody = document.getElementById('table-body');
+    const countEl = document.getElementById('table-count');
 
-    if (models.length === 0) {
+    // Combine local and API models
+    const combinedModels = { ...localModelsData, ...apiModelsData };
+    const modelCount = Object.keys(combinedModels).length;
+
+    tbody.innerHTML = '';
+    countEl.textContent = `${modelCount} models`;
+
+    if (modelCount === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="loading">No models found</td></tr>';
+        return;
+    }
+
+    Object.entries(combinedModels).forEach(([modelId, model]) => {
+        const isLocal = model.provider === 'ollama' || model.type === 'local';
+        const isApi = ['openai', 'anthropic', 'google', 'deepseek', 'kimi'].includes(model.provider);
+
+        // Determine status
+        let statusClass = 'status-untested';
+        let statusText = 'Untested';
+
+        if (model.available === true) {
+            statusClass = 'status-ok';
+            statusText = 'OK';
+        } else if (model.available === false) {
+            statusClass = 'status-error';
+            statusText = 'Error';
+        }
+
+        // Cost information
+        const inputCost = isLocal ? 'FREE' : (model.cost_per_1k_input ? `$${model.cost_per_1k_input.toFixed(4)}` : '$0.0000');
+        const outputCost = isLocal ? 'FREE' : (model.cost_per_1k_output ? `$${model.cost_per_1k_output.toFixed(4)}` : '$0.0000');
+
+        // Usage information
+        const usage = model.usage || {};
+        const totalCost = usage.total_cost || 0;
+        const totalTokens = usage.total_tokens || 0;
+        const totalRequests = usage.total_requests || 0;
+
+        // Last tested
+        const lastTested = model.last_check ? new Date(model.last_check * 1000).toLocaleString() : 'Never';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <span class="status-icon ${statusClass}" title="${statusText}"></span>
+                <span style="font-size: 0.875rem;">${statusText}</span>
+            </td>
+            <td class="model-name-cell">
+                ${model.name}
+                <div class="model-id-sub">${modelId}</div>
+            </td>
+            <td>
+                <span class="provider-badge ${isLocal ? 'provider-local' : 'provider-api'}">
+                    ${model.provider.toUpperCase()}
+                </span>
+            </td>
+            <td>${isLocal ? '🏠 Local' : '🌐 API'}</td>
+            <td class="cost-cell ${isLocal ? 'cost-free' : ''}">${inputCost}</td>
+            <td class="cost-cell ${isLocal ? 'cost-free' : ''}">${outputCost}</td>
+            <td class="usage-cell">
+                <span class="usage-value">${totalCost > 0 ? `$${totalCost.toFixed(4)}` : '$0.00'}</span>
+                ${totalRequests > 0 ? `<div class="last-tested">${totalRequests} requests</div>` : ''}
+            </td>
+            <td class="usage-cell">
+                <span class="usage-value">${totalTokens.toLocaleString()}</span>
+            </td>
+            <td class="last-tested">${lastTested}</td>
+            <td>
+                <a href="/settings#models-remote" class="test-link" title="Go to test interface">🔬 Test</a>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderLocalModels() {
+    const container = document.getElementById('local-models');
+    const countEl = document.getElementById('local-count');
+
+    const localCount = Object.keys(localModelsData).length;
+    countEl.textContent = `${localCount} models`;
+
+    if (localCount === 0) {
         container.innerHTML = '<div class="loading">No local models found</div>';
         return;
     }
 
-    models.forEach(model => {
-        const card = document.createElement('div');
-        card.className = 'model-card local';
+    container.innerHTML = '<div class="models-table-container"><table class="models-table"><thead><tr><th>Status</th><th>Model Name</th><th>Provider</th><th>Port</th><th>Last Check</th></tr></thead><tbody id="local-tbody"></tbody></table></div>';
 
-        let statusClass = 'status-error';
-        let statusText = 'Offline';
-        
-        switch (model.state) {
-            case 'HOT':
-                statusClass = 'status-ok';
-                statusText = 'HOT - Ready';
-                break;
-            case 'WARMUP':
-                statusClass = 'status-warning';
-                statusText = 'WARMUP - Loading';
-                break;
-            case 'COLD':
-                statusClass = 'status-error';
-                statusText = 'COLD - Offline';
-                break;
-        }
+    const tbody = document.getElementById('local-tbody');
+    Object.entries(localModelsData).forEach(([modelId, model]) => {
+        const statusClass = model.available ? 'status-ok' : 'status-error';
+        const statusText = model.status || (model.available ? 'OK' : 'Offline');
+        const lastCheck = model.last_check ? new Date(model.last_check * 1000).toLocaleString() : 'Never';
 
-        card.innerHTML = `
-            <div class="model-header">
-                <div class="model-name">${model.name || model.model_id}</div>
-                <div class="status-badge ${statusClass}">${statusText}</div>
-            </div>
-            <div class="model-details">
-                <div class="detail-item">
-                    <span class="detail-label">Provider:</span>
-                    <span class="detail-value">LOCAL</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">Port:</span>
-                    <span class="detail-value">${model.port || 'N/A'}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">Status:</span>
-                    <span class="detail-value">${model.state || 'UNKNOWN'}</span>
-                </div>
-            </div>
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><span class="status-icon ${statusClass}"></span> ${statusText}</td>
+            <td class="model-name-cell">${model.name}<div class="model-id-sub">${modelId}</div></td>
+            <td><span class="provider-badge provider-local">${model.provider.toUpperCase()}</span></td>
+            <td>${model.port || 'N/A'}</td>
+            <td class="last-tested">${lastCheck}</td>
         `;
-        container.appendChild(card);
+        tbody.appendChild(tr);
     });
 }
 
-function renderModels(containerId, models, countId, type = null) {
-    const container = document.getElementById(containerId);
-    const countEl = document.getElementById(countId);
-    
-    container.innerHTML = '';
-    countEl.textContent = `${Object.keys(models).length} models`;
+function renderApiModels() {
+    const container = document.getElementById('api-models');
+    const countEl = document.getElementById('api-count');
 
-    if (Object.keys(models).length === 0) {
-        container.innerHTML = '<div class="loading">No models found</div>';
+    const apiCount = Object.keys(apiModelsData).length;
+    countEl.textContent = `${apiCount} models`;
+
+    if (apiCount === 0) {
+        container.innerHTML = '<div class="loading">No API models configured</div>';
         return;
     }
 
-    Object.entries(models).forEach(([modelId, model]) => {
-        const card = document.createElement('div');
-        card.className = `model-card ${type || ''}`;
+    container.innerHTML = '<div class="models-table-container"><table class="models-table"><thead><tr><th>Status</th><th>Model Name</th><th>Provider</th><th>Cost (Input)</th><th>Cost (Output)</th><th>Usage</th></tr></thead><tbody id="api-tbody"></tbody></table></div>';
 
-        const isLocal = model.provider === 'local';
-        const isApi = ['openai', 'anthropic', 'google', 'deepseek'].includes(model.provider);
-        
-        let statusClass = 'status-error';
-        let statusText = 'Unavailable';
-        
-        if (model.available) {
-            statusClass = isApi ? 'status-api' : 'status-ok';
-            statusText = isApi ? 'API Ready' : 'Available';
-        } else if (model.status === 'INVALID_KEY') {
-            statusClass = 'status-warning';
-            statusText = 'Invalid Key';
-        }
+    const tbody = document.getElementById('api-tbody');
+    Object.entries(apiModelsData).forEach(([modelId, model]) => {
+        const statusClass = model.available ? 'status-ok' : 'status-error';
+        const statusText = model.api_status || 'Unknown';
+        const inputCost = model.cost_per_1k_input ? `$${model.cost_per_1k_input.toFixed(4)}` : '$0.0000';
+        const outputCost = model.cost_per_1k_output ? `$${model.cost_per_1k_output.toFixed(4)}` : '$0.0000';
+        const usage = model.usage || {};
+        const totalCost = usage.total_cost || 0;
+        const totalTokens = usage.total_tokens || 0;
 
-        const costInfo = isApi ? `
-            <div class="detail-item">
-                <span class="detail-label">Cost (Input/1K):</span>
-                <span class="detail-value">$${model.cost_per_1k_input || 0}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Cost (Output/1K):</span>
-                <span class="detail-value">$${model.cost_per_1k_output || 0}</span>
-            </div>
-        ` : '';
-
-        const portInfo = model.port ? `
-            <div class="detail-item">
-                <span class="detail-label">Port:</span>
-                <span class="detail-value">${model.port}</span>
-            </div>
-        ` : '';
-
-        card.innerHTML = `
-            <div class="model-header">
-                <div class="model-name">${model.name}</div>
-                <div class="status-badge ${statusClass}">${statusText}</div>
-            </div>
-            <div class="model-details">
-                <div class="detail-item">
-                    <span class="detail-label">Provider:</span>
-                    <span class="detail-value">${model.provider.toUpperCase()}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">Type:</span>
-                    <span class="detail-value">${isLocal ? 'Local' : 'API'}</span>
-                </div>
-                ${portInfo}
-                <div class="detail-item">
-                    <span class="detail-label">Status:</span>
-                    <span class="detail-value">${model.status}</span>
-                </div>
-                ${costInfo}
-            </div>
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><span class="status-icon ${statusClass}"></span> ${statusText}</td>
+            <td class="model-name-cell">${model.name}<div class="model-id-sub">${modelId}</div></td>
+            <td><span class="provider-badge provider-api">${model.provider.toUpperCase()}</span></td>
+            <td class="cost-cell">${inputCost}/1K</td>
+            <td class="cost-cell">${outputCost}/1K</td>
+            <td class="usage-cell">
+                <span class="usage-value">${totalCost > 0 ? `$${totalCost.toFixed(4)}` : '$0.00'}</span>
+                <div class="last-tested">${totalTokens.toLocaleString()} tokens</div>
+            </td>
         `;
-        container.appendChild(card);
+        tbody.appendChild(tr);
     });
 }
 
-async function loadEnvConfig() {
-    try {
-        const response = await fetch('/api/env/config');
-        const data = await response.json();
-        
-        if (data.status === 'ok') {
-            renderEnvConfig(data);
-        }
-    } catch (error) {
-        document.getElementById('env-config').innerHTML = '<div class="error">Error loading .env</div>';
-    }
-}
-
-function renderEnvConfig(data) {
-    const container = document.getElementById('env-config');
-    container.innerHTML = '';
-
-    const groupedKeys = {
-        'OpenAI': ['OPENAI_API_KEY', 'OPENAI_MODEL_NAME'],
-        'Anthropic': ['ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL_NAME_HIGH'],
-        'Google Gemini': ['GEMINI_API_KEY', 'GEMINI_MODEL_NAME_HIGH'],
-        'DeepSeek': ['DEEPSEEK_API_KEY'],
-        'Kimi K2': ['KIMI_API_KEY', 'KIMI_MODEL_NAME']
-    };
-
-    Object.entries(groupedKeys).forEach(([groupName, keys]) => {
-        const groupDiv = document.createElement('div');
-        groupDiv.className = 'env-section';
-        groupDiv.innerHTML = `<h3>${groupName}</h3>`;
-        
-        keys.forEach(key => {
-            const value = data.config[key] || 'Not set';
-            const isKey = key.includes('API_KEY');
-            let status = 'placeholder';
-            
-            if (isKey) {
-                if (!value || value.includes('your_') || value.length < 10) {
-                    status = 'invalid';
-                } else {
-                    status = 'valid';
-                }
-            } else if (value && value !== 'Not set') {
-                status = 'valid';
-            }
-
-            const keyDiv = document.createElement('div');
-            keyDiv.className = 'env-key';
-            keyDiv.innerHTML = `
-                <span class="key-name">${key}</span>
-                <span class="key-status ${status}">${value}</span>
-            `;
-            groupDiv.appendChild(keyDiv);
-        });
-        container.appendChild(groupDiv);
-    });
-}
-
-function renderUsage(usage) {
-    const container = document.getElementById('usage-stats');
-    container.innerHTML = `
-        <div class="usage-summary">
-            <div><strong>Total Requests:</strong> ${usage.total_requests || 0}</div>
-            <div><strong>Total Tokens:</strong> ${usage.total_tokens || 0}</div>
-            <div><strong>Total Cost:</strong> $${(usage.total_cost || 0).toFixed(4)}</div>
-        </div>
-        ${Object.keys(usage.models || {}).length > 0 ? `
-            <div class="usage-details">
-                <h4>By Model:</h4>
-                ${Object.entries(usage.models || {}).map(([model, stats]) => `
-                    <div class="model-usage">
-                        <strong>${model}:</strong> ${stats.requests || 0} requests, ${stats.tokens || 0} tokens, $${(stats.cost || 0).toFixed(4)}
-                    </div>
-                `).join('')}
-            </div>
-        ` : '<div>No usage data available</div>'}
-    `;
-}
-
-async function loadUsage() {
+async function loadUsageStats() {
     try {
         const response = await fetch('/api/models/usage');
         const data = await response.json();
-        
+
         if (data.status === 'ok') {
-            renderUsage(data.usage);
-        } else {
-            document.getElementById('usage-stats').innerHTML = '<div class="error">Error: ' + (data.message || 'Unknown error') + '</div>';
+            usageData = data.usage;
+            renderUsageStats(data);
         }
     } catch (error) {
-        document.getElementById('usage-stats').innerHTML = '<div class="error">Error loading usage: ' + error.message + '</div>';
+        document.getElementById('usage-stats').innerHTML = '<div class="error">Error loading usage data</div>';
+    }
+}
+
+function renderUsageStats(data) {
+    const container = document.getElementById('usage-stats');
+
+    const totalCost = data.total_cost || 0;
+    const totalRequests = data.total_requests || 0;
+    const totalTokens = data.total_tokens || 0;
+
+    let html = `
+        <div style="background: #1a1f3a; border: 1px solid #3a4568; border-radius: 12px; padding: 2rem; margin-bottom: 2rem;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;">
+                <div>
+                    <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">Total Cost</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #3b82f6;">$${totalCost.toFixed(2)}</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">Total Requests</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #22c55e;">${totalRequests.toLocaleString()}</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">Total Tokens</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #f59e0b;">${totalTokens.toLocaleString()}</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    if (data.models && Object.keys(data.models).length > 0) {
+        html += '<div class="models-table-container"><table class="models-table"><thead><tr><th>Model</th><th>Requests</th><th>Tokens (In/Out/Total)</th><th>Cost</th></tr></thead><tbody>';
+
+        Object.entries(data.models).forEach(([modelName, usage]) => {
+            html += `
+                <tr>
+                    <td class="model-name-cell">${modelName}</td>
+                    <td>${usage.total_requests || 0}</td>
+                    <td class="usage-cell">
+                        ${(usage.total_input_tokens || 0).toLocaleString()} /
+                        ${(usage.total_output_tokens || 0).toLocaleString()} /
+                        <span class="usage-value">${(usage.total_tokens || 0).toLocaleString()}</span>
+                    </td>
+                    <td class="usage-cell">
+                        <span class="usage-value">$${(usage.total_cost || 0).toFixed(4)}</span>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table></div>';
+    }
+
+    container.innerHTML = html;
+}
+
+async function clearUsage() {
+    if (!confirm('Are you sure you want to clear all usage statistics?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/models/usage/clear', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.status === 'ok') {
+            alert('Usage statistics cleared successfully');
+            loadUsageStats();
+            loadAllModels();
+        } else {
+            alert('Error clearing usage: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error clearing usage: ' + error.message);
     }
 }
 
 async function refreshAll() {
-    await Promise.all([
-        loadAllModels(),
-        loadEnvConfig(),
-        loadUsage()
-    ]);
+    loadAllModels();
+    loadUsageStats();
 }
 
-async function clearUsage() {
-    if (confirm('Clear all usage statistics? This cannot be undone.')) {
-        try {
-            const response = await fetch('/api/models/usage/clear', { method: 'POST' });
-            const data = await response.json();
-            if (data.status === 'ok') {
-                await loadUsage();
-                alert('Usage statistics cleared successfully!');
-            }
-        } catch (error) {
-            alert('Failed to clear usage statistics: ' + error.message);
-        }
-    }
-}
-
-document.addEventListener('DOMContentLoaded', refreshAll);
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    refreshAll();
+});
 </script>
 {% endblock %}
