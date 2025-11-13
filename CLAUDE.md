@@ -4,6 +4,16 @@ This file provides guidance to Claude Code when working with this repository.
 
 ---
 
+## 🚀 SESSION STARTUP
+
+**IMPORTANT**: When starting a new conversation, ALWAYS run `/restore` to load the last session context.
+This helps you quickly understand what was accomplished and what needs work.
+
+- Use `/restore` for concise summary (recommended)
+- Use `/restore --git` for detailed git status
+
+---
+
 ## 🚨 CRITICAL: READ LONG-TERM MEMORY FIRST
 
 **Before doing ANYTHING, read [LNSP_LONG_TERM_MEMORY.md](LNSP_LONG_TERM_MEMORY.md)**

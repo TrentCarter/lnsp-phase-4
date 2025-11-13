@@ -152,7 +152,17 @@ Confirm completion:
 - ✅ [If --restart] HMI service restarted on http://localhost:6101
 - ✅ Audio notification played: "wrap up complete"
 
-Ready for `/clear` when you're done.
+## Step 7: Exit Reminder
+
+After completion, remind the user to exit:
+
+```
+✅ Session wrapped up successfully!
+
+Use /exit to end the session.
+```
+
+**Note:** `/exit` cannot be triggered automatically - user must run it manually.
 
 ## Notes
 

@@ -2,98 +2,139 @@
 
 This command loads the context from the previous work session to help you quickly resume work.
 
+## Usage
+
+- `/restore` - Load last session summary (concise output)
+- `/restore --git` - Load last session summary + detailed git status
+
 ## What This Does
 
-1. **Loads `docs/last_summary.md` into context** - This contains a concise summary of what was accomplished in the last session
-2. **Shows you where you left off** - Key changes, current state, and next steps
-3. **Provides quick start instructions** - Immediate actions to resume work
+1. **Loads `docs/last_summary.md` into context** - Contains summary of last session
+2. **Shows where you left off** - Key changes, current state, next steps
+3. **Checks running services** - Verify what's currently active
+4. **Optional git details** - Only with `--git` flag
 
 ## Step 1: Load Last Summary
 
-Read and present the contents of `docs/last_summary.md` to the user.
+Read and present the contents of `docs/last_summary.md` to the user in **CONCISE** format.
 
 If the file doesn't exist:
 - Inform the user that no previous session summary was found
 - Suggest running `/wrap-up` at the end of their next session to create one
-- Offer to search for the most recent session summary in `docs/session_summaries/`
 
 ## Step 2: Verify Current State
 
-After loading the summary, verify the current state:
+**Always check:**
+1. **Check running services:**
+   ```bash
+   lsof -ti:6101 > /dev/null && echo "HMI running" || echo "HMI not running"
+   lsof -ti:6120 > /dev/null && echo "Gateway running" || echo "Gateway not running"
+   curl -s http://localhost:11434/api/tags >/dev/null 2>&1 && echo "Ollama running" || echo "Ollama not running"
+   ```
 
+**Only if `--git` flag is present:**
 1. **Check git branch:**
    ```bash
    git branch --show-current
    ```
-   Compare to the branch in `last_summary.md`
 
 2. **Check git status:**
    ```bash
    git status --short
    ```
-   Show any uncommitted changes
 
-3. **Check running services:**
-   ```bash
-   lsof -ti:6101 > /dev/null && echo "HMI running" || echo "HMI not running"
-   ```
+3. **Show uncommitted file details**
 
-## Step 3: Present Quick Start
+## Step 3: Present Concise Summary
 
-Based on the "Quick Start Next Session" section in `last_summary.md`, present:
-- Immediate next actions
-- Any services that need to be started
-- Files to review or edit
-- Tests to run
+**Default output format (NO --git flag):**
 
-## Step 4: Offer Next Steps
+```
+📋 Restored Context
 
-Ask the user:
-- "Would you like to continue where you left off?"
-- "Do you need me to explain any of the previous changes?"
-- "Should I start a specific task from the 'What Needs Work' list?"
+**Last Session (DATE):** [One-line summary of what was accomplished]
+
+**Services:** [✓/✗ for HMI, Gateway, Ollama]
+
+**What's Working:**
+- [3-5 bullet points max]
+
+**What Needs Work:**
+- [ ] [Top 3 priorities]
+
+Would you like to [continue/commit/start next task]?
+```
+
+**With --git flag:**
+
+Add these sections:
+```
+**Current Branch:** [branch name]
+
+**Uncommitted Changes:**
+[git status --short output]
+
+**Files Modified:**
+- [list of modified files with brief description]
+```
 
 ## Important Notes:
 
-- **DO NOT** load `all_project_summary.md` - it's too large and is archival only
-- **DO load** `last_summary.md` - it's designed for quick context loading
+- **BE CONCISE** - Default output should be <15 lines
+- **DO NOT** load `all_project_summary.md` - it's archival only
+- **DO load** `last_summary.md` - designed for quick context loading
+- **DO NOT** show verbose git details unless `--git` flag is used
 - Focus on helping the user resume work quickly
-- If unclear, ask what they want to work on
 
-## Example Output
+## Example Outputs
 
-After running `/restore`, you should present something like:
+### Example 1: `/restore` (default - concise)
 
 ```
-📋 Restored Context from Last Session
+📋 Restored Context
 
-**Date:** 2025-11-11
-**Branch:** feature/aider-lco-p0
-**Duration:** 2 hours
+**Last Session (2025-11-13):** Fixed LLM chat interface bugs - multi-provider routing working
 
-## What Was Accomplished Last Session
-
-[Summary from last_summary.md]
-
-## Current State
+**Services:** ✓ HMI, Gateway, Ollama
 
 **What's Working:**
-- [List from last_summary.md]
+- Ollama models streaming correctly
+- Multi-provider routing infrastructure
+- Input re-enabling fixed
 
 **What Needs Work:**
-- [ ] [Items from last_summary.md]
+- [ ] Browser cache (need hard refresh)
+- [ ] OpenAI/Google SDK implementation
+- [ ] Token cost tracking
 
-## Quick Start
+Would you like to commit the current work or continue with next priorities?
+```
 
-Ready to resume! Here's what you were working on:
-1. [First task]
-2. [Second task]
+### Example 2: `/restore --git` (verbose)
 
-**Current Git Status:**
-[Show git status output]
+```
+📋 Restored Context
 
-**Services Status:**
-[Show service status]
+**Last Session (2025-11-13):** Fixed LLM chat interface bugs - multi-provider routing working
 
-Would you like to continue where you left off?
+**Current Branch:** feature/aider-lco-p0
+
+**Services:** ✓ HMI, Gateway, Ollama
+
+**Uncommitted Changes:**
+ M services/gateway/gateway.py
+ M services/webui/templates/llm.html
+?? services/webui/templates/llm_multi_select.js
+
+**What's Working:**
+- Ollama models streaming correctly
+- Multi-provider routing infrastructure
+- Input re-enabling fixed
+
+**What Needs Work:**
+- [ ] Browser cache (need hard refresh)
+- [ ] Commit current session work
+- [ ] OpenAI/Google SDK implementation
+
+Would you like to commit using `/wrap-up`?
 ```
