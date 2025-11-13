@@ -103,6 +103,39 @@
         user-select: none;
     }
 
+    .section-header-left {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1;
+    }
+
+    .section-drag-handle {
+        cursor: grab;
+        color: #6b7280;
+        font-size: 1.25rem;
+        padding: 0.25rem;
+        transition: color 0.2s;
+        user-select: none;
+    }
+
+    .section-drag-handle:hover {
+        color: #9ca3af;
+    }
+
+    .section-drag-handle:active {
+        cursor: grabbing;
+    }
+
+    .section-container.dragging {
+        opacity: 0.5;
+    }
+
+    .section-container.drag-over {
+        border-top: 3px solid #3b82f6;
+        margin-top: 0.5rem;
+    }
+
     .section-header:hover {
         background: linear-gradient(135deg, #3a4568 0%, #2a3558 100%);
         border-color: #4a5578;
@@ -156,6 +189,31 @@
         font-weight: 600;
         margin-left: 0.75rem;
     }
+
+    /* Reset Stats Button */
+    .reset-button {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        border: none;
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+
+    .reset-button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(245, 158, 11, 0.4);
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    }
+
+    .reset-button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(245, 158, 11, 0.4);
+    }
 </style>
 {% endblock %}
 
@@ -164,10 +222,13 @@
     <div id="alerts-container"></div>
 
     <!-- System Metrics Section -->
-    <div class="section-container">
-        <div class="section-header" onclick="toggleSection('system-metrics')">
-            <h2>System Metrics <span class="section-badge" id="system-health-badge">-</span></h2>
-            <div class="section-toggle">
+    <div class="section-container" data-section-id="system-metrics" draggable="true">
+        <div class="section-header">
+            <div class="section-header-left" onclick="toggleSection('system-metrics')">
+                <span class="section-drag-handle" draggable="true" onclick="event.stopPropagation()">☰</span>
+                <h2>System Metrics <span class="section-badge" id="system-health-badge">-</span></h2>
+            </div>
+            <div class="section-toggle" onclick="toggleSection('system-metrics')">
                 <span class="section-toggle-text">Collapse</span>
                 <span class="section-toggle-icon">▼</span>
             </div>
@@ -204,12 +265,20 @@
     </div>
 
     <!-- TRON HHMRS Status Section -->
-    <div class="section-container">
-        <div class="section-header" onclick="toggleSection('tron-status')">
-            <h2>⚡ TRON HHMRS <span class="section-badge" id="tron-badge">0 events</span></h2>
-            <div class="section-toggle">
-                <span class="section-toggle-text">Collapse</span>
-                <span class="section-toggle-icon">▼</span>
+    <div class="section-container" data-section-id="tron-status" draggable="true">
+        <div class="section-header">
+            <div class="section-header-left" onclick="toggleSection('tron-status')">
+                <span class="section-drag-handle" draggable="true" onclick="event.stopPropagation()">☰</span>
+                <h2>⚡ TRON HHMRS <span class="section-badge" id="tron-badge">0 events</span></h2>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button onclick="resetTronStats()" class="reset-button" title="Reset all TRON statistics">
+                    🔄 Reset Stats
+                </button>
+                <div class="section-toggle" onclick="toggleSection('tron-status')">
+                    <span class="section-toggle-text">Collapse</span>
+                    <span class="section-toggle-icon">▼</span>
+                </div>
             </div>
         </div>
         <div class="section-content" id="tron-status-content">
@@ -247,10 +316,13 @@
     </div>
 
     <!-- Core Services Section -->
-    <div class="section-container">
-        <div class="section-header" onclick="toggleSection('core-services')">
-            <h2>Core Services <span class="section-badge" id="core-services-badge">5</span></h2>
-            <div class="section-toggle">
+    <div class="section-container" data-section-id="core-services" draggable="true">
+        <div class="section-header">
+            <div class="section-header-left" onclick="toggleSection('core-services')">
+                <span class="section-drag-handle" draggable="true" onclick="event.stopPropagation()">☰</span>
+                <h2>Core Services <span class="section-badge" id="core-services-badge">5</span></h2>
+            </div>
+            <div class="section-toggle" onclick="toggleSection('core-services')">
                 <span class="section-toggle-text">Collapse</span>
                 <span class="section-toggle-icon">▼</span>
             </div>
@@ -266,12 +338,20 @@
     </div>
 
     <!-- Programmer Pool Section -->
-    <div class="section-container">
-        <div class="section-header" onclick="toggleSection('programmer-pool')">
-            <h2>💻 Programmer Pool <span class="section-badge" id="pool-badge">-</span></h2>
-            <div class="section-toggle">
-                <span class="section-toggle-text">Collapse</span>
-                <span class="section-toggle-icon">▼</span>
+    <div class="section-container" data-section-id="programmer-pool" draggable="true">
+        <div class="section-header">
+            <div class="section-header-left" onclick="toggleSection('programmer-pool')">
+                <span class="section-drag-handle" draggable="true" onclick="event.stopPropagation()">☰</span>
+                <h2>💻 Programmer Pool <span class="section-badge" id="pool-badge">-</span></h2>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button onclick="resetPoolStats()" class="reset-button" title="Reset programmer pool statistics">
+                    🔄 Reset Stats
+                </button>
+                <div class="section-toggle" onclick="toggleSection('programmer-pool')">
+                    <span class="section-toggle-text">Collapse</span>
+                    <span class="section-toggle-icon">▼</span>
+                </div>
             </div>
         </div>
         <div class="section-content" id="programmer-pool-content">
@@ -310,10 +390,13 @@
     </div>
 
     <!-- Registered Agents Section -->
-    <div class="section-container">
-        <div class="section-header" onclick="toggleSection('registered-agents')">
-            <h2>Registered Agents <span class="section-badge" id="agents-badge">0</span></h2>
-            <div class="section-toggle">
+    <div class="section-container" data-section-id="registered-agents" draggable="true">
+        <div class="section-header">
+            <div class="section-header-left" onclick="toggleSection('registered-agents')">
+                <span class="section-drag-handle" draggable="true" onclick="event.stopPropagation()">☰</span>
+                <h2>Registered Agents <span class="section-badge" id="agents-badge">0</span></h2>
+            </div>
+            <div class="section-toggle" onclick="toggleSection('registered-agents')">
                 <span class="section-toggle-text">Collapse</span>
                 <span class="section-toggle-icon">▼</span>
             </div>
@@ -327,11 +410,66 @@
         </div>
     </div>
 
+    <!-- LLM Metrics Section -->
+    <div class="section-container" data-section-id="llm-metrics" draggable="true">
+        <div class="section-header">
+            <div class="section-header-left" onclick="toggleSection('llm-metrics')">
+                <span class="section-drag-handle" draggable="true" onclick="event.stopPropagation()">☰</span>
+                <h2>🤖 LLM Metrics <span class="section-badge" id="llm-badge">0 models</span></h2>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button onclick="resetLLMStats()" class="reset-button" title="Reset LLM statistics (clears chat database)">
+                    🔄 Reset Stats
+                </button>
+                <div class="section-toggle" onclick="toggleSection('llm-metrics')">
+                    <span class="section-toggle-text">Collapse</span>
+                    <span class="section-toggle-icon">▼</span>
+                </div>
+            </div>
+        </div>
+        <div class="section-content" id="llm-metrics-content">
+            <!-- Overall Totals -->
+            <div class="metrics-row" style="margin-top: 1rem;">
+                <div class="metric-card">
+                    <h3>Total Tokens</h3>
+                    <div class="value" id="llm-total-tokens">0</div>
+                    <div class="subtext">All models</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Total Messages</h3>
+                    <div class="value" id="llm-total-messages">0</div>
+                    <div class="subtext">Conversations</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Total Sessions</h3>
+                    <div class="value" id="llm-total-sessions">0</div>
+                    <div class="subtext">Chat sessions</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Total Cost</h3>
+                    <div class="value" id="llm-total-cost">$0.000</div>
+                    <div class="subtext">API models only</div>
+                </div>
+            </div>
+
+            <!-- Per-Model Breakdown -->
+            <div style="margin-top: 2rem; background: linear-gradient(135deg, #1e2747 0%, #2a3558 100%); border: 1px solid #3a4568; border-radius: 12px; padding: 1.5rem;">
+                <h3 style="color: #fff; margin-bottom: 1rem;">Per-Model Usage</h3>
+                <div id="llm-models-breakdown" style="display: flex; flex-direction: column; gap: 1rem;">
+                    <p style="color: #9ca3af;">No LLM usage data available yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Cost Tracking Section (MOVED TO BOTTOM) -->
-    <div class="section-container">
-        <div class="section-header" onclick="toggleSection('cost-tracking')">
-            <h2>Cost Tracking <span class="section-badge" id="cost-badge">$0.00</span></h2>
-            <div class="section-toggle">
+    <div class="section-container" data-section-id="cost-tracking" draggable="true">
+        <div class="section-header">
+            <div class="section-header-left" onclick="toggleSection('cost-tracking')">
+                <span class="section-drag-handle" draggable="true" onclick="event.stopPropagation()">☰</span>
+                <h2>Cost Tracking <span class="section-badge" id="cost-badge">$0.00</span></h2>
+            </div>
+            <div class="section-toggle" onclick="toggleSection('cost-tracking')">
                 <span class="section-toggle-text">Collapse</span>
                 <span class="section-toggle-icon">▼</span>
             </div>
@@ -391,6 +529,32 @@
         fetchAgents(); // Re-render with new collapsed state
     }
 
+    // Load collapsed sections state from localStorage
+    function loadCollapsedSections() {
+        const collapsed = JSON.parse(localStorage.getItem('dashboardCollapsedSections') || '[]');
+        collapsed.forEach(sectionId => {
+            const content = document.getElementById(`${sectionId}-content`);
+            const header = content?.previousElementSibling;
+            const toggleText = header?.querySelector('.section-toggle-text');
+
+            if (content && header) {
+                content.classList.add('collapsed');
+                header.classList.add('collapsed');
+                if (toggleText) toggleText.textContent = 'Expand';
+            }
+        });
+    }
+
+    // Save collapsed sections state to localStorage
+    function saveCollapsedSections() {
+        const collapsed = [];
+        document.querySelectorAll('.section-content.collapsed').forEach(content => {
+            const sectionId = content.id.replace('-content', '');
+            collapsed.push(sectionId);
+        });
+        localStorage.setItem('dashboardCollapsedSections', JSON.stringify(collapsed));
+    }
+
     // Collapsible Section Toggle
     function toggleSection(sectionId) {
         const content = document.getElementById(`${sectionId}-content`);
@@ -406,6 +570,9 @@
             header.classList.add('collapsed');
             toggleText.textContent = 'Expand';
         }
+
+        // Save state to localStorage
+        saveCollapsedSections();
     }
 
     // Track TRON events for dashboard display
@@ -511,6 +678,9 @@
                 `;
             }).join('');
         }
+
+        // Save updated stats to localStorage
+        saveTronStats();
     }
 
     // Format timestamp to "5m ago", "2h ago", etc.
@@ -523,6 +693,116 @@
         if (hours < 24) return `${hours}h ago`;
         const days = Math.floor(hours / 24);
         return `${days}d ago`;
+    }
+
+    // Reset TRON statistics
+    function resetTronStats() {
+        if (!confirm('Are you sure you want to reset all TRON statistics? This will clear all counters and event history.')) {
+            return;
+        }
+
+        // Reset counters
+        window.dashboardTronCounts = {
+            timeouts: 0,
+            restarts: 0,
+            escalations: 0,
+            failures: 0
+        };
+
+        // Reset events list
+        window.dashboardTronEvents = [];
+
+        // Update UI
+        document.getElementById('tron-timeouts').textContent = '0';
+        document.getElementById('tron-restarts').textContent = '0';
+        document.getElementById('tron-escalations').textContent = '0';
+        document.getElementById('tron-failures').textContent = '0';
+        document.getElementById('tron-badge').textContent = '0 events';
+
+        // Clear events list
+        const eventsList = document.getElementById('tron-events-list');
+        eventsList.innerHTML = '<p style="color: #9ca3af; font-size: 0.875rem;">No TRON events yet</p>';
+
+        // Save to localStorage
+        saveTronStats();
+
+        console.log('TRON statistics reset');
+    }
+
+    // Reset Programmer Pool statistics
+    function resetPoolStats() {
+        if (!confirm('Are you sure you want to reset Programmer Pool statistics? This action cannot be undone.')) {
+            return;
+        }
+
+        // Note: Pool stats come from the backend API, so we can only reset the display
+        // The actual backend stats will be updated on the next API call
+        document.getElementById('pool-total').textContent = '-';
+        document.getElementById('pool-available').textContent = '-';
+        document.getElementById('pool-busy').textContent = '-';
+        document.getElementById('pool-completed').textContent = '-';
+        document.getElementById('pool-success-rate').textContent = 'Success rate: -%';
+        document.getElementById('pool-badge').textContent = '-';
+
+        // Clear programmer cards
+        const programmersContainer = document.getElementById('programmers-container');
+        programmersContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading programmers...</p></div>';
+
+        console.log('Programmer Pool statistics display reset - will update on next API refresh');
+    }
+
+    // Save TRON stats to localStorage
+    function saveTronStats() {
+        try {
+            localStorage.setItem('dashboardTronCounts', JSON.stringify(window.dashboardTronCounts));
+            localStorage.setItem('dashboardTronEvents', JSON.stringify(window.dashboardTronEvents));
+        } catch (e) {
+            console.error('Failed to save TRON stats to localStorage:', e);
+        }
+    }
+
+    // Load TRON stats from localStorage
+    function loadTronStats() {
+        try {
+            const savedCounts = localStorage.getItem('dashboardTronCounts');
+            const savedEvents = localStorage.getItem('dashboardTronEvents');
+
+            if (savedCounts) {
+                window.dashboardTronCounts = JSON.parse(savedCounts);
+                document.getElementById('tron-timeouts').textContent = window.dashboardTronCounts.timeouts;
+                document.getElementById('tron-restarts').textContent = window.dashboardTronCounts.restarts;
+                document.getElementById('tron-escalations').textContent = window.dashboardTronCounts.escalations;
+                document.getElementById('tron-failures').textContent = window.dashboardTronCounts.failures;
+
+                const totalEvents = Object.values(window.dashboardTronCounts).reduce((sum, val) => sum + val, 0);
+                document.getElementById('tron-badge').textContent = `${totalEvents} event${totalEvents !== 1 ? 's' : ''}`;
+            }
+
+            if (savedEvents) {
+                window.dashboardTronEvents = JSON.parse(savedEvents);
+
+                // Render events list
+                const eventsList = document.getElementById('tron-events-list');
+                if (window.dashboardTronEvents.length === 0) {
+                    eventsList.innerHTML = '<p style="color: #9ca3af; font-size: 0.875rem;">No TRON events yet</p>';
+                } else {
+                    eventsList.innerHTML = window.dashboardTronEvents.map(evt => {
+                        const timeAgo = formatTimeAgo(evt.timestamp);
+                        return `
+                            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 6px; border-left: 3px solid #ff6c00;">
+                                <span style="font-size: 1.25rem;">${evt.icon}</span>
+                                <div style="flex: 1;">
+                                    <div style="color: #fff; font-weight: 600; font-size: 0.875rem;">${evt.label}: ${evt.agent_id}</div>
+                                    <div style="color: #9ca3af; font-size: 0.75rem;">${timeAgo}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load TRON stats from localStorage:', e);
+        }
     }
 
     function updateServiceCard(data) {
@@ -707,6 +987,124 @@
         } catch (error) {
             console.error('Error fetching cost metrics:', error);
         }
+    }
+
+    async function fetchLLMMetrics() {
+        try {
+            const response = await fetch('/api/llm/stats');
+            const data = await response.json();
+
+            if (!data.models || !data.totals) {
+                return;
+            }
+
+            const totals = data.totals;
+            const models = data.models;
+
+            // Update totals
+            document.getElementById('llm-total-tokens').textContent =
+                (totals.total_tokens || 0).toLocaleString();
+            document.getElementById('llm-total-messages').textContent =
+                (totals.total_messages || 0).toLocaleString();
+            document.getElementById('llm-total-sessions').textContent =
+                (totals.total_sessions || 0).toLocaleString();
+            document.getElementById('llm-total-cost').textContent =
+                `$${(totals.total_cost_usd || 0).toFixed(3)}`;
+
+            // Update badge
+            const modelCount = Object.keys(models).length;
+            document.getElementById('llm-badge').textContent =
+                `${modelCount} model${modelCount !== 1 ? 's' : ''}`;
+
+            // Update per-model breakdown
+            const breakdown = document.getElementById('llm-models-breakdown');
+            if (modelCount === 0) {
+                breakdown.innerHTML = '<p style="color: #9ca3af;">No LLM usage data available yet</p>';
+            } else {
+                breakdown.innerHTML = Object.entries(models)
+                    .sort((a, b) => b[1].total_tokens - a[1].total_tokens)
+                    .map(([modelKey, stats]) => {
+                        const costDisplay = stats.total_cost_usd > 0
+                            ? `<span style="color: #fbbf24; font-weight: 600; font-size: 0.75rem;">$${stats.total_cost_usd.toFixed(3)}</span>`
+                            : '<span style="color: #6b7280; font-size: 0.7rem;">Free</span>';
+
+                        return `
+                            <div style="
+                                background: rgba(0, 0, 0, 0.3);
+                                padding: 0.5rem 0.75rem;
+                                border-radius: 6px;
+                                border-left: 2px solid #3b82f6;
+                                display: flex;
+                                align-items: center;
+                                justify-content: space-between;
+                                gap: 1rem;
+                            ">
+                                <div style="flex: 0 0 auto; min-width: 150px;">
+                                    <div style="color: #fff; font-weight: 600; font-size: 0.8rem;">
+                                        ${stats.model_name}
+                                    </div>
+                                    <div style="color: #9ca3af; font-size: 0.65rem;">
+                                        ${stats.provider}
+                                    </div>
+                                </div>
+                                <div style="flex: 1; display: flex; gap: 1.5rem; font-size: 0.7rem;">
+                                    <div style="text-align: center;">
+                                        <div style="color: #6b7280;">Tokens</div>
+                                        <div style="color: #e0e0e0; font-weight: 600;">${stats.total_tokens.toLocaleString()}</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="color: #6b7280;">In</div>
+                                        <div style="color: #10b981; font-weight: 600;">${stats.input_tokens.toLocaleString()}</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="color: #6b7280;">Out</div>
+                                        <div style="color: #3b82f6; font-weight: 600;">${stats.output_tokens.toLocaleString()}</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="color: #6b7280;">Msgs</div>
+                                        <div style="color: #e0e0e0; font-weight: 600;">${stats.message_count}</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="color: #6b7280;">Sessions</div>
+                                        <div style="color: #e0e0e0; font-weight: 600;">${stats.session_count}</div>
+                                    </div>
+                                </div>
+                                <div style="flex: 0 0 auto; text-align: right; min-width: 50px;">
+                                    ${costDisplay}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+            }
+
+        } catch (error) {
+            console.error('Error fetching LLM metrics:', error);
+        }
+    }
+
+    // Reset LLM statistics (WARNING: This clears the chat database!)
+    function resetLLMStats() {
+        if (!confirm('⚠️ WARNING: This will DELETE ALL chat history and LLM statistics from the database.\n\nThis action CANNOT be undone.\n\nAre you absolutely sure you want to continue?')) {
+            return;
+        }
+
+        // Second confirmation for safety
+        if (!confirm('This is your last chance to cancel.\n\nClick OK to permanently delete all LLM data.')) {
+            return;
+        }
+
+        // TODO: Implement backend endpoint to clear chat database
+        // For now, just reset the display
+        document.getElementById('llm-total-tokens').textContent = '0';
+        document.getElementById('llm-total-messages').textContent = '0';
+        document.getElementById('llm-total-sessions').textContent = '0';
+        document.getElementById('llm-total-cost').textContent = '$0.000';
+        document.getElementById('llm-badge').textContent = '0 models';
+        document.getElementById('llm-models-breakdown').innerHTML =
+            '<p style="color: #9ca3af;">No LLM usage data available yet</p>';
+
+        console.log('LLM statistics reset (UI only - backend endpoint needed)');
+        alert('⚠️ UI reset complete.\n\nNote: Backend database clearing needs to be implemented.');
     }
 
     function updateCoreServicesDisplay(services) {
@@ -959,6 +1357,7 @@
                 fetchMetrics();
                 fetchAgents();
                 fetchCostMetrics();
+                fetchLLMMetrics();
                 fetchProgrammerPool();
             }, intervalMs);
         } else {
@@ -1063,11 +1462,139 @@
         }).join('');
     }
 
+    // Drag and Drop functionality for section reordering
+    let draggedSection = null;
+
+    function initializeDragAndDrop() {
+        const sections = document.querySelectorAll('.section-container');
+
+        sections.forEach(section => {
+            section.addEventListener('dragstart', (e) => {
+                draggedSection = section;
+                section.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', section.innerHTML);
+            });
+
+            section.addEventListener('dragend', (e) => {
+                section.classList.remove('dragging');
+                // Remove all drag-over classes
+                document.querySelectorAll('.section-container').forEach(s => {
+                    s.classList.remove('drag-over');
+                });
+                draggedSection = null;
+
+                // Save new order
+                saveSectionOrder();
+            });
+
+            section.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+
+                const afterElement = getDragAfterElement(e.clientY);
+                if (afterElement == null) {
+                    section.parentElement.appendChild(draggedSection);
+                } else {
+                    section.parentElement.insertBefore(draggedSection, afterElement);
+                }
+            });
+
+            section.addEventListener('dragenter', (e) => {
+                if (draggedSection !== section) {
+                    section.classList.add('drag-over');
+                }
+            });
+
+            section.addEventListener('dragleave', (e) => {
+                section.classList.remove('drag-over');
+            });
+
+            section.addEventListener('drop', (e) => {
+                e.stopPropagation();
+                section.classList.remove('drag-over');
+                return false;
+            });
+        });
+    }
+
+    function getDragAfterElement(y) {
+        const draggableElements = [...document.querySelectorAll('.section-container:not(.dragging)')];
+
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    // Save section order to localStorage
+    function saveSectionOrder() {
+        const order = [];
+        document.querySelectorAll('.section-container').forEach(section => {
+            const sectionId = section.getAttribute('data-section-id');
+            if (sectionId) {
+                order.push(sectionId);
+            }
+        });
+        localStorage.setItem('dashboardSectionOrder', JSON.stringify(order));
+    }
+
+    // Load section order from localStorage and reorder
+    function loadSectionOrder() {
+        const savedOrder = JSON.parse(localStorage.getItem('dashboardSectionOrder') || '[]');
+        if (savedOrder.length === 0) return;
+
+        const container = document.querySelector('.container');
+        const alertsContainer = document.getElementById('alerts-container');
+
+        // Get all sections
+        const sections = {};
+        document.querySelectorAll('.section-container').forEach(section => {
+            const sectionId = section.getAttribute('data-section-id');
+            if (sectionId) {
+                sections[sectionId] = section;
+            }
+        });
+
+        // Reorder based on saved order
+        savedOrder.forEach(sectionId => {
+            if (sections[sectionId]) {
+                container.appendChild(sections[sectionId]);
+            }
+        });
+
+        // Append any sections not in saved order (new sections)
+        Object.entries(sections).forEach(([sectionId, section]) => {
+            if (!savedOrder.includes(sectionId)) {
+                container.appendChild(section);
+            }
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
+        // Load saved section order
+        loadSectionOrder();
+
+        // Load saved collapsed state
+        loadCollapsedSections();
+
+        // Load saved TRON stats
+        loadTronStats();
+
+        // Initialize drag and drop
+        initializeDragAndDrop();
+
         // Initial fetch
         fetchMetrics();
         fetchAgents();
         fetchCostMetrics();
+        fetchLLMMetrics();
         fetchProgrammerPool();
 
         // Settings will be loaded by base.html, which will call applyViewSettings()

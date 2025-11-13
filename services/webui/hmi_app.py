@@ -929,6 +929,139 @@ def get_costs():
         return jsonify({'error': str(e), 'cost_metrics': {}}), 500
 
 
+@app.route('/api/llm/stats', methods=['GET'])
+def get_llm_stats():
+    """
+    Get consolidated LLM statistics with token usage and costs.
+
+    Aggregates data from:
+    - llm_chat.db (Message.usage field for token counts)
+    - Gateway metrics (cost data)
+    - Provider Router (model info)
+
+    Returns per-model stats:
+    {
+        "models": {
+            "llama3.1:8b": {
+                "model_name": "Llama 3.1 8B",
+                "provider": "ollama",
+                "total_tokens": 125000,
+                "input_tokens": 75000,
+                "output_tokens": 50000,
+                "total_cost_usd": 0.0,  # $0 for local models
+                "message_count": 42,
+                "session_count": 5
+            },
+            "claude-sonnet-4": {
+                "model_name": "Claude Sonnet 4",
+                "provider": "anthropic",
+                "total_tokens": 50000,
+                "input_tokens": 30000,
+                "output_tokens": 20000,
+                "total_cost_usd": 1.25,
+                "message_count": 15,
+                "session_count": 3
+            }
+        },
+        "totals": {
+            "total_tokens": 175000,
+            "total_cost_usd": 1.25,
+            "total_messages": 57,
+            "total_sessions": 8
+        }
+    }
+    """
+    try:
+        db = get_db_session()
+
+        # Query all messages with usage data
+        from sqlalchemy import func
+        messages = db.query(Message).filter(Message.usage_json.isnot(None)).all()
+
+        # Aggregate stats by model
+        model_stats = {}
+        total_tokens = 0
+        total_messages = 0
+
+        for msg in messages:
+            usage = msg.get_usage()
+            if not usage:
+                continue
+
+            model_key = msg.model_name or "unknown"
+
+            if model_key not in model_stats:
+                model_stats[model_key] = {
+                    "model_name": model_key,
+                    "provider": "unknown",  # TODO: Map model to provider
+                    "total_tokens": 0,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "total_cost_usd": 0.0,
+                    "message_count": 0,
+                    "session_count": 0,
+                    "session_ids": set()
+                }
+
+            # Aggregate token counts
+            input_tokens = usage.get('input_tokens', 0) or usage.get('prompt_tokens', 0)
+            output_tokens = usage.get('output_tokens', 0) or usage.get('completion_tokens', 0)
+            total_msg_tokens = usage.get('total_tokens', input_tokens + output_tokens)
+
+            model_stats[model_key]["input_tokens"] += input_tokens
+            model_stats[model_key]["output_tokens"] += output_tokens
+            model_stats[model_key]["total_tokens"] += total_msg_tokens
+            model_stats[model_key]["message_count"] += 1
+            model_stats[model_key]["session_ids"].add(msg.session_id)
+
+            total_tokens += total_msg_tokens
+            total_messages += 1
+
+        # Count unique sessions per model
+        for model_key in model_stats:
+            model_stats[model_key]["session_count"] = len(model_stats[model_key]["session_ids"])
+            del model_stats[model_key]["session_ids"]  # Remove set (not JSON serializable)
+
+        # Get cost data from Gateway
+        total_cost = 0.0
+        try:
+            response = requests.get(f'{GATEWAY_URL}/metrics', timeout=5)
+            response.raise_for_status()
+            cost_data = response.json()
+            total_cost = cost_data.get('total_cost_usd', 0.0)
+
+            # Distribute costs proportionally by token count (if we don't have per-model costs)
+            cost_per_provider = cost_data.get('cost_per_provider', {})
+            if total_tokens > 0 and total_cost > 0:
+                for model_key in model_stats:
+                    model_tokens = model_stats[model_key]["total_tokens"]
+                    model_stats[model_key]["total_cost_usd"] = round(
+                        (model_tokens / total_tokens) * total_cost, 4
+                    )
+        except Exception as e:
+            logger.warning(f"Could not fetch cost data from Gateway: {e}")
+
+        # Count total unique sessions
+        total_sessions = db.query(func.count(ConversationSession.session_id)).scalar() or 0
+
+        db.close()
+
+        return jsonify({
+            'models': model_stats,
+            'totals': {
+                'total_tokens': total_tokens,
+                'total_cost_usd': round(total_cost, 4),
+                'total_messages': total_messages,
+                'total_sessions': total_sessions
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching LLM stats: {e}")
+        return jsonify({'error': str(e), 'models': {}, 'totals': {}}), 500
+
+
 @app.route('/api/costs/receipts/<run_id>', methods=['GET'])
 def get_receipts(run_id):
     """Get cost receipts for a specific run"""
@@ -2508,12 +2641,15 @@ def get_available_models():
                     # Extract model name
                     if 'OPENAI_MODEL_NAME=' in env_content:
                         model_line = env_content.split('OPENAI_MODEL_NAME=')[1].split('\n')[0].strip().strip("'\"")
+                        # Check if API key is valid (not placeholder)
+                        api_key = env_content.split('OPENAI_API_KEY=')[1].split('\n')[0].strip().strip("'\"")
+                        is_valid = 'your_' not in api_key and len(api_key) > 10
                         models[f"openai/{model_line}"] = {
                             "name": f"OpenAI {model_line}",
                             "provider": "openai",
                             "description": "OpenAI model",
-                            "available": True,
-                            "status": "API"
+                            "available": is_valid,
+                            "status": "API" if is_valid else "INVALID_KEY"
                         }
 
                 # Check for Anthropic
@@ -2523,12 +2659,14 @@ def get_available_models():
                         key = f'ANTHROPIC_MODEL_NAME_{tier}='
                         if key in env_content:
                             model_line = env_content.split(key)[1].split('\n')[0].strip().strip("'\"")
+                            api_key = env_content.split('ANTHROPIC_API_KEY=')[1].split('\n')[0].strip().strip("'\"")
+                            is_valid = 'your_' not in api_key and len(api_key) > 10
                             models[f"anthropic/{model_line}"] = {
                                 "name": f"Anthropic {model_line}",
                                 "provider": "anthropic",
                                 "description": f"Anthropic Claude ({tier.lower()} tier)",
-                                "available": True,
-                                "status": "API"
+                                "available": is_valid,
+                                "status": "API" if is_valid else "INVALID_KEY"
                             }
 
                 # Check for Gemini
@@ -2537,22 +2675,26 @@ def get_available_models():
                         key = f'GEMINI_MODEL_NAME_{tier}='
                         if key in env_content:
                             model_line = env_content.split(key)[1].split('\n')[0].strip().strip("'\"")
+                            api_key = env_content.split('GEMINI_API_KEY=')[1].split('\n')[0].strip().strip("'\"")
+                            is_valid = 'your_' not in api_key and len(api_key) > 10
                             models[f"google/{model_line}"] = {
                                 "name": f"Google {model_line}",
                                 "provider": "google",
                                 "description": f"Google Gemini ({tier.lower()} tier)",
-                                "available": True,
-                                "status": "API"
+                                "available": is_valid,
+                                "status": "API" if is_valid else "INVALID_KEY"
                             }
 
                 # Check for DeepSeek API
                 if 'DEEPSEEK_API_KEY=' in env_content and 'your_' not in env_content.split('DEEPSEEK_API_KEY=')[1].split('\n')[0]:
+                    api_key = env_content.split('DEEPSEEK_API_KEY=')[1].split('\n')[0].strip().strip("'\"")
+                    is_valid = 'your_' not in api_key and len(api_key) > 10
                     models["deepseek/deepseek-r1"] = {
                         "name": "DeepSeek R1 (API)",
                         "provider": "deepseek",
                         "description": "DeepSeek reasoning model via API",
-                        "available": True,
-                        "status": "API"
+                        "available": is_valid,
+                        "status": "API" if is_valid else "INVALID_KEY"
                     }
         except Exception as e:
             logger.warning(f"Could not parse .env file: {e}")
@@ -2563,13 +2705,79 @@ def get_available_models():
 @app.route('/api/models/available', methods=['GET'])
 def get_available_models_api():
     """Get list of available models"""
+    return jsonify({'status': 'ok', 'models': get_available_models()})
+
+
+@app.route('/api/models/status', methods=['GET'])
+def get_model_status():
+    """Get detailed model status for settings page"""
     try:
         models = get_available_models()
-        return jsonify({
-            'status': 'ok',
-            'models': models
-        })
+        
+        # Add detailed status info with usage tracking
+        status_info = {}
+        for model_id, model in models.items():
+            status_info[model_id] = {
+                'name': model['name'],
+                'provider': model['provider'],
+                'status': model['status'],
+                'available': model['available'],
+                'description': model['description'],
+                'last_check': time.time(),
+                'type': 'local' if model['provider'] == 'local' else 'api',
+                'usage': {
+                    'total_requests': 0,
+                    'total_tokens': 0,
+                    'total_cost': 0.0,
+                    'last_used': None,
+                    'average_tokens_per_request': 0,
+                    'average_cost_per_request': 0.0
+                }
+            }
+            
+            # Add health details for local models
+            if model['provider'] == 'local':
+                status_info[model_id]['port'] = model.get('port', 'N/A')
+                status_info[model_id]['host'] = model.get('host', 'localhost')
+                status_info[model_id]['endpoint'] = f"http://{model.get('host', 'localhost')}:{model.get('port', 'N/A')}"
+            
+            # Add API details for external models
+            if model['provider'] in ['openai', 'anthropic', 'google', 'deepseek']:
+                status_info[model_id]['api_status'] = 'Configured' if model['available'] else 'Invalid Key'
+                status_info[model_id]['api_provider'] = model['provider'].upper()
+            
+        return jsonify({'status': 'ok', 'models': status_info})
     except Exception as e:
+        logger.error(f"Error getting model status: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/models/usage', methods=['GET'])
+def get_model_usage():
+    """Get model usage statistics"""
+    try:
+        # This would typically query a database, but we'll return mock data for now
+        usage_data = {
+            'total_requests': 0,
+            'total_tokens': 0,
+            'total_cost': 0.0,
+            'models': {}
+        }
+        return jsonify({'status': 'ok', 'usage': usage_data})
+    except Exception as e:
+        logger.error(f"Error getting model usage: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/models/usage/clear', methods=['POST'])
+def clear_model_usage():
+    """Clear model usage statistics"""
+    try:
+        # Clear usage statistics (mock implementation)
+        return jsonify({'status': 'ok', 'message': 'Usage statistics cleared'})
+    except Exception as e:
+        logger.error(f"Error clearing model usage: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
         logger.error(f"Error getting available models: {e}")
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
@@ -3291,6 +3499,225 @@ def export_system_report():
         )
     except Exception as e:
         logger.error(f"Error exporting system report: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/settings')
+def settings_page():
+    """Main settings page"""
+    return render_template('settings.html')
+
+
+@app.route('/settings/models')
+def model_pool_settings():
+    """Model Pool settings page - comprehensive model dashboard"""
+    return render_template('settings.html')
+
+
+@app.route('/settings/model-pool')
+def model_pool_dashboard():
+    """Model Pool dashboard"""
+    return render_template('settings.html')
+
+
+@app.route('/settings/llm')
+def llm_settings():
+    """LLM settings page"""
+    return render_template('settings.html')
+
+
+@app.route('/settings/model-pool-api')
+def model_pool_api_settings():
+    """Model Pool API settings page - external API models"""
+    return render_template('settings.html')
+
+
+@app.route('/api/env/config', methods=['GET'])
+def get_env_config():
+    """Get .env configuration"""
+    try:
+        env_config = {}
+        key_status = {}
+        
+        if os.path.exists(ENV_FILE_PATH):
+            with open(ENV_FILE_PATH, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and '=' in line and not line.startswith('#'):
+                        key, value = line.split('=', 1)
+                        value = value.strip('"\'')
+                        env_config[key] = value
+                        
+                        # Check key status
+                        if 'API_KEY' in key:
+                            if 'your_' in value or len(value) < 10:
+                                key_status[key.replace('_API_KEY', '')] = 'invalid'
+                            else:
+                                key_status[key.replace('_API_KEY', '')] = 'valid'
+                        elif 'MODEL_NAME' in key and value:
+                            key_status[key.replace('_MODEL_NAME', '')] = 'configured'
+        
+        return jsonify({
+            'status': 'ok',
+            'config': env_config,
+            'keys': key_status
+        })
+    except Exception as e:
+        logger.error(f"Error reading .env: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/models/api-status', methods=['GET'])
+def get_api_models_status():
+    """Get status of external API models only"""
+    try:
+        models = get_available_models()
+        
+        # Filter for API models only
+        api_models = {}
+        for model_id, model in models.items():
+            if model['provider'] in ['openai', 'anthropic', 'google', 'deepseek']:
+                api_models[model_id] = {
+                    'name': model['name'],
+                    'provider': model['provider'],
+                    'status': model['status'],
+                    'available': model['available'],
+                    'description': model['description'],
+                    'last_check': time.time(),
+                    'api_provider': model['provider'].upper(),
+                    'api_status': 'Configured' if model['available'] else 'Invalid Key',
+                    'cost_per_1k_input': _get_model_cost(model['provider'], model['name']),
+                    'cost_per_1k_output': _get_model_cost(model['provider'], model['name'], output=True)
+                }
+        
+        return jsonify({
+            'status': 'ok', 
+            'models': api_models,
+            'count': len(api_models)
+        })
+    except Exception as e:
+        logger.error(f"Error getting API models status: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+def _get_model_cost(provider, model_name, output=False):
+    """Get cost per 1K tokens for API models"""
+    cost_map = {
+        'openai': {
+            'gpt-4-turbo': {'input': 0.01, 'output': 0.03},
+            'gpt-4': {'input': 0.03, 'output': 0.06},
+            'gpt-3.5-turbo': {'input': 0.0015, 'output': 0.002}
+        },
+        'anthropic': {
+            'claude-sonnet-4-5-20250929': {'input': 0.003, 'output': 0.015},
+            'claude-haiku-4-5': {'input': 0.0008, 'output': 0.004},
+            'claude-opus-4-5-20250929': {'input': 0.015, 'output': 0.075}
+        },
+        'google': {
+            'gemini-2.5-pro-exp-02-05': {'input': 0.0015, 'output': 0.006},
+            'gemini-2.0-flash': {'input': 0.00015, 'output': 0.0006}
+        },
+        'deepseek': {
+            'deepseek-r1': {'input': 0.00055, 'output': 0.00219}
+        }
+    }
+    
+    provider_map = cost_map.get(provider, {})
+    for model_key, costs in provider_map.items():
+        if model_key.lower() in model_name.lower():
+            return costs['output' if output else 'input']
+    
+    return 0.0
+
+
+@app.route('/api/models/local-status', methods=['GET'])
+def get_local_models_status():
+    """Get status of local models only"""
+    try:
+        models = get_available_models()
+        
+        # Filter for local models only
+        local_models = {}
+        for model_id, model in models.items():
+            if model['provider'] == 'local':
+                local_models[model_id] = {
+                    'name': model['name'],
+                    'provider': model['provider'],
+                    'status': model['status'],
+                    'available': model['available'],
+                    'description': model['description'],
+                    'last_check': time.time(),
+                    'host': model.get('host', 'localhost'),
+                    'port': model.get('port', 'N/A'),
+                    'endpoint': f"http://{model.get('host', 'localhost')}:{model.get('port', 'N/A')}"
+                }
+        
+        return jsonify({
+            'status': 'ok',
+            'models': local_models,
+            'count': len(local_models)
+        })
+    except Exception as e:
+        logger.error(f"Error getting local models status: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/settings')
+def settings_page():
+    """Main settings page"""
+    return render_template('settings.html')
+
+
+@app.route('/settings/models')
+def model_pool_settings():
+    """Model Pool settings page"""
+    return render_template('settings.html')
+
+
+@app.route('/settings/model-pool')
+def model_pool_dashboard():
+    """Model Pool dashboard"""
+    return render_template('settings.html')
+
+
+@app.route('/settings/llm')
+def llm_settings():
+    """LLM settings page"""
+    return render_template('settings.html')
+
+
+@app.route('/api/env/config', methods=['GET'])
+def get_env_config():
+    """Get .env configuration"""
+    try:
+        env_config = {}
+        key_status = {}
+        
+        if os.path.exists(ENV_FILE_PATH):
+            with open(ENV_FILE_PATH, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and '=' in line and not line.startswith('#'):
+                        key, value = line.split('=', 1)
+                        value = value.strip('"\'')
+                        env_config[key] = value
+                        
+                        # Check key status
+                        if 'API_KEY' in key:
+                            if 'your_' in value or len(value) < 10:
+                                key_status[key.replace('_API_KEY', '')] = 'invalid'
+                            else:
+                                key_status[key.replace('_API_KEY', '')] = 'valid'
+                        elif 'MODEL_NAME' in key and value:
+                            key_status[key.replace('_MODEL_NAME', '')] = 'configured'
+        
+        return jsonify({
+            'status': 'ok',
+            'config': env_config,
+            'keys': key_status
+        })
+    except Exception as e:
+        logger.error(f"Error reading .env: {e}")
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
 
