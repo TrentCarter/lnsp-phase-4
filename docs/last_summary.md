@@ -1,55 +1,66 @@
 # Last Session Summary
 
-**Date:** 2025-11-13 (Session 88)
-**Duration:** ~30 minutes
+**Date:** 2025-11-13 (Session 129)
+**Duration:** ~45 minutes
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Fixed critical LLM chat conversation memory issue - messages were not maintaining context between turns. Implemented full conversation history retrieval in HMI, updated Gateway to accept messages array, and added localStorage persistence for Agent and Model dropdown selections.
+Fixed critical token usage tracking display issue in Model Pool Dashboard. The backend was correctly tracking 196 tokens across 12 requests, but the frontend table was showing 0 tokens for all models due to data not being merged between the model registry and usage database.
 
 ## Key Changes
 
-### 1. Fixed Conversation Memory (Missing Context Between Messages)
-**Files:** `services/gateway/gateway.py:59-74, 477-488, 809-821`, `services/webui/hmi_app.py:4776-4816`
-**Summary:** Chat interface was only sending the current message to LLM without conversation history, causing memory loss between turns. Added `ChatMessage` model and `messages` array to Gateway's `ChatStreamRequest`. Updated HMI to retrieve full conversation history from database (excluding empty placeholder messages) and send complete message array to Gateway. Updated both Ollama and Kimi streaming functions to use full conversation history instead of single message.
+### 1. Model Pool Auto-Refresh Feature
+**Files:** `services/webui/templates/model_pool_enhanced.html:529-548,618-627` (modified, +23 lines)
+**Summary:** Added auto-refresh functionality (10s interval) and "Last updated" timestamp display. Added comprehensive console logging to track data flow for debugging.
 
-### 2. Added Dropdown Settings Persistence
-**Files:** `services/webui/templates/llm.html:865-892, 894-901, 1055-1068, 1103-1121`
-**Summary:** Agent and Model dropdown selections now persist across page reloads using localStorage. Saves selections to `llm_selected_agent` and `llm_selected_model` keys on change, and restores them on page load with validation that saved options still exist in available options. Falls back to first available option if saved selection is no longer valid.
+### 2. Usage Data Merge Fix
+**Files:** `services/webui/templates/model_pool_enhanced.html:378-413,414-420` (modified, +26 lines)
+**Summary:** Fixed critical bug where usage data from `/api/models/usage` wasn't being merged with model registry. Now properly links usage data by model ID and adds placeholder entries for models that have usage but aren't in current registry.
+
+### 3. Session Artifacts Committed
+**Files:** `artifacts/hmi/hmi.db` (NEW, 0B), `artifacts/hmi/pricing_cache.db` (NEW, 12KB)
+**Summary:** Added conversation memory database and pricing cache to track LLM usage and pricing data.
+
+### 4. Model Preferences Updated
+**Files:** `configs/pas/model_preferences.json` (modified, simplified fallback chains)
+**Summary:** Updated PAS model preferences with simplified fallback chain and local model prioritization.
 
 ## Files Modified
 
-- `services/gateway/gateway.py` - Added ChatMessage model, updated ChatStreamRequest with messages array, modified Ollama/Kimi streaming to use conversation history
-- `services/webui/hmi_app.py` - Added conversation history retrieval, builds messages array from database before forwarding to Gateway
-- `services/webui/templates/llm.html` - Added localStorage save/restore for agent and model selections
+- `services/webui/templates/model_pool_enhanced.html` - Auto-refresh + usage data merge fix
+- `configs/pas/model_preferences.json` - Simplified model fallback chains
+- `docs/readme.txt` - Updated with session notes
+- `scripts/start_all_pas_services.sh` - Service startup modifications
+- `services/webui/templates/model_pool_enhanced.html` - Additional template updates
 
 ## Current State
 
 **What's Working:**
-- ✅ Conversation memory - LLM maintains context across multiple turns (e.g., "5+9" → "14", "add 3" → "17")
-- ✅ Full message history sent to Gateway (excludes empty placeholder assistant messages)
-- ✅ Agent dropdown persists selection across page reloads
-- ✅ Model dropdown persists selection across page reloads
-- ✅ Backward compatibility maintained (legacy `content` field still supported)
-- ✅ Gateway auto-reload working on file changes
-- ✅ Both Ollama and Kimi providers support conversation history
+- ✅ Token usage tracking (196 tokens across 12 requests verified)
+- ✅ Auto-refresh every 10 seconds on Model Pool page
+- ✅ Usage data properly merges with model registry
+- ✅ Models from usage database appear in table even if not in registry
+- ✅ "Last updated" timestamp displays refresh time
+- ✅ Console logging for debugging data flow
 
 **What Needs Work:**
-- [ ] None - all requested features completed
+- [ ] User may need hard refresh (Cmd+Shift+R) to clear browser cache
+- [ ] Model ID normalization between database and registry (e.g., "anthropic/claude-haiku-4-5" vs "anthropic/claude-3-5-haiku-20241022")
 
 ## Important Context for Next Session
 
-1. **Conversation History Architecture**: HMI queries all user/assistant messages from database in chronological order, filters out empty placeholders, builds messages array with `role` and `content`, sends to Gateway. Gateway forwards to LLM provider (Ollama/Kimi). This ensures full conversation context is maintained across turns.
+1. **Token Usage Display**: Usage data is now correctly displayed by merging `usageData.models[modelId]` with model registry data. Models with usage that aren't in the current registry are added as placeholder entries.
 
-2. **LocalStorage Keys**: `llm_selected_agent` stores agent ID, `llm_selected_model` stores model ID. Both restored on page load with validation against available options. Settings persist across browser sessions until cache is cleared.
+2. **Database Location**: LLM chat database is at `services/webui/data/llm_chat.db` (not `artifacts/hmi/llm_chat.db`). Contains 114 messages with 12 having usage data.
 
-3. **Backward Compatibility**: Gateway still accepts legacy `content` field for single-message requests. If `messages` array is empty/missing, falls back to using `content` as a single user message. This prevents breaking older integrations.
+3. **Model ID Mismatch**: Some models have different IDs in the database vs registry (e.g., Anthropic models). The fix handles this by adding missing models from usage data.
 
-4. **Message Filtering**: Empty assistant messages (placeholders created before streaming) are excluded from conversation history to avoid sending incomplete responses to LLM.
+4. **Browser Cache**: Users may need to hard refresh to see changes due to JavaScript caching.
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. Test conversation memory: http://localhost:6101/ - try multi-turn math problems
-3. Test settings persistence: Select agent/model, reload page, verify selections restored
+2. Verify token usage displays correctly on http://localhost:6101/model-pool (after hard refresh)
+3. Consider implementing model ID alias mapping for better consistency
+4. Monitor console logs to ensure usage data is being fetched and merged correctly
