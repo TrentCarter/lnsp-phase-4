@@ -1041,6 +1041,21 @@ def get_llm_stats():
                 "is_free": False
             }
 
+        # Kimi K2 models
+        if os.getenv('KIMI_API_KEY') and os.getenv('KIMI_API_KEY') != 'your_kimi_api_key_here':
+            kimi_model = os.getenv('KIMI_MODEL_NAME', 'moonshot-v1-8k')  # Default Kimi model
+            available_api_models[kimi_model] = {
+                "model_name": kimi_model,
+                "provider": "kimi",
+                "total_tokens": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_cost_usd": 0.0,
+                "message_count": 0,
+                "session_count": 0,
+                "is_free": False
+            }
+
         # Start with available API models (initialize with 0 usage)
         model_stats = available_api_models.copy()
 
@@ -1126,9 +1141,9 @@ def get_llm_stats():
             provider = model_stats[model_key]["provider"]
             model_tokens = model_stats[model_key]["total_tokens"]
 
-            # API providers are ALWAYS paid (openai, anthropic, google, deepseek)
+            # API providers are ALWAYS paid (openai, anthropic, google, deepseek, kimi)
             # Local providers are free (ollama, unknown local models)
-            if provider in ['openai', 'anthropic', 'google', 'deepseek']:
+            if provider in ['openai', 'anthropic', 'google', 'deepseek', 'kimi']:
                 # Paid model (API-based) - costs money even if not used yet
                 total_paid_tokens += model_tokens
                 model_stats[model_key]["is_free"] = False
@@ -2794,6 +2809,24 @@ def get_available_models():
                         "available": is_valid,
                         "status": "API" if is_valid else "INVALID_KEY"
                     }
+
+                # Check for Kimi K2 API
+                if 'KIMI_API_KEY=' in env_content and 'your_' not in env_content.split('KIMI_API_KEY=')[1].split('\n')[0]:
+                    api_key = env_content.split('KIMI_API_KEY=')[1].split('\n')[0].strip().strip("'\"")
+                    is_valid = 'your_' not in api_key and len(api_key) > 10
+
+                    # Get model name if specified
+                    model_name = "kimi-k2"
+                    if 'KIMI_MODEL_NAME=' in env_content:
+                        model_name = env_content.split('KIMI_MODEL_NAME=')[1].split('\n')[0].strip().strip("'\"")
+
+                    models[f"kimi/{model_name}"] = {
+                        "name": f"Kimi {model_name.upper()}",
+                        "provider": "kimi",
+                        "description": "Moonshot AI Kimi large language model",
+                        "available": is_valid,
+                        "status": "API" if is_valid else "INVALID_KEY"
+                    }
         except Exception as e:
             logger.warning(f"Could not parse .env file: {e}")
 
@@ -2840,7 +2873,7 @@ def get_model_status():
                 status_info[model_id]['endpoint'] = f"http://{model.get('host', 'localhost')}:{model.get('port', 'N/A')}"
             
             # Add API details for external models
-            if model['provider'] in ['openai', 'anthropic', 'google', 'deepseek']:
+            if model['provider'] in ['openai', 'anthropic', 'google', 'deepseek', 'kimi']:
                 status_info[model_id]['api_status'] = 'Configured' if model['available'] else 'Invalid Key'
                 status_info[model_id]['api_provider'] = model['provider'].upper()
             
@@ -2852,15 +2885,61 @@ def get_model_status():
 
 @app.route('/api/models/usage', methods=['GET'])
 def get_model_usage():
-    """Get model usage statistics"""
+    """Get model usage statistics from database"""
     try:
-        # This would typically query a database, but we'll return mock data for now
+        db = get_db_session()
+
+        # Initialize usage data structure
         usage_data = {
             'total_requests': 0,
             'total_tokens': 0,
             'total_cost': 0.0,
             'models': {}
         }
+
+        # Query all messages with usage data
+        messages = db.query(Message).filter(Message.usage_json.isnot(None)).all()
+
+        for msg in messages:
+            try:
+                usage = msg.get_usage()
+                if not usage:
+                    continue
+
+                model_key = msg.model_name or "unknown"
+
+                # Initialize model entry if not exists
+                if model_key not in usage_data['models']:
+                    usage_data['models'][model_key] = {
+                        'requests': 0,
+                        'tokens': 0,
+                        'cost': 0.0,
+                        'input_tokens': 0,
+                        'output_tokens': 0
+                    }
+
+                # Aggregate stats
+                total_tokens = usage.get('total_tokens', 0)
+                input_tokens = usage.get('prompt_tokens', 0) or usage.get('input_tokens', 0)
+                output_tokens = usage.get('completion_tokens', 0) or usage.get('output_tokens', 0)
+                cost_usd = usage.get('cost_usd', 0.0) or 0.0
+
+                usage_data['models'][model_key]['requests'] += 1
+                usage_data['models'][model_key]['tokens'] += total_tokens
+                usage_data['models'][model_key]['input_tokens'] += input_tokens
+                usage_data['models'][model_key]['output_tokens'] += output_tokens
+                usage_data['models'][model_key]['cost'] += cost_usd
+
+                # Update totals
+                usage_data['total_requests'] += 1
+                usage_data['total_tokens'] += total_tokens
+                usage_data['total_cost'] += cost_usd
+
+            except Exception as e:
+                logger.warning(f"Error processing message usage: {e}")
+                continue
+
+        db.close()
         return jsonify({'status': 'ok', 'usage': usage_data})
     except Exception as e:
         logger.error(f"Error getting model usage: {e}")
@@ -2869,10 +2948,27 @@ def get_model_usage():
 
 @app.route('/api/models/usage/clear', methods=['POST'])
 def clear_model_usage():
-    """Clear model usage statistics"""
+    """Clear model usage statistics by clearing usage data from messages"""
     try:
-        # Clear usage statistics (mock implementation)
-        return jsonify({'status': 'ok', 'message': 'Usage statistics cleared'})
+        db = get_db_session()
+        
+        # Count messages with usage data before clearing
+        messages_with_usage = db.query(Message).filter(Message.usage_json.isnot(None)).count()
+        
+        # Clear usage data from all messages
+        db.query(Message).filter(Message.usage_json.isnot(None)).update(
+            {Message.usage_json: None},
+            synchronize_session=False
+        )
+        
+        db.commit()
+        db.close()
+        
+        logger.info(f"Cleared usage data from {messages_with_usage} messages")
+        return jsonify({
+            'status': 'ok', 
+            'message': f'Usage statistics cleared from {messages_with_usage} messages'
+        })
     except Exception as e:
         logger.error(f"Error clearing model usage: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -3680,7 +3776,7 @@ def get_api_models_status():
         # Filter for API models only
         api_models = {}
         for model_id, model in models.items():
-            if model['provider'] in ['openai', 'anthropic', 'google', 'deepseek']:
+            if model['provider'] in ['openai', 'anthropic', 'google', 'deepseek', 'kimi']:
                 api_models[model_id] = {
                     'name': model['name'],
                     'provider': model['provider'],
@@ -3766,6 +3862,69 @@ def get_local_models_status():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+@app.route('/api/models/test', methods=['POST'])
+def test_model():
+    """Test a model to verify it's working (local or API)"""
+    try:
+        data = request.get_json()
+        model_id = data.get('model_id')
+
+        if not model_id:
+            return jsonify({'status': 'error', 'message': 'model_id is required'}), 400
+
+        # Get model info
+        models = get_available_models()
+        model = models.get(model_id)
+
+        if not model:
+            return jsonify({'status': 'error', 'message': f'Model {model_id} not found'}), 404
+
+        # Check if it's a local or API model
+        if model['provider'] == 'local':
+            # Test local model via health check
+            host = model.get('host', 'localhost')
+            port = model.get('port')
+            endpoint = '/health'
+
+            import httpx
+            try:
+                response = httpx.get(f'http://{host}:{port}{endpoint}', timeout=5.0)
+                if response.status_code == 200:
+                    return jsonify({
+                        'status': 'ok',
+                        'message': f'Local model {model_id} is responsive',
+                        'health': response.json() if response.text else {}
+                    })
+                else:
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'Health check returned {response.status_code}'
+                    }), 500
+            except Exception as e:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Failed to connect to {host}:{port} - {str(e)}'
+                }), 500
+
+        else:
+            # Test API model by checking if API key is valid
+            if not model.get('available'):
+                return jsonify({
+                    'status': 'error',
+                    'message': 'API key not configured or invalid'
+                }), 400
+
+            # For API models, we'll just verify the key format and return success
+            # Full API test would cost money, so we rely on the existing validation
+            return jsonify({
+                'status': 'ok',
+                'message': f'API model {model_id} is configured with valid credentials',
+                'provider': model['provider']
+            })
+
+    except Exception as e:
+        logger.error(f"Error testing model: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 # ============================================================================

@@ -2,6 +2,8 @@
 source .venv/bin/activate
 claude --dangerously-skip-permissions
 
+  ./scripts/start_all_pas_services.sh
+
 
 
 /docs/SERVICE_PORTS.md

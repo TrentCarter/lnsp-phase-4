@@ -447,12 +447,24 @@
         resize: none;
         min-height: 44px;
         max-height: 120px;
+        caret-color: #3b82f6; /* Bright blue cursor */
     }
 
     .message-input:focus {
         outline: none;
         border-color: #3b82f6;
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        caret-color: #60a5fa; /* Even brighter cursor when focused */
+    }
+
+    /* Animated cursor effect */
+    @keyframes cursor-pulse {
+        0%, 100% { caret-color: #60a5fa; }
+        50% { caret-color: #93c5fd; }
+    }
+
+    .message-input:focus {
+        animation: cursor-pulse 1.5s ease-in-out infinite;
     }
 
     .send-button {
@@ -699,7 +711,7 @@
 </div>
 
 <script>
-    // Version: 2025-11-13-1026 - CACHE BUST: Fixed input re-enabling + model ID defaults
+    // Version: 2025-11-13-1115 - CACHE BUST: Show actual model used when Auto Select chosen
     // State management
     let currentSessionId = null;
     let currentAgentId = 'architect';
@@ -737,6 +749,23 @@
         loadModels();
         loadSessions();
         setupEventListeners();
+
+        // Auto-focus input on page load
+        setTimeout(() => {
+            messageInput.focus();
+        }, 100);
+    });
+
+    // Auto-focus when page becomes visible (tab switching)
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            messageInput.focus();
+        }
+    });
+
+    // Auto-focus on window focus (switching back from other apps)
+    window.addEventListener('focus', () => {
+        messageInput.focus();
     });
 
     function setupEventListeners() {
@@ -968,8 +997,10 @@
                 modelSelector.innerHTML = '';
                 const models = Object.entries(data.models);
                 
-                // Filter only available models
-                const availableModels = models.filter(([_, model]) => model.available && model.status === 'OK');
+                // Filter only available models (include OK and API status)
+                const availableModels = models.filter(([_, model]) =>
+                    model.available && (model.status === 'OK' || model.status === 'API')
+                );
                 
                 availableModels.forEach(([modelId, model]) => {
                     const option = document.createElement('option');
@@ -1075,6 +1106,10 @@
                 usageSpan.className = 'usage-info';
                 metadataDiv.appendChild(usageSpan);
 
+                // Store reference to update model display when actual model is returned
+                const originalModelDisplay = currentModelName;
+                const wasAutoSelect = currentModelId === 'auto';
+
                 // Streaming cursor element
                 let cursorEl = document.createElement('span');
                 cursorEl.className = 'streaming-cursor';
@@ -1115,6 +1150,19 @@
                             const u = payload.usage || {};
                             const cost = typeof payload.cost_usd === 'number' ? payload.cost_usd.toFixed(3) : '';
                             usageSpan.textContent = `Tokens: ${u.total_tokens ?? ''}${cost ? ` | Cost: $${cost}` : ''}`;
+
+                            // Update model display if actual model was returned and it was auto-select
+                            if (payload.model && wasAutoSelect) {
+                                const actualModel = getModelDisplayName(payload.model);
+                                // Find the model span in metadata and update it
+                                const modelSpans = metadataDiv.querySelectorAll('span');
+                                modelSpans.forEach(span => {
+                                    if (span.textContent.startsWith('Model: ')) {
+                                        span.textContent = `Model: Auto Select → ${actualModel}`;
+                                    }
+                                });
+                            }
+
                             // Remove cursor on finalize
                             if (cursorEl && cursorEl.parentNode) cursorEl.parentNode.removeChild(cursorEl);
                         } else if (t === 'done') {
@@ -1127,6 +1175,8 @@
                             isSending = false;
                             sendButton.disabled = false;
                             messageInput.disabled = false;
+                            // Auto-focus input for next message
+                            messageInput.focus();
                             // Reload sessions to update sidebar with new title
                             loadSessions();
                         }
@@ -1147,6 +1197,8 @@
                             isSending = false;
                             sendButton.disabled = false;
                             messageInput.disabled = false;
+                            // Auto-focus input
+                            messageInput.focus();
                             // Show error message if not already done
                             if (!doneReceived) {
                                 bubble.textContent = '⚠️ Connection failed after multiple retries. Please try again.';
@@ -1170,6 +1222,7 @@
             isSending = false;
             sendButton.disabled = false;
             messageInput.disabled = false;
+            messageInput.focus();
         }
     }
 
@@ -1324,6 +1377,23 @@
     function getAgentNameForDisplay(agentId) {
         const option = Array.from(agentSelector.options).find(opt => opt.value === agentId);
         return option ? option.textContent.split('(')[0].trim() : agentId;
+    }
+
+    function getModelDisplayName(modelId) {
+        // Convert model ID (e.g., "ollama/qwen2.5-coder:7b-instruct") to display name
+        if (modelId.startsWith('ollama/')) {
+            const model = modelId.substring(7); // Remove "ollama/" prefix
+            // Try to find a friendly name for common models
+            if (model.includes('qwen2.5-coder')) return 'Qwen 2.5 Coder 7B';
+            if (model.includes('llama3.1')) return 'Llama 3.1 8B';
+            if (model.includes('phi3')) return 'Phi-3 Mini';
+            // Return cleaned up model name
+            return model.split(':')[0].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+        if (modelId.startsWith('anthropic/')) return 'Claude ' + modelId.substring(10);
+        if (modelId.startsWith('openai/')) return 'GPT ' + modelId.substring(7);
+        if (modelId.startsWith('google/')) return 'Gemini ' + modelId.substring(7);
+        return modelId;
     }
 
     function getCurrentTime() {

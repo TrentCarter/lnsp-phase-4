@@ -13,13 +13,20 @@ import httpx
 import time
 import json
 import os
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from dotenv import load_dotenv
 
 from cost_tracker import CostTracker
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent.parent.parent / '.env'
+load_dotenv(env_path)
+print(f"[GATEWAY] Loaded .env from: {env_path}")
 
 
 # Pydantic Models for API
@@ -355,6 +362,7 @@ async def chat_stream_post(request: ChatStreamRequest):
     - anthropic/* → Anthropic API (Claude)
     - openai/* → OpenAI API (GPT)
     - google/* → Google API (Gemini)
+    - kimi/* → Kimi API (Moonshot)
     - auto → Auto-select provider
 
     SSE Event Types:
@@ -384,6 +392,11 @@ async def chat_stream_post(request: ChatStreamRequest):
     elif model.startswith("google/"):
         return StreamingResponse(
             _stream_google_response(request),
+            media_type="text/event-stream"
+        )
+    elif model.startswith("kimi/"):
+        return StreamingResponse(
+            _stream_kimi_response(request),
             media_type="text/event-stream"
         )
     elif model == "auto":
@@ -604,23 +617,203 @@ async def _stream_openai_response(request: ChatStreamRequest):
     """Stream chat response from OpenAI API (GPT)"""
     try:
         yield f"data: {json.dumps({'type': 'status_update', 'status': 'planning', 'detail': 'Preparing OpenAI request...'})}\n\n"
-        error_msg = "OpenAI API not yet implemented. Please use Ollama models."
-        yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+
+        # Check for API key
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if not openai_api_key or openai_api_key.startswith('your_'):
+            error_msg = "OpenAI API key not configured. Set OPENAI_API_KEY environment variable."
+            yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+
+        # Strip openai/ prefix
+        model_name = request.model[7:] if request.model.startswith("openai/") else request.model
+
+        # Import OpenAI SDK
+        try:
+            from openai import OpenAI
+        except ImportError:
+            error_msg = "OpenAI SDK not installed. Run: pip install openai"
+            yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'executing', 'detail': 'Generating response...'})}\n\n"
+
+        # Call OpenAI API
+        client = OpenAI(api_key=openai_api_key)
+        response_text = ""
+        prompt_tokens = 0
+        completion_tokens = 0
+
+        stream = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": request.content}],
+            stream=True,
+            max_tokens=1024
+        )
+
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                text = chunk.choices[0].delta.content
+                response_text += text
+                completion_tokens += 1
+                yield f"data: {json.dumps({'type': 'token', 'content': text})}\n\n"
+
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'complete', 'detail': 'Response generated'})}\n\n"
+
+        # Usage tracking
+        usage_data = {
+            'type': 'usage',
+            'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': prompt_tokens + completion_tokens},
+            'cost_usd': 0.0,  # TODO: Calculate actual OpenAI cost
+            'model': request.model
+        }
+        yield f"data: {json.dumps(usage_data)}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
     except Exception as e:
-        yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': str(e)})}\n\n"
+        import traceback
+        error_msg = f"OpenAI API error: {str(e)}"
+        print(f"[GATEWAY ERROR] {error_msg}")
+        print(f"[GATEWAY ERROR] Traceback: {traceback.format_exc()}")
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 
 async def _stream_google_response(request: ChatStreamRequest):
     """Stream chat response from Google API (Gemini)"""
     try:
-        yield f"data: {json.dumps({'type': 'status_update', 'status': 'planning', 'detail': 'Preparing Google request...'})}\n\n"
-        error_msg = "Google API not yet implemented. Please use Ollama models."
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'planning', 'detail': 'Preparing Google Gemini request...'})}\n\n"
+
+        # Check for API key
+        gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        if not gemini_api_key or gemini_api_key.startswith('your_'):
+            error_msg = "Google Gemini API key not configured. Set GEMINI_API_KEY environment variable."
+            yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+
+        # Strip google/ prefix
+        model_name = request.model[7:] if request.model.startswith("google/") else request.model
+
+        # Import Google Generative AI SDK
+        try:
+            import google.generativeai as genai
+        except ImportError:
+            error_msg = "Google Generative AI SDK not installed. Run: pip install google-generativeai"
+            yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'executing', 'detail': 'Generating response...'})}\n\n"
+
+        # Configure and call Google Gemini API
+        genai.configure(api_key=gemini_api_key)
+        model = genai.GenerativeModel(model_name)
+        response_text = ""
+        completion_tokens = 0
+
+        response = model.generate_content(request.content, stream=True)
+        for chunk in response:
+            if chunk.text:
+                text = chunk.text
+                response_text += text
+                completion_tokens += len(text.split())
+                yield f"data: {json.dumps({'type': 'token', 'content': text})}\n\n"
+
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'complete', 'detail': 'Response generated'})}\n\n"
+
+        # Usage tracking
+        usage_data = {
+            'type': 'usage',
+            'usage': {'prompt_tokens': 0, 'completion_tokens': completion_tokens, 'total_tokens': completion_tokens},
+            'cost_usd': 0.0,  # TODO: Calculate actual Google cost
+            'model': request.model
+        }
+        yield f"data: {json.dumps(usage_data)}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    except Exception as e:
+        import traceback
+        error_msg = f"Google Gemini API error: {str(e)}"
+        print(f"[GATEWAY ERROR] {error_msg}")
+        print(f"[GATEWAY ERROR] Traceback: {traceback.format_exc()}")
         yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+
+async def _stream_kimi_response(request: ChatStreamRequest):
+    """Stream chat response from Kimi API (Moonshot)"""
+    try:
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'planning', 'detail': 'Preparing Kimi request...'})}\n\n"
+
+        # Check for API key
+        kimi_api_key = os.getenv("KIMI_API_KEY")
+        if not kimi_api_key or kimi_api_key.startswith('your_'):
+            error_msg = "Kimi API key not configured. Set KIMI_API_KEY environment variable."
+            yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+
+        # Strip kimi/ prefix
+        model_name = request.model[5:] if request.model.startswith("kimi/") else request.model
+
+        # Kimi uses OpenAI-compatible API (Moonshot AI)
+        try:
+            from openai import OpenAI
+        except ImportError:
+            error_msg = "OpenAI SDK not installed (required for Kimi). Run: pip install openai"
+            yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
+
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'executing', 'detail': 'Generating response...'})}\n\n"
+
+        # Call Kimi API (Moonshot AI uses OpenAI-compatible endpoint)
+        client = OpenAI(
+            api_key=kimi_api_key,
+            base_url="https://api.moonshot.cn/v1"
+        )
+        response_text = ""
+        prompt_tokens = 0
+        completion_tokens = 0
+
+        # Get actual model name from env or use default
+        actual_model = os.getenv("KIMI_MODEL_NAME", "moonshot-v1-8k")
+
+        stream = client.chat.completions.create(
+            model=actual_model,
+            messages=[{"role": "user", "content": request.content}],
+            stream=True,
+            max_tokens=1024
+        )
+
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                text = chunk.choices[0].delta.content
+                response_text += text
+                completion_tokens += 1
+                yield f"data: {json.dumps({'type': 'token', 'content': text})}\n\n"
+
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'complete', 'detail': 'Response generated'})}\n\n"
+
+        # Usage tracking
+        usage_data = {
+            'type': 'usage',
+            'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': prompt_tokens + completion_tokens},
+            'cost_usd': 0.0,  # TODO: Calculate actual Kimi cost
+            'model': request.model
+        }
+        yield f"data: {json.dumps(usage_data)}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
     except Exception as e:
-        yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': str(e)})}\n\n"
+        import traceback
+        error_msg = f"Kimi API error: {str(e)}"
+        print(f"[GATEWAY ERROR] {error_msg}")
+        print(f"[GATEWAY ERROR] Traceback: {traceback.format_exc()}")
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'error', 'detail': error_msg})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 

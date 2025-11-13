@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Pool Settings - PAS Agent Swarm</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1629;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #3a4568;
+        }
+        
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .model-card {
+            background: #1a1f3a;
+            border: 1px solid #3a4568;
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.2s;
+        }
+        
+        .model-card:hover {
+            border-color: #4a5578;
+            transform: translateY(-2px);
+        }
+        
+        .model-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .model-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .status-ok {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .status-error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .status-api {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        
+        .model-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            font-size: 0.875rem;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .detail-label {
+            color: #9ca3af;
+        }
+        
+        .detail-value {
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+        
+        .usage-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #3a4568;
+        }
+        
+        .usage-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            text-align: center;
+        }
+        
+        .usage-item {
+            background: #1e2747;
+            padding: 0.75rem;
+            border-radius: 8px;
+        }
+        
+        .usage-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #3b82f6;
+        }
+        
+        .usage-label {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 0.25rem;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .refresh-btn {
+            background: #10b981;
+        }
+        
+        .refresh-btn:hover {
+            background: #059669;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #9ca3af;
+        }
+        
+        .error {
+            color: #ef4444;
+            text-align: center;
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Model Pool Dashboard</h1>
+            <div class="controls">
+                <button class="btn refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+                <button class="btn btn-danger" onclick="clearUsage()">🗑️ Clear Stats</button>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading">Loading model status...</div>
+        <div id="error" class="error" style="display: none;"></div>
+
+        <!-- Summary Section -->
+        <div id="summary-section" style="display: none; margin-bottom: 2rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                <div style="background: #1a1f3a; border: 1px solid #3a4568; border-radius: 12px; padding: 1.5rem; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: 600; color: #3b82f6;" id="total-models">0</div>
+                    <div style="font-size: 0.875rem; color: #9ca3af; margin-top: 0.5rem;">Total Models</div>
+                    <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
+                        <span id="online-count" style="color: #22c55e;">0</span> online •
+                        <span id="offline-count" style="color: #ef4444;">0</span> offline
+                    </div>
+                </div>
+                <div style="background: #1a1f3a; border: 1px solid #3a4568; border-radius: 12px; padding: 1.5rem; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: 600; color: #10b981;" id="total-requests">0</div>
+                    <div style="font-size: 0.875rem; color: #9ca3af; margin-top: 0.5rem;">Total Requests</div>
+                </div>
+                <div style="background: #1a1f3a; border: 1px solid #3a4568; border-radius: 12px; padding: 1.5rem; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: 600; color: #f59e0b;" id="total-tokens">0</div>
+                    <div style="font-size: 0.875rem; color: #9ca3af; margin-top: 0.5rem;">Total Tokens</div>
+                </div>
+                <div style="background: #1a1f3a; border: 1px solid #3a4568; border-radius: 12px; padding: 1.5rem; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: 600; color: #8b5cf6;" id="total-cost">$0.00</div>
+                    <div style="font-size: 0.875rem; color: #9ca3af; margin-top: 0.5rem;">Total Cost</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="model-grid" class="model-grid" style="display: none;"></div>
+    </div>
+
+    <script>
+        let modelData = {};
+        let usageData = {};
+
+        async function loadData() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('error').style.display = 'none';
+                document.getElementById('model-grid').style.display = 'none';
+
+                const [statusResponse, usageResponse] = await Promise.all([
+                    fetch('/api/models/status'),
+                    fetch('/api/models/usage')
+                ]);
+
+                const statusData = await statusResponse.json();
+                const usageResponseData = await usageResponse.json();
+
+                if (statusData.status === 'ok') {
+                    modelData = statusData.models;
+                    usageData = usageResponseData.usage;
+                    renderModels();
+                } else {
+                    throw new Error('Failed to load model status');
+                }
+            } catch (error) {
+                document.getElementById('error').textContent = `Error: ${error.message}`;
+                document.getElementById('error').style.display = 'block';
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function renderModels() {
+            const grid = document.getElementById('model-grid');
+            grid.innerHTML = '';
+            grid.style.display = 'grid';
+
+            // Calculate summary stats
+            let totalModels = 0;
+            let onlineCount = 0;
+            let offlineCount = 0;
+
+            Object.entries(modelData).forEach(([modelId, model]) => {
+                totalModels++;
+                if (model.available) {
+                    onlineCount++;
+                } else {
+                    offlineCount++;
+                }
+
+                const card = createModelCard(modelId, model);
+                grid.appendChild(card);
+            });
+
+            // Update summary section
+            document.getElementById('total-models').textContent = totalModels;
+            document.getElementById('online-count').textContent = onlineCount;
+            document.getElementById('offline-count').textContent = offlineCount;
+            document.getElementById('total-requests').textContent = usageData.total_requests || 0;
+            document.getElementById('total-tokens').textContent = (usageData.total_tokens || 0).toLocaleString();
+            document.getElementById('total-cost').textContent = '$' + (usageData.total_cost || 0).toFixed(4);
+            document.getElementById('summary-section').style.display = 'block';
+        }
+
+        function createModelCard(modelId, model) {
+            const card = document.createElement('div');
+            card.className = 'model-card';
+
+            // Determine status based on health check
+            let statusClass, statusText, healthIcon, cardBorderColor;
+
+            if (model.type === 'api') {
+                // API models: check if API key is valid
+                if (model.status === 'API' && model.available) {
+                    statusClass = 'status-ok';
+                    statusText = 'Configured';
+                    healthIcon = '🟢';
+                    cardBorderColor = '#22c55e';
+                } else {
+                    statusClass = 'status-error';
+                    statusText = 'Invalid Key';
+                    healthIcon = '🔴';
+                    cardBorderColor = '#ef4444';
+                }
+            } else {
+                // Local models: check if service is running
+                if (model.status === 'OK' && model.available) {
+                    statusClass = 'status-ok';
+                    statusText = 'Online';
+                    healthIcon = '🟢';
+                    cardBorderColor = '#22c55e';
+                } else {
+                    statusClass = 'status-error';
+                    statusText = model.status || 'Offline';
+                    healthIcon = '🔴';
+                    cardBorderColor = '#ef4444';
+                }
+            }
+
+            // Apply border color based on status
+            card.style.borderLeft = `4px solid ${cardBorderColor}`;
+
+            // Get usage data for this model - normalize model ID for matching
+            const normalizedModelId = modelId.replace('ollama/', '');
+            const usage = usageData.models?.[modelId] || usageData.models?.[normalizedModelId] || {};
+
+            card.innerHTML = `
+                <div class="model-header">
+                    <div class="model-name">${healthIcon} ${model.name}</div>
+                    <div class="status-badge ${statusClass}">${statusText}</div>
+                </div>
+
+                <div class="model-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Provider:</span>
+                        <span class="detail-value">${model.provider.toUpperCase()}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Type:</span>
+                        <span class="detail-value">${model.type === 'api' ? 'API' : 'Local'}</span>
+                    </div>
+                    ${model.port ? `
+                        <div class="detail-item">
+                            <span class="detail-label">Port:</span>
+                            <span class="detail-value">${model.port}</span>
+                        </div>
+                    ` : ''}
+                    ${model.type === 'api' && model.api_provider ? `
+                        <div class="detail-item">
+                            <span class="detail-label">API:</span>
+                            <span class="detail-value">${model.api_provider}</span>
+                        </div>
+                    ` : ''}
+                    <div class="detail-item">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value" style="color: ${cardBorderColor}">${model.status}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Last Check:</span>
+                        <span class="detail-value">${new Date(model.last_check * 1000).toLocaleTimeString()}</span>
+                    </div>
+                </div>
+
+                <div class="usage-section">
+                    <div class="usage-grid">
+                        <div class="usage-item">
+                            <div class="usage-value">${usage.requests || 0}</div>
+                            <div class="usage-label">Requests</div>
+                        </div>
+                        <div class="usage-item">
+                            <div class="usage-value">${usage.tokens || 0}</div>
+                            <div class="usage-label">Tokens</div>
+                        </div>
+                        <div class="usage-item">
+                            <div class="usage-value">$${(usage.cost || 0).toFixed(4)}</div>
+                            <div class="usage-label">Cost</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            return card;
+        }
+
+        async function refreshData() {
+            await loadData();
+        }
+
+        async function clearUsage() {
+            if (confirm('Clear all usage statistics? This cannot be undone.')) {
+                try {
+                    const response = await fetch('/api/models/usage/clear', { method: 'POST' });
+                    const data = await response.json();
+                    if (data.status === 'ok') {
+                        await loadData();
+                        alert('Usage statistics cleared successfully!');
+                    }
+                } catch (error) {
+                    alert('Failed to clear usage statistics: ' + error.message);
+                }
+            }
+        }
+
+        // Load data on page load
+        loadData();
+
+        // Auto-refresh every 30 seconds
+        setInterval(refreshData, 30000);
+    </script>
+</body>
+</html>

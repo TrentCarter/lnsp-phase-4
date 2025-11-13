@@ -616,6 +616,7 @@
             <a href="/sequencer" {% if request.path == '/sequencer' %}class="active"{% endif %}>Sequencer</a>
             <a href="/actions" {% if request.path == '/actions' %}class="active"{% endif %}>Actions</a>
             <a href="/llm" {% if request.path == '/llm' %}class="active"{% endif %}>LLM Chat</a>
+            <a href="/model-pool" {% if request.path == '/model-pool' %}class="active"{% endif %}>🤖 Model Pool</a>
             <button id="prime-directive-button" class="settings-button" onclick="startPrimeDirective()" style="background: #3b82f6;" title="Send real Prime Directive to PAS Root">🚀 Prime Directive</button>
             <button id="stop-demo-button" class="settings-button" onclick="stopDemo()" style="background: #ef4444; display: none;">⏹️ Stop Demo</button>
             <button id="master-stop-button" class="settings-button" onclick="masterStopDemo()" style="background: #dc2626; display: none; font-weight: bold; border: 2px solid #fbbf24;" title="EMERGENCY: Force kill ALL demo processes immediately">🛑 MASTER STOP</button>
@@ -724,11 +725,15 @@
                 </div>
                 <div class="settings-sidebar-item" onclick="switchSettingsPage('llm')">
                     <span>🤖</span>
-                    <span>LLM Models</span>
+                    <span>Model Assignments</span>
                 </div>
-                <div class="settings-sidebar-item" onclick="switchSettingsPage('model-pool')">
-                    <span>🔥</span>
-                    <span>Model Pool</span>
+                <div class="settings-sidebar-item" onclick="switchSettingsPage('models-local')">
+                    <span>🏠</span>
+                    <span>Models Local</span>
+                </div>
+                <div class="settings-sidebar-item" onclick="switchSettingsPage('models-remote')">
+                    <span>🌐</span>
+                    <span>Models Remote</span>
                 </div>
                 <div class="settings-sidebar-item" onclick="switchSettingsPage('advanced')">
                     <span>⚙️</span>
@@ -1345,78 +1350,31 @@
                 </div>
 
                 <!-- Model Pool Page -->
-                <div id="page-model-pool" class="settings-page">
-                    <!-- Pool Overview -->
+                <!-- Models Local Page -->
+                <div id="page-models-local" class="settings-page">
                     <div class="settings-section">
-                        <h3>🔥 Model Pool Status</h3>
-                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
-                            <div style="background: #1e293b; border: 1px solid #4a5578; border-radius: 8px; padding: 1rem;">
-                                <div style="color: #9ca3af; font-size: 0.75rem; margin-bottom: 0.25rem;">Active Models</div>
-                                <div style="font-size: 1.5rem; font-weight: 600; color: #10b981;" id="pool-active-count">-</div>
-                            </div>
-                            <div style="background: #1e293b; border: 1px solid #4a5578; border-radius: 8px; padding: 1rem;">
-                                <div style="color: #9ca3af; font-size: 0.75rem; margin-bottom: 0.25rem;">Total Memory</div>
-                                <div style="font-size: 1.5rem; font-weight: 600; color: #3b82f6;" id="pool-memory">-</div>
-                            </div>
-                            <div style="background: #1e293b; border: 1px solid #4a5578; border-radius: 8px; padding: 1rem;">
-                                <div style="color: #9ca3af; font-size: 0.75rem; margin-bottom: 0.25rem;">Available Ports</div>
-                                <div style="font-size: 1.5rem; font-weight: 600; color: #f59e0b;" id="pool-available-ports">-</div>
-                            </div>
-                            <div style="background: #1e293b; border: 1px solid #4a5578; border-radius: 8px; padding: 1rem;">
-                                <div style="color: #9ca3af; font-size: 0.75rem; margin-bottom: 0.25rem;">Pool Status</div>
-                                <div style="font-size: 1.5rem; font-weight: 600; color: #8b5cf6;" id="pool-status">-</div>
-                            </div>
-                        </div>
-                    </div>
+                        <h3>🏠 Local LLM Models</h3>
+                        <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">These are models running on your local machine via Ollama or similar services.</p>
 
-                    <!-- Pool Configuration -->
-                    <div class="settings-section">
-                        <h3>⚙️ Pool Configuration</h3>
-                        <div class="setting-row">
-                            <div>
-                                <div class="setting-label">Default TTL</div>
-                                <div class="setting-description">Minutes of inactivity before model unload (0 = never unload)</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="number" id="pool-default-ttl" class="setting-input" min="0" max="60" step="5" value="15">
-                                <span style="color: #9ca3af; font-size: 0.875rem;">min</span>
-                            </div>
-                        </div>
-                        <div class="setting-row">
-                            <div>
-                                <div class="setting-label">Max Concurrent Models</div>
-                                <div class="setting-description">Maximum number of models loaded simultaneously</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="number" id="pool-max-concurrent" class="setting-input" min="1" max="10" value="5">
-                                <span style="color: #9ca3af; font-size: 0.875rem;">models</span>
-                            </div>
-                        </div>
-                        <div class="setting-row">
-                            <div>
-                                <div class="setting-label">Check Interval</div>
-                                <div class="setting-description">Seconds between TTL checks and auto-unloading</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="number" id="pool-check-interval" class="setting-input" min="10" max="300" step="10" value="30">
-                                <span style="color: #9ca3af; font-size: 0.875rem;">sec</span>
-                            </div>
-                        </div>
-                        <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #4a5578;">
-                            <button onclick="savePoolConfig()" style="padding: 0.5rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.875rem;">💾 Save Configuration</button>
-                        </div>
-                    </div>
-
-                    <!-- Model Cards -->
-                    <div class="settings-section">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                            <h3>🤖 Registered Models</h3>
-                            <button onclick="refreshModelPool()" style="padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem;">🔄 Refresh</button>
-                        </div>
-                        <div id="model-cards-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem;">
-                            <!-- Model cards will be populated here -->
+                        <div id="local-models-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 1rem;">
+                            <!-- Local model cards will be populated here -->
                             <div style="grid-column: 1 / -1; text-align: center; color: #9ca3af; padding: 2rem;">
-                                Loading models...
+                                Loading local models...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Models Remote Page -->
+                <div id="page-models-remote" class="settings-page">
+                    <div class="settings-section">
+                        <h3>🌐 Remote API Models</h3>
+                        <p style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 1.5rem;">These are cloud-based models accessed via API (OpenAI, Anthropic, Google, etc.).</p>
+
+                        <div id="remote-models-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 1rem;">
+                            <!-- Remote model cards will be populated here -->
+                            <div style="grid-column: 1 / -1; text-align: center; color: #9ca3af; padding: 2rem;">
+                                Loading remote models...
                             </div>
                         </div>
                     </div>
@@ -1612,7 +1570,13 @@
 
             socket.on('event_history', (events) => {
                 console.log('Received event history:', events.length, 'events');
-                events.forEach(handleRealtimeEvent);
+                // Don't process historical TRON events - only live events should update counters
+                events.forEach(event => {
+                    // Skip TRON events from history (hhmrs_*)
+                    if (!event.event_type || !event.event_type.startsWith('hhmrs_')) {
+                        handleRealtimeEvent(event);
+                    }
+                });
             });
 
             socket.on('pong', (data) => {
@@ -1666,8 +1630,51 @@
             updateTRONBar(eventType, data);
         }
 
-        // Track shown TRON events to prevent duplicate popups
+        // Track shown TRON events to prevent duplicate popups (persisted in localStorage)
         window.tronShownEvents = new Set();
+
+        // Load previously shown events from localStorage
+        function loadShownTronEvents() {
+            try {
+                const saved = localStorage.getItem('tronShownEvents');
+                if (saved) {
+                    const events = JSON.parse(saved);
+                    window.tronShownEvents = new Set(events);
+                }
+            } catch (e) {
+                console.error('Error loading shown TRON events:', e);
+            }
+        }
+
+        // Save shown events to localStorage
+        function saveShownTronEvents() {
+            try {
+                const events = Array.from(window.tronShownEvents);
+                localStorage.setItem('tronShownEvents', JSON.stringify(events));
+            } catch (e) {
+                console.error('Error saving shown TRON events:', e);
+            }
+        }
+
+        // Clear old TRON events from localStorage (older than 1 hour)
+        function cleanupOldTronEvents() {
+            try {
+                const lastCleanup = localStorage.getItem('tronEventsLastCleanup');
+                const now = Date.now();
+
+                // Only cleanup once per hour
+                if (lastCleanup && (now - parseInt(lastCleanup)) < 3600000) {
+                    return;
+                }
+
+                // Clear all shown events (they're stale after 1 hour)
+                window.tronShownEvents.clear();
+                localStorage.removeItem('tronShownEvents');
+                localStorage.setItem('tronEventsLastCleanup', now.toString());
+            } catch (e) {
+                console.error('Error cleaning up TRON events:', e);
+            }
+        }
 
         // Update TRON visualization bar with new event
         function updateTRONBar(eventType, data) {
@@ -1690,8 +1697,9 @@
                 return;
             }
 
-            // Mark this event as shown
+            // Mark this event as shown and persist to localStorage
             window.tronShownEvents.add(eventKey);
+            saveShownTronEvents();
 
             // Check if user dismissed the banner recently (within last 5 minutes)
             const dismissedUntil = localStorage.getItem('tronBarDismissedUntil');
@@ -1701,10 +1709,9 @@
                 if (now < dismissTime) {
                     // Still dismissed, don't show
                     return;
-                } else {
-                    // Dismiss period expired, clear it
-                    localStorage.removeItem('tronBarDismissedUntil');
                 }
+                // Note: We intentionally do NOT remove dismissedUntil here
+                // Let checkTronBarDismissState() handle cleanup on next page load
             }
 
             // Show TRON bar
@@ -2236,8 +2243,9 @@
                 'audio': '🔊 Audio',
                 'hhmrs': '⚡ HHMRS',
                 'tasks': '📋 Tasks',
-                'llm': '🤖 LLM Models',
-                'model-pool': '🔥 Model Pool',
+                'llm': '🤖 Model Assignments',
+                'models-local': '🏠 Models Local',
+                'models-remote': '🌐 Models Remote',
                 'advanced': '⚙️ Advanced Models',
                 'system': '🛠️ System Status'
             };
@@ -2253,22 +2261,14 @@
                 loadHHMRSSettings();
             }
 
-            // Initialize Model Pool page
-            if (pageId === 'model-pool') {
-                refreshModelPool();
-                loadPoolConfig();
+            // Initialize Models Local page
+            if (pageId === 'models-local') {
+                refreshModelsLocal();
+            }
 
-                // Start auto-refresh (every 3 seconds)
-                if (modelPoolRefreshInterval) {
-                    clearInterval(modelPoolRefreshInterval);
-                }
-                modelPoolRefreshInterval = setInterval(refreshModelPool, 3000);
-            } else {
-                // Stop auto-refresh when leaving the page
-                if (modelPoolRefreshInterval) {
-                    clearInterval(modelPoolRefreshInterval);
-                    modelPoolRefreshInterval = null;
-                }
+            // Initialize Models Remote page
+            if (pageId === 'models-remote') {
+                refreshModelsRemote();
             }
 
             // Initialize System Status page
@@ -2552,6 +2552,12 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Load settings first
             loadSettings();
+
+            // Load previously shown TRON events from localStorage
+            loadShownTronEvents();
+
+            // Cleanup old TRON events (older than 1 hour)
+            cleanupOldTronEvents();
 
             // Calculate header height for TRON bar positioning
             setHeaderHeight();
@@ -3861,6 +3867,256 @@ The system should be production-ready, secure, and scalable.`;
             } catch (error) {
                 console.error('Failed to save pool config:', error);
                 alert('❌ Failed to save configuration: ' + error.message);
+            }
+        }
+
+        // ===== Models Local/Remote Functions =====
+
+        async function refreshModelsLocal() {
+            try {
+                const response = await fetch('/api/models/local-status');
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    renderLocalModels(data.models);
+                } else {
+                    throw new Error(data.message || 'Failed to fetch local models');
+                }
+            } catch (error) {
+                console.error('Failed to fetch local models:', error);
+                document.getElementById('local-models-container').innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; color: #ef4444; padding: 2rem;">
+                        ⚠️ Failed to fetch local models<br>
+                        <span style="font-size: 0.875rem; color: #9ca3af;">${error.message}</span>
+                    </div>
+                `;
+            }
+        }
+
+        async function refreshModelsRemote() {
+            try {
+                const response = await fetch('/api/models/api-status');
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    renderRemoteModels(data.models);
+                } else {
+                    throw new Error(data.message || 'Failed to fetch remote models');
+                }
+            } catch (error) {
+                console.error('Failed to fetch remote models:', error);
+                document.getElementById('remote-models-container').innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; color: #ef4444; padding: 2rem;">
+                        ⚠️ Failed to fetch remote models<br>
+                        <span style="font-size: 0.875rem; color: #9ca3af;">${error.message}</span>
+                    </div>
+                `;
+            }
+        }
+
+        function renderLocalModels(models) {
+            const container = document.getElementById('local-models-container');
+
+            if (!models || Object.keys(models).length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; color: #9ca3af; padding: 2rem;">
+                        No local models configured
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = Object.entries(models).map(([modelId, model]) => {
+                const isOnline = model.status === 'OK' && model.available;
+                const statusColor = isOnline ? '#10b981' : '#ef4444';
+                const statusIcon = isOnline ? '🟢' : '🔴';
+                const statusText = isOnline ? 'Online' : model.status || 'Offline';
+
+                return `
+                    <div style="background: #1e293b; border: 1px solid #4a5578; border-left: 4px solid ${statusColor}; border-radius: 8px; padding: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                            <div>
+                                <div style="font-weight: 600; color: #e0e0e0; font-size: 1.125rem; margin-bottom: 0.25rem;">${statusIcon} ${model.name}</div>
+                                <div style="font-size: 0.75rem; color: #9ca3af; font-family: monospace;">${modelId}</div>
+                            </div>
+                            <div style="background: rgba(${isOnline ? '16, 185, 129' : '239, 68, 68'}, 0.2); color: ${statusColor}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 500; border: 1px solid ${statusColor};">
+                                ${statusText}
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #0f172a; border-radius: 6px;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">Provider</div>
+                                <div style="font-weight: 600; color: #e0e0e0;">${model.provider.toUpperCase()}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">Type</div>
+                                <div style="font-weight: 600; color: #e0e0e0;">Local</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">Host</div>
+                                <div style="font-weight: 600; color: #e0e0e0; font-family: monospace; font-size: 0.875rem;">${model.host || 'localhost'}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">Port</div>
+                                <div style="font-weight: 600; color: #e0e0e0; font-family: monospace;">${model.port || 'N/A'}</div>
+                            </div>
+                        </div>
+
+                        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">
+                            ${model.description || 'No description available'}
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid #4a5578;">
+                            <div style="font-size: 0.75rem; color: #9ca3af;">
+                                Last check: ${new Date(model.last_check * 1000).toLocaleTimeString()}
+                            </div>
+                            <button onclick="testLocalModel('${modelId}')" style="padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500;">
+                                🔍 Test Now
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderRemoteModels(models) {
+            const container = document.getElementById('remote-models-container');
+
+            if (!models || Object.keys(models).length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; color: #9ca3af; padding: 2rem;">
+                        No remote API models configured
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = Object.entries(models).map(([modelId, model]) => {
+                const isConfigured = model.status === 'API' && model.available;
+                const statusColor = isConfigured ? '#10b981' : '#ef4444';
+                const statusIcon = isConfigured ? '🟢' : '🔴';
+                const statusText = isConfigured ? 'Configured' : 'Invalid Key';
+
+                return `
+                    <div style="background: #1e293b; border: 1px solid #4a5578; border-left: 4px solid ${statusColor}; border-radius: 8px; padding: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                            <div>
+                                <div style="font-weight: 600; color: #e0e0e0; font-size: 1.125rem; margin-bottom: 0.25rem;">${statusIcon} ${model.name}</div>
+                                <div style="font-size: 0.75rem; color: #9ca3af; font-family: monospace;">${modelId}</div>
+                            </div>
+                            <div style="background: rgba(${isConfigured ? '16, 185, 129' : '239, 68, 68'}, 0.2); color: ${statusColor}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 500; border: 1px solid ${statusColor};">
+                                ${statusText}
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem; background: #0f172a; border-radius: 6px;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">Provider</div>
+                                <div style="font-weight: 600; color: #e0e0e0;">${model.api_provider}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">Type</div>
+                                <div style="font-weight: 600; color: #e0e0e0;">API</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">Cost (Input/1K)</div>
+                                <div style="font-weight: 600; color: #f59e0b;">$${model.cost_per_1k_input ? model.cost_per_1k_input.toFixed(4) : '0.0000'}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">Cost (Output/1K)</div>
+                                <div style="font-weight: 600; color: #f59e0b;">$${model.cost_per_1k_output ? model.cost_per_1k_output.toFixed(4) : '0.0000'}</div>
+                            </div>
+                        </div>
+
+                        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">
+                            ${model.description || 'No description available'}
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid #4a5578;">
+                            <div style="font-size: 0.75rem; color: #9ca3af;">
+                                Last check: ${new Date(model.last_check * 1000).toLocaleTimeString()}
+                            </div>
+                            <button onclick="testRemoteModel('${modelId}')" ${!isConfigured ? 'disabled' : ''} style="padding: 0.5rem 1rem; background: ${!isConfigured ? '#4a5578' : '#3b82f6'}; color: white; border: none; border-radius: 6px; cursor: ${!isConfigured ? 'not-allowed' : 'pointer'}; font-size: 0.875rem; font-weight: 500;">
+                                🔍 Test Now
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function testLocalModel(modelId) {
+            const button = event.target;
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = '⏳ Testing...';
+
+            try {
+                const response = await fetch('/api/models/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model_id: modelId })
+                });
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    button.textContent = '✓ Success';
+                    button.style.background = '#10b981';
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.style.background = '#3b82f6';
+                        button.disabled = false;
+                    }, 2000);
+                } else {
+                    throw new Error(data.message || 'Test failed');
+                }
+            } catch (error) {
+                button.textContent = '✗ Failed';
+                button.style.background = '#ef4444';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '#3b82f6';
+                    button.disabled = false;
+                }, 2000);
+                alert(`Test failed: ${error.message}`);
+            }
+        }
+
+        async function testRemoteModel(modelId) {
+            const button = event.target;
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = '⏳ Testing...';
+
+            try {
+                const response = await fetch('/api/models/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model_id: modelId })
+                });
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    button.textContent = '✓ Success';
+                    button.style.background = '#10b981';
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.style.background = '#3b82f6';
+                        button.disabled = false;
+                    }, 2000);
+                } else {
+                    throw new Error(data.message || 'Test failed');
+                }
+            } catch (error) {
+                button.textContent = '✗ Failed';
+                button.style.background = '#ef4444';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '#3b82f6';
+                    button.disabled = false;
+                }, 2000);
+                alert(`Test failed: ${error.message}`);
             }
         }
 

@@ -40,6 +40,35 @@ echo ""
 
 # Start HMI Service
 echo "Starting HMI Service..."
+
+# Clean up port 6101 if in use
+echo "🛑 Checking for existing HMI service on port 6101..."
+PID_6101=$(lsof -ti:6101 2>/dev/null || echo "")
+if [ -n "$PID_6101" ]; then
+    echo "   Found process(es) on port 6101: $PID_6101"
+    for pid in $PID_6101; do
+        echo "   Attempting graceful shutdown of PID $pid..."
+        kill -TERM "$pid" 2>/dev/null || true
+        sleep 2
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "   Force killing PID $pid..."
+            kill -KILL "$pid" 2>/dev/null || true
+            sleep 1
+        fi
+    done
+    
+    # Final verification
+    sleep 1
+    if lsof -ti:6101 >/dev/null 2>&1; then
+        echo "❌ ERROR: Port 6101 still in use after cleanup"
+        exit 1
+    else
+        echo "✅ Port 6101 cleared"
+    fi
+else
+    echo "✅ Port 6101 is available"
+fi
+
 ./scripts/start_hmi_server.sh &
 
 echo ""

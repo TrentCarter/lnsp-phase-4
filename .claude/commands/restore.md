@@ -65,6 +65,13 @@ If the file doesn't exist:
 Would you like to [continue/commit/start next task]?
 ```
 
+## Step 4: Announce Completion with TTS
+
+After presenting the summary, run:
+```bash
+say "Claude Ready"
+```
+
 **With --git flag:**
 
 Add these sections:

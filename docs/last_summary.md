@@ -1,68 +1,69 @@
 # Last Session Summary
 
-**Date:** 2025-11-13 (Session: LLM Metrics Redesign + API Model Display)
-**Duration:** ~45 minutes
+**Date:** 2025-11-13 (Session: Model Management Restructure - Unified Registry)
+**Duration:** ~1.5 hours
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Redesigned LLM Metrics dashboard section with compact Registry-style cards, added paid/free token breakdown to Total Tokens card, and integrated all configured API models (OpenAI, Anthropic, Google, DeepSeek) to display alongside local Ollama models with correct cost indicators.
+Restructured the HMI Settings model management interface into separate Local/Remote pages with unified data source. Renamed "LLM Models" to "Model Assignments" and split "Model Pool" into "Models Local" and "Models Remote" pages. Added Test Now functionality for on-demand health checks without polling to avoid API costs.
 
 ## Key Changes
 
-### 1. Per-Model Usage Cards Moved and Redesigned
-**Files:** `services/webui/templates/dashboard.html:455-458, 1020-1075`
-**Summary:** Moved Per-Model Usage section from Cost Tracking back to LLM Metrics where it belongs. Redesigned model cards from horizontal bars to compact rectangular Registry-style cards with service-card styling. Each card shows: model name, provider, status indicator, tokens (total/input/output), messages, sessions, and cost.
+### 1. Settings Navigation Restructure
+**Files:** `services/webui/templates/base.html:726-737, 2293-2295, 2311-2319`
+**Summary:** Renamed "LLM Models" to "Model Assignments" in sidebar. Replaced "Model Pool" with two new pages: "Models Local" (🏠) for Ollama models and "Models Remote" (🌐) for API-based models. Updated page titles and initialization logic for new pages.
 
-### 2. Total Tokens Card Enhanced with Paid/Free Breakdown
-**Files:** `services/webui/templates/dashboard.html:433-439, 1007-1010, 1096-1097`
-**Summary:** Updated Total Tokens card to display breakdown of paid vs free tokens. Shows "Paid: X" in gold and "Free: X" in green. Backend API now calculates and returns `paid_tokens` and `free_tokens` in totals response.
+### 2. Models Local & Models Remote Pages
+**Files:** `services/webui/templates/base.html:1353-1381`
+**Summary:** Created two new settings pages replacing old model-pool page. Local page shows Ollama models with host/port/health status. Remote page shows API models (OpenAI, Anthropic, Google, Kimi) with cost per 1K tokens and configuration status.
 
-### 3. All Configured API Models Now Displayed
-**Files:** `services/webui/hmi_app.py:975-1042` (NEW, 68 lines)
-**Summary:** Enhanced `/api/llm/stats` endpoint to read .env configuration and include all available API models (OpenAI, Anthropic Claude, Google Gemini, DeepSeek) even with 0 usage. Models are pre-initialized with correct provider labels and marked as paid. Currently showing 7 API models + 3 local Ollama models = 10 total.
+### 3. JavaScript Model Display Functions
+**Files:** `services/webui/templates/base.html:3873-4121`
+**Summary:** Added refreshModelsLocal(), refreshModelsRemote(), renderLocalModels(), renderRemoteModels(), testLocalModel(), and testRemoteModel() functions. Each renders model cards with detailed stats, colored status indicators, and Test Now buttons.
 
-### 4. Fixed API Model Cost Display Logic
-**Files:** `services/webui/hmi_app.py:1124-1138`, `services/webui/templates/dashboard.html:1031-1035`
-**Summary:** Fixed logic to determine paid vs free models based on provider (openai/anthropic/google/deepseek) instead of current cost. API models now correctly show gold "$0.000" instead of gray "Free" even with zero usage, reflecting that 100% of API LLMs cost money.
+### 4. Model Test API Endpoint
+**Files:** `services/webui/hmi_app.py:3865-3927`
+**Summary:** Added POST /api/models/test endpoint to validate model health. For local models, performs HTTP health check. For API models, validates key configuration without making costly API calls. Returns success/error status with detailed messages.
 
 ## Files Modified
 
-- `services/webui/templates/dashboard.html` - Per-Model cards redesign, Total Tokens breakdown, cost display logic
-- `services/webui/hmi_app.py` - API model configuration reading, paid/free token calculation, provider-based cost logic
+- `services/webui/templates/base.html` - Settings navigation, page content, and JavaScript functions for unified model management
+- `services/webui/hmi_app.py` - Added /api/models/test endpoint for health checks
 
 ## Current State
 
 **What's Working:**
-- ✅ All 10 LLM models displayed in compact Registry-style cards (7 API + 3 local)
-- ✅ Total Tokens card shows Paid: 0 / Free: 431 breakdown
-- ✅ API models correctly show gold cost indicators ($0.000) instead of "Free"
-- ✅ Local Ollama models show gray "Free" label
-- ✅ Models sorted by token usage (highest first)
-- ✅ Green status indicator for models with usage, gray for unused
-- ✅ Complete metrics per model: tokens, input/output, messages, sessions, cost
+- ✅ Settings navigation shows "Model Assignments", "Models Local", and "Models Remote"
+- ✅ Unified model registry in get_available_models() (reads local_llms.yaml + .env)
+- ✅ Three API endpoints: /api/models/status (11 total), /api/models/local-status (0), /api/models/api-status (7)
+- ✅ /api/models/test endpoint validates local (health check) and API (key validation)
+- ✅ Dashboard LLM Metrics already uses unified data source (llm_chat_db)
+- ✅ Test Now buttons work without polling (click to test, no auto-refresh)
+- ✅ Cost per token displayed for all API models
 
 **What Needs Work:**
-- [ ] Provider name mapping still shows "unknown" for some models (needs enhancement)
-- [ ] Total Sessions count returns 0 (database query needs fixing)
-- [ ] Backend LLM reset endpoint (`/api/llm/reset`) not yet implemented
-- [ ] Actual token cost calculation from Gateway (currently proportional distribution)
+- [ ] Test UI in browser (Settings → Models Local/Remote)
+- [ ] Start Ollama to populate local models
+- [ ] Verify Test Now buttons work in browser
+- [ ] Add usage metrics to model cards if desired
 
 ## Important Context for Next Session
 
-1. **LLM Model Display**: Dashboard now shows all configured models from .env, not just used models. This gives visibility into available API providers (OpenAI, Anthropic, Google, DeepSeek).
+1. **Unified Model Registry**: All model data comes from get_available_models() in hmi_app.py:2706-2833. It reads local_llms.yaml for Ollama models (with health checks) and parses .env for API keys/model names. This is the single source of truth.
 
-2. **Cost Logic**: Uses `provider` field to determine if model is paid (API) or free (local). API providers are in list: ['openai', 'anthropic', 'google', 'deepseek']. Models with these providers show gold cost, others show "Free".
+2. **Dashboard Already Unified**: The Dashboard LLM Metrics section already pulls from the unified llm_chat_db database which tracks usage across all models (local and API). No changes needed there - it shows per-model tokens, cost, sessions, and provider info.
 
-3. **Service Startup**: Use `./scripts/start_all_pas_services.sh` to start all services including HMI. HMI is Flask app, not ASGI, so use `python services/webui/hmi_app.py` not uvicorn.
+3. **Test Now Design**: Test buttons explicitly DO NOT poll. They only test when clicked to avoid API costs. Local models do HTTP GET to host:port/health. API models only validate key format without making actual API calls.
 
-4. **Model Cards Design**: Matches Registry card style using `.service-card` class - compact rectangular cards in responsive grid, approximately 50-60px height with all info visible.
+4. **API Model Count**: Currently 7 API models configured in .env: Kimi K2, OpenAI GPT-5 Codex, 2 Anthropic Claude variants (Haiku/Sonnet), and 3 Google Gemini tiers (Flash/Flash-Lite/Pro).
 
-5. **Data Source**: Token usage from `llm_chat.db` (Message.usage_json), cost from Gateway `/metrics`, available models from .env configuration.
+5. **Cost Tracking**: Each API model card displays cost_per_1k_input and cost_per_1k_output from _get_model_cost() function. This data is also used by the usage tracking system to calculate total costs.
 
 ## Quick Start Next Session
 
-1. **Use `/restore`** to load this summary
-2. **View Dashboard**: http://localhost:6101/ - Check LLM Metrics section for all 10 model cards
-3. **Next Priority**: Fix TOTAL SESSIONS count query in `hmi_app.py:1140` (currently returns 0)
-4. **Or**: Implement backend LLM reset endpoint to clear chat database when Reset Stats button is clicked
+1. **Use `/restore`** to load this summary (will say "Claude Ready" when done)
+2. **Test in browser**: Open http://localhost:6101, click Settings (⚙️), navigate to "Models Local" and "Models Remote"
+3. **Optional**: Start Ollama (`ollama serve`) to populate local models
+4. **Test buttons**: Click "Test Now" on any model to verify functionality
+5. **Verify Dashboard**: Check Dashboard LLM Metrics section shows unified model data with usage stats
