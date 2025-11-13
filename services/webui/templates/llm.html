@@ -112,6 +112,19 @@
         border-color: #3b82f6;
     }
 
+    .session-item.archived {
+        opacity: 0.6;
+    }
+
+    .session-item.archived:hover {
+        opacity: 0.8;
+    }
+
+    .archived-badge {
+        font-size: 0.875rem;
+        margin-right: 0.25rem;
+    }
+
     .session-item-header {
         display: flex;
         justify-content: space-between;
@@ -521,6 +534,21 @@
         border-color: rgba(239, 68, 68, 0.3);
     }
 
+    /* Streaming cursor */
+    .streaming-cursor {
+        display: inline-block;
+        width: 8px;
+        height: 1em;
+        background: #3b82f6;
+        margin-left: 2px;
+        animation: blink 1s step-start infinite;
+        vertical-align: baseline;
+    }
+    @keyframes blink {
+        0%, 49% { opacity: 1; }
+        50%, 100% { opacity: 0; }
+    }
+
     /* Usage info display */
     .usage-info {
         margin-top: 0.5rem;
@@ -564,7 +592,9 @@
             <div class="selector-group">
                 <div class="selector-label">Model</div>
                 <select id="model-selector" class="selector">
-                    <option value="claude-sonnet-4">Claude Sonnet 4</option>
+                    <option value="llama3.1:8b">Llama 3.1 8B (Local)</option>
+                    <option value="qwen2.5-coder:7b">Qwen 2.5 Coder 7B</option>
+                    <option value="phi3:mini">Phi-3 Mini</option>
                 </select>
             </div>
             <div class="role-indicator" id="role-indicator">
@@ -619,6 +649,9 @@
                 <button id="send-button" class="send-button">
                     Send →
                 </button>
+                <button id="stop-button" class="send-button" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                    Stop ⏹
+                </button>
             </div>
         </div>
         </div>
@@ -629,9 +662,11 @@
     // State management
     let currentSessionId = null;
     let currentAgentId = 'architect';
-    let currentModelName = 'Claude Sonnet 4';
+    let currentModelId = 'llama3.1:8b';  // Store model ID, not display name
+    let currentModelName = 'Llama 3.1 8B (Local)';  // Store display name for UI
     let isSending = false;
     let currentEventSource = null;
+    let currentAssistantRefs = null;
 
     // DOM elements
     const messagesContainer = document.getElementById('messages-container');
@@ -662,6 +697,9 @@
     function setupEventListeners() {
         // Send button
         sendButton.addEventListener('click', sendMessage);
+        // Stop button
+        const stopButton = document.getElementById('stop-button');
+        stopButton.addEventListener('click', stopStreaming);
 
         // Enter key to send (Shift+Enter for new line)
         messageInput.addEventListener('keydown', (e) => {
@@ -675,6 +713,13 @@
         messageInput.addEventListener('input', () => {
             messageInput.style.height = 'auto';
             messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+        });
+
+        // Esc to cancel
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                stopStreaming();
+            }
         });
 
         // Agent selection change
@@ -705,7 +750,8 @@
         // Model selection change
         modelSelector.addEventListener('change', (e) => {
             const selectedOption = e.target.options[e.target.selectedIndex];
-            currentModelName = selectedOption.textContent;
+            currentModelId = e.target.value;  // Store the actual model ID
+            currentModelName = selectedOption.textContent;  // Store display name for UI
         });
 
         // Sidebar toggle
@@ -760,7 +806,8 @@
                     modelSelector.appendChild(option);
                 });
 
-                // Set default
+                // Set default - store BOTH ID and display name
+                currentModelId = data.models[0].model_id;
                 currentModelName = data.models[0].model_name;
             }
         } catch (error) {
@@ -798,7 +845,7 @@
                     session_id: currentSessionId,
                     message: message,
                     agent_id: currentAgentId,
-                    model: currentModelName
+                    model: currentModelId  // Use model ID, not display name!
                 })
             });
 
@@ -812,42 +859,88 @@
                     agent_id: currentAgentId,
                     model: currentModelName
                 });
+                currentAssistantRefs = assistantRefs;
 
                 if (currentEventSource) {
                     currentEventSource.close();
                 }
-                const es = new EventSource(`/api/chat/stream/${currentSessionId}`);
-                currentEventSource = es;
-
                 const bubble = assistantRefs.bubble;
                 const metadataDiv = assistantRefs.metadataDiv;
                 const statusSpan = document.createElement('span');
+                statusSpan.className = 'status-badge';
                 metadataDiv.appendChild(statusSpan);
                 const usageSpan = document.createElement('span');
+                usageSpan.className = 'usage-info';
                 metadataDiv.appendChild(usageSpan);
 
-                es.onmessage = (event) => {
-                    let payload;
-                    try { payload = JSON.parse(event.data); } catch (e) { return; }
-                    const t = payload.type;
-                    if (t === 'token') {
-                        bubble.textContent = bubble.textContent + payload.content;
-                    } else if (t === 'status_update') {
-                        statusSpan.textContent = `Status: ${payload.status}`;
-                    } else if (t === 'usage') {
-                        const u = payload.usage || {};
-                        const cost = typeof payload.cost_usd === 'number' ? payload.cost_usd.toFixed(3) : '';
-                        usageSpan.textContent = `Tokens: ${u.total_tokens ?? ''}${cost ? ` | Cost: $${cost}` : ''}`;
-                    } else if (t === 'done') {
-                        es.close();
-                        typingIndicator.classList.remove('active');
-                    }
-                };
+                // Streaming cursor element
+                let cursorEl = document.createElement('span');
+                cursorEl.className = 'streaming-cursor';
+                bubble.appendChild(cursorEl);
 
-                es.onerror = () => {
-                    es.close();
-                    typingIndicator.classList.remove('active');
-                };
+                // Exponential backoff reconnection
+                let retries = 0;
+                const maxRetries = 5;
+                let doneReceived = false;
+
+                function statusClass(status) {
+                    const s = (status || '').toLowerCase();
+                    if (s === 'planning') return 'status-badge status-planning';
+                    if (s === 'executing') return 'status-badge status-executing';
+                    if (s === 'complete') return 'status-badge status-complete';
+                    if (s === 'error') return 'status-badge status-error';
+                    return 'status-badge';
+                }
+
+                function openSSE() {
+                    const es = new EventSource(`/api/chat/stream/${currentSessionId}`);
+                    currentEventSource = es;
+
+                    es.onmessage = (event) => {
+                        let payload;
+                        try { payload = JSON.parse(event.data); } catch (e) { return; }
+                        const t = payload.type;
+                        if (t === 'token') {
+                            bubble.textContent = bubble.textContent + payload.content;
+                            // Keep cursor at end
+                            bubble.appendChild(cursorEl);
+                        } else if (t === 'status_update') {
+                            statusSpan.className = statusClass(payload.status);
+                            // Capitalize first letter
+                            const label = (payload.status || '').charAt(0).toUpperCase() + (payload.status || '').slice(1);
+                            statusSpan.textContent = label;
+                        } else if (t === 'usage') {
+                            const u = payload.usage || {};
+                            const cost = typeof payload.cost_usd === 'number' ? payload.cost_usd.toFixed(3) : '';
+                            usageSpan.textContent = `Tokens: ${u.total_tokens ?? ''}${cost ? ` | Cost: $${cost}` : ''}`;
+                            // Remove cursor on finalize
+                            if (cursorEl && cursorEl.parentNode) cursorEl.parentNode.removeChild(cursorEl);
+                        } else if (t === 'done') {
+                            doneReceived = true;
+                            es.close();
+                            typingIndicator.classList.remove('active');
+                            // Ensure cursor removed
+                            if (cursorEl && cursorEl.parentNode) cursorEl.parentNode.removeChild(cursorEl);
+                            // Reload sessions to update sidebar with new title
+                            loadSessions();
+                        }
+                    };
+
+                    es.onerror = () => {
+                        es.close();
+                        if (!doneReceived && retries < maxRetries) {
+                            const delay = Math.min(1000 * Math.pow(2, retries), 10000);
+                            retries += 1;
+                            setTimeout(() => {
+                                openSSE();
+                            }, delay);
+                        } else {
+                            typingIndicator.classList.remove('active');
+                        }
+                    };
+                }
+
+                openSSE();
             } else {
                 throw new Error(data.error || 'Failed to send message');
             }
@@ -1069,6 +1162,30 @@
         messagesContainer.appendChild(emptyStateClone);
     }
 
+    async function stopStreaming() {
+        try {
+            if (!currentSessionId) return;
+            // Send cancel to backend (best effort)
+            fetch(`/api/chat/sessions/${currentSessionId}/cancel`, { method: 'POST' }).catch(() => {});
+            // Close any active stream
+            if (currentEventSource) {
+                try { currentEventSource.close(); } catch (e) {}
+                currentEventSource = null;
+            }
+            // Update UI
+            typingIndicator.classList.remove('active');
+            if (currentAssistantRefs) {
+                // Show cancelled badge
+                const badge = document.createElement('span');
+                badge.className = 'status-badge status-error';
+                badge.textContent = 'Cancelled';
+                currentAssistantRefs.metadataDiv.appendChild(badge);
+            }
+        } catch (e) {
+            console.error('Error stopping stream:', e);
+        }
+    }
+
     function getParentRole(agentId) {
         const lower = agentId.toLowerCase();
         if (lower === 'architect') return 'PAS Root';
@@ -1110,8 +1227,13 @@
     function createSessionItem(session) {
         const div = document.createElement('div');
         div.className = 'session-item';
+        div.dataset.sessionId = session.session_id;
         if (session.session_id === currentSessionId) {
             div.classList.add('active');
+        }
+        // Add archived class if session is archived
+        if (session.status === 'archived') {
+            div.classList.add('archived');
         }
 
         // Calculate message count
@@ -1123,11 +1245,12 @@
         // Get first user message as title if no title set
         const title = session.title || 'New conversation';
         const titleClass = session.title ? '' : 'untitled';
+        const archivedBadge = session.status === 'archived' ? '<span class="archived-badge">📦</span>' : '';
 
         div.innerHTML = `
             <div class="session-item-header">
                 <div class="session-title ${titleClass}" title="${title}">
-                    ${escapeHtml(title)}
+                    ${archivedBadge}${escapeHtml(title)}
                 </div>
                 <div class="session-actions">
                     <button class="session-action-btn" onclick="renameSession('${session.session_id}')" title="Rename">
@@ -1173,8 +1296,10 @@
                 // Update active session in sidebar
                 document.querySelectorAll('.session-item').forEach(item => {
                     item.classList.remove('active');
+                    if (item.dataset.sessionId === sessionId) {
+                        item.classList.add('active');
+                    }
                 });
-                event.currentTarget.classList.add('active');
 
                 // Clear current messages
                 clearMessages();
@@ -1182,21 +1307,11 @@
                 // Render session messages
                 data.messages.forEach(msg => {
                     if (msg.message_type === 'user' || msg.message_type === 'assistant') {
-                        const elements = createMessage(msg.message_type);
-                        elements.bubble.textContent = msg.content;
-
-                        // Add metadata if available
-                        if (msg.usage) {
-                            const usage = msg.usage;
-                            const usageHtml = `
-                                <div class="message-usage">
-                                    Tokens: ${usage.prompt_tokens || 0} prompt + ${usage.completion_tokens || 0} completion = ${usage.total_tokens || 0} total
-                                    ${usage.cost_usd ? ` | Cost: $${usage.cost_usd.toFixed(4)}` : ''}
-                                </div>
-                            `;
-                            elements.metadataDiv.innerHTML = usageHtml;
-                            elements.metadataDiv.style.display = 'block';
+                        const metadata = {};
+                        if (msg.model_name) {
+                            metadata.model = msg.model_name;
                         }
+                        addMessage(msg.role, msg.content, metadata);
                     }
                 });
 
@@ -1209,10 +1324,10 @@
         }
     }
 
-    function startNewChat() {
+    async function startNewChat() {
         // Archive current session if exists
         if (currentSessionId) {
-            archiveSessionSilent(currentSessionId);
+            await archiveSessionSilent(currentSessionId);
         }
 
         // Reset state
@@ -1225,9 +1340,13 @@
 
     async function archiveSessionSilent(sessionId) {
         try {
-            await fetch(`/api/chat/sessions/${sessionId}/archive`, {
+            const response = await fetch(`/api/chat/sessions/${sessionId}/archive`, {
                 method: 'POST'
             });
+            const data = await response.json();
+            if (data.status !== 'ok') {
+                console.error('Failed to archive session:', data.error);
+            }
         } catch (error) {
             console.error('Error archiving session:', error);
         }
@@ -1277,12 +1396,13 @@
 
             const data = await response.json();
             if (data.status === 'deleted') {
-                // If deleted session was current, start new chat
+                // If deleted session was current, reset without archiving
                 if (sessionId === currentSessionId) {
-                    startNewChat();
-                } else {
-                    loadSessions();
+                    currentSessionId = null;
+                    clearMessages();
                 }
+                // Reload sessions in both cases
+                loadSessions();
             }
         } catch (error) {
             console.error('Error deleting session:', error);
