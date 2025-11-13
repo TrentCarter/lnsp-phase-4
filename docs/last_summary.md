@@ -1,119 +1,123 @@
 # Last Session Summary
 
-**Date:** 2025-11-12 (Session: LLM Task Interface - Week 3 Bug Fixes)
-**Duration:** ~90 minutes
+**Date:** 2025-11-13 (Session: Gateway LLM Integration - Real Streaming Implementation)
+**Duration:** ~2.5 hours
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Successfully debugged and fixed 5 critical bugs in the Week 3 LLM Task Interface implementation. All conversation history sidebar features now work correctly: session switching, message loading, auto-titling, archiving, and visual distinction between active/archived sessions. Users can now create multiple chat sessions without breaking the UI.
+Successfully implemented real LLM streaming through the Gateway service, connecting HMI → Gateway → Ollama for live chat responses. Fixed critical model ID mapping issues in both frontend and backend, and debugged browser caching problems. The complete end-to-end stack is now functional with real Llama 3.1 8B responses.
 
 ## Key Changes
 
-### 1. Fixed Session Switching Failure
-**Files:** `services/webui/templates/llm.html:1171, 1233-1236`
-**Summary:** Added `data-session-id` attribute to session items and fixed active highlighting logic to use dataset lookup instead of undefined `event.currentTarget`. Session clicks now properly load messages.
+### 1. Gateway POST /chat/stream Endpoint Implementation
+**Files:** `services/gateway/gateway.py:347-481` (+135 lines)
+**Summary:** Added full SSE streaming endpoint that forwards chat requests to Ollama API. Implements ChatStreamRequest model, _stream_ollama_response() generator function with proper event formatting (status_update, token, usage, done), error handling with detailed logging, and httpx streaming client for async Ollama communication.
 
-### 2. Fixed createMessage Undefined Error
-**Files:** `services/webui/templates/llm.html:1283-1290`
-**Summary:** Replaced non-existent `createMessage()` function with existing `addMessage()` function. Simplified message rendering to use proper API with role and metadata parameters.
+### 2. Fixed HMI Model ID Mapping - Frontend
+**Files:** `services/webui/templates/llm.html:594-598, 665`
+**Summary:** Updated model selector dropdown from hardcoded "Claude Sonnet 4" to actual Ollama models: llama3.1:8b (default), qwen2.5-coder:7b, phi3:mini. Changed JavaScript default from 'Claude Sonnet 4' to 'llama3.1:8b'. This was causing 404 errors because Gateway forwarded invalid model names to Ollama.
 
-### 3. Fixed Delete Session Archive Error
-**Files:** `services/webui/templates/llm.html:1371-1379`
-**Summary:** When deleting current session, now directly resets state (`currentSessionId = null`, `clearMessages()`) instead of calling `startNewChat()` which tried to archive the already-deleted session.
+### 3. Fixed HMI Model ID Mapping - Backend
+**Files:** `services/webui/hmi_app.py:3538`
+**Summary:** Changed backend default model from 'Claude Sonnet 4' to 'llama3.1:8b' in send_chat_message() endpoint. This was the critical fix - even when frontend sent correct model, backend would fall back to wrong default when model parameter was missing or undefined.
 
-### 4. Fixed Race Condition in New Chat
-**Files:** `services/webui/templates/llm.html:1304-1316, 1318-1330`
-**Summary:** Made `startNewChat()` async and added `await` for `archiveSessionSilent()` to prevent race conditions. Added proper error checking in archive function to verify API response status.
-
-### 5. Show Archived Sessions in Sidebar
-**Files:** `services/webui/hmi_app.py:3666-3670`, `services/webui/templates/llm.html:1217-1219, 1230, 1235, 115-126`
-**Summary:** Updated sessions API to return both active and archived sessions (not just active). Added 📦 badge and 60% opacity styling for archived sessions. Users can now see their full chat history.
-
-### 6. Auto-Generate Session Titles
-**Files:** `services/webui/hmi_app.py:3582-3589`, `services/webui/templates/llm.html:677, 906`
-**Summary:** Added logic to auto-generate session titles from first user message (first 50 chars). Sidebar now reloads after streaming completes to show new titles. No more "New conversation" clutter.
+### 4. Gateway Error Logging Enhancement
+**Files:** `services/gateway/gateway.py:465-481`
+**Summary:** Added detailed error logging with traceback printing for httpx.HTTPError and general exceptions during streaming. This helped debug the 404 issues by showing exactly what model was being requested and where it failed.
 
 ## Files Modified
 
 **Modified:**
-- `services/webui/templates/llm.html` - Fixed 5 bugs in session management, added archived visual styling (+~50 lines)
-- `services/webui/hmi_app.py` - Updated sessions API filter, added auto-title generation (+~20 lines)
+- `services/gateway/gateway.py` - Added POST /chat/stream endpoint, ChatStreamRequest model, SSE streaming logic (+135 lines)
+- `services/webui/templates/llm.html` - Fixed model selector dropdown with Ollama model IDs, updated JS default (~5 lines)
+- `services/webui/hmi_app.py` - Fixed backend default model parameter (~1 line)
 
-**Database:**
-- `services/webui/data/llm_chat.db` - Sessions now have titles from first messages, archive status tracked
+**Not Modified (Existing Code):**
+- HMI streaming client code worked correctly once model IDs were fixed
+- Gateway health check and other endpoints unchanged
+- Ollama integration at localhost:11434 used existing API
 
 ## Current State
 
 **What's Working:**
-- ✅ Session list shows all active + archived conversations
-- ✅ Archived sessions display with 📦 badge and dimmed (60% opacity)
-- ✅ Clicking sessions loads messages correctly
-- ✅ "New Chat" properly archives current session and creates new one
-- ✅ Auto-title generation from first user message (50 char limit)
-- ✅ Sidebar refreshes after streaming completes
-- ✅ Delete session works without 404 errors
-- ✅ No race conditions when creating multiple chats
-- ✅ All Week 3 PRD requirements implemented and tested
+- ✅ HMI → Gateway → Ollama end-to-end streaming fully functional
+- ✅ Real LLM responses from Llama 3.1 8B (tested: "Count to 5" → "1, 2, 3, 4, 5")
+- ✅ SSE event types: status_update (planning, executing, complete, error), token, usage, done
+- ✅ Token streaming with proper accumulation and database persistence
+- ✅ Model selector dropdown shows correct Ollama models
+- ✅ Cost tracking (reports $0.00 for local LLM)
+- ✅ Error handling with detailed logging for debugging
 
 **What Needs Work:**
-- [ ] **Gateway Integration**: Chat streaming currently uses mock responses because Gateway doesn't have `/chat/stream` endpoint yet. Need to either (A) implement Gateway streaming endpoint or (B) connect HMI directly to Ollama for real LLM responses.
-- [ ] **Week 4**: Syntax highlighting (Prism.js for code blocks)
-- [ ] **Week 4**: Mobile responsiveness polish (tablet/phone layouts)
-- [ ] **Week 4**: Keyboard shortcuts (Ctrl+K clear, Ctrl+E export, Ctrl+/)
-- [ ] **Future**: Search/filter sessions in sidebar
+- [ ] **Browser Cache Issues**: Aggressive JavaScript caching required multiple hard refreshes, incognito mode, or cache-busting query params to load updated HTML. Consider adding cache-control headers or version parameters to static assets.
+- [ ] **GET /chat/stream/{session_id}**: Currently returns 501. HMI tries GET first, falls back to POST. PRD calls for GET endpoint that loads session context server-side.
+- [ ] **Cancel Endpoint**: HMI attempts POST /chat/{session_id}/cancel but Gateway doesn't implement it. Provider continues generating in background after user cancels.
+- [ ] **Heartbeats**: Gateway doesn't emit :keep-alive events. Not critical since tokens flow continuously, but would improve resilience for long pauses.
+- [ ] **Multiple HMI Processes**: Had issue with duplicate HMI processes (2 running simultaneously). Need better process management or PID file to prevent duplicates.
 
 ## Important Context for Next Session
 
-1. **Mock Responses Root Cause**: The "mock streaming response" messages are because Gateway (port 6120) doesn't have a `/chat/stream` endpoint. HMI tries GET/POST to Gateway, gets 404, falls back to `_mock_stream_response()` (hmi_app.py:4177). To fix: either add streaming to Gateway or connect HMI directly to Ollama (http://localhost:11434).
+1. **Model ID Root Cause**: The issue was THREE places where "Claude Sonnet 4" was hardcoded: (A) HTML option value, (B) JavaScript default variable, (C) Python backend default parameter. All three had to be fixed for end-to-end success. The curl tests proved backend worked before browser did due to aggressive JS caching.
 
-2. **Archived Sessions Design**: Sidebar now shows all sessions (active + archived) to prevent the "Chat #1 disappears when creating Chat #2" issue. This matches standard chat UI patterns (ChatGPT, Claude, etc.). Archived sessions are 60% opacity with 📦 badge for visual distinction.
+2. **Testing Methodology**: Direct curl tests bypassed browser cache issues and proved the stack worked. Used Python requests library to create sessions and stream responses programmatically, which revealed the backend was functional while browser showed errors due to cached JavaScript.
 
-3. **Race Condition Fix Details**: The critical bug was `startNewChat()` being synchronous while calling async `archiveSessionSilent()`. This caused UI to clear immediately while archive was still in flight, creating race conditions. Fixed by making entire flow async with proper await.
+3. **Ollama API Format**: Gateway uses `/api/generate` endpoint with JSON payload: `{"model": "llama3.1:8b", "prompt": "text", "stream": true}`. Ollama returns NDJSON lines with `{"response": "token", "done": false}` format. Final chunk has `done: true` with full stats (prompt_eval_count, eval_count).
 
-4. **Session Title Generation**: Titles are auto-generated on first message (hmi_app.py:3582-3589). Takes first 50 chars of user message, adds "..." if truncated. Sidebar reloads after streaming completes (llm.html:906) to show new titles immediately.
+4. **SSE Event Schema**: Gateway emits 4 event types matching PRD v1.2: `status_update` (planning/executing/complete/error), `token` (text chunks), `usage` (token counts + cost_usd), `done` (completion signal). HMI frontend parses these and updates UI state accordingly.
 
-5. **HMI Running**: HMI server is running on port 6101 (Flask app, not uvicorn). Started with `python hmi_app.py`, not `uvicorn`. Auto-reloads on file changes in debug mode.
+5. **Service Ports**: Gateway on 6120, HMI on 6101, Ollama on 11434. Gateway started with uvicorn --reload for auto-reload on code changes. HMI started with Python directly (not uvicorn) since it's Flask not FastAPI.
 
-6. **Week 3 Complete**: All Phase 3 PRD requirements (conversation history sidebar, session management, export, collapse) are implemented and tested. Ready to move to Week 4 (syntax highlighting, mobile, keyboard shortcuts) or tackle Gateway integration for real LLM responses.
+6. **Browser Cache Busting**: Hard refresh (Cmd+Shift+R), incognito mode, or query params (?v=123) were required to load updated HTML/JS. Flask templates cache in browsers even with hard refresh. Killing and restarting HMI process helped but browser still cached old JS.
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Verify HMI running**: `curl -s http://localhost:6101/health`
-3. **Test UI**: Open http://localhost:6101/llm
-   - Should see archived sessions with 📦 badges
-   - Create new chat, send message, verify title appears
-   - Switch between sessions, verify messages load
-4. **Choose next task**:
-   - **Option A**: Implement Gateway `/chat/stream` endpoint for real LLM (30-60 min)
-   - **Option B**: Connect HMI directly to Ollama for quick testing (5-10 min)
-   - **Option C**: Start Week 4 features (syntax highlighting, mobile, shortcuts)
+2. **Verify services running**:
+   ```bash
+   curl -s http://localhost:6101/health  # HMI
+   curl -s http://localhost:6120/health  # Gateway
+   curl -s http://localhost:11434/api/tags  # Ollama
+   ```
+3. **Test end-to-end in browser**:
+   - Open http://localhost:6101/llm (use incognito or `?v=new` to bypass cache)
+   - Model selector should show "Llama 3.1 8B (Local)"
+   - Click "✨ New Chat"
+   - Send message, watch real LLM streaming
+4. **Next priorities**:
+   - Implement GET /chat/stream/{session_id} for PRD compliance
+   - Add cancel endpoint POST /chat/{session_id}/cancel
+   - Add heartbeat :keep-alive events to Gateway streaming
+   - Fix HMI process management (prevent duplicates)
+   - Add cache-control headers to HMI static assets
 
 ## Test Commands
 
 ```bash
-# Check HMI status
-curl -s http://localhost:6101/health | python3 -m json.tool
+# Test Gateway streaming directly
+curl -X POST http://localhost:6120/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"test","message_id":"test","agent_id":"architect","model":"llama3.1:8b","content":"Hello"}' \
+  | head -20
 
-# Check Gateway status
-curl -s http://localhost:6120/health | python3 -m json.tool
+# Test HMI end-to-end via Python
+python3 << 'EOF'
+import requests, json
+resp = requests.post('http://localhost:6101/api/chat/message', json={'session_id': None, 'message': 'Hi', 'agent_id': 'architect', 'model': 'llama3.1:8b'})
+sid = resp.json()['session_id']
+for line in requests.get(f'http://localhost:6101/api/chat/stream/{sid}', stream=True, timeout=20).iter_lines():
+    if line and line.decode('utf-8').startswith('data: '):
+        event = json.loads(line.decode('utf-8')[6:])
+        if event.get('type') == 'token': print(event.get('content', ''), end='', flush=True)
+        elif event.get('type') == 'done': break
+EOF
 
-# Check Ollama status
-curl -s http://localhost:11434/api/tags >/dev/null 2>&1 && echo "✓ Ollama running" || echo "✗ Ollama not running"
+# Check Gateway logs for model being sent
+# Look for: [GATEWAY] Ollama request: model=llama3.1:8b
 
-# Access LLM Chat UI
-open http://localhost:6101/llm
-
-# List sessions (should show active + archived)
-curl -s http://localhost:6101/api/chat/sessions | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-print(f'Total: {data[\"count\"]}')
-for s in data['sessions']:
-    status = '📦' if s['status'] == 'archived' else '✓'
-    print(f'{status} {s[\"title\"] or \"New conversation\"} ({s[\"status\"]})')
-"
+# Kill duplicate HMI processes if needed
+lsof -ti:6101 | wc -l  # Should be 1, not 2+
+pkill -f hmi_app.py && sleep 2 && cd services/webui && ../../.venv/bin/python3 hmi_app.py &
 ```
 
-**Code Confidence:** VERY HIGH - All bugs fixed and tested end-to-end. Week 3 implementation is production-ready. Gateway integration is the remaining gap for real LLM responses (currently using mocks).
+**Code Confidence:** VERY HIGH - End-to-end streaming works perfectly via curl/Python. Browser UI works but requires cache clearing. All core functionality (Gateway SSE, Ollama integration, model ID mapping) is production-ready. Known issues are UX polish (browser caching, cancel/heartbeat endpoints) not blocking functionality.
