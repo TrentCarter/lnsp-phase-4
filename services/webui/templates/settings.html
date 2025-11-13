@@ -256,6 +256,24 @@
             </div>
 
             <div class="section">
+                <h2>Pricing Cache Management</h2>
+                <div id="pricing-stats" style="margin-bottom: 1rem; padding: 1rem; background: #1e2747; border: 1px solid #3a4568; border-radius: 8px;">
+                    <div class="loading">Loading pricing cache stats...</div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 600px;">
+                    <button class="refresh-btn" onclick="refreshPricingCache()" style="background: #10b981;">
+                        🔄 Refresh Pricing Cache
+                    </button>
+                    <button class="refresh-btn" onclick="clearPricingCache()" style="background: #f59e0b;">
+                        🗑️ Clear Pricing Cache
+                    </button>
+                </div>
+                <div style="margin-top: 1rem; padding: 1rem; background: #1e2747; border: 1px solid #3a4568; border-radius: 8px; color: #9ca3af; font-size: 0.875rem;">
+                    <strong>ℹ️ Info:</strong> Pricing data is cached for 24 hours. Refresh manually to get latest pricing from providers.
+                </div>
+            </div>
+
+            <div class="section">
                 <h2>System Control</h2>
                 <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 600px;">
                     <button class="refresh-btn" onclick="clearCaches()" style="background: #f59e0b;">
@@ -353,6 +371,17 @@
                 const costInfo = isApi ? `
                     <div><strong>Cost (Input/1K):</strong> $${model.cost_per_1k_input || 0}</div>
                     <div><strong>Cost (Output/1K):</strong> $${model.cost_per_1k_output || 0}</div>
+                    ${model.usage ? `
+                        <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #3a4568;">
+                            <div><strong>Total Requests:</strong> ${model.usage.total_requests || 0}</div>
+                            <div><strong>Tokens Used:</strong> ${(model.usage.total_tokens || 0).toLocaleString()}</div>
+                            <div style="font-size: 0.875rem; color: #9ca3af;">
+                                ↑ ${(model.usage.total_input_tokens || 0).toLocaleString()}
+                                ↓ ${(model.usage.total_output_tokens || 0).toLocaleString()}
+                            </div>
+                            <div><strong>Total Cost:</strong> $${(model.usage.total_cost || 0).toFixed(4)}</div>
+                        </div>
+                    ` : ''}
                 ` : '';
 
                 const portInfo = model.port ? `<div><strong>Port:</strong> ${model.port}</div>` : '';
@@ -477,8 +506,68 @@
                 loadModels(),
                 loadEnvConfig(),
                 loadUsage(),
-                loadSystemStatus()
+                loadSystemStatus(),
+                loadPricingStats()
             ]);
+        }
+
+        async function loadPricingStats() {
+            try {
+                const response = await fetch('/api/admin/pricing/stats');
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    renderPricingStats(data.stats);
+                }
+            } catch (error) {
+                document.getElementById('pricing-stats').innerHTML = '<div class="error">Error loading pricing stats</div>';
+            }
+        }
+
+        function renderPricingStats(stats) {
+            const container = document.getElementById('pricing-stats');
+            container.innerHTML = `
+                <div><strong>Total Cached Entries:</strong> ${stats.total_entries || 0}</div>
+                <div><strong>From API:</strong> ${stats.from_api || 0}</div>
+                <div><strong>From Fallback:</strong> ${stats.from_fallback || 0}</div>
+                <div><strong>Expired:</strong> ${stats.expired || 0}</div>
+                <div><strong>Cache Hit Rate:</strong> ${stats.cache_hit_rate || '0%'}</div>
+            `;
+        }
+
+        async function refreshPricingCache() {
+            if (confirm('Refresh all pricing data from provider APIs? This may take a minute.')) {
+                try {
+                    const response = await fetch('/api/admin/pricing/refresh', { method: 'POST' });
+                    const data = await response.json();
+                    if (data.status === 'ok') {
+                        await loadPricingStats();
+                        await loadModels();
+                        alert(`✓ ${data.message}`);
+                    } else {
+                        alert('❌ ' + (data.error || 'Failed to refresh pricing cache'));
+                    }
+                } catch (error) {
+                    alert('Failed to refresh pricing cache: ' + error.message);
+                }
+            }
+        }
+
+        async function clearPricingCache() {
+            if (confirm('Clear pricing cache? Data will be rebuilt on next request.')) {
+                try {
+                    const response = await fetch('/api/admin/pricing/clear', { method: 'POST' });
+                    const data = await response.json();
+                    if (data.status === 'ok') {
+                        await loadPricingStats();
+                        alert('✓ Pricing cache cleared successfully');
+                    } else {
+                        alert('❌ ' + (data.error || 'Failed to clear pricing cache'));
+                    }
+                } catch (error) {
+                    alert('Failed to clear pricing cache: ' + error.message);
+                }
+            }
         }
 
         async function clearCaches() {

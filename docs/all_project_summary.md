@@ -6089,3 +6089,76 @@ Fixed TRON HMI bug where historical events were replaying on page reload, implem
    - Test Anthropic Claude (existing implementation)
 4. **If any fail**: Check Gateway logs at logs/pas/gateway.log for detailed error messages
 5. **Next Task**: Add token cost calculations for each provider in usage_data sections
+
+===
+2025-11-13 15:31:44
+
+# Last Session Summary
+
+**Date:** 2025-11-13 (Session: LLM Multi-Provider Fixes + Model Management)
+**Duration:** ~90 minutes
+**Branch:** feature/aider-lco-p0
+
+## What Was Accomplished
+
+Fixed critical LLM routing issues where Anthropic Haiku was returning Sonnet responses and Kimi K2 was failing with authentication errors. Updated .env model names to use correct API formats, fixed Settings pages to show local models properly, and resolved model assignment dropdown blank values.
+
+## Key Changes
+
+### 1. API Model Name Corrections in .env
+**Files:** `.env:19, 33-35`
+**Summary:** Updated Kimi model name from 'kimi-k2' to 'moonshot-v1-8k' for Moonshot AI compatibility. Fixed Anthropic model names from 'claude-haiku-4-5' and 'claude-sonnet-4-5-20250929' to versioned API formats 'claude-3-5-haiku-20241022' and 'claude-3-5-sonnet-20241022'.
+
+### 2. Gateway Import Path Fix
+**Files:** `services/gateway/gateway.py:24`
+**Summary:** Fixed CostTracker import path from 'cost_tracker' to 'services.gateway.cost_tracker' to resolve ModuleNotFoundError when starting Gateway service.
+
+### 3. Models Local Page Filter Fix
+**Files:** `services/webui/hmi_app.py:3839-3843`
+**Summary:** Updated /api/models/local-status endpoint filter to include ['local', 'ollama', 'local_fastapi'] providers instead of only 'local'. This fixed Settings → Models Local page showing zero models.
+
+### 4. Model Preferences Update
+**Files:** `configs/pas/model_preferences.json:3, 8`, `services/webui/hmi_app.py:2677, 2681, 2685, 2689`
+**Summary:** Updated saved model preferences and default fallback values to use new Anthropic model names, fixing blank dropdown in Model Assignments for Architect primary model.
+
+## Files Modified
+
+- `.env` - Fixed Kimi and Anthropic model names to use correct API formats
+- `services/gateway/gateway.py` - Fixed import path for CostTracker module
+- `services/webui/hmi_app.py` - Updated local models filter and default preferences
+- `configs/pas/model_preferences.json` - Updated to use new Anthropic model names
+
+## Current State
+
+**What's Working:**
+- ✅ Anthropic Haiku/Sonnet routing with correct model names (claude-3-5-haiku-20241022, claude-3-5-sonnet-20241022)
+- ✅ Kimi K2 routing with correct Moonshot API model name (moonshot-v1-8k)
+- ✅ Settings → Models Local shows 3 Ollama models (Qwen 2.5 Coder, DeepSeek R1 7B, DeepSeek R1 1.5B)
+- ✅ Settings → Models Remote shows 7 API models with Test Now buttons
+- ✅ Model Assignments dropdowns populated with correct model selections
+- ✅ HMI running on port 6101
+
+**What Needs Work:**
+- [ ] Test Anthropic Haiku end-to-end to verify it returns Haiku responses (not Sonnet)
+- [ ] Test Kimi K2 end-to-end to verify streaming works without 401 errors
+- [ ] Gateway service needs to be started (currently not running due to import issues during testing)
+
+## Important Context for Next Session
+
+1. **Model Name Format Matters**: Anthropic API requires versioned names like 'claude-3-5-haiku-20241022', not display names like 'claude-haiku-4-5'. Kimi uses Moonshot AI's OpenAI-compatible endpoint and requires 'moonshot-v1-8k' format.
+
+2. **Gateway Not Running**: Gateway was stopped during debugging but HMI is operational. If testing LLM chat, need to start Gateway first with proper import paths.
+
+3. **Local Models Filter**: Settings pages filter models by provider type. Local models use provider='ollama', 'local', or 'local_fastapi'. Remote models use provider='anthropic', 'openai', 'google', 'kimi'.
+
+4. **Model Preferences Sync**: When changing .env model names, must also update configs/pas/model_preferences.json to prevent blank dropdowns in Model Assignments.
+
+5. **Test Now Buttons**: Already implemented on both Models Local and Models Remote pages. They call /api/models/test endpoint which validates health (local) or API key configuration (remote) without making expensive API calls.
+
+## Quick Start Next Session
+
+1. **Use `/restore`** to load this summary (will say "Claude Ready" when done)
+2. **Start Gateway**: Run `bash scripts/start_all_pas_services.sh` to start full P0 stack
+3. **Test LLM Chat**: Go to http://localhost:6101/llm, select Anthropic Haiku, verify it returns Haiku (not Sonnet)
+4. **Test Kimi K2**: Select Kimi K2 model, verify streaming works without 401 authentication errors
+5. **Verify Settings Pages**: Check Models Local and Models Remote both show models with Test Now buttons

@@ -2300,6 +2300,62 @@ def clear_all_data():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/admin/pricing/stats', methods=['GET'])
+def get_pricing_stats():
+    """Get pricing cache statistics"""
+    try:
+        from services.webui.llm_pricing import get_pricing_service
+
+        pricing_service = get_pricing_service()
+        stats = pricing_service.get_cache_stats()
+
+        return jsonify({
+            'status': 'ok',
+            'stats': stats
+        })
+    except Exception as e:
+        logger.error(f"Error getting pricing stats: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/admin/pricing/refresh', methods=['POST'])
+def refresh_pricing_cache():
+    """Refresh all pricing cache entries"""
+    try:
+        from services.webui.llm_pricing import get_pricing_service
+
+        pricing_service = get_pricing_service()
+        stats = pricing_service.refresh_all_cache()
+
+        return jsonify({
+            'status': 'ok',
+            'message': f"Refreshed {stats['refreshed']} of {stats['total']} entries",
+            'stats': stats
+        })
+    except Exception as e:
+        logger.error(f"Error refreshing pricing cache: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/api/admin/pricing/clear', methods=['POST'])
+def clear_pricing_cache():
+    """Clear pricing cache (will rebuild on next request)"""
+    try:
+        import os
+        cache_path = "artifacts/hmi/pricing_cache.db"
+
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
+
+        return jsonify({
+            'status': 'ok',
+            'message': 'Pricing cache cleared successfully'
+        })
+    except Exception as e:
+        logger.error(f"Error clearing pricing cache: {e}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
 @app.route('/api/admin/restart-services', methods=['POST'])
 def restart_services():
     """Restart ALL system services (P0 Stack + PAS + HMI)"""
@@ -2674,19 +2730,19 @@ def load_model_preferences():
     return {
         "architect": {
             "primary": "auto",
-            "fallback": "anthropic/claude-sonnet-4-5-20250929"
+            "fallback": "anthropic/claude-3-5-sonnet-20241022"
         },
         "director": {
             "primary": "auto",
-            "fallback": "anthropic/claude-sonnet-4-5-20250929"
+            "fallback": "anthropic/claude-3-5-sonnet-20241022"
         },
         "manager": {
             "primary": "auto",
-            "fallback": "anthropic/claude-haiku-4-5"
+            "fallback": "anthropic/claude-3-5-haiku-20241022"
         },
         "programmer": {
             "primary": "ollama/qwen2.5-coder:7b-instruct",
-            "fallback": "anthropic/claude-sonnet-4-5-20250929"
+            "fallback": "anthropic/claude-3-5-sonnet-20241022"
         }
     }
 
@@ -3769,14 +3825,49 @@ def get_env_config():
 
 @app.route('/api/models/api-status', methods=['GET'])
 def get_api_models_status():
-    """Get status of external API models only"""
+    """Get status of external API models only with usage statistics"""
     try:
         models = get_available_models()
-        
+
+        # Get usage data from database
+        db = get_db_session()
+        usage_by_model = {}
+        try:
+            messages = db.query(Message).filter(Message.usage_json.isnot(None)).all()
+            for msg in messages:
+                usage = msg.get_usage()
+                if not usage:
+                    continue
+                model_key = msg.model_name or "unknown"
+                if model_key not in usage_by_model:
+                    usage_by_model[model_key] = {
+                        'total_requests': 0,
+                        'total_input_tokens': 0,
+                        'total_output_tokens': 0,
+                        'total_tokens': 0,
+                        'total_cost': 0.0
+                    }
+                usage_by_model[model_key]['total_requests'] += 1
+                usage_by_model[model_key]['total_input_tokens'] += usage.get('input_tokens', 0)
+                usage_by_model[model_key]['total_output_tokens'] += usage.get('output_tokens', 0)
+                usage_by_model[model_key]['total_tokens'] += usage.get('total_tokens', 0)
+                usage_by_model[model_key]['total_cost'] += float(usage.get('cost', 0.0))
+        except Exception as e:
+            logger.warning(f"Could not load usage data: {e}")
+
         # Filter for API models only
         api_models = {}
         for model_id, model in models.items():
             if model['provider'] in ['openai', 'anthropic', 'google', 'deepseek', 'kimi']:
+                # Get usage data for this model
+                model_usage = usage_by_model.get(model['name'], {
+                    'total_requests': 0,
+                    'total_input_tokens': 0,
+                    'total_output_tokens': 0,
+                    'total_tokens': 0,
+                    'total_cost': 0.0
+                })
+
                 api_models[model_id] = {
                     'name': model['name'],
                     'provider': model['provider'],
@@ -3787,11 +3878,12 @@ def get_api_models_status():
                     'api_provider': model['provider'].upper(),
                     'api_status': 'Configured' if model['available'] else 'Invalid Key',
                     'cost_per_1k_input': _get_model_cost(model['provider'], model['name']),
-                    'cost_per_1k_output': _get_model_cost(model['provider'], model['name'], output=True)
+                    'cost_per_1k_output': _get_model_cost(model['provider'], model['name'], output=True),
+                    'usage': model_usage
                 }
-        
+
         return jsonify({
-            'status': 'ok', 
+            'status': 'ok',
             'models': api_models,
             'count': len(api_models)
         })
@@ -3801,33 +3893,29 @@ def get_api_models_status():
 
 
 def _get_model_cost(provider, model_name, output=False):
-    """Get cost per 1K tokens for API models"""
-    cost_map = {
-        'openai': {
-            'gpt-4-turbo': {'input': 0.01, 'output': 0.03},
-            'gpt-4': {'input': 0.03, 'output': 0.06},
-            'gpt-3.5-turbo': {'input': 0.0015, 'output': 0.002}
-        },
-        'anthropic': {
-            'claude-sonnet-4-5-20250929': {'input': 0.003, 'output': 0.015},
-            'claude-haiku-4-5': {'input': 0.0008, 'output': 0.004},
-            'claude-opus-4-5-20250929': {'input': 0.015, 'output': 0.075}
-        },
-        'google': {
-            'gemini-2.5-pro-exp-02-05': {'input': 0.0015, 'output': 0.006},
-            'gemini-2.0-flash': {'input': 0.00015, 'output': 0.0006}
-        },
-        'deepseek': {
-            'deepseek-r1': {'input': 0.00055, 'output': 0.00219}
-        }
-    }
-    
-    provider_map = cost_map.get(provider, {})
-    for model_key, costs in provider_map.items():
-        if model_key.lower() in model_name.lower():
-            return costs['output' if output else 'input']
-    
-    return 0.0
+    """
+    Get cost per 1K tokens for API models using dynamic pricing service.
+
+    Uses intelligent caching with 24-hour TTL and falls back to static
+    pricing if provider APIs are unavailable.
+
+    Args:
+        provider: Provider name (e.g., 'openai', 'anthropic', 'google')
+        model_name: Model identifier (e.g., 'gpt-4-turbo', 'claude-3-5-sonnet-20241022')
+        output: If True, return output token cost; if False, return input token cost
+
+    Returns:
+        float: Cost per 1K tokens
+    """
+    from services.webui.llm_pricing import get_pricing_service
+
+    try:
+        pricing_service = get_pricing_service()
+        input_cost, output_cost = pricing_service.get_pricing(provider, model_name)
+        return output_cost if output else input_cost
+    except Exception as e:
+        logger.error(f"Pricing service error for {provider}/{model_name}: {e}")
+        return 0.0
 
 
 @app.route('/api/models/local-status', methods=['GET'])
@@ -3835,11 +3923,12 @@ def get_local_models_status():
     """Get status of local models only"""
     try:
         models = get_available_models()
-        
-        # Filter for local models only
+
+        # Filter for local models only (includes 'local', 'ollama', 'local_fastapi')
+        local_providers = ['local', 'ollama', 'local_fastapi']
         local_models = {}
         for model_id, model in models.items():
-            if model['provider'] == 'local':
+            if model['provider'] in local_providers:
                 local_models[model_id] = {
                     'name': model['name'],
                     'provider': model['provider'],
