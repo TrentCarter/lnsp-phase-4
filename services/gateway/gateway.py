@@ -21,7 +21,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from dotenv import load_dotenv
 
-from cost_tracker import CostTracker
+from services.gateway.cost_tracker import CostTracker
 
 # Load environment variables from .env file
 env_path = Path(__file__).parent.parent.parent / '.env'
@@ -773,7 +773,7 @@ async def _stream_kimi_response(request: ChatStreamRequest):
         # Call Kimi API (Moonshot AI uses OpenAI-compatible endpoint)
         client = OpenAI(
             api_key=kimi_api_key,
-            base_url="https://api.moonshot.cn/v1"
+            base_url="https://api.moonshot.ai/v1"  # Correct: .ai not .cn
         )
         response_text = ""
         prompt_tokens = 0

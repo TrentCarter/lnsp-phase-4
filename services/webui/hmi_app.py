@@ -1041,20 +1041,30 @@ def get_llm_stats():
                 "is_free": False
             }
 
-        # Kimi K2 models
+        # Kimi K2 models (Moonshot AI)
         if os.getenv('KIMI_API_KEY') and os.getenv('KIMI_API_KEY') != 'your_kimi_api_key_here':
-            kimi_model = os.getenv('KIMI_MODEL_NAME', 'moonshot-v1-8k')  # Default Kimi model
-            available_api_models[kimi_model] = {
-                "model_name": kimi_model,
-                "provider": "kimi",
-                "total_tokens": 0,
-                "input_tokens": 0,
-                "output_tokens": 0,
-                "total_cost_usd": 0.0,
-                "message_count": 0,
-                "session_count": 0,
-                "is_free": False
-            }
+            # Add all 4 verified Kimi models
+            kimi_models = [
+                ('kimi-k2-turbo-preview', 'Kimi K2-TURBO-PREVIEW (128K)', True),  # Latest, recommended
+                ('moonshot-v1-8k', 'Moonshot V1-8K', False),
+                ('moonshot-v1-32k', 'Moonshot V1-32K', False),
+                ('moonshot-v1-128k', 'Moonshot V1-128K', False),
+            ]
+
+            for model_id, display_name, is_default in kimi_models:
+                available_api_models[model_id] = {
+                    "model_name": model_id,
+                    "provider": "kimi",
+                    "display_name": display_name,
+                    "total_tokens": 0,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "total_cost_usd": 0.0,
+                    "message_count": 0,
+                    "session_count": 0,
+                    "is_free": False,
+                    "is_default": is_default
+                }
 
         # Start with available API models (initialize with 0 usage)
         model_stats = available_api_models.copy()
