@@ -96,6 +96,69 @@ def load_agent_status_data() -> Dict[str, Any]:
     data['agents'] = flattened
     return data
 
+@app.route('/api/agent-status', methods=['GET'])
+def get_agent_status():
+    """Expose agent chat coverage metadata for the Model Pool UI."""
+    payload = load_agent_status_data()
+    return jsonify({
+        'status': 'ok',
+        'last_updated': payload.get('last_updated'),
+        'coverage': payload.get('coverage', {}),
+        'tiers': payload.get('tiers', []),
+        'agents': payload.get('agents', []),
+        'error': payload.get('error'),
+    })
+
+
+@app.route('/api/agent-status/test', methods=['POST'])
+def test_agent_endpoint():
+    """Proxy a quick health check for an agent defined in agent_status.json."""
+    try:
+        data = request.get_json(force=True)
+    except Exception:
+        data = {}
+
+    agent_id = data.get('agent_id')
+    test_endpoint = data.get('test_endpoint')
+    timeout_seconds = float(data.get('timeout', 3.0))
+
+    if not agent_id:
+        return jsonify({'status': 'error', 'message': 'agent_id is required'}), 400
+
+    if not test_endpoint:
+        return jsonify({'status': 'error', 'message': 'test_endpoint is required'}), 400
+
+    try:
+        response = requests.get(test_endpoint, timeout=timeout_seconds)
+        payload = {}
+
+        try:
+            payload = response.json()
+        except Exception:
+            payload = {'raw': response.text}
+
+        if response.status_code == 200:
+            return jsonify({
+                'status': 'ok',
+                'agent_id': agent_id,
+                'http_status': response.status_code,
+                'response': payload,
+            })
+
+        return jsonify({
+            'status': 'error',
+            'agent_id': agent_id,
+            'http_status': response.status_code,
+            'response': payload,
+        }), response.status_code
+
+    except requests.exceptions.RequestException as exc:
+        return jsonify({
+            'status': 'error',
+            'agent_id': agent_id,
+            'message': str(exc),
+        }), 500
+
 
 @app.route('/')
 def index():

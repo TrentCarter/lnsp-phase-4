@@ -252,6 +252,7 @@
         <div class="nav-tab" onclick="showTab('local')">🏠 Local Models</div>
         <div class="nav-tab" onclick="showTab('api')">🔑 API Models</div>
         <div class="nav-tab" onclick="showTab('usage')">💰 Usage Stats</div>
+        <div class="nav-tab" onclick="showTab('agent-status')">🤖 Agent Status</div>
     </div>
 
     <!-- Comprehensive Table View -->
@@ -322,6 +323,66 @@
             </div>
             <div id="usage-stats">
                 <div class="loading">Loading usage data...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agent Status Tab -->
+    <div id="agent-status" class="tab-content">
+        <div class="model-section">
+            <div class="section-header">
+                <h2>🤖 Agent Coverage Status</h2>
+                <button class="refresh-btn" onclick="loadAgentStatus()">🔄 Refresh Status</button>
+            </div>
+
+            <!-- Summary Tiles -->
+            <div style="background: #1a1f3a; border: 1px solid #3a4568; border-radius: 12px; padding: 2rem; margin-bottom: 2rem;">
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem;">
+                    <div>
+                        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">Coverage</div>
+                        <div id="agent-coverage-pct" style="font-size: 2rem; font-weight: 700; color: #3b82f6;">--</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">Total Agents</div>
+                        <div id="agent-total-count" style="font-size: 2rem; font-weight: 700; color: #22c55e;">--</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">Conversation Threads</div>
+                        <div id="agent-thread-count" style="font-size: 2rem; font-weight: 700; color: #f59e0b;">--</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">Messages Exchanged</div>
+                        <div id="agent-message-count" style="font-size: 2rem; font-weight: 700; color: #a855f7;">--</div>
+                    </div>
+                </div>
+                <div id="agent-last-updated" style="margin-top: 1rem; font-size: 0.875rem; color: #9ca3af; text-align: center;">
+                    Last Updated: --
+                </div>
+            </div>
+
+            <!-- Scrollable Agent Table -->
+            <div class="models-table-container" style="max-height: 600px; overflow-y: auto;">
+                <table class="models-table">
+                    <thead>
+                        <tr>
+                            <th>Tier</th>
+                            <th>Agent Name</th>
+                            <th>Port</th>
+                            <th>Architecture</th>
+                            <th>Agent Chat</th>
+                            <th>Can Send</th>
+                            <th>Can Receive</th>
+                            <th>SSE Events</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agent-status-tbody">
+                        <tr>
+                            <td colspan="10" class="loading">Loading agent status...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -650,6 +711,164 @@ async function clearUsage() {
 async function refreshAll() {
     loadAllModels();
     loadUsageStats();
+    loadAgentStatus();
+}
+
+// Agent Status Functions
+let agentStatusData = {};
+let agentTestResults = {};
+
+async function loadAgentStatus() {
+    try {
+        console.log('[Agent Status] Fetching agent status from /api/agent-status');
+        const response = await fetch('/api/agent-status');
+        const data = await response.json();
+
+        console.log('[Agent Status] Data received:', data);
+
+        if (data.status === 'ok') {
+            agentStatusData = data;
+            renderAgentStatus();
+        } else {
+            document.getElementById('agent-status-tbody').innerHTML = '<tr><td colspan="10" class="error">Error: ' + data.message + '</td></tr>';
+        }
+    } catch (error) {
+        console.error('[Agent Status] Error loading agent status:', error);
+        document.getElementById('agent-status-tbody').innerHTML = '<tr><td colspan="10" class="error">Error loading agent status: ' + error.message + '</td></tr>';
+    }
+}
+
+function renderAgentStatus() {
+    const tbody = document.getElementById('agent-status-tbody');
+
+    // Update summary tiles
+    const coverage = agentStatusData.coverage || {};
+    document.getElementById('agent-coverage-pct').textContent = (coverage.integration_percent || 0) + '%';
+    document.getElementById('agent-total-count').textContent = coverage.total_agents || 0;
+
+    // Thread/message counts are not in the current API response - show N/A or fetch from registry
+    document.getElementById('agent-thread-count').textContent = 'N/A';
+    document.getElementById('agent-message-count').textContent = 'N/A';
+
+    const lastUpdated = agentStatusData.last_updated || 'Unknown';
+    document.getElementById('agent-last-updated').textContent = `Last Updated: ${lastUpdated}`;
+
+    // Render agent table
+    const agents = agentStatusData.agents || [];
+
+    if (agents.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="loading">No agents found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = '';
+
+    agents.forEach(agent => {
+        const agentName = agent.agent || agent.name || 'Unknown';
+        const testResult = agentTestResults[agentName] || { status: 'untested', message: 'Not tested' };
+
+        let statusClass = 'status-untested';
+        let statusText = 'Untested';
+
+        if (testResult.status === 'ok') {
+            statusClass = 'status-ok';
+            statusText = '✅ OK';
+        } else if (testResult.status === 'error') {
+            statusClass = 'status-error';
+            statusText = '❌ Error';
+        } else if (testResult.status === 'testing') {
+            statusClass = 'status-warning';
+            statusText = '⏳ Testing...';
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${agent.tier || 'Unknown'}</strong></td>
+            <td class="model-name-cell">
+                ${agentName}
+                ${agent.implementation ? `<div class="model-id-sub">${agent.implementation}</div>` : ''}
+            </td>
+            <td>${agent.port || 'N/A'}</td>
+            <td>${agent.architecture || 'N/A'}</td>
+            <td>
+                ${agent.agent_chat ? '<span class="status-icon status-ok"></span> YES' : '<span class="status-icon status-error"></span> NO'}
+            </td>
+            <td>
+                ${agent.can_send ? '<span class="status-icon status-ok"></span>' : '<span class="status-icon status-error"></span>'}
+            </td>
+            <td>
+                ${agent.can_receive ? '<span class="status-icon status-ok"></span>' : '<span class="status-icon status-error"></span>'}
+            </td>
+            <td>
+                ${agent.sse_events ? '<span class="status-icon status-ok"></span>' : '<span class="status-icon status-error"></span>'}
+            </td>
+            <td>
+                <span class="status-icon ${statusClass}"></span>
+                <span style="font-size: 0.875rem;">${statusText}</span>
+                ${testResult.message && testResult.status !== 'untested' ? `<div class="last-tested">${testResult.message}</div>` : ''}
+            </td>
+            <td>
+                <button
+                    class="test-btn"
+                    onclick="testAgent('${agentName}')"
+                    id="test-btn-${agentName.replace(/[^a-zA-Z0-9]/g, '-')}"
+                    ${!agent.test_endpoint ? 'disabled' : ''}
+                >
+                    🔬 Test
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function testAgent(agentName) {
+    const agent = agentStatusData.agents.find(a => (a.agent || a.name) === agentName);
+    if (!agent || !agent.test_endpoint) {
+        alert(`No test endpoint configured for ${agentName}`);
+        return;
+    }
+
+    // Update UI to show testing
+    agentTestResults[agentName] = { status: 'testing', message: 'Testing...' };
+    renderAgentStatus();
+
+    try {
+        console.log(`[Agent Status] Testing ${agentName} at ${agent.test_endpoint}`);
+
+        const response = await fetch('/api/agent-status/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                agent_id: agentName,
+                test_endpoint: agent.test_endpoint
+            })
+        });
+
+        const data = await response.json();
+        console.log(`[Agent Status] Test result for ${agentName}:`, data);
+
+        if (data.status === 'ok') {
+            agentTestResults[agentName] = {
+                status: 'ok',
+                message: `HTTP ${data.http_status} - Health check passed`
+            };
+        } else {
+            agentTestResults[agentName] = {
+                status: 'error',
+                message: data.message || `HTTP ${data.http_status || 'error'} - Health check failed`
+            };
+        }
+    } catch (error) {
+        console.error(`[Agent Status] Error testing ${agentName}:`, error);
+        agentTestResults[agentName] = {
+            status: 'error',
+            message: error.message
+        };
+    }
+
+    // Re-render to show results
+    renderAgentStatus();
 }
 
 // Initialize on page load
