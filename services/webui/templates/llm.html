@@ -258,7 +258,7 @@
     .llm-header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
         margin-bottom: 1.5rem;
         flex-shrink: 0;
     }
@@ -267,12 +267,13 @@
         font-size: 1.75rem;
         font-weight: 600;
         color: #fff;
+        align-self: center;
     }
 
     .llm-toolbar {
         display: flex;
         gap: 1rem;
-        align-items: center;
+        align-items: flex-end;
     }
 
     .selector-group {
@@ -297,6 +298,7 @@
         font-size: 0.875rem;
         cursor: pointer;
         min-width: 180px;
+        height: 38px;
     }
 
     .selector:hover {
@@ -312,6 +314,9 @@
         color: #3b82f6;
         font-size: 0.875rem;
         font-weight: 600;
+        height: 38px;
+        display: flex;
+        align-items: center;
     }
 
     .gateway-status {
@@ -325,6 +330,7 @@
         align-items: center;
         gap: 0.5rem;
         transition: all 0.3s ease;
+        height: 38px;
     }
 
     .gateway-status.connected {
@@ -692,9 +698,14 @@
                 </button>
             </div>
             <div style="padding: 1rem; border-bottom: 1px solid #3a4568;">
-                <button class="new-chat-button" id="new-chat-button" style="margin: 0 0 0.5rem 0;">
+                <button class="new-chat-button" id="new-chat-button" style="margin: 0;">
                     ✨ New Chat
                 </button>
+            </div>
+            <div class="sessions-list" id="sessions-list">
+                <!-- Sessions will be loaded here dynamically -->
+            </div>
+            <div style="padding: 1rem; border-top: 1px solid #3a4568;">
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                     <button id="select-all-btn" class="session-action-btn" style="background: #1e2747; border: 1px solid #3a4568; padding: 0.5rem; font-size: 0.75rem; flex: 1;">
                         📋 Select All
@@ -706,9 +717,6 @@
                 <button id="delete-all-btn" class="session-action-btn" style="background: #7f1d1d; border: 1px solid #dc2626; padding: 0.5rem; font-size: 0.75rem; width: 100%;">
                     ⚠️ Delete All History
                 </button>
-            </div>
-            <div class="sessions-list" id="sessions-list">
-                <!-- Sessions will be loaded here dynamically -->
             </div>
         </div>
 
@@ -867,7 +875,9 @@
             const selectedOption = e.target.options[e.target.selectedIndex];
             const agentName = selectedOption.textContent.split('(')[0].trim();
             const parentRole = getParentRole(currentAgentId);
-            roleIndicator.textContent = `Your Role: ${parentRole} → Directing: ${agentName}`;
+            const hasFilesystemAccess = selectedOption.dataset.filesystemAccess === 'true';
+            const fsIndicator = hasFilesystemAccess ? ' 🔧 Filesystem Access' : '';
+            roleIndicator.textContent = `Your Role: ${parentRole} → Directing: ${agentName}${fsIndicator}`;
             typingAgent.textContent = agentName;
 
             // Context isolation: Confirm agent switch if session exists
@@ -1047,8 +1057,10 @@
                 data.agents.forEach(agent => {
                     const option = document.createElement('option');
                     option.value = agent.agent_id;
+                    option.dataset.filesystemAccess = agent.filesystem_access || false;
                     const portInfo = agent.port ? ` (${agent.port})` : '';
-                    option.textContent = `${agent.role_icon} ${agent.agent_name}${portInfo}`;
+                    const fsIndicator = agent.filesystem_access ? ' 🔧' : '';
+                    option.textContent = `${agent.role_icon} ${agent.agent_name}${portInfo}${fsIndicator}`;
                     agentSelector.appendChild(option);
                 });
 
@@ -1061,7 +1073,9 @@
                     const selectedOption = agentSelector.options[agentSelector.selectedIndex];
                     const agentName = selectedOption.textContent.split('(')[0].trim();
                     const parentRole = getParentRole(currentAgentId);
-                    roleIndicator.textContent = `Your Role: ${parentRole} → Directing: ${agentName}`;
+                    const hasFilesystemAccess = selectedOption.dataset.filesystemAccess === 'true';
+                    const fsIndicator = hasFilesystemAccess ? ' 🔧 Filesystem Access' : '';
+                    roleIndicator.textContent = `Your Role: ${parentRole} → Directing: ${agentName}${fsIndicator}`;
                     typingAgent.textContent = agentName;
                 } else {
                     currentAgentId = data.agents[0].agent_id;
@@ -1624,16 +1638,16 @@
         const archivedBadge = session.status === 'archived' ? '<span class="archived-badge">📦</span>' : '';
 
         div.innerHTML = `
-            <div style="display: flex; align-items: flex-start; gap: 0.5rem;" onclick="switchSession('${session.session_id}')">
-                <input type="checkbox" class="session-checkbox" data-session-id="${session.session_id}" 
-                       style="margin-top: 0.25rem; cursor: pointer; pointer-events: none;" 
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                <input type="checkbox" class="session-checkbox" data-session-id="${session.session_id}"
+                       style="margin-top: 0.25rem; cursor: pointer;"
                        onchange="handleCheckboxChange(this, '${session.session_id}')">
-                <div style="flex: 1; pointer-events: none;">
+                <div style="flex: 1; cursor: pointer;" onclick="switchSession('${session.session_id}')">
                     <div class="session-item-header">
                         <div class="session-title ${titleClass}" title="${title}">
                             ${archivedBadge}${escapeHtml(title)}
                         </div>
-                        <div class="session-actions" style="pointer-events: auto;">
+                        <div class="session-actions">
                             <button class="session-action-btn" onclick="event.stopPropagation(); renameSession('${session.session_id}')" title="Rename">
                                 ✎
                             </button>
@@ -1662,11 +1676,6 @@
             checkbox.checked = true;
             div.classList.add('selected');
         }
-
-        // Fix checkbox click propagation
-        checkbox.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
 
         return div;
     }

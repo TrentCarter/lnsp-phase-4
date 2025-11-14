@@ -376,7 +376,16 @@ async def chat_stream_post(request: ChatStreamRequest):
     """
     POST endpoint for streaming chat responses (legacy support)
 
-    Routes to appropriate provider based on model prefix:
+    Routes based on agent_id:
+    - agent_id="direct" → Route to LLM provider directly
+    - agent_id="architect" → Route to PAS Architect (port 6110) with Aider
+    - agent_id="dir-code" → Route to Dir-Code (port 6111) with Aider
+    - agent_id="dir-models" → Route to Dir-Models (port 6112) with Aider
+    - agent_id="dir-data" → Route to Dir-Data (port 6113) with Aider
+    - agent_id="dir-devsecops" → Route to Dir-DevSecOps (port 6114) with Aider
+    - agent_id="dir-docs" → Route to Dir-Docs (port 6115) with Aider
+
+    Then routes to LLM provider based on model prefix:
     - ollama/* → Ollama local models
     - anthropic/* → Anthropic API (Claude)
     - openai/* → OpenAI API (GPT)
@@ -390,7 +399,16 @@ async def chat_stream_post(request: ChatStreamRequest):
     - usage: Token/cost tracking
     - done: Stream complete signal
     """
-    # Route based on model prefix
+    # Check if routing to PAS agent (not "direct")
+    agent_id = request.agent_id.lower()
+    if agent_id != "direct":
+        # Route to PAS agent endpoint
+        return StreamingResponse(
+            _stream_pas_agent_response(request),
+            media_type="text/event-stream"
+        )
+
+    # Direct chat mode - route based on model prefix
     model = request.model.lower()
 
     if model.startswith("ollama/"):
@@ -452,6 +470,107 @@ async def chat_stream_get(session_id: str):
         status_code=501,
         detail="GET /chat/stream/{session_id} not implemented. Use POST /chat/stream with full context."
     )
+
+
+async def _stream_pas_agent_response(request: ChatStreamRequest):
+    """
+    Stream chat response from PAS agent (Architect, Directors) with filesystem access via Aider.
+
+    Routes to agent's FastAPI endpoint which handles:
+    1. LLM interaction for planning/reasoning
+    2. Aider RPC calls for filesystem operations
+    3. Job card management and delegation
+
+    Agent endpoint mapping:
+    - architect → http://127.0.0.1:6110/chat
+    - dir-code → http://127.0.0.1:6111/chat
+    - dir-models → http://127.0.0.1:6112/chat
+    - dir-data → http://127.0.0.1:6113/chat
+    - dir-devsecops → http://127.0.0.1:6114/chat
+    - dir-docs → http://127.0.0.1:6115/chat
+
+    Yields SSE events from agent (forwarded transparently)
+    """
+    # Map agent_id to endpoint
+    agent_endpoints = {
+        "architect": "http://127.0.0.1:6110",
+        "dir-code": "http://127.0.0.1:6111",
+        "dir-models": "http://127.0.0.1:6112",
+        "dir-data": "http://127.0.0.1:6113",
+        "dir-devsecops": "http://127.0.0.1:6114",
+        "dir-docs": "http://127.0.0.1:6115",
+    }
+
+    agent_id = request.agent_id.lower()
+    agent_url = agent_endpoints.get(agent_id)
+
+    if not agent_url:
+        # Unknown agent - return error
+        yield f"data: {json.dumps({'type': 'error', 'message': f'Unknown PAS agent: {agent_id}'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return
+
+    # Status: Routing to agent
+    yield f"data: {json.dumps({'type': 'status_update', 'status': 'routing', 'detail': f'Routing to {agent_id.upper()}...'})}\n\n"
+
+    # Prepare message for agent
+    # Use messages array if provided, otherwise fall back to legacy content field
+    if request.messages:
+        messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+    else:
+        # Legacy: single user message
+        messages = [{"role": "user", "content": request.content}]
+
+    # Get the latest user message for task description
+    latest_message = messages[-1]["content"] if messages else request.content
+
+    try:
+        # TODO Phase 2: Implement proper PAS agent chat endpoints
+        # For now, agents don't have /chat endpoints - they use job cards
+        # This is a placeholder that returns an informative message
+
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'planning', 'detail': f'{agent_id.upper()} received task...'})}\n\n"
+
+        # Return informative message about agent capabilities
+        response_text = f"""**{agent_id.upper()} Agent Ready** 🔧
+
+I'm a PAS agent with filesystem access via Aider. However, the direct chat interface for PAS agents is not yet implemented.
+
+**Current Capabilities:**
+- Receive job cards via Prime Directive workflow
+- Delegate to Managers and Programmers
+- Execute code changes via Aider RPC
+- Track costs and generate reports
+
+**To use me:**
+1. Submit a task via Verdict CLI: `./bin/verdict send --title "Task" --goal "Description"`
+2. Monitor progress in TRON (http://localhost:6101/tron)
+3. View results in artifacts/runs/
+
+**Coming Soon:**
+- Direct chat interface with streaming responses
+- Interactive filesystem exploration
+- Real-time code editing assistance
+
+For now, please use the **Direct Chat** option for conversational LLM access, or submit structured tasks via Verdict CLI for filesystem operations.
+"""
+
+        # Stream response as tokens
+        for char in response_text:
+            yield f"data: {json.dumps({'type': 'token', 'content': char})}\n\n"
+            await asyncio.sleep(0.01)  # Simulate streaming
+
+        # Usage metadata (free - no LLM call yet)
+        yield f"data: {json.dumps({'type': 'usage', 'tokens': 0, 'cost_usd': 0.0})}\n\n"
+
+        # Done
+        yield f"data: {json.dumps({'type': 'status_update', 'status': 'complete', 'detail': 'Response complete'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    except Exception as e:
+        print(f"[GATEWAY] Error streaming from PAS agent {agent_id}: {e}")
+        yield f"data: {json.dumps({'type': 'error', 'message': f'Agent error: {str(e)}'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 
 async def _stream_ollama_response(request: ChatStreamRequest):

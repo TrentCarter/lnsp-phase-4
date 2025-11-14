@@ -4132,41 +4132,75 @@ def get_agents():
         response.raise_for_status()
         data = response.json()
 
-        # Registry returns {"services": {...}} - convert to list format
-        services_dict = data.get('services', {})
+        # Registry returns {"items": [...]} - filter for agents only
+        services_list = data.get('items', [])
         agents = []
 
-        for service_id, service_data in services_dict.items():
-            # Extract agent info
+        for service_data in services_list:
+            # Only include agents (not models or tools)
+            if service_data.get('type') != 'agent':
+                continue
+
+            # Extract agent info from labels and service data
+            labels = service_data.get('labels') or {}
             agent_entry = {
-                'agent_id': service_id,
-                'agent_name': service_data.get('name', service_id),
-                'port': service_data.get('port'),
-                'tier': service_data.get('tier', 'unknown'),
+                'agent_id': service_data.get('service_id'),
+                'agent_name': service_data.get('name', service_data.get('service_id')),
+                'port': labels.get('port'),
+                'tier': labels.get('tier', 'unknown'),
                 'status': service_data.get('status', 'unknown'),
-                'role_icon': _get_role_icon(service_data.get('tier'))
+                'role_icon': labels.get('icon') or _get_role_icon(labels.get('tier'))
             }
             agents.append(agent_entry)
 
-        # Sort by tier and name
-        tier_order = {'architect': 1, 'director': 2, 'manager': 3, 'programmer': 4}
-        agents.sort(key=lambda x: (tier_order.get(x['tier'].lower(), 99), x['agent_name']))
+        # Add "Direct Chat" option at the top (no PAS agent, direct LLM access)
+        agents.insert(0, {
+            'agent_id': 'direct',
+            'agent_name': 'Direct Chat',
+            'port': None,
+            'tier': 'direct',
+            'status': 'active',
+            'role_icon': '💬',
+            'filesystem_access': False
+        })
 
-        # Fallback: If registry returns no agents, provide Architect by default
-        if not agents:
+        # Sort remaining agents by tier and name (excluding Direct Chat)
+        tier_order = {'architect': 1, 'director': 2, 'manager': 3, 'programmer': 4}
+        pas_agents = agents[1:]  # Skip Direct Chat
+        pas_agents.sort(key=lambda x: (tier_order.get(x['tier'].lower(), 99), x['agent_name']))
+
+        # Mark all PAS agents as having filesystem access
+        for agent in pas_agents:
+            agent['filesystem_access'] = True
+
+        # Reconstruct with Direct Chat first
+        agents = [agents[0]] + pas_agents
+
+        # Fallback: If registry returns no PAS agents, provide Architect by default
+        if len(agents) == 1:  # Only Direct Chat
             return jsonify({
                 'status': 'ok',
                 'agents': [
+                    {
+                        'agent_id': 'direct',
+                        'agent_name': 'Direct Chat',
+                        'port': None,
+                        'tier': 'direct',
+                        'status': 'active',
+                        'role_icon': '💬',
+                        'filesystem_access': False
+                    },
                     {
                         'agent_id': 'architect',
                         'agent_name': 'Architect',
                         'port': 6110,
                         'tier': 'architect',
                         'status': 'unknown',
-                        'role_icon': '🏛️'
+                        'role_icon': '🏛️',
+                        'filesystem_access': True
                     }
                 ],
-                'count': 1,
+                'count': 2,
                 'fallback': True
             })
 
