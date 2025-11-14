@@ -8947,3 +8947,329 @@ Fixed Test 13 (TRON Timeout Detection) browser connectivity by adding CORS middl
 - `services/common/heartbeat.py` - In-memory HeartbeatMonitor
 - `services/heartbeat_monitor/heartbeat_monitor.py` - TRON service
 - `services/registry/registry_service.py` - Service registration API
+
+===
+2025-11-14 15:19:07
+
+# Last Session Summary
+
+**Date:** 2025-11-14 (Session: TRON System Status Integration)
+**Duration:** ~45 minutes
+**Branch:** feature/aider-lco-p0
+
+## What Was Accomplished
+
+Implemented complete Registry Service integration for TRON Heartbeat Monitor, enabling automatic registration and persistent visibility in HMI System Status dashboard. Created reusable heartbeat utility for all PAS services and fixed multiple API/UI integration issues.
+
+## Key Changes
+
+### 1. Registry Heartbeat Utility (NEW)
+**Files:** `services/common/registry_heartbeat.py` (NEW, 280 lines)
+**Summary:** Created reusable utility for automatic service registration and heartbeat transmission. Handles background heartbeat loop (30s intervals), graceful shutdown, and error recovery. Uses HTTP PUT (not POST) for Registry `/heartbeat` endpoint.
+
+### 2. TRON Heartbeat Integration
+**Files:** `services/heartbeat_monitor/heartbeat_monitor.py:266-315`
+**Summary:** Integrated `registry_heartbeat.py` into TRON startup/shutdown events. TRON now automatically registers with Registry Service on startup and sends heartbeats every 30 seconds to maintain "ok" status.
+
+### 3. HMI API Format Fix
+**Files:** `services/webui/hmi_app.py:216-219`
+**Summary:** Fixed Registry API response parsing - HMI was expecting `{"services": {...}}` but Registry returns `{"items": [...]}`. Services now display correctly in dashboard.
+
+### 4. Dashboard Core Services Grouping
+**Files:** `services/webui/templates/dashboard.html:1244-1246`
+**Summary:** Expanded JavaScript grouping logic to include services with "heartbeat", "tron", "webui", "events", "router", "aider" in Core Services section. TRON now appears in correct group.
+
+### 5. Service Registration Tool (NEW)
+**Files:** `tools/register_core_services.py` (NEW, 244 lines)
+**Summary:** Created manual registration utility for core infrastructure services (TRON, Resource Manager, Token Governor, Events, Router, Aider-LCO). Fallback for services without integrated heartbeat startup.
+
+### 6. Technical Documentation (NEW)
+**Files:** `docs/TRON_SYSTEM_STATUS_INTEGRATION.md` (NEW, 8KB)
+**Summary:** Comprehensive documentation covering problem analysis, solution implementation, verification results, and integration patterns for other services. Includes code examples and troubleshooting guide.
+
+## Files Modified
+
+- `services/common/registry_heartbeat.py` (NEW) - Automatic registration & heartbeat utility
+- `services/heartbeat_monitor/heartbeat_monitor.py` - Added startup/shutdown heartbeat integration
+- `services/webui/hmi_app.py` - Fixed Registry API response format parsing
+- `services/webui/templates/dashboard.html` - Expanded Core Services grouping logic
+- `tools/register_core_services.py` (NEW) - Manual service registration tool
+- `docs/TRON_SYSTEM_STATUS_INTEGRATION.md` (NEW) - Complete technical documentation
+
+## Current State
+
+**What's Working:**
+- ✅ TRON automatically registers with Registry Service on startup (service_id: "tron-heartbeat-monitor")
+- ✅ Heartbeat updates every 30 seconds via PUT /heartbeat (verified: 18:49:49 → 18:50:19)
+- ✅ TRON visible in HMI System Status dashboard under "Core Services" with status "ok"
+- ✅ No TTL expiration - service maintains persistent registration
+- ✅ Reusable `registry_heartbeat.py` utility ready for other services
+
+**What Needs Work:**
+- [ ] **Integrate heartbeat into other core services** - Resource Manager (6104), Token Governor (6105), Event Stream (6102), Router (6103) need same integration pattern
+- [ ] **Integrate heartbeat into PAS agents** - Gateway, PAS Root, Architect, Directors, Managers, Programmers need registration
+- [ ] **Complete Test 13 (TRON Timeout Detection)** - Phase 1 passing, phases 2-4 need implementation (timeout simulation, detection, parent alerting)
+- [ ] **Registry Service self-registration** - Registry (6121) should register itself
+
+## Important Context for Next Session
+
+1. **Two Heartbeat Systems Exist**: (1) In-memory `HeartbeatMonitor` singleton in `services/common/heartbeat.py` used by agents locally, (2) Centralized TRON service monitoring via Registry Service. Integration pattern now available for connecting both systems.
+
+2. **HTTP Method Critical**: Registry `/heartbeat` endpoint requires HTTP PUT, not POST. Using POST results in "405 Method Not Allowed". The `registry_heartbeat.py` utility uses correct PUT method (line 122).
+
+3. **Service TTL Management**: Default TTL is 90s (3x heartbeat interval of 30s). Services not sending heartbeats will be marked "down" after 60s and de-registered after 90s. TRON checks every 30s and escalates after 2-3 missed beats.
+
+4. **Integration Pattern**: For any FastAPI service, add to startup event:
+   ```python
+   from services.common.registry_heartbeat import start_registry_heartbeat
+
+   @app.on_event("startup")
+   async def startup_event():
+       await start_registry_heartbeat(
+           service_id="unique-id",
+           name="Display Name",
+           type="agent",
+           role="production",
+           url="http://localhost:PORT",
+           caps=["capability1"],
+           labels={"tier": "core", "agent_role": "infrastructure"}
+       )
+   ```
+
+5. **Dashboard Grouping Logic**: Services are grouped by name patterns in `dashboard.html:1232-1249`. To appear in Core Services, service name must contain: gateway, pas root, registry, heartbeat, tron, webui, events, router, or aider.
+
+## Quick Start Next Session
+
+1. **Use `/restore`** to load this summary
+2. **Verify TRON still visible**: Visit http://localhost:6101 → System Status → Core Services
+3. **Next priority**: Integrate `registry_heartbeat.py` into Resource Manager (`services/resource_manager/resource_manager.py`) using same pattern as TRON
+4. **Alternative**: Complete Test 13 phases 2-4 (timeout detection now that heartbeat system is working)
+5. **Check heartbeat status**: `curl http://localhost:6121/services | python3 -m json.tool | grep -A 5 "TRON"`
+
+## Verification Commands
+
+```bash
+# Check TRON registration
+curl -s http://localhost:6121/services | python3 -m json.tool | grep -i tron -A 8
+
+# Check TRON in HMI API
+curl -s http://localhost:6101/api/services | python3 -m json.tool
+
+# View TRON logs
+tail -50 artifacts/logs/tron.log
+
+# Re-register services manually (if needed)
+python tools/register_core_services.py
+
+# Check TRON health
+curl http://localhost:6109/health
+```
+
+## Related Documentation
+
+- `docs/TRON_SYSTEM_STATUS_INTEGRATION.md` - Complete technical documentation (this session)
+- `docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md` - TRON system PRD
+- `docs/AGENT_FAMILY_TESTS_RESOURCE_MANAGEMENT.md` - Test 13 specifications
+- `docs/SERVICE_PORTS.md` - Complete port mapping
+- `services/common/registry_heartbeat.py` - Heartbeat utility API reference
+
+===
+2025-11-14 15:43:35
+
+# Last Session Summary
+
+**Date:** 2025-11-14 (Session: System Status Integration + LLM Chat Agent Expansion)
+**Duration:** ~90 minutes
+**Branch:** feature/aider-lco-p0
+
+## What Was Accomplished
+
+Fixed critical bugs preventing TRON and core services from appearing in HMI System Status, added infrastructure service checks to startup scripts, and expanded LLM Chat agent dropdown to include all PAS agents plus direct local/API LLM access (35 total options).
+
+## Key Changes
+
+### 1. Neo4j Startup Integration
+**Files:** `scripts/start_all_pas_services.sh:11-17`, `scripts/restart_all_services.sh:6-15`
+**Summary:** Integrated existing `check_services.sh` into PAS startup scripts to verify PostgreSQL and Neo4j are running before starting services. Prevents silent failures when infrastructure services are down.
+
+### 2. TRON Missing from Core Services (Port Status UI Bug)
+**Files:** `services/webui/templates/base.html:4139-4141`
+**Summary:** Fixed PORT_GROUPS configuration missing TRON (6109), Resource Manager (6104), and Token Governor (6105). Core Services now shows 10 ports instead of 7. This was NOT a browser cache issue.
+
+### 3. PAS Agent Registration for LLM Chat
+**Files:** `tools/register_all_pas_agents.py` (NEW, 446 lines)
+**Summary:** Created registration script to add all 23 PAS agents (1 Architect + 5 Directors + 7 Managers + 10 Programmers) to Registry Service so they appear in LLM Chat dropdown.
+
+### 4. Direct LLM Access in Agent Dropdown
+**Files:** `services/webui/hmi_app.py:4525-4567`
+**Summary:** Modified `/api/agents` endpoint to include direct local models (Ollama) and API models (Claude, Gemini, Kimi, OpenAI) as agent options. Users can now chat directly with LLMs without going through PAS agents.
+
+## Files Modified
+
+- `scripts/start_all_pas_services.sh` - Added infrastructure service checks before starting PAS
+- `scripts/restart_all_services.sh` - Added infrastructure service checks before restarting
+- `services/webui/templates/base.html` - Fixed PORT_GROUPS to include TRON, Resource Manager, Token Governor
+- `services/webui/hmi_app.py` - Extended `/api/agents` to include direct LLM options
+- `tools/register_all_pas_agents.py` (NEW) - Script to register all PAS agents with Registry
+
+## Current State
+
+**What's Working:**
+- ✅ Neo4j auto-checks and starts via startup scripts (PostgreSQL + Neo4j verified before PAS services start)
+- ✅ TRON (6109), Resource Manager (6104), Token Governor (6105) now visible in Core Services port status
+- ✅ All 35 agent options available in LLM Chat dropdown: Direct Chat, 3 local models, 7 API models, 1 Architect, 5 Directors, 7 Managers, 10 Programmers, 1 TRON
+- ✅ Registry Service tracking all agents via heartbeat system
+- ✅ Direct LLM access (local + API) bypassing agent hierarchy
+
+**What Needs Work:**
+- [ ] Pyright diagnostics warnings in `hmi_app.py` (unused imports, deprecated datetime.utcnow)
+- [ ] Other core services (Resource Manager, Token Governor, Router, Events) need `registry_heartbeat.py` integration like TRON
+- [ ] Test 13 phases 2-4 completion (timeout detection now that heartbeat system is working)
+
+## Important Context for Next Session
+
+1. **Infrastructure Check Pattern**: `check_services.sh` now runs automatically in PAS startup scripts. It checks PostgreSQL (required) and Neo4j (optional with prompt). Environment variables: `AUTO_START=1` (non-interactive), `SKIP_NEO4J=1` (skip Neo4j checks).
+
+2. **Agent Registration**: PAS agents must be registered with Registry Service to appear in LLM Chat. Run `python3 tools/register_all_pas_agents.py` after starting services if agents don't appear in dropdown.
+
+3. **Port Groups Configuration**: Core Services port list is in `base.html:4131-4191` (PORT_GROUPS constant). This is separate from the backend port checking in `hmi_app.py:3697-3717`.
+
+4. **Direct LLM vs Agent Routing**: Agent dropdown now supports two modes:
+   - **Direct LLMs** (`agent_id` starts with `direct-llm:`): Direct API calls to models, bypassing agent infrastructure
+   - **PAS Agents** (all other IDs): Messages routed through Gateway → PAS hierarchy → Agent → Model
+
+5. **LLM Chat Agent Tiers**: Dropdown order is: direct → direct-llm → architect → director → manager → programmer → core. Frontend code in `llm.html:1050-1087` (loadAgents function), backend in `hmi_app.py:4467-4577` (/api/agents endpoint).
+
+## Quick Start Next Session
+
+1. **Use `/restore`** to load this summary
+2. **Verify system status**: Visit http://localhost:6101 → Settings → System Status → Port Status → Core Services (should show 10 ports including TRON, Resource Manager, Token Governor)
+3. **Test LLM Chat**: Visit http://localhost:6101/llm → Agent dropdown (should show 35 options)
+4. **Optional**: Fix Pyright warnings in `hmi_app.py` (unused imports, deprecated datetime methods)
+5. **Optional**: Integrate `registry_heartbeat.py` into other core services (Resource Manager, Token Governor, etc.)
+
+## Verification Commands
+
+```bash
+# Check Neo4j status
+neo4j status
+
+# Check Core Services registration
+curl -s http://localhost:6121/services | python3 -m json.tool
+
+# Check LLM Chat agents API
+curl -s http://localhost:6101/api/agents | python3 -m json.tool | grep -E '"count"|"agent_name"'
+
+# Re-register agents if needed
+python3 tools/register_all_pas_agents.py
+
+# Check infrastructure services
+./scripts/check_services.sh
+```
+
+## Related Documentation
+
+- `docs/TRON_SYSTEM_STATUS_INTEGRATION.md` - TRON Registry integration (previous session)
+- `services/common/registry_heartbeat.py` - Reusable heartbeat utility
+- `scripts/check_services.sh` - Infrastructure service verification
+- `docs/SERVICE_PORTS.md` - Complete port mapping
+
+===
+2025-11-14 15:58:12
+
+# Last Session Summary
+
+**Date:** 2025-11-14 (Session: LLM Chat Fixes + PAS Agent Integration)
+**Duration:** ~90 minutes
+**Branch:** feature/aider-lco-p0
+
+## What Was Accomplished
+
+Fixed critical LLM Chat interface issues: removed duplicate "Direct: <LLM>" entries from Agent dropdown, added GPT-5.1 models to Model dropdown, implemented per-message model override, and fully integrated PAS Directors with streaming chat capability through Gateway.
+
+## Key Changes
+
+### 1. Agent Dropdown Cleanup
+**Files:** `services/webui/hmi_app.py:4522-4567` (45 lines removed)
+**Summary:** Removed code that was adding "Direct: Llama", "Direct: Kimi", etc. entries to the Agent dropdown. These were cluttering the interface with duplicates. Agent dropdown now shows only: Direct Chat + 23 PAS agents (Architect, Directors, Managers, Programmers) + TRON.
+
+### 2. GPT-5.1 Model Support
+**Files:** `services/webui/hmi_app.py:3180-3201` (21 lines added)
+**Summary:** Added three new GPT-5.1 models to Model dropdown: GPT-5.1 Chat (gpt-5.1-chat-latest), GPT-5.1-Codex (gpt-5.1-codex), and GPT-5.1-Codex-Mini (gpt-5.1-codex-mini). All three are available when OpenAI API key is configured.
+
+### 3. Per-Message Model Override
+**Files:** `services/webui/hmi_app.py:4703`
+**Summary:** Fixed bug where changing the model during an ongoing chat session would be ignored. Now when you select a different model in chat, it properly overrides the session's default model for that message. Each message can use a different model.
+
+### 4. PAS Agent Streaming Chat Integration
+**Files:** `services/pas/director_docs/app.py:174-246` (72 lines added), `services/gateway/gateway.py:528-564` (37 lines replaced)
+**Summary:** Implemented full streaming chat capability for PAS agents. Added `/chat/stream` endpoint to Director-Docs that calls Ollama with proper system prompt and streams responses as SSE events. Updated Gateway to route to agent endpoints instead of returning placeholder message. Directors now work in LLM Chat interface with real filesystem context.
+
+## Files Modified
+
+- `services/webui/hmi_app.py` - Removed direct LLM entries from agent dropdown, added GPT-5.1 models, fixed per-message model override
+- `services/pas/director_docs/app.py` - Added streaming chat endpoint with Ollama integration
+- `services/gateway/gateway.py` - Updated PAS agent routing to use real endpoints instead of placeholder
+
+## Current State
+
+**What's Working:**
+- ✅ Agent dropdown shows 25 agents (Direct Chat + 23 PAS + TRON) without duplicates
+- ✅ Model dropdown includes GPT-5.1 Chat, GPT-5.1-Codex, GPT-5.1-Codex-Mini
+- ✅ Per-message model override works (chat model selection overrides Settings defaults)
+- ✅ Director-Docs (port 6115) responds to chat with streaming LLM responses via Gateway
+- ✅ Gateway (port 6120) properly routes to PAS agent `/chat/stream` endpoints
+- ✅ HMI (port 6101), Gateway (port 6120), Director-Docs (6115) all running
+
+**What Needs Work:**
+- [ ] Copy `/chat/stream` endpoint to other Directors (Code, Models, Data, DevSecOps)
+- [ ] Add streaming chat to Managers and Programmers
+- [ ] Integrate Aider for actual filesystem operations (currently just LLM responses)
+- [ ] Test other PAS agents besides Director-Docs
+
+## Important Context for Next Session
+
+1. **Agent Dropdown Logic**: Agent dropdown (`hmi_app.py:4467-4547`) queries Registry Service for PAS agents, adds "Direct Chat" at top, and sorts by tier. It NO LONGER adds individual LLM models as agents - those belong in Model dropdown only.
+
+2. **Model Override Flow**: When a message is sent, `hmi_app.py:4703` updates `session.model_name` to allow per-message model changes. The streaming endpoint (`hmi_app.py:5177-5178`) uses the session's stored model. This means the dropdown selection in chat overrides Settings defaults.
+
+3. **PAS Agent Chat Architecture**:
+   - Frontend → HMI `/api/chat/message` → Creates session and assistant message placeholder
+   - Frontend opens SSE → HMI `/api/chat/stream/{session_id}` → Gateway `/chat/stream` (POST)
+   - Gateway → Agent `/chat/stream` → Ollama → Streams back through Gateway → HMI → Frontend
+   - Each agent needs its own `/chat/stream` endpoint (currently only Director-Docs has it)
+
+4. **Director Chat Endpoint**: The `/chat/stream` endpoint in `director_docs/app.py:174-246` accepts `{messages: [...], model: "..."}`, adds system prompt with agent context, calls Ollama's `/api/chat` endpoint, and streams SSE events (tokens, status updates, usage). Uses httpx for async HTTP streaming.
+
+5. **Gateway Routing**: Gateway maps agent_id to port (dir-docs → 6115) and forwards to `{agent_url}/chat/stream`. Previously returned placeholder message, now actually calls the agent endpoint and forwards SSE events transparently.
+
+## Quick Start Next Session
+
+1. **Use `/restore`** to load this summary
+2. **Test Director-Docs chat**: Visit http://localhost:6101/llm → Select "Director: Docs" agent → Try asking about files
+3. **Extend to other Directors**: Copy the `/chat/stream` implementation from director_docs/app.py to other Director services
+4. **Add Aider integration**: Enhance `/chat/stream` to use Aider RPC for actual filesystem operations instead of just LLM responses
+
+## Verification Commands
+
+```bash
+# Check services running
+lsof -ti:6101 && echo "HMI: ✓" || echo "HMI: ✗"
+lsof -ti:6120 && echo "Gateway: ✓" || echo "Gateway: ✗"
+lsof -ti:6115 && echo "Director-Docs: ✓" || echo "Director-Docs: ✗"
+
+# Test Director chat via Gateway
+curl -X POST http://localhost:6120/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{"agent_id":"dir-docs","model":"llama3.1:8b","messages":[{"role":"user","content":"Hello"}]}'
+
+# Check agent list
+curl -s http://localhost:6101/api/agents | python3 -m json.tool | grep '"agent_name"'
+```
+
+## Related Documentation
+
+- Gateway routing: `services/gateway/gateway.py:475-565`
+- HMI agent API: `services/webui/hmi_app.py:4467-4625`
+- Director chat endpoint: `services/pas/director_docs/app.py:174-246`
+- Model preferences: `services/webui/hmi_app.py:3117-3248`

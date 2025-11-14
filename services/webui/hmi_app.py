@@ -28,6 +28,7 @@ from pathlib import Path
 
 # Add parent directory to path for importing agent_chat
 sys.path.insert(0, str(Path(__file__).parent.parent / 'common'))
+sys.path.insert(0, str(Path(__file__).parent))  # Add webui directory for llm_chat_db
 from agent_chat import AgentChatClient
 from comms_logger import CommsLogger, MessageType
 
@@ -3162,12 +3163,13 @@ def get_available_models():
 
                 # Check for OpenAI
                 if 'OPENAI_API_KEY=' in env_content and 'your_' not in env_content.split('OPENAI_API_KEY=')[1].split('\n')[0]:
-                    # Extract model name
+                    # Check if API key is valid (not placeholder)
+                    api_key = env_content.split('OPENAI_API_KEY=')[1].split('\n')[0].strip().strip("'\"")
+                    is_valid = 'your_' not in api_key and len(api_key) > 10
+
+                    # Extract configured model name if specified
                     if 'OPENAI_MODEL_NAME=' in env_content:
                         model_line = env_content.split('OPENAI_MODEL_NAME=')[1].split('\n')[0].strip().strip("'\"")
-                        # Check if API key is valid (not placeholder)
-                        api_key = env_content.split('OPENAI_API_KEY=')[1].split('\n')[0].strip().strip("'\"")
-                        is_valid = 'your_' not in api_key and len(api_key) > 10
                         models[f"openai/{model_line}"] = {
                             "name": f"OpenAI {model_line}",
                             "provider": "openai",
@@ -3175,6 +3177,29 @@ def get_available_models():
                             "available": is_valid,
                             "status": "API" if is_valid else "INVALID_KEY"
                         }
+
+                    # Add GPT-5.1 models (available with OpenAI API key)
+                    models["openai/gpt-5.1-chat-latest"] = {
+                        "name": "GPT-5.1 Chat",
+                        "provider": "openai",
+                        "description": "GPT-5.1 with adaptive reasoning (latest)",
+                        "available": is_valid,
+                        "status": "API" if is_valid else "INVALID_KEY"
+                    }
+                    models["openai/gpt-5.1-codex"] = {
+                        "name": "GPT-5.1-Codex",
+                        "provider": "openai",
+                        "description": "GPT-5.1 optimized for software engineering tasks",
+                        "available": is_valid,
+                        "status": "API" if is_valid else "INVALID_KEY"
+                    }
+                    models["openai/gpt-5.1-codex-mini"] = {
+                        "name": "GPT-5.1-Codex-Mini",
+                        "provider": "openai",
+                        "description": "Lightweight GPT-5.1 for coding workflows",
+                        "available": is_valid,
+                        "status": "API" if is_valid else "INVALID_KEY"
+                    }
 
                 # Check for Anthropic
                 if 'ANTHROPIC_API_KEY=' in env_content and 'your_' not in env_content.split('ANTHROPIC_API_KEY=')[1].split('\n')[0]:
@@ -3697,7 +3722,7 @@ def get_system_status():
         required_ports = [
             # Core Services
             6120, 6100, 6121, 6101, 6102, 6103,  # Gateway, PAS Root, Registry, HMI, Events, Router
-            6104, 6109,  # Resource Manager, TRON (HeartbeatMonitor)
+            6104, 6105, 6109,  # Resource Manager, Token Governor, TRON (HeartbeatMonitor)
             # PAS Agent Tiers
             6110,  # Architect
             6111, 6112, 6113, 6114, 6115,  # Directors (Code, Models, Data, DevSecOps, Docs)
@@ -4576,6 +4601,141 @@ def get_agents():
         })
 
 
+@app.route('/api/agent_context/<agent_id>', methods=['GET'])
+def get_agent_context(agent_id):
+    """
+    Get agent's current context: model, status, and recent conversation history.
+
+    This is called when user selects an agent in the dropdown to:
+    1. Auto-switch the model selector to the agent's current model
+    2. Load the agent's recent conversation history
+    3. Show who the agent was last talking to
+
+    Returns:
+        current_model: str - Agent's active LLM model (e.g., "llama3.1:8b")
+        status: str - Agent's current status (idle, executing, etc.)
+        recent_conversations: List[dict] - Last 5 conversation threads with partner info
+    """
+    try:
+        agent_context = {
+            'agent_id': agent_id,
+            'current_model': None,
+            'status': 'unknown',
+            'recent_conversations': []
+        }
+
+        # Special case: Direct Chat has no agent context
+        if agent_id == 'direct':
+            return jsonify({
+                'status': 'ok',
+                'context': agent_context
+            })
+
+        # Get agent's port from Registry
+        response = requests.get(f'{REGISTRY_URL}/services', timeout=5)
+        response.raise_for_status()
+        services = response.json().get('items', [])
+
+        agent_port = None
+        for svc in services:
+            if svc.get('service_id') == agent_id:
+                labels = svc.get('labels') or {}
+                agent_port = labels.get('port')
+                agent_context['status'] = svc.get('status', 'unknown')
+                break
+
+        # Get agent's current model from its /health endpoint
+        if agent_port:
+            try:
+                health_response = requests.get(f'http://localhost:{agent_port}/health', timeout=2)
+                if health_response.status_code == 200:
+                    health_data = health_response.json()
+                    agent_context['current_model'] = health_data.get('llm_model')
+            except Exception as e:
+                logger.warning(f"Could not fetch health from agent {agent_id} on port {agent_port}: {e}")
+
+        # Get recent conversation threads from Registry database
+        # Look for threads where this agent was involved (as parent or child)
+        registry_db_path = Path(__file__).parent.parent.parent / 'artifacts' / 'registry' / 'registry.db'
+
+        if registry_db_path.exists():
+            import sqlite3
+            conn = sqlite3.connect(str(registry_db_path))
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            # Find recent threads where agent was parent or child
+            # Map agent_id to agent name format used in DB (e.g., "director-docs" -> "Dir-Docs")
+            agent_name_map = {
+                'architect': 'Architect',
+                'director-code': 'Dir-Code',
+                'director-models': 'Dir-Models',
+                'director-data': 'Dir-Data',
+                'director-devsecops': 'Dir-DevSecOps',
+                'director-docs': 'Dir-Docs',
+            }
+            # Add managers (Mgr-Code-01, etc.) and programmers (Prog-*, Programmer-*)
+            agent_db_name = agent_name_map.get(agent_id, agent_id)
+
+            cursor.execute("""
+                SELECT
+                    thread_id,
+                    parent_agent_id,
+                    child_agent_id,
+                    status,
+                    created_at,
+                    updated_at,
+                    (SELECT COUNT(*) FROM agent_conversation_messages WHERE thread_id = t.thread_id) as message_count
+                FROM agent_conversation_threads t
+                WHERE parent_agent_id LIKE ? OR child_agent_id LIKE ?
+                ORDER BY updated_at DESC
+                LIMIT 5
+            """, (f'%{agent_db_name}%', f'%{agent_db_name}%'))
+
+            threads = cursor.fetchall()
+
+            for thread in threads:
+                # Get first message to show context
+                cursor.execute("""
+                    SELECT from_agent, to_agent, content, created_at
+                    FROM agent_conversation_messages
+                    WHERE thread_id = ?
+                    ORDER BY created_at ASC
+                    LIMIT 1
+                """, (thread['thread_id'],))
+
+                first_msg = cursor.fetchone()
+
+                # Determine conversation partner
+                partner = thread['child_agent_id'] if agent_db_name in thread['parent_agent_id'] else thread['parent_agent_id']
+
+                conversation = {
+                    'thread_id': thread['thread_id'],
+                    'partner': partner,
+                    'status': thread['status'],
+                    'message_count': thread['message_count'],
+                    'created_at': thread['created_at'],
+                    'updated_at': thread['updated_at'],
+                    'preview': first_msg['content'][:100] + '...' if first_msg and len(first_msg['content']) > 100 else (first_msg['content'] if first_msg else '')
+                }
+
+                agent_context['recent_conversations'].append(conversation)
+
+            conn.close()
+
+        return jsonify({
+            'status': 'ok',
+            'context': agent_context
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching agent context for {agent_id}: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/models', methods=['GET'])
 def get_models():
     """
@@ -4674,8 +4834,9 @@ def send_chat_message():
                 if not session:
                     return jsonify({'error': 'Session not found'}), 404
 
-                # Update timestamp
+                # Update timestamp and model (allow per-message model override)
                 session.updated_at = datetime.utcnow().isoformat() + 'Z'
+                session.model_name = model_name  # Override model for this message
             else:
                 # Create new session
                 # Determine parent role based on agent

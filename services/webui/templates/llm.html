@@ -870,7 +870,7 @@
         });
 
         // Agent selection change
-        agentSelector.addEventListener('change', (e) => {
+        agentSelector.addEventListener('change', async (e) => {
             currentAgentId = e.target.value;
             const selectedOption = e.target.options[e.target.selectedIndex];
             const agentName = selectedOption.textContent.split('(')[0].trim();
@@ -894,11 +894,15 @@
                 } else {
                     // Revert selection
                     e.target.value = currentAgentId;
+                    return;
                 }
             } else {
                 // Save agent preference to localStorage
                 localStorage.setItem('llm_selected_agent', currentAgentId);
             }
+
+            // Load agent context: current model and recent conversations
+            await loadAgentContext(currentAgentId);
         });
 
         // Model selection change
@@ -1149,6 +1153,100 @@
             `;
             currentModelId = 'llama3.1:8b';
             currentModelName = 'Llama 3.1 8B (Local)';
+        }
+    }
+
+    async function loadAgentContext(agentId) {
+        /**
+         * Load agent's current context when selected:
+         * 1. Get agent's current LLM model and auto-switch model selector
+         * 2. Get agent's recent conversation history
+         * 3. Display conversation partner info in chat
+         */
+        try {
+            const response = await fetch(`/api/agent_context/${agentId}`);
+            const data = await response.json();
+
+            if (data.status !== 'ok') {
+                console.error('Failed to load agent context:', data.error);
+                return;
+            }
+
+            const context = data.context;
+
+            // 1. Auto-switch model selector to agent's current model
+            if (context.current_model && agentId !== 'direct') {
+                // Map backend model names to frontend model IDs
+                const modelMap = {
+                    'anthropic/claude-sonnet-4-5': 'claude-sonnet-4',
+                    'anthropic/claude-opus-4': 'claude-opus-4',
+                    'llama3.1:8b': 'llama3.1:8b',
+                    'qwen2.5-coder:32b': 'qwen2.5-coder:32b'
+                };
+
+                const mappedModel = modelMap[context.current_model] || context.current_model;
+
+                // Try to find and select the model
+                const option = Array.from(modelSelector.options).find(opt =>
+                    opt.value === mappedModel || opt.value === context.current_model
+                );
+
+                if (option) {
+                    modelSelector.value = option.value;
+                    currentModelId = option.value;
+                    currentModelName = option.textContent;
+                    console.log(`Switched model to agent's current: ${context.current_model}`);
+                } else {
+                    console.log(`Agent model ${context.current_model} not found in dropdown`);
+                }
+            }
+
+            // 2. Display recent conversations in chat area
+            if (context.recent_conversations && context.recent_conversations.length > 0) {
+                // Clear existing messages
+                messagesContainer.innerHTML = '';
+
+                // Add info message showing agent's recent activity
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'system-message';
+                infoDiv.style.cssText = 'background: #1e3a5f; border-left: 4px solid #3b82f6; padding: 1rem; margin-bottom: 1rem; border-radius: 8px;';
+
+                const conversations = context.recent_conversations;
+                const mostRecent = conversations[0];
+
+                infoDiv.innerHTML = `
+                    <div style="font-weight: 600; margin-bottom: 0.5rem; color: #60a5fa;">
+                        📋 Agent Context Loaded
+                    </div>
+                    <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">
+                        <strong>Status:</strong> ${context.status || 'unknown'}
+                    </div>
+                    ${context.current_model ? `
+                    <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">
+                        <strong>Current Model:</strong> ${context.current_model}
+                    </div>
+                    ` : ''}
+                    <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">
+                        <strong>Recent Activity:</strong> ${conversations.length} conversation${conversations.length > 1 ? 's' : ''}
+                    </div>
+                    <div style="font-size: 0.875rem; color: #cbd5e1; margin-top: 0.75rem;">
+                        <strong>Last conversation with:</strong> ${mostRecent.partner}<br>
+                        <em style="color: #9ca3af;">${mostRecent.preview}</em><br>
+                        <span style="color: #6b7280; font-size: 0.8rem;">
+                            ${mostRecent.message_count} messages • ${mostRecent.status} • ${new Date(mostRecent.updated_at).toLocaleString()}
+                        </span>
+                    </div>
+                `;
+
+                messagesContainer.appendChild(infoDiv);
+                emptyState.style.display = 'none';
+
+                // Scroll to show the info
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+        } catch (error) {
+            console.error('Error loading agent context:', error);
         }
     }
 

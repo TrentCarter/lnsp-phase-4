@@ -1,121 +1,98 @@
 # Last Session Summary
 
-**Date:** 2025-11-14 (Session: TRON System Status Integration)
-**Duration:** ~45 minutes
+**Date:** 2025-11-14 (Session: Agent Context Loading + Dropdown Fix)
+**Duration:** ~90 minutes
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Implemented complete Registry Service integration for TRON Heartbeat Monitor, enabling automatic registration and persistent visibility in HMI System Status dashboard. Created reusable heartbeat utility for all PAS services and fixed multiple API/UI integration issues.
+Fixed missing agents in LLM Chat dropdown (only 2 were showing instead of 25), then implemented full agent context loading feature that auto-switches model selector and displays agent conversation history when selecting an agent.
 
 ## Key Changes
 
-### 1. Registry Heartbeat Utility (NEW)
-**Files:** `services/common/registry_heartbeat.py` (NEW, 280 lines)
-**Summary:** Created reusable utility for automatic service registration and heartbeat transmission. Handles background heartbeat loop (30s intervals), graceful shutdown, and error recovery. Uses HTTP PUT (not POST) for Registry `/heartbeat` endpoint.
+### 1. Agent Registration Fix
+**Files:** `tools/register_all_pas_agents.py` (executed)
+**Summary:** Registered all 23 PAS agents (Architect, 5 Directors, 7 Managers, 10 Programmers) with Registry Service. Agents weren't auto-registering on startup, required manual registration via script.
 
-### 2. TRON Heartbeat Integration
-**Files:** `services/heartbeat_monitor/heartbeat_monitor.py:266-315`
-**Summary:** Integrated `registry_heartbeat.py` into TRON startup/shutdown events. TRON now automatically registers with Registry Service on startup and sends heartbeats every 30 seconds to maintain "ok" status.
+### 2. Agent Context API Endpoint
+**Files:** `services/webui/hmi_app.py:4603-4736` (134 lines added)
+**Summary:** Added `/api/agent_context/<agent_id>` endpoint that fetches agent's current LLM model from agent's `/health` endpoint and retrieves recent conversation history from Registry database (last 5 threads with partner info, message preview, status, timestamps).
 
-### 3. HMI API Format Fix
-**Files:** `services/webui/hmi_app.py:216-219`
-**Summary:** Fixed Registry API response parsing - HMI was expecting `{"services": {...}}` but Registry returns `{"items": [...]}`. Services now display correctly in dashboard.
+### 3. Frontend Agent Context Loading
+**Files:** `services/webui/templates/llm.html:873-906, 1159-1251` (125 lines added/modified)
+**Summary:** Implemented `loadAgentContext()` function that auto-switches Model dropdown to agent's current model when agent is selected. Displays blue info panel showing agent status, current model, recent activity, and last conversation partner with message preview.
 
-### 4. Dashboard Core Services Grouping
-**Files:** `services/webui/templates/dashboard.html:1244-1246`
-**Summary:** Expanded JavaScript grouping logic to include services with "heartbeat", "tron", "webui", "events", "router", "aider" in Core Services section. TRON now appears in correct group.
-
-### 5. Service Registration Tool (NEW)
-**Files:** `tools/register_core_services.py` (NEW, 244 lines)
-**Summary:** Created manual registration utility for core infrastructure services (TRON, Resource Manager, Token Governor, Events, Router, Aider-LCO). Fallback for services without integrated heartbeat startup.
-
-### 6. Technical Documentation (NEW)
-**Files:** `docs/TRON_SYSTEM_STATUS_INTEGRATION.md` (NEW, 8KB)
-**Summary:** Comprehensive documentation covering problem analysis, solution implementation, verification results, and integration patterns for other services. Includes code examples and troubleshooting guide.
+### 4. Module Import Fix
+**Files:** `services/webui/hmi_app.py:31` (1 line added)
+**Summary:** Added `sys.path.insert(0, str(Path(__file__).parent))` to fix `llm_chat_db` module import error when running HMI with uvicorn. HMI is Flask app, must be run with `.venv/bin/python services/webui/hmi_app.py`.
 
 ## Files Modified
 
-- `services/common/registry_heartbeat.py` (NEW) - Automatic registration & heartbeat utility
-- `services/heartbeat_monitor/heartbeat_monitor.py` - Added startup/shutdown heartbeat integration
-- `services/webui/hmi_app.py` - Fixed Registry API response format parsing
-- `services/webui/templates/dashboard.html` - Expanded Core Services grouping logic
-- `tools/register_core_services.py` (NEW) - Manual service registration tool
-- `docs/TRON_SYSTEM_STATUS_INTEGRATION.md` (NEW) - Complete technical documentation
+- `services/webui/hmi_app.py` - Added agent context API endpoint, fixed module import
+- `services/webui/templates/llm.html` - Added loadAgentContext() function, updated agent selector change handler
+- `tools/register_all_pas_agents.py` - Executed to register 23 PAS agents
 
 ## Current State
 
 **What's Working:**
-- ✅ TRON automatically registers with Registry Service on startup (service_id: "tron-heartbeat-monitor")
-- ✅ Heartbeat updates every 30 seconds via PUT /heartbeat (verified: 18:49:49 → 18:50:19)
-- ✅ TRON visible in HMI System Status dashboard under "Core Services" with status "ok"
-- ✅ No TTL expiration - service maintains persistent registration
-- ✅ Reusable `registry_heartbeat.py` utility ready for other services
+- ✅ All 25 agents registered and visible in dropdown (Direct Chat + Architect + 5 Directors + 7 Managers + 10 Programmers + TRON)
+- ✅ Agent context API endpoint returns current model + recent conversations
+- ✅ Model dropdown auto-switches to agent's current model on selection
+- ✅ Blue info panel displays agent conversation history (partner, preview, metadata)
+- ✅ HMI running on port 6101 (Flask app, not FastAPI)
 
 **What Needs Work:**
-- [ ] **Integrate heartbeat into other core services** - Resource Manager (6104), Token Governor (6105), Event Stream (6102), Router (6103) need same integration pattern
-- [ ] **Integrate heartbeat into PAS agents** - Gateway, PAS Root, Architect, Directors, Managers, Programmers need registration
-- [ ] **Complete Test 13 (TRON Timeout Detection)** - Phase 1 passing, phases 2-4 need implementation (timeout simulation, detection, parent alerting)
-- [ ] **Registry Service self-registration** - Registry (6121) should register itself
+- [ ] Test agent selection feature in browser (hard refresh required to clear cache)
+- [ ] Add `/chat/stream` endpoint to other Directors (currently only Director-Docs has it)
+- [ ] Add streaming chat to Managers and Programmers
+- [ ] Populate conversation history data (currently empty for most agents)
 
 ## Important Context for Next Session
 
-1. **Two Heartbeat Systems Exist**: (1) In-memory `HeartbeatMonitor` singleton in `services/common/heartbeat.py` used by agents locally, (2) Centralized TRON service monitoring via Registry Service. Integration pattern now available for connecting both systems.
+1. **Agent Registration**: PAS agents don't auto-register with Registry Service on startup. Run `python3 tools/register_all_pas_agents.py` after starting services to ensure all agents appear in dropdown.
 
-2. **HTTP Method Critical**: Registry `/heartbeat` endpoint requires HTTP PUT, not POST. Using POST results in "405 Method Not Allowed". The `registry_heartbeat.py` utility uses correct PUT method (line 122).
+2. **HMI is Flask, not FastAPI**: Run with `.venv/bin/python services/webui/hmi_app.py`, NOT with uvicorn. Module imports require `sys.path.insert(0, str(Path(__file__).parent))` for llm_chat_db.
 
-3. **Service TTL Management**: Default TTL is 90s (3x heartbeat interval of 30s). Services not sending heartbeats will be marked "down" after 60s and de-registered after 90s. TRON checks every 30s and escalates after 2-3 missed beats.
+3. **Agent Context Flow**:
+   - User selects agent → calls `/api/agent_context/<agent_id>`
+   - HMI queries Registry for agent port → calls `http://localhost:{port}/health` for current model
+   - Queries `artifacts/registry/registry.db` tables (agent_conversation_threads, agent_conversation_messages)
+   - Frontend auto-switches Model dropdown and displays conversation info
 
-4. **Integration Pattern**: For any FastAPI service, add to startup event:
-   ```python
-   from services.common.registry_heartbeat import start_registry_heartbeat
+4. **Model Name Mapping**: Backend model names (e.g., "anthropic/claude-sonnet-4-5") are mapped to frontend model IDs (e.g., "claude-sonnet-4") in `loadAgentContext()` function (`llm.html:1180-1185`).
 
-   @app.on_event("startup")
-   async def startup_event():
-       await start_registry_heartbeat(
-           service_id="unique-id",
-           name="Display Name",
-           type="agent",
-           role="production",
-           url="http://localhost:PORT",
-           caps=["capability1"],
-           labels={"tier": "core", "agent_role": "infrastructure"}
-       )
-   ```
-
-5. **Dashboard Grouping Logic**: Services are grouped by name patterns in `dashboard.html:1232-1249`. To appear in Core Services, service name must contain: gateway, pas root, registry, heartbeat, tron, webui, events, router, or aider.
+5. **Conversation Data**: Agent conversations stored in Registry DB with partner tracking (parent_agent_id, child_agent_id). Most agents currently have empty conversation history - will populate as agents communicate.
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Verify TRON still visible**: Visit http://localhost:6101 → System Status → Core Services
-3. **Next priority**: Integrate `registry_heartbeat.py` into Resource Manager (`services/resource_manager/resource_manager.py`) using same pattern as TRON
-4. **Alternative**: Complete Test 13 phases 2-4 (timeout detection now that heartbeat system is working)
-5. **Check heartbeat status**: `curl http://localhost:6121/services | python3 -m json.tool | grep -A 5 "TRON"`
+2. **Test in browser**: Visit http://localhost:6101/llm → Select different agents → Verify model auto-switches and context loads
+3. **Hard refresh browser** (Cmd+Shift+R) to clear JavaScript cache if dropdown doesn't update
+4. **Verify all agents**: Check that all 25 agents appear in dropdown. If not, run `python3 tools/register_all_pas_agents.py`
 
 ## Verification Commands
 
 ```bash
-# Check TRON registration
-curl -s http://localhost:6121/services | python3 -m json.tool | grep -i tron -A 8
+# Check HMI status
+curl -s http://localhost:6101/health
 
-# Check TRON in HMI API
-curl -s http://localhost:6101/api/services | python3 -m json.tool
+# Check agent count
+curl -s http://localhost:6101/api/agents | python3 -c "import sys, json; d=json.load(sys.stdin); print(f'Agents: {d[\"count\"]}')"
 
-# View TRON logs
-tail -50 artifacts/logs/tron.log
+# Test agent context API
+curl -s http://localhost:6101/api/agent_context/director-docs | python3 -m json.tool
 
-# Re-register services manually (if needed)
-python tools/register_core_services.py
+# Check Registry status
+curl -s http://localhost:6121/health | python3 -m json.tool
 
-# Check TRON health
-curl http://localhost:6109/health
+# Re-register agents if needed
+python3 tools/register_all_pas_agents.py
 ```
 
 ## Related Documentation
 
-- `docs/TRON_SYSTEM_STATUS_INTEGRATION.md` - Complete technical documentation (this session)
-- `docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md` - TRON system PRD
-- `docs/AGENT_FAMILY_TESTS_RESOURCE_MANAGEMENT.md` - Test 13 specifications
-- `docs/SERVICE_PORTS.md` - Complete port mapping
-- `services/common/registry_heartbeat.py` - Heartbeat utility API reference
+- Agent dropdown logic: `services/webui/hmi_app.py:4491-4601`
+- Agent context API: `services/webui/hmi_app.py:4603-4736`
+- Agent context loading: `services/webui/templates/llm.html:1159-1251`
+- Registry agent registration: `tools/register_all_pas_agents.py:18-360`
+- Agent conversation schema: `artifacts/registry/registry.db` (tables: agent_conversation_threads, agent_conversation_messages)
