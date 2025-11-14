@@ -1733,6 +1733,11 @@
             window._debugColorCounter++;
         }
 
+        // NEW: Use custom color for agent chat messages
+        if (task.color) {
+            return task.color;
+        }
+
         if (task.status === 'error' || task.status === 'stuck') {
             return statusColors.error;
         } else if (task.status === 'blocked' || task.status === 'waiting') {
@@ -1798,26 +1803,57 @@
         const tooltip = document.getElementById('tooltip');
         const agent = agents.find(a => a.service_id === task.agent_id);
 
+        // Check if this is an agent chat message
+        const isAgentChat = task.action_type && task.action_type.startsWith('agent_chat_');
+
         let content = `<div class="tooltip-title">${task.name || 'Task'}</div>`;
-        content += `<div class="tooltip-row"><span class="tooltip-label">Agent:</span><span class="tooltip-value">${agent ? agent.name : 'Unknown'}</span></div>`;
-        content += `<div class="tooltip-row"><span class="tooltip-label">Status:</span><span class="tooltip-value">${task.status}</span></div>`;
-        content += `<div class="tooltip-row"><span class="tooltip-label">Progress:</span><span class="tooltip-value">${Math.round((task.progress || 0) * 100)}%</span></div>`;
+
+        if (isAgentChat) {
+            // Agent chat message tooltip - show conversation metadata
+            content += `<div class="tooltip-row"><span class="tooltip-label">Type:</span><span class="tooltip-value">Agent Chat ${task.message_type}</span></div>`;
+            content += `<div class="tooltip-row"><span class="tooltip-label">From:</span><span class="tooltip-value">${task.from_agent}</span></div>`;
+            content += `<div class="tooltip-row"><span class="tooltip-label">To:</span><span class="tooltip-value">${task.to_agent}</span></div>`;
+
+            // Show urgency for questions
+            if (task.message_type === 'question' && task.metadata && task.metadata.urgency) {
+                const urgencyEmoji = task.metadata.urgency === 'blocking' ? '🔴' :
+                                   task.metadata.urgency === 'important' ? '🟡' : '⚪';
+                content += `<div class="tooltip-row"><span class="tooltip-label">Urgency:</span><span class="tooltip-value">${urgencyEmoji} ${task.metadata.urgency}</span></div>`;
+            }
+
+            // Show reasoning for questions
+            if (task.message_type === 'question' && task.metadata && task.metadata.reasoning) {
+                content += `<div class="tooltip-row"><span class="tooltip-label">Context:</span><span class="tooltip-value">${task.metadata.reasoning.substring(0, 100)}...</span></div>`;
+            }
+
+            // Show thread ID
+            if (task.thread_id) {
+                content += `<div class="tooltip-row"><span class="tooltip-label">Thread:</span><span class="tooltip-value">${task.thread_id.substring(0, 8)}...</span></div>`;
+            }
+        } else {
+            // Regular task tooltip
+            content += `<div class="tooltip-row"><span class="tooltip-label">Agent:</span><span class="tooltip-value">${agent ? agent.name : 'Unknown'}</span></div>`;
+            content += `<div class="tooltip-row"><span class="tooltip-label">Status:</span><span class="tooltip-value">${task.status}</span></div>`;
+            content += `<div class="tooltip-row"><span class="tooltip-label">Progress:</span><span class="tooltip-value">${Math.round((task.progress || 0) * 100)}%</span></div>`;
+        }
 
         if (task.start_time) {
             const start = new Date(task.start_time * 1000);
             content += `<div class="tooltip-row"><span class="tooltip-label">Started:</span><span class="tooltip-value">${start.toLocaleTimeString()}</span></div>`;
         }
 
-        if (task.end_time) {
+        if (task.end_time && !isAgentChat) {
             const end = new Date(task.end_time * 1000);
             content += `<div class="tooltip-row"><span class="tooltip-label">Ended:</span><span class="tooltip-value">${end.toLocaleTimeString()}</span></div>`;
         }
 
-        // FIX: Don't use Date.now() for old tasks - estimate 30s for running tasks
-        const hasRunningStatus = ['running', 'blocked', 'waiting'].includes(task.status);
-        const estimatedEnd = hasRunningStatus ? (task.start_time + 30) : (task.start_time + 30);
-        const duration = (task.end_time || estimatedEnd) - task.start_time;
-        content += `<div class="tooltip-row"><span class="tooltip-label">Duration:</span><span class="tooltip-value">${formatDuration(duration)}</span></div>`;
+        if (!isAgentChat) {
+            // FIX: Don't use Date.now() for old tasks - estimate 30s for running tasks
+            const hasRunningStatus = ['running', 'blocked', 'waiting'].includes(task.status);
+            const estimatedEnd = hasRunningStatus ? (task.start_time + 30) : (task.start_time + 30);
+            const duration = (task.end_time || estimatedEnd) - task.start_time;
+            content += `<div class="tooltip-row"><span class="tooltip-label">Duration:</span><span class="tooltip-value">${formatDuration(duration)}</span></div>`;
+        }
 
         tooltip.innerHTML = content;
         tooltip.style.left = `${event.pageX + 10}px`;

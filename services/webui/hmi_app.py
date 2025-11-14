@@ -23,6 +23,12 @@ import sqlite3
 import os
 import threading
 import yaml
+import sys
+from pathlib import Path
+
+# Add parent directory to path for importing agent_chat
+sys.path.insert(0, str(Path(__file__).parent.parent / 'common'))
+from agent_chat import AgentChatClient
 
 # LLM Chat Database (SQLAlchemy ORM)
 from llm_chat_db import (
@@ -761,10 +767,85 @@ def build_sequencer_from_actions(task_id: str) -> Dict[str, Any]:
             elif action_text:
                 project_name = action_text
 
+        # NEW: Fetch agent chat messages for this run and add to tasks timeline
+        agent_chat_tasks = []
+        try:
+            # Initialize agent chat client
+            chat_client = AgentChatClient()
+
+            # Import asyncio to run async functions
+            import asyncio
+
+            # Fetch all threads for this run/task
+            threads = asyncio.run(chat_client.get_threads_by_run(task_id))
+
+            for thread in threads:
+                # Fetch full thread with messages
+                full_thread = asyncio.run(chat_client.get_thread(thread.thread_id))
+
+                # Convert each message to a task entry for the sequencer timeline
+                for msg in full_thread.messages:
+                    msg_timestamp = parse_timestamp(msg.created_at)
+
+                    # Determine task properties based on message type
+                    if msg.message_type == 'delegation':
+                        task_name = f"💬 Delegated: {msg.content[:50]}..."
+                        task_color = '#3b82f6'  # Blue
+                    elif msg.message_type == 'question':
+                        urgency_icon = '🔴' if msg.metadata.get('urgency') == 'blocking' else '🟡' if msg.metadata.get('urgency') == 'important' else '⚪'
+                        task_name = f"{urgency_icon} ❓ {msg.content[:50]}..."
+                        task_color = '#f59e0b'  # Amber
+                    elif msg.message_type == 'answer':
+                        task_name = f"💡 {msg.content[:50]}..."
+                        task_color = '#10b981'  # Green
+                    elif msg.message_type == 'status':
+                        progress_pct = msg.metadata.get('progress', 0)
+                        task_name = f"📊 {msg.content[:40]}... ({progress_pct}%)"
+                        task_color = '#6b7280'  # Gray
+                    elif msg.message_type == 'completion':
+                        task_name = f"✅ {msg.content[:50]}..."
+                        task_color = '#10b981'  # Green
+                    elif msg.message_type == 'error':
+                        task_name = f"❌ {msg.content[:50]}..."
+                        task_color = '#ef4444'  # Red
+                    else:
+                        task_name = f"📝 {msg.content[:50]}..."
+                        task_color = '#9ca3af'  # Light gray
+
+                    # Add agent chat message as a task entry
+                    agent_chat_tasks.append({
+                        'task_id': msg.message_id,
+                        'agent_id': msg.from_agent,
+                        'name': task_name,
+                        'status': 'done',  # Messages are instantaneous
+                        'progress': 1.0,
+                        'start_time': msg_timestamp,
+                        'end_time': msg_timestamp + 0.1,  # 100ms duration for visual representation
+                        'from_agent': msg.from_agent,
+                        'to_agent': msg.to_agent,
+                        'action_type': f'agent_chat_{msg.message_type}',
+                        'message_type': msg.message_type,
+                        'thread_id': msg.thread_id,
+                        'metadata': msg.metadata,
+                        'color': task_color  # Custom color for rendering
+                    })
+
+                logger.info(f"Added {len(full_thread.messages)} agent chat messages from thread {thread.thread_id}")
+
+        except Exception as e:
+            logger.warning(f"Could not fetch agent chat messages: {e}")
+            # Don't fail if agent chat is unavailable - just log and continue
+
+        # Merge agent chat tasks with regular tasks
+        all_tasks = tasks + agent_chat_tasks
+        all_tasks_dedup = deduplicated_tasks + agent_chat_tasks  # Agent chat messages bypass deduplication
+
+        logger.info(f"Total tasks: {len(all_tasks)} (including {len(agent_chat_tasks)} agent chat messages)")
+
         return {
             'agents': agents,
-            'tasks': tasks,  # Raw tasks (Option 3: Transparency)
-            'tasks_deduplicated': deduplicated_tasks,  # Deduplicated tasks (Options 1 & 2)
+            'tasks': all_tasks,  # Raw tasks + agent chat messages
+            'tasks_deduplicated': all_tasks_dedup,  # Deduplicated tasks + agent chat messages
             'project_name': project_name  # Bug #2 fix: Add project name to API response
         }
 
