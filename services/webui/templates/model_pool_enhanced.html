@@ -1409,13 +1409,16 @@ async function sendMessageToAgent(agentPort, message, messageType = 'question') 
         currentTestData.agentsInvolved.add(agentPort);
         currentTestData.messagesSent++;
 
-        const response = await fetch(`http://localhost:${agentPort}/agent/chat/send`, {
+        // Use the HMI's agent chat test API to send real messages via the agent chat system
+        // This creates a thread in the database and sends to the agent's /agent_chat/receive endpoint
+        const response = await fetch(`http://localhost:6101/api/agent-chat/test/send-to-agent`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                sender_agent: 'HMI-Test',
-                message_type: messageType,
-                content: message
+                agent_port: agentPort,
+                agent_name: `Agent-${agentPort}`,
+                message: message,
+                message_type: messageType
             })
         });
 
@@ -1424,7 +1427,16 @@ async function sendMessageToAgent(agentPort, message, messageType = 'question') 
         }
 
         const data = await response.json();
-        return data;
+
+        // Return standardized response
+        return {
+            status: data.status,
+            agent: data.agent,
+            port: data.port,
+            thread_id: data.thread_id,
+            message_type: messageType,
+            test_message: message
+        };
     } catch (error) {
         logTest(`Failed to send to port ${agentPort}: ${error.message}`, 'error');
         throw error;
@@ -1439,8 +1451,8 @@ async function runTreeBounce() {
     viz.innerHTML = '<div style="text-align: center; padding: 2rem;"><h3 style="color: #fff; margin-bottom: 1rem;">🌳 Tree Bounce</h3><div id="tree-viz" style="font-family: monospace; color: #e0e0e0; line-height: 2; text-align: left; display: inline-block;"></div></div>';
 
     try {
-        // Pick random agents
-        const directors = [6131, 6132, 6133, 6134, 6135]; // Dir-Code, Models, Data, DevSecOps, Docs
+        // Pick random agents - CORRECTED PORTS
+        const directors = [6111, 6112, 6113, 6114, 6115]; // Dir-Code, Models, Data, DevSecOps, Docs
         const managers = [6141, 6142, 6143, 6144, 6145, 6146, 6147]; // All managers
         const programmers = [6151, 6152, 6153]; // Prog-Code-01/02/03
 
@@ -1448,50 +1460,55 @@ async function runTreeBounce() {
         const randomMgr = managers[Math.floor(Math.random() * managers.length)];
         const randomProg = programmers[Math.floor(Math.random() * programmers.length)];
 
-        logTest(`Selected chain: Architect → Dir:${randomDir} → Mgr:${randomMgr} → Prog:${randomProg}`, 'info');
+        logTest(`Selected chain: Arch → ${randomDir} → ${randomMgr} → ${randomProg}`, 'info');
 
         const treeViz = document.getElementById('tree-viz');
-        let chain = `Architect:${Date.now()}`;
+        let chain = `Architect`;
         treeViz.innerHTML = `${chain}<br>`;
 
-        // Step 1: Architect → Director
-        logTest(`Architect sending to Director (port ${randomDir})`, 'info', 'Architect');
-        chain += ` → Dir-${randomDir}:${Date.now()}`;
+        // Step 1: Architect → Director (ACTUALLY SEND MESSAGE)
+        logTest(`Architect → Director (port ${randomDir})`, 'info', 'Architect');
+        await sendMessageToAgent(randomDir, `Tree bounce: Architect delegates to Director`, 'delegation');
+        chain += ` → Dir-${randomDir}`;
         treeViz.innerHTML = `${chain}<br>`;
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
 
-        // Step 2: Director → Manager
-        logTest(`Director forwarding to Manager (port ${randomMgr})`, 'info', `Dir-${randomDir}`);
-        chain += ` → Mgr-${randomMgr}:${Date.now()}`;
+        // Step 2: Director → Manager (ACTUALLY SEND MESSAGE)
+        logTest(`Director → Manager (port ${randomMgr})`, 'info', `Dir-${randomDir}`);
+        await sendMessageToAgent(randomMgr, `Tree bounce: Director delegates to Manager`, 'delegation');
+        chain += ` → Mgr-${randomMgr}`;
         treeViz.innerHTML = `${chain}<br>`;
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
 
-        // Step 3: Manager → Programmer
-        logTest(`Manager forwarding to Programmer (port ${randomProg})`, 'info', `Mgr-${randomMgr}`);
-        chain += ` → Prog-${randomProg}:${Date.now()}`;
+        // Step 3: Manager → Programmer (ACTUALLY SEND MESSAGE)
+        logTest(`Manager → Programmer (port ${randomProg})`, 'info', `Mgr-${randomMgr}`);
+        await sendMessageToAgent(randomProg, `Tree bounce: Manager delegates to Programmer`, 'delegation');
+        chain += ` → Prog-${randomProg}`;
         treeViz.innerHTML = `${chain}<br>`;
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
 
-        // Step 4: Programmer → Manager (bounce back)
-        logTest(`Programmer bouncing back to Manager`, 'info', `Prog-${randomProg}`);
-        chain += ` → Mgr-${randomMgr}:${Date.now()}`;
+        // Step 4: Programmer → Manager (BOUNCE BACK - ACTUALLY SEND MESSAGE)
+        logTest(`Programmer → Manager (bounce back)`, 'info', `Prog-${randomProg}`);
+        await sendMessageToAgent(randomMgr, `Tree bounce: Programmer reports completion to Manager`, 'response');
+        chain += ` → Mgr-${randomMgr}`;
         treeViz.innerHTML = `${chain}<br>`;
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
 
-        // Step 5: Manager → Director
-        logTest(`Manager bouncing back to Director`, 'info', `Mgr-${randomMgr}`);
-        chain += ` → Dir-${randomDir}:${Date.now()}`;
+        // Step 5: Manager → Director (BOUNCE BACK - ACTUALLY SEND MESSAGE)
+        logTest(`Manager → Director (bounce back)`, 'info', `Mgr-${randomMgr}`);
+        await sendMessageToAgent(randomDir, `Tree bounce: Manager reports completion to Director`, 'response');
+        chain += ` → Dir-${randomDir}`;
         treeViz.innerHTML = `${chain}<br>`;
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
 
-        // Step 6: Director → Architect
-        logTest(`Director bouncing back to Architect`, 'info', `Dir-${randomDir}`);
-        chain += ` → Architect:${Date.now()}`;
+        // Step 6: Director → Architect (BOUNCE BACK - ACTUALLY SEND MESSAGE)
+        logTest(`Director → Architect (bounce back)`, 'info', `Dir-${randomDir}`);
+        await sendMessageToAgent(6110, `Tree bounce: Director reports completion to Architect`, 'response');
+        chain += ` → Architect`;
         treeViz.innerHTML = `${chain}<br>`;
-        await new Promise(resolve => setTimeout(resolve, 500));
 
-        logTest(`Final chain: ${chain}`, 'success');
-        finalizeTest(true, 'Tree Bounce completed successfully!');
+        logTest(`Tree Bounce complete: ${chain}`, 'success');
+        finalizeTest(true, 'Tree Bounce completed - 6 hops with real agent messages!');
 
     } catch (error) {
         logTest(`Test failed: ${error.message}`, 'error');
@@ -1508,11 +1525,11 @@ async function runBroadcastStorm() {
 
     try {
         const directors = [
-            { port: 6131, name: 'Dir-Code' },
-            { port: 6132, name: 'Dir-Models' },
-            { port: 6133, name: 'Dir-Data' },
-            { port: 6134, name: 'Dir-DevSecOps' },
-            { port: 6135, name: 'Dir-Docs' }
+            { port: 6111, name: 'Dir-Code' },
+            { port: 6112, name: 'Dir-Models' },
+            { port: 6113, name: 'Dir-Data' },
+            { port: 6114, name: 'Dir-DevSecOps' },
+            { port: 6115, name: 'Dir-Docs' }
         ];
 
         logTest('Architect broadcasting to all 5 Directors...', 'info', 'Architect');
@@ -1554,9 +1571,9 @@ async function runSkillMatch() {
 
     try {
         const tasks = [
-            { task: 'Optimize FAISS index', expectedDir: 6131, dirName: 'Dir-Code' },
-            { task: 'Evaluate LLM model performance', expectedDir: 6132, dirName: 'Dir-Models' },
-            { task: 'Clean and validate dataset', expectedDir: 6133, dirName: 'Dir-Data' }
+            { task: 'Optimize FAISS index', expectedDir: 6111, dirName: 'Dir-Code' },
+            { task: 'Evaluate LLM model performance', expectedDir: 6112, dirName: 'Dir-Models' },
+            { task: 'Clean and validate dataset', expectedDir: 6113, dirName: 'Dir-Data' }
         ];
 
         const skillViz = document.getElementById('skill-viz');
@@ -1648,13 +1665,13 @@ async function runChainOfCommand() {
 
         logTest('Manager-01 escalates to Director-Code', 'info', 'Mgr-Code-01');
         chainViz.innerHTML += '↑ Escalating to Dir-Code...<br>';
-        await sendMessageToAgent(6131, 'Escalation: Task requires architectural decision', 'question');
+        await sendMessageToAgent(6111, 'Escalation: Task requires architectural decision', 'question');
         await new Promise(resolve => setTimeout(resolve, 500));
 
         logTest('Director-Code receives escalation, further escalates to Architect', 'info', 'Dir-Code');
         chainViz.innerHTML += 'Dir-Code: Task requires architectural decision<br>';
         chainViz.innerHTML += '↑ Escalating to Architect...<br>';
-        await sendMessageToAgent(6121, 'Escalation: Needs top-level approval', 'question');
+        await sendMessageToAgent(6110, 'Escalation: Needs top-level approval', 'question');
         await new Promise(resolve => setTimeout(resolve, 500));
 
         logTest('Architect makes final decision', 'success', 'Architect');
@@ -1680,8 +1697,8 @@ async function runKnowledgeRelay() {
         let knowledge = "Knowledge Chain:";
 
         const agents = [
-            { port: 6121, name: 'Architect', fact: 'I coordinate all tier-1 directors' },
-            { port: 6131, name: 'Dir-Code', fact: 'I manage code development lifecycle' },
+            { port: 6110, name: 'Architect', fact: 'I coordinate all tier-1 directors' },
+            { port: 6111, name: 'Dir-Code', fact: 'I manage code development lifecycle' },
             { port: 6141, name: 'Mgr-Code-01', fact: 'I supervise programmer agents' },
             { port: 6151, name: 'Prog-Code-01', fact: 'I write and modify source code' }
         ];
@@ -1770,7 +1787,7 @@ async function runStressTest() {
     viz.innerHTML = '<div style="padding: 2rem;"><h3 style="color: #fff; margin-bottom: 1rem;">💪 Stress Test</h3><div style="text-align: center;"><div id="stress-counter" style="font-size: 3rem; font-weight: 700; color: #3b82f6;">0</div><div style="color: #9ca3af; margin-top: 0.5rem;">/ 100 tasks completed</div></div><div id="stress-stats" style="margin-top: 2rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;"></div></div>';
 
     try {
-        const allAgents = [6121, 6131, 6132, 6133, 6134, 6135, 6141, 6142, 6143, 6144, 6145, 6146, 6147, 6151, 6152, 6153];
+        const allAgents = [6110, 6111, 6112, 6113, 6114, 6115, 6141, 6142, 6143, 6144, 6145, 6146, 6147, 6151, 6152, 6153];
 
         logTest('Launching 100 concurrent tasks...', 'info', 'Architect');
 

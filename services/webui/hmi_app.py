@@ -29,6 +29,7 @@ from pathlib import Path
 # Add parent directory to path for importing agent_chat
 sys.path.insert(0, str(Path(__file__).parent.parent / 'common'))
 from agent_chat import AgentChatClient
+from comms_logger import CommsLogger, MessageType
 
 # LLM Chat Database (SQLAlchemy ORM)
 from llm_chat_db import (
@@ -5440,6 +5441,225 @@ def _get_parent_role(agent_id: str) -> str:
         return 'Manager'
     else:
         return 'User'
+
+
+# === Agent Chat Test API ===
+# These endpoints allow browser-based tests to create threads and send messages
+# using the real agent chat system
+
+agent_chat_client = AgentChatClient()
+comms_logger = CommsLogger()
+
+
+@app.route('/api/agent-chat/test/create-thread', methods=['POST'])
+def api_create_test_thread():
+    """
+    Create a test agent chat thread.
+
+    Request body:
+    {
+        "parent_agent": "HMI-Test",
+        "child_agent": "Dir-Code",
+        "message": "Test message content"
+    }
+
+    Returns thread_id for subsequent messages.
+    """
+    try:
+        data = request.get_json()
+        parent_agent = data.get('parent_agent', 'HMI-Test')
+        child_agent = data.get('child_agent')
+        message = data.get('message', 'Test message')
+
+        if not child_agent:
+            return jsonify({'error': 'child_agent is required'}), 400
+
+        # Create thread using agent chat client
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        thread = loop.run_until_complete(
+            agent_chat_client.create_thread(
+                run_id=f"test-{int(time.time())}",
+                parent_agent_id=parent_agent,
+                child_agent_id=child_agent,
+                initial_message=message,
+                metadata={'test': True, 'source': 'hmi-test'}
+            )
+        )
+
+        loop.close()
+
+        return jsonify({
+            'status': 'created',
+            'thread_id': thread.thread_id,
+            'parent_agent': parent_agent,
+            'child_agent': child_agent,
+            'message_count': len(thread.messages)
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to create test thread: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/agent-chat/test/send-to-agent', methods=['POST'])
+def api_send_test_message_to_agent():
+    """
+    Send a test message to an agent via its /agent_chat/receive endpoint.
+
+    Creates a thread, sends initial message, then forwards to the agent.
+
+    Request body:
+    {
+        "agent_port": 6111,
+        "agent_name": "Dir-Code",
+        "message": "Test message",
+        "message_type": "question"
+    }
+    """
+    try:
+        data = request.get_json()
+        agent_port = data.get('agent_port')
+        agent_name = data.get('agent_name', f'Agent-{agent_port}')
+        message = data.get('message', 'Test message')
+        message_type = data.get('message_type', 'question')
+
+        if not agent_port:
+            return jsonify({'error': 'agent_port is required'}), 400
+
+        # Create thread
+        import asyncio
+        import uuid
+        from datetime import datetime, timezone
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        run_id = f"test-{int(time.time())}"
+
+        thread = loop.run_until_complete(
+            agent_chat_client.create_thread(
+                run_id=run_id,
+                parent_agent_id='HMI-Test',
+                child_agent_id=agent_name,
+                initial_message=message,
+                metadata={'test': True, 'agent_port': agent_port}
+            )
+        )
+
+        # Log thread creation
+        comms_logger.log_cmd(
+            from_agent='HMI-Test',
+            to_agent=agent_name,
+            message=f"Agent Family Test: {message}",
+            run_id=run_id,
+            metadata={
+                'thread_id': thread.thread_id,
+                'agent_port': agent_port,
+                'test_type': 'agent_family'
+            }
+        )
+
+        # Get the initial message to send to agent
+        initial_msg = thread.messages[0]
+
+        # Try /agent/chat/send first (Architect), fallback to /agent_chat/receive (Directors/Managers)
+        # Architect uses simple AgentChatRequest, Directors/Managers use full AgentChatMessage
+
+        # Try Architect endpoint first
+        agent_url = f'http://localhost:{agent_port}/agent/chat/send'
+        msg_payload = {
+            'sender_agent': 'HMI-Test',
+            'message_type': message_type,
+            'content': message,
+            'metadata': {
+                'thread_id': thread.thread_id,
+                'test': True,
+                'agent_port': agent_port
+            }
+        }
+
+        response = requests.post(agent_url, json=msg_payload, timeout=5)
+
+        # If 404, try Director/Manager endpoint
+        if response.status_code == 404:
+            agent_url = f'http://localhost:{agent_port}/agent_chat/receive'
+            msg_payload = {
+                'message_id': initial_msg.message_id,
+                'thread_id': thread.thread_id,
+                'from_agent': 'HMI-Test',
+                'to_agent': agent_name,
+                'message_type': message_type,
+                'content': message,
+                'created_at': initial_msg.created_at,
+                'metadata': {
+                    'thread_id': thread.thread_id,
+                    'test': True,
+                    'agent_port': agent_port
+                }
+            }
+            response = requests.post(agent_url, json=msg_payload, timeout=5)
+
+        loop.close()
+
+        if response.ok:
+            # Log successful response
+            comms_logger.log_response(
+                from_agent=agent_name,
+                to_agent='HMI-Test',
+                message=f"Test accepted: HTTP {response.status_code}",
+                run_id=run_id,
+                status='success',
+                metadata={
+                    'thread_id': thread.thread_id,
+                    'agent_port': agent_port,
+                    'http_status': response.status_code
+                }
+            )
+            return jsonify({
+                'status': 'sent',
+                'thread_id': thread.thread_id,
+                'agent': agent_name,
+                'port': agent_port,
+                'response': response.json() if response.content else None
+            })
+        else:
+            # Log failed response
+            comms_logger.log_response(
+                from_agent=agent_name,
+                to_agent='HMI-Test',
+                message=f"Test failed: HTTP {response.status_code}",
+                run_id=run_id,
+                status='failed',
+                metadata={
+                    'thread_id': thread.thread_id,
+                    'agent_port': agent_port,
+                    'http_status': response.status_code,
+                    'error': response.text[:200] if response.text else None
+                }
+            )
+            return jsonify({
+                'status': 'failed',
+                'error': f'HTTP {response.status_code}',
+                'thread_id': thread.thread_id
+            }), response.status_code
+
+    except Exception as e:
+        logger.error(f"Failed to send test message: {e}")
+
+        # Log exception
+        comms_logger.log_response(
+            from_agent='HMI-Test',
+            to_agent='System',
+            message=f"Test exception: {str(e)[:100]}",
+            run_id=data.get('run_id', 'unknown') if 'data' in locals() else 'unknown',
+            status='error',
+            metadata={'error_type': type(e).__name__, 'error': str(e)[:500]}
+        )
+
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
