@@ -1,63 +1,66 @@
 # Last Session Summary
 
-**Date:** 2025-11-14 (Session: Director-Models Agent Chat Integration)
-**Duration:** ~20 minutes
+**Date:** 2025-11-14 (Session: Agent Status Tab Implementation)
+**Duration:** ~45 minutes
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Successfully integrated Dir-Models with the Agent Chat system, bringing all 5 Directors to 100% Agent Chat coverage. Also cleaned up the readme.txt table to use consistent messaging column wording across all agent tiers (Architect, Directors, Managers, Programmers), and documented the Agent Chat data storage location (SQLite database with conversation threads and messages).
+Successfully completed the Agent Status tab implementation for the Model Pool dashboard, adding comprehensive UI for viewing and testing all PAS agents (Architect → Directors → Managers → Programmers). The tab displays live coverage statistics, agent metadata, and provides one-click health check testing for each agent with real-time status updates.
 
 ## Key Changes
 
-### 1. Dir-Models Agent Chat Integration
-**Files:** `services/pas/director_models/app.py:38-61,82-117,674-905` (MODIFIED)
-**Summary:** Added agent_chat imports, initialization, HHMRS event helper, and `/agent_chat/receive` endpoint with background message processing. Dir-Models now supports bidirectional conversation threads with Architect (parent) and Managers (children), matching the pattern used by other Directors.
+### 1. Agent Status Tab Frontend
+**Files:** `services/webui/templates/model_pool_enhanced.html` (+282 lines)
+**Summary:** Added new "🤖 Agent Status" tab with summary tiles (coverage %, total agents, threads, messages), scrollable agent table with sticky headers, and Test button functionality. UI fetches `/api/agent-status` endpoint, renders 23 agents across 4 tiers, and allows operators to trigger health checks via `/api/agent-status/test` with real-time status updates (Untested → Testing → OK/Error).
 
-### 2. Readme Table Cleanup
-**Files:** `docs/readme.txt:34-58,81` (MODIFIED)
-**Summary:** Standardized messaging column wording to be consistent across all tiers: Architect (to/from children & human), Directors/Managers (to/from parent & children), Programmers (to/from parent). Updated integration summary to show 15/15 agents = 100%.
+### 2. Backend API Integration (Already Existed)
+**Files:** `services/webui/hmi_app.py` (modified in previous session)
+**Summary:** Backend endpoints `GET /api/agent-status` and `POST /api/agent-status/test` were already implemented in the previous session. This session focused on completing the frontend UI that consumes these endpoints.
 
 ## Files Modified
 
-- `services/pas/director_models/app.py` - Added Agent Chat integration (imports, client, endpoint, handler)
-- `docs/readme.txt` - Cleaned up table messaging columns, updated integration percentage to 100%
+- `services/webui/templates/model_pool_enhanced.html` - Added Agent Status tab UI, summary tiles, scrollable table, test buttons, and JavaScript functions (loadAgentStatus, renderAgentStatus, testAgent)
+- `services/webui/hmi_app.py` - Backend endpoints already existed from previous session (load_agent_status_data, /api/agent-status, /api/agent-status/test)
 
 ## Current State
 
 **What's Working:**
-- ✅ All 5 Directors fully integrated with Agent Chat (Dir-Code, Dir-Models, Dir-Data, Dir-DevSecOps, Dir-Docs)
-- ✅ 100% Agent Chat coverage across entire PAS hierarchy (15/15 agents)
-- ✅ Consistent bidirectional messaging: Architect ↔ Directors ↔ Managers ↔ Programmers
-- ✅ Agent Chat data stored in SQLite (`artifacts/registry/registry.db`)
-- ✅ 2 conversation threads, 19 messages currently in database
-- ✅ Full thread/message schema with indexes for performance
+- ✅ Agent Status tab visible in Model Pool navigation
+- ✅ Summary tiles showing 60% coverage, 15 total agents
+- ✅ Scrollable table (max-height: 600px) displaying all 23 agents across 4 tiers
+- ✅ Test buttons trigger health checks to agent endpoints (e.g., http://localhost:6110/health for Architect)
+- ✅ Real-time status updates with HTTP status codes and response messages
+- ✅ Dark theme styling consistent with existing tabs
+- ✅ Sticky table headers for better navigation
+- ✅ Graceful handling of agents without test endpoints (disabled buttons)
 
 **What Needs Work:**
-- [ ] Test Dir-Models Agent Chat integration (create thread from Architect → Dir-Models)
-- [ ] Verify bidirectional communication (Dir-Models asks questions, Architect answers)
-- [ ] Test full hierarchy: Architect → Dir-Models → Mgr-Models-01 → Prog (via pool)
+- [ ] Thread/message counts show "N/A" - need to integrate with registry database (artifacts/registry/registry.db) to fetch conversation thread statistics
+- [ ] Consider adding auto-refresh for agent status (currently manual refresh only)
+- [ ] Test across different agent states (some agents not running to verify error handling)
 
 ## Important Context for Next Session
 
-1. **Dir-Models Agent Chat**: New `/agent_chat/receive` endpoint at lines 676-905, uses same pattern as Dir-Code
-2. **Agent Chat Storage**: `artifacts/registry/registry.db` (320KB SQLite) with tables `agent_conversation_threads` and `agent_conversation_messages`
-3. **Database Schema**: Threads store parent/child/status/result, Messages store from/to/type/content, both with metadata JSON fields
-4. **Current Data**: 2 threads (Architect ↔ Dir-Code, both completed), 19 messages total
-5. **100% Integration**: All agents now support Agent Chat - ready for end-to-end testing
+1. **Data Source**: Agent status data comes from `configs/pas/agent_status.json` (created in previous session), derived from `docs/readme.txt` and `docs/AGENT_CHAT_COVERAGE_MATRIX.md`
+2. **API Structure**: Backend uses "agent" field for agent name (not "name"), boolean values for flags (not "YES"/"NO" strings)
+3. **Test Endpoint Format**: Requires both `agent_id` and `test_endpoint` parameters in POST body
+4. **Current Coverage**: 9/15 agents (60%) fully integrated with Agent Chat - Architect (1), Directors (4), Managers (3), Programmers (1)
+5. **Thread/Message Counts**: Registry database has 2 threads and 19 messages currently, but these aren't surfaced in the `/api/agent-status` endpoint yet
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Test Dir-Models**: Create thread from Architect → Dir-Models with a models lane task
-3. **Verify bidirectional**: Check that Dir-Models can ask questions and Architect can answer
-4. **View in HMI**: Agent Chat threads should be visible in TRON visualization (via SSE events)
-5. **Query database**: `sqlite3 artifacts/registry/registry.db` to inspect threads/messages
+2. **Verify UI**: Open http://localhost:6101/model-pool and click "🤖 Agent Status" tab
+3. **Test buttons**: Click "🔬 Test" on Architect, Dir-Code, or any agent with test endpoint
+4. **Optional enhancements**:
+   - Add registry integration to show live thread/message counts
+   - Implement auto-refresh every 30 seconds
+   - Add filtering/sorting to agent table
+   - Add "Test All" button to test all agents at once
 
 ## Git Status
 
-**Uncommitted Changes:**
-- M `services/pas/director_models/app.py` (Agent Chat integration)
-- M `docs/readme.txt` (table cleanup, 100% integration)
-- M `docs/last_summary.md` (this file)
-- M `docs/all_project_summary.md` (archive)
+**Commit:** d456c7a - "feat: add Agent Status tab to Model Pool dashboard"
+**Pushed to:** origin/feature/aider-lco-p0
+**Stats:** 2 files changed, 282 insertions(+)
