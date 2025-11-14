@@ -9,12 +9,13 @@ Features:
 - Secrets redaction
 - Timeout enforcement
 - Subprocess isolation
+- Agent chat integration for Parent-Child communication
 
 Port: 6130
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import yaml
 import fnmatch
 import subprocess
@@ -23,15 +24,21 @@ import os
 import pathlib
 import time
 import sys
+import uuid
+import asyncio
 
 # Add services/common to path for comms_logger
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.parent))
 from common.comms_logger import get_logger, MessageType
+from common.heartbeat import get_monitor, AgentState
+from common.agent_chat import get_agent_chat_client, AgentChatMessage
 
 app = FastAPI(title="Aider-LCO RPC", version="1.0")
 
-# Initialize comms logger
+# Initialize systems
 logger = get_logger()
+heartbeat_monitor = get_monitor()
+agent_chat = get_agent_chat_client()
 
 # Load configurations
 FS_ALLOW = yaml.safe_load(open("configs/pas/fs_allowlist.yaml"))
@@ -79,6 +86,15 @@ AGENT_METADATA = AIDER_CFG.get("agent_metadata", {
     "tier": "programmer"
 })
 PARENT_AGENT = AGENT_METADATA.get("parent", "Mgr-Code-01")  # Report to parent manager
+
+# Register agent with heartbeat monitor
+heartbeat_monitor.register_agent(
+    agent=AGENT_NAME,
+    parent=PARENT_AGENT,
+    llm_model=AIDER_CFG.get("model", {}).get("primary", "claude-3-5-sonnet-20241022"),
+    role="programmer",
+    tier="executor"
+)
 
 
 def _in_roots(path: pathlib.Path) -> bool:
@@ -148,6 +164,352 @@ def health():
         "port": 6130,
         "aider_model": AIDER_CFG.get("model", {}).get("primary", "unknown")
     }
+
+
+@app.post("/agent_chat/receive")
+async def receive_agent_message(
+    request: AgentChatMessage,
+    background_tasks: BackgroundTasks
+):
+    """
+    Receive message from Manager via Agent Chat thread.
+
+    This is the RECOMMENDED way for Managers to communicate with Programmers.
+    Enables bidirectional Q&A, status updates, and context preservation.
+
+    Flow:
+    - Manager creates thread with delegation message
+    - Programmer receives via this endpoint
+    - Programmer sends status updates during Aider execution
+    - Programmer closes thread on completion/error
+
+    Alternative: /aider/edit endpoint (RPC-style, no conversation)
+    """
+    thread_id = request.thread_id
+
+    # Load thread to get run_id
+    try:
+        thread = await agent_chat.get_thread(thread_id)
+        run_id = thread.run_id
+    except Exception:
+        run_id = "unknown"
+
+    logger.log_cmd(
+        from_agent=PARENT_AGENT,
+        to_agent=AGENT_NAME,
+        message=f"Agent chat message received: {request.message_type}",
+        run_id=run_id,
+        metadata={
+            "thread_id": thread_id,
+            "message_type": request.message_type,
+            "from_agent": request.from_agent
+        }
+    )
+
+    # Delegate to background task for processing
+    background_tasks.add_task(process_agent_chat_message, request)
+
+    return {
+        "status": "ok",
+        "thread_id": thread_id,
+        "message": "Agent chat message received, processing"
+    }
+
+
+async def process_agent_chat_message(request: AgentChatMessage):
+    """
+    Process agent chat message (background task).
+
+    Executes Aider with agent chat status updates.
+    """
+    thread_id = request.thread_id
+
+    # Load thread to get run_id
+    try:
+        thread = await agent_chat.get_thread(thread_id)
+        run_id = thread.run_id
+    except Exception:
+        run_id = "unknown"
+
+    try:
+        # Load full thread history for context
+        thread = await agent_chat.get_thread(thread_id)
+
+        # Send initial status
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent=AGENT_NAME,
+            to_agent=PARENT_AGENT,
+            message_type="status",
+            content="Received task, preparing Aider execution..."
+        )
+
+        # Extract task from delegation message
+        if request.message_type == "delegation":
+            # Parse task from message content or metadata
+            task_message = request.content
+            files = request.metadata.get("files", [])
+
+            # Execute Aider with agent chat updates
+            await execute_aider_with_chat(
+                message=task_message,
+                files=files,
+                thread_id=thread_id,
+                run_id=run_id
+            )
+
+        elif request.message_type == "answer":
+            # Parent answered a question - context is in thread history
+            # Continue execution if needed
+            pass
+
+    except Exception as e:
+        logger.log(
+            from_agent=AGENT_NAME,
+            to_agent=PARENT_AGENT,
+            msg_type=MessageType.RESPONSE,
+            message=f"Error processing agent chat message: {str(e)}",
+            run_id=run_id,
+            status="failed",
+            metadata={"thread_id": thread_id, "error": str(e)}
+        )
+
+        # Send error to parent via agent chat
+        try:
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent=AGENT_NAME,
+                to_agent=PARENT_AGENT,
+                message_type="error",
+                content=f"Error processing message: {str(e)}"
+            )
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="failed",
+                error=str(e)
+            )
+        except:
+            pass
+
+
+async def execute_aider_with_chat(
+    message: str,
+    files: List[str],
+    thread_id: str,
+    run_id: str
+):
+    """
+    Execute Aider with agent chat status updates.
+
+    This is the main execution flow for Programmers when called via agent chat.
+    """
+    try:
+        # Step 1: Send status - starting execution
+        heartbeat_monitor.heartbeat(
+            agent=AGENT_NAME,
+            run_id=run_id,
+            state=AgentState.EXECUTING,
+            message="Executing code changes with Aider CLI",
+            progress=0.2
+        )
+
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent=AGENT_NAME,
+            to_agent=PARENT_AGENT,
+            message_type="status",
+            content=f"Starting Aider execution: {message[:100]}...",
+            metadata={"progress": 20, "files": files}
+        )
+
+        # Step 2: Validate filesystem access
+        for f in files:
+            if not _fs_allowed(f):
+                error_msg = f"File not allowed by allowlist: {f}"
+                await agent_chat.send_message(
+                    thread_id=thread_id,
+                    from_agent=AGENT_NAME,
+                    to_agent=PARENT_AGENT,
+                    message_type="error",
+                    content=error_msg
+                )
+                await agent_chat.close_thread(
+                    thread_id=thread_id,
+                    status="failed",
+                    error=error_msg
+                )
+                raise HTTPException(status_code=403, detail=error_msg)
+
+        # Step 3: Build aider command
+        model = AIDER_CFG.get("model", {}).get("primary", "claude-3-5-sonnet-20241022")
+        aider_bin = AIDER_CFG.get("aider_bin", "aider")
+        timeout_s = int(AIDER_CFG.get("timeout_s", 900))
+
+        cmd = [aider_bin, "--yes", "--no-show-model-warnings"]
+        if model:
+            cmd += ["--model", model]
+        for f in files:
+            cmd += [f]
+        cmd += ["--message", message]
+
+        # Step 4: Redact environment variables
+        env = os.environ.copy()
+        for k in AIDER_CFG.get("redact_env", []):
+            env.pop(k, None)
+
+        # Step 5: Execute aider with progress updates
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent=AGENT_NAME,
+            to_agent=PARENT_AGENT,
+            message_type="status",
+            content="Executing Aider CLI...",
+            metadata={"progress": 40}
+        )
+
+        heartbeat_monitor.heartbeat(
+            agent=AGENT_NAME,
+            run_id=run_id,
+            state=AgentState.EXECUTING,
+            message="Aider CLI running...",
+            progress=0.5
+        )
+
+        start = time.time()
+        try:
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=timeout_s,
+                cwd=ROOTS[0]  # Execute in project root
+            )
+        except subprocess.TimeoutExpired:
+            error_msg = f"Aider timed out after {timeout_s}s"
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent=AGENT_NAME,
+                to_agent=PARENT_AGENT,
+                message_type="error",
+                content=error_msg
+            )
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="failed",
+                error=error_msg
+            )
+            raise HTTPException(status_code=504, detail=error_msg)
+        except FileNotFoundError:
+            error_msg = f"Aider binary not found: {aider_bin}"
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent=AGENT_NAME,
+                to_agent=PARENT_AGENT,
+                message_type="error",
+                content=error_msg
+            )
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="failed",
+                error=error_msg
+            )
+            raise HTTPException(status_code=500, detail=f"{error_msg}. Install with: pipx install aider-chat")
+        except Exception as e:
+            error_msg = f"Execution error: {str(e)}"
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent=AGENT_NAME,
+                to_agent=PARENT_AGENT,
+                message_type="error",
+                content=error_msg
+            )
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="failed",
+                error=error_msg
+            )
+            raise HTTPException(status_code=500, detail=error_msg)
+
+        duration = round(time.time() - start, 2)
+        rc = proc.returncode
+
+        # Step 6: Check result and send completion or error
+        if rc != 0:
+            # Aider failed
+            error_msg = f"Aider failed with rc={rc}"
+            stderr_preview = proc.stderr[-500:] if proc.stderr else ""
+
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent=AGENT_NAME,
+                to_agent=PARENT_AGENT,
+                message_type="error",
+                content=f"❌ {error_msg}\n\nStderr:\n{stderr_preview}",
+                metadata={"rc": rc, "duration_s": duration}
+            )
+
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="failed",
+                error=error_msg
+            )
+        else:
+            # Success
+            heartbeat_monitor.heartbeat(
+                agent=AGENT_NAME,
+                run_id=run_id,
+                state=AgentState.COMPLETED,
+                message="Aider execution completed successfully",
+                progress=1.0
+            )
+
+            stdout_preview = proc.stdout[-1000:] if proc.stdout else ""
+
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent=AGENT_NAME,
+                to_agent=PARENT_AGENT,
+                message_type="completion",
+                content=f"✅ Aider execution completed successfully in {duration}s\n\nOutput:\n{stdout_preview}",
+                metadata={"rc": rc, "duration_s": duration, "model": model}
+            )
+
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="completed",
+                result="Aider execution successful"
+            )
+
+    except HTTPException:
+        # Already handled above, just re-raise
+        raise
+    except Exception as e:
+        error_msg = f"Unexpected error: {str(e)}"
+        logger.log(
+            from_agent=AGENT_NAME,
+            to_agent=PARENT_AGENT,
+            msg_type=MessageType.RESPONSE,
+            message=error_msg,
+            run_id=run_id,
+            status="failed"
+        )
+
+        try:
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent=AGENT_NAME,
+                to_agent=PARENT_AGENT,
+                message_type="error",
+                content=error_msg
+            )
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="failed",
+                error=error_msg
+            )
+        except:
+            pass
 
 
 @app.post("/aider/edit")

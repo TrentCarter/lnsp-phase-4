@@ -1,7 +1,7 @@
 # Agent Chat Coverage Matrix
 
 **Date:** 2025-11-13
-**Status:** Phase 5 Complete - All Directors Integrated
+**Status:** Phase 7 Complete - Programmer Integration (60% Coverage)
 **Branch:** feature/aider-lco-p0
 
 ---
@@ -97,23 +97,31 @@ This document tracks which agents in the PAS hierarchy have Agent Chat integrati
 
 ### Programmer Tier
 
-| Agent      | Port | Chat Enabled | Can Send | Can Receive | SSE Events | Implementation Location |
-|------------|------|--------------|----------|-------------|------------|-------------------------|
-| Aider-LCO  | 6130 | ❌ NO         | ❌ No     | ❌ No        | ❌ NO       | *Not yet implemented* |
+| Agent         | Port | Chat Enabled | Can Send | Can Receive | SSE Events | Implementation Location |
+|---------------|------|--------------|----------|-------------|------------|-------------------------|
+| Prog-Qwen-001 | 6130 | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
 
-**Status:** Phase 7 (Future Work)
+**Status:** Phase 7 (Complete - 2025-11-13)
 
-Aider-LCO will eventually need agent chat for:
-- Questions about code intent (clarifications during edits)
-- Status updates (file operations, git commands, test runs)
-- Error reporting (compilation failures, test failures)
-- Completion notifications with artifact links
+**Prog-Qwen-001 (Aider-LCO) has:**
+- `/agent_chat/receive` endpoint for incoming delegation messages
+- `process_agent_chat_message()` for background task processing
+- `execute_aider_with_chat()` for status updates during Aider CLI execution
+- Heartbeat monitoring during execution
+- Status messages at key stages (received, validating, executing, completed)
+- Error handling with agent chat notifications
+- Completion messages with output preview
+- Automatic thread closure on success/failure
+
+**Message Types Supported:**
+- **Send:** Status Updates, Completion, Errors
+- **Receive:** Delegation (from Manager-Code)
 
 ---
 
 ## Integration Summary
 
-### ✅ Fully Integrated (8/15 agents = 53.3%)
+### ✅ Fully Integrated (9/15 agents = 60.0%)
 
 1. **Architect** (services/pas/architect/app.py)
    - Creates threads for delegation
@@ -138,26 +146,34 @@ Aider-LCO will eventually need agent chat for:
    - Same pattern as Dir-Code
    - DevSecOps lane specific status messages
 
-6. **Mgr-Code-01** (services/pas/manager_code/app.py) **← NEW!**
+6. **Mgr-Code-01** (services/pas/manager_code/app.py)
    - Receives delegation messages from Dir-Code
    - Executes code changes via Aider RPC
    - Sends status updates during execution
    - Runs acceptance tests (lint, tests, coverage)
    - Sends completion/error messages
 
-7. **Mgr-Code-02** (services/pas/manager_code/app.py) **← NEW!**
+7. **Mgr-Code-02** (services/pas/manager_code/app.py)
    - Same pattern as Mgr-Code-01
    - Independent FastAPI HTTP server
 
-8. **Mgr-Code-03** (services/pas/manager_code/app.py) **← NEW!**
+8. **Mgr-Code-03** (services/pas/manager_code/app.py)
    - Same pattern as Mgr-Code-01
    - Independent FastAPI HTTP server
 
-### ❌ Not Integrated (7/15 agents = 46.7%)
+9. **Prog-Qwen-001** (services/tools/aider_rpc/app.py) **← NEW!**
+   - Receives delegation messages from Managers
+   - Executes Aider CLI with guardrails
+   - Sends status updates during execution
+   - Heartbeat monitoring
+   - Sends completion/error messages
+   - Automatic thread closure
+
+### ❌ Not Integrated (6/15 agents = 40.0%)
 
 - **1 Director:** Dir-Models (not yet implemented for any functionality)
 - **4 Managers:** Mgr-Data-01, Mgr-Docs-01, Mgr-DevSecOps-01, Mgr-Models-01 (not yet created)
-- **1 Programmer:** Aider-LCO
+- **2 Programmers:** Prog-Qwen-002, Prog-Qwen-003 (not yet created - will use same Aider-LCO codebase)
 
 ---
 
@@ -205,8 +221,28 @@ Aider-LCO will eventually need agent chat for:
 - Real-time status updates via SSE
 - Better scalability and observability
 
-### 🔲 Phase 7: Programmer Integration (Future Work)
-- [ ] Aider-LCO
+### ✅ Phase 7: Programmer Integration (Complete - 2025-11-13)
+- ✅ **Prog-Qwen-001 (Aider-LCO)** - Full agent chat integration!
+
+**Implementation:** `services/tools/aider_rpc/app.py`
+
+**Features:**
+- `/agent_chat/receive` endpoint for delegation messages
+- Background task processing with `process_agent_chat_message()`
+- `execute_aider_with_chat()` with status updates at all stages
+- Heartbeat monitoring during Aider CLI execution
+- Filesystem allowlist validation with error reporting
+- Status messages: received → validating → executing → completed/failed
+- Automatic thread closure on completion/error
+- Output preview in completion messages (last 1000 chars)
+- Error messages with stderr preview (last 500 chars)
+
+**Benefits:**
+- Real-time visibility into Aider CLI execution
+- Managers can track Programmer progress via agent chat
+- Consistent pattern across all PAS tiers (Architect → Director → Manager → Programmer)
+- Automatic error handling with parent notification
+- Complete execution trace via agent chat messages
 
 ### 🔲 Phase 8: Advanced Features (Future Work)
 - [ ] Thread detail panel (sidebar in Sequencer)
