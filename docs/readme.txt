@@ -4,7 +4,7 @@ claude --dangerously-skip-permissions
 
   ./scripts/start_all_pas_services.sh
 
-
+./tools/parse_comms_log.py --tail      # View live logs
 
 /docs/SERVICE_PORTS.md
  that includes:
@@ -21,6 +21,75 @@ claude --dangerously-skip-permissions
   # Unified Endpoint
   curl http://localhost:6101/api/models/status
   # → Status: ok, Models: 11 (auto + local + API)
+
+
+  # SSSE Integration:
+
+⏺ Agent Chat Coverage Matrix
+
+  Here's the current state of agent chat integration across the PAS hierarchy:
+
+  Coverage Status
+
+  | Agent Tier  | Agent Name       | Port    | Agent Chat Integrated | Can Send Messages                     | Can Receive Messages            | SSE Events Emitted |
+  |-------------|------------------|---------|-----------------------|---------------------------------------|---------------------------------|--------------------|
+  | Architect   | Architect        | 6110    | ✅ YES                 | ✅ Yes (answers to children)           | ✅ Yes (questions from children) | ✅ Yes              |
+  | Directors   | Dir-Code         | 6111    | ✅ YES                 | ✅ Yes (questions, status, completion) | ✅ Yes (delegation, answers)     | ✅ Yes              |
+  |             | Dir-Models       | 6112    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
+  |             | Dir-Data         | 6113    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
+  |             | Dir-DevSecOps    | 6114    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
+  |             | Dir-Docs         | 6115    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
+  | Managers    | Mgr-Code-01      | 6121    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
+  |             | Mgr-Code-02      | 6122    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
+  |             | Mgr-Code-03      | 6123    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
+  |             | Mgr-Models-01    | 6144    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
+  |             | Mgr-Data-01      | 6145    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
+  |             | Mgr-DevSecOps-01 | 6146    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
+  |             | Mgr-Docs-01      | 6147    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
+  | Programmers | Prog-Qwen-001    | 6130    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
+  
+       66 +  | Agent             | Port    | Architecture | Chat Enabled | Can Send | Can Receive | SSE Events | Implementation Location |
+       67 +  |-------------------|---------|--------------|--------------|----------|-------------|------------|-------------------------|
+       68 +  | Mgr-Code-01       | 6141    | FastAPI HTTP | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/pas/manager_code/app.py` |
+       69 +  | Mgr-Code-02       | 6142    | FastAPI HTTP | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/pas/manager_code/app.py` |
+       70 +  | Mgr-Code-03       | 6143    | FastAPI HTTP | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/pas/manager_code/app.py` |
+       71 +  | Mgr-Data-01       | 6145    | FastAPI HTTP | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/pas/manager_data/app.py` |
+       72 +  | Mgr-Docs-01       | 6147    | FastAPI HTTP | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/pas/manager_docs/app.py` |
+       73 +  | Mgr-DevSecOps-01  | 6146    | FastAPI HTTP | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/pas/manager_devsecops/app.py` |
+       74 +  | Mgr-Models-01     | 6144    | FastAPI HTTP | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/pas/manager_models/app.py` |
+       75 +  | Prog-Qwen-001     | 6130    | FastAPI HTTP | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
+  Integration Summary
+
+  ✅ Fully Integrated (2/15 agents = 13.3%)
+  - Architect (services/pas/architect/app.py:48-63)
+    - Creates threads for delegation
+    - Answers questions from Directors using LLM
+    - Monitors thread events via polling
+  - Dir-Code (services/pas/director_code/app.py:46-59)
+    - Receives delegation messages
+    - Asks questions using ask_parent tool
+    - Sends status updates during execution
+    - Sends completion/error messages
+
+  ❌ Not Integrated (13/15 agents = 86.7%)
+  - 4 Directors: Dir-Models, Dir-Data, Dir-DevSecOps, Dir-Docs
+  - 7 Managers: All Manager-tier agents
+  - 1 Programmer: Aider-LCO
+  - 1 Architect-adjacent: Dir-Models (not yet implemented for agent chat)
+
+  What Needs Extension
+
+  To achieve full Phase 5 coverage, we need to add agent chat to:
+
+  1. Dir-Data - Needs same pattern as Dir-Code
+  2. Dir-Docs - Needs same pattern as Dir-Code
+  3. Dir-DevSecOps - Needs same pattern as Dir-Code
+  4. Dir-Models - Needs same pattern as Dir-Code (when implemented)
+
+  The implementation pattern from Dir-Code can be directly replicated since all Directors have the same structure.
+
+  ---
+  
 
 # ========================================================================
 # 📝 SESSION WORKFLOW - START HERE (Added 11/11/2025)

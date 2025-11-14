@@ -42,6 +42,13 @@ from services.pas.director_code.decomposer import ManagerTaskDecomposer
 from services.common.manager_executor import get_manager_executor
 from services.common.manager_pool.manager_factory import get_manager_factory
 
+# Agent chat for Parent-Child communication
+from services.common.agent_chat import get_agent_chat_client, AgentChatMessage
+
+# LLM with tool support (Phase 3)
+from services.common.llm_tool_caller import call_llm_with_tools, LLMResponse
+from services.common.llm_tools import get_ask_parent_tool, validate_ask_parent_args, get_system_prompt_with_ask_parent
+
 
 app = FastAPI(title="Director-Code", version="1.0.0")
 
@@ -49,6 +56,7 @@ app = FastAPI(title="Director-Code", version="1.0.0")
 heartbeat_monitor = get_monitor()
 job_queue = get_queue()
 logger = get_logger()
+agent_chat = get_agent_chat_client()
 
 # Register Director-Code agent
 heartbeat_monitor.register_agent(
@@ -388,6 +396,98 @@ async def submit_job_card(
     }
 
 
+@app.post("/agent_chat/receive")
+async def receive_agent_chat_message(
+    message: AgentChatMessage,
+    background_tasks: BackgroundTasks
+):
+    """
+    Receive agent chat message from Architect
+
+    This endpoint handles Parent-Child communication via conversation threads.
+    When Architect delegates a task via agent chat, this endpoint:
+    1. Loads full thread history
+    2. Processes with LLM (with ask_parent tool available)
+    3. Executes task in background
+    4. Sends status updates and asks questions as needed
+
+    Different from /submit which uses traditional job cards.
+
+    Flow:
+    - Architect creates thread with delegation message
+    - Dir-Code receives via this endpoint
+    - Dir-Code can ask questions using agent_chat.send_message()
+    - Dir-Code sends status updates during execution
+    - Dir-Code closes thread on completion/error
+    """
+    thread_id = message.thread_id
+
+    # Load full thread history for context
+    try:
+        thread = await agent_chat.get_thread(thread_id)
+    except Exception as e:
+        logger.log_status(
+            from_agent="Dir-Code",
+            to_agent="Architect",
+            message=f"Failed to load thread {thread_id}: {e}",
+            status="error",
+            metadata={"thread_id": thread_id}
+        )
+        raise HTTPException(status_code=404, detail=f"Thread not found: {thread_id}")
+
+    # Extract task from delegation message
+    delegation_msg = next(
+        (m for m in thread.messages if m.message_type == "delegation"),
+        None
+    )
+
+    if not delegation_msg:
+        raise HTTPException(
+            status_code=400,
+            detail="Thread has no delegation message"
+        )
+
+    task_description = delegation_msg.content
+    run_id = thread.run_id
+
+    # Log receipt
+    logger.log_cmd(
+        from_agent="Architect",
+        to_agent="Dir-Code",
+        message=f"Agent chat message received: {task_description[:50]}...",
+        run_id=run_id,
+        metadata={
+            "thread_id": thread_id,
+            "message_type": message.message_type,
+            "message_id": message.message_id
+        }
+    )
+
+    # Start background task to process thread
+    background_tasks.add_task(
+        process_agent_chat_thread,
+        thread_id,
+        run_id,
+        task_description,
+        thread.metadata
+    )
+
+    # Send immediate heartbeat
+    heartbeat_monitor.heartbeat(
+        agent="Dir-Code",
+        run_id=run_id,
+        state=AgentState.PLANNING,
+        message=f"Processing agent chat: {task_description[:50]}...",
+        progress=0.1
+    )
+
+    return {
+        "thread_id": thread_id,
+        "status": "processing",
+        "message": "Agent chat thread accepted, processing with full context"
+    }
+
+
 # === Background Execution Logic ===
 
 async def execute_job_card(job_card_dict: Dict[str, Any]):
@@ -516,6 +616,395 @@ async def execute_job_card(job_card_dict: Dict[str, Any]):
             status="failed",
             metadata={"error": str(e), "job_card_id": job_card_id}
         )
+
+
+async def analyze_task_with_llm(
+    task_description: str,
+    thread_history: List[Any],
+    metadata: Dict[str, Any],
+    thread_id: str
+) -> Dict[str, Any]:
+    """
+    Use LLM with ask_parent tool to analyze task and ask clarifying questions
+
+    This is the Phase 3 LLM-powered replacement for heuristic question asking.
+
+    Args:
+        task_description: The task from Architect
+        thread_history: Full conversation history
+        metadata: Thread metadata (entry_files, budget, etc.)
+        thread_id: Thread ID for sending questions
+
+    Returns:
+        Dict with:
+            - entry_files: Updated list of entry files
+            - can_proceed: Whether we have enough info to proceed
+            - reasoning: LLM's analysis of the task
+    """
+    # Get LLM model from environment
+    model = os.getenv("DIR_CODE_LLM", "google/gemini-2.5-flash")
+    provider = "google" if "gemini" in model.lower() else "anthropic" if "claude" in model.lower() else "ollama"
+
+    # Build system prompt with ask_parent tool documentation
+    base_system_prompt = """You are Dir-Code, a Director-level agent in the Code lane of a Polyglot Agent Swarm.
+
+Your role is to receive tasks from your parent (Architect), analyze them, and decide if you have enough information to proceed.
+
+**Your Capabilities:**
+- You can delegate to Manager-level agents who handle implementation
+- You have access to project files, tests, and build systems
+- You understand software engineering best practices
+
+**Your Decision Process:**
+1. Analyze the task description carefully
+2. Check what information you have (entry_files, budget, policy)
+3. Determine if the task is clear and unambiguous
+4. If unclear: Use ask_parent tool to get clarification
+5. If clear: Proceed with planning
+
+**Important Guidelines:**
+- Only ask questions when truly necessary (blocking ambiguity)
+- Don't ask about trivial decisions - use best practices
+- Be specific in questions - include context and options you're considering
+- Don't ask multiple questions at once - ask the most critical one first
+"""
+
+    system_prompt = get_system_prompt_with_ask_parent(base_system_prompt, provider)
+
+    # Build user prompt with task context
+    history_str = "\n".join([
+        f"{msg.from_agent} → {msg.to_agent} ({msg.message_type}): {msg.content}"
+        for msg in thread_history
+    ])
+
+    user_prompt = f"""**New Task Assignment:**
+Task: {task_description}
+
+**Available Metadata:**
+Entry Files: {metadata.get('entry_files', [])}
+Budget: {metadata.get('budget_tokens', 'Not specified')} tokens
+Policy Constraints: {json.dumps(metadata.get('policy', {}), indent=2)}
+
+**Conversation History:**
+{history_str}
+
+**Your Task:**
+Analyze this task and determine if you can proceed or need clarification.
+
+If the task is clear and you have the information needed:
+- Respond with "PROCEED" and explain your plan
+
+If the task is ambiguous or you need clarification:
+- Use the ask_parent tool to ask a specific question
+- Include context about what you're uncertain about
+- Mark urgency as "blocking" only if you truly cannot proceed without the answer
+
+Focus on the most critical uncertainties first."""
+
+    # Get ask_parent tool definition
+    ask_parent_tool = get_ask_parent_tool(provider)
+
+    # Call LLM with tool support
+    try:
+        llm_response = await call_llm_with_tools(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            tools=[ask_parent_tool],
+            model=model,
+            temperature=0.3,  # Low temperature for consistent decision-making
+            max_tokens=1000
+        )
+
+        # Process tool calls (ask_parent)
+        entry_files = metadata.get("entry_files", [])
+
+        for tool_call in llm_response.tool_calls:
+            if tool_call["name"] == "ask_parent":
+                # Validate args
+                try:
+                    validate_ask_parent_args(tool_call["args"])
+                except ValueError as e:
+                    logger.log_error(
+                        from_agent="Dir-Code",
+                        to_agent="Dir-Code",
+                        message=f"Invalid ask_parent args: {e}",
+                        metadata={"thread_id": thread_id, "tool_call": tool_call}
+                    )
+                    continue
+
+                question = tool_call["args"]["question"]
+                urgency = tool_call["args"].get("urgency", "important")
+                context = tool_call["args"].get("context", "")
+
+                logger.log_request(
+                    from_agent="Dir-Code",
+                    to_agent="Architect",
+                    message=f"LLM asking question (urgency={urgency}): {question[:100]}...",
+                    run_id=metadata.get("run_id"),
+                    metadata={
+                        "thread_id": thread_id,
+                        "urgency": urgency,
+                        "question": question,
+                        "context": context
+                    }
+                )
+
+                # Send question to Architect
+                await agent_chat.send_message(
+                    thread_id=thread_id,
+                    from_agent="Dir-Code",
+                    to_agent="Architect",
+                    message_type="question",
+                    content=question,
+                    metadata={"urgency": urgency, "context": context}
+                )
+
+                # Wait for answer
+                await wait_for_parent_answer(thread_id, timeout_s=30)
+
+                # Get answer
+                thread = await agent_chat.get_thread(thread_id)
+                latest_answer = next(
+                    (m for m in reversed(thread.messages) if m.message_type == "answer"),
+                    None
+                )
+
+                if latest_answer:
+                    # Extract file paths from answer if mentioned
+                    import re
+                    mentioned_files = re.findall(r'\S+\.(py|js|ts|java|go|rs|cpp|c|h)', latest_answer.content)
+                    if mentioned_files:
+                        entry_files.extend(mentioned_files)
+
+                    logger.log_response(
+                        from_agent="Architect",
+                        to_agent="Dir-Code",
+                        message=f"Received answer: {latest_answer.content[:100]}...",
+                        run_id=metadata.get("run_id"),
+                        metadata={"thread_id": thread_id}
+                    )
+
+        return {
+            "entry_files": entry_files,
+            "can_proceed": True,  # If we got here, we have answers or can proceed
+            "reasoning": llm_response.content,
+            "tool_calls_made": len(llm_response.tool_calls)
+        }
+
+    except Exception as e:
+        logger.log_error(
+            from_agent="Dir-Code",
+            to_agent="Dir-Code",
+            message=f"LLM analysis failed: {e}",
+            metadata={"thread_id": thread_id, "error": str(e)}
+        )
+
+        # Fallback: proceed with what we have
+        return {
+            "entry_files": metadata.get("entry_files", []),
+            "can_proceed": True,
+            "reasoning": f"LLM analysis failed, proceeding with available information. Error: {str(e)}",
+            "tool_calls_made": 0
+        }
+
+
+async def process_agent_chat_thread(
+    thread_id: str,
+    run_id: str,
+    task_description: str,
+    metadata: Optional[Dict[str, Any]]
+):
+    """
+    Process agent chat thread (background task)
+
+    This is the Child-side conversation processor. It:
+    1. Loads full thread history for context
+    2. Uses LLM with ask_parent tool to analyze task (Phase 3)
+    3. Sends status updates during execution
+    4. Executes the actual task (similar to execute_job_card)
+    5. Closes thread on completion/error
+
+    Phase 3: Now uses LLM with ask_parent tool for intelligent question asking!
+    """
+    try:
+        # Step 1: Load thread history
+        thread = await agent_chat.get_thread(thread_id)
+
+        # Send initial status
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent="Dir-Code",
+            to_agent="Architect",
+            message_type="status",
+            content="Starting task analysis",
+            metadata={"progress": 10}
+        )
+
+        heartbeat_monitor.heartbeat(
+            agent="Dir-Code",
+            run_id=run_id,
+            state=AgentState.PLANNING,
+            message="Analyzing task with conversation context",
+            progress=0.2
+        )
+
+        # Step 2: Extract entry files and budget from metadata
+        entry_files = metadata.get("entry_files", []) if metadata else []
+        budget_tokens = metadata.get("budget_tokens", 10000) if metadata else 10000
+
+        # Step 3: LLM-powered task analysis with ask_parent tool (Phase 3)
+        # The LLM will decide if it needs clarification and use ask_parent tool
+        llm_analysis = await analyze_task_with_llm(
+            task_description=task_description,
+            thread_history=thread.messages,
+            metadata=metadata or {},
+            thread_id=thread_id
+        )
+
+        # If LLM used ask_parent tool, questions were already sent and answered
+        # Extract any updated information from the analysis
+        if llm_analysis.get("entry_files"):
+            entry_files = llm_analysis["entry_files"]
+
+        # Step 4: Send progress update
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent="Dir-Code",
+            to_agent="Architect",
+            message_type="status",
+            content=f"Decomposing task: {task_description[:50]}...",
+            metadata={"progress": 30}
+        )
+
+        # Step 5: Create a simplified job card for internal processing
+        # This reuses existing execute_job_card logic
+        synthetic_job_card = {
+            "id": f"jc-{thread_id[:8]}",
+            "parent_id": run_id,
+            "lane": "code",
+            "task": task_description,
+            "inputs": entry_files,
+            "expected_artifacts": [],
+            "acceptance": ["Tests pass", "Lint passes"],
+            "risks": [],
+            "budget": {"tokens": budget_tokens},
+            "metadata": {"thread_id": thread_id}
+        }
+
+        # Register job (so execute_job_card can track it)
+        job_card_id = synthetic_job_card["id"]
+        JOBS[job_card_id] = {
+            "state": "planning",
+            "message": "Processing via agent chat",
+            "started_at": time.time(),
+            "managers": {},
+            "job_card": synthetic_job_card,
+            "thread_id": thread_id
+        }
+
+        # Step 6: Execute using existing job card logic
+        # This handles Manager delegation, monitoring, validation
+        await execute_job_card(synthetic_job_card)
+
+        # Step 7: Send completion message
+        job_state = JOBS[job_card_id]["state"]
+        if job_state == "completed":
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent="Dir-Code",
+                to_agent="Architect",
+                message_type="completion",
+                content=f"Task completed successfully: {task_description[:50]}...",
+                metadata={"job_card_id": job_card_id}
+            )
+
+            # Close thread
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="completed",
+                result=JOBS[job_card_id].get("message", "Task completed")
+            )
+
+        else:
+            # Failed
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent="Dir-Code",
+                to_agent="Architect",
+                message_type="error",
+                content=f"Task failed: {JOBS[job_card_id].get('message', 'Unknown error')}",
+                metadata={"job_card_id": job_card_id}
+            )
+
+            # Close thread with failure
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="failed",
+                result=JOBS[job_card_id].get("message", "Task failed"),
+                error=JOBS[job_card_id].get("message")
+            )
+
+    except Exception as e:
+        # Unhandled error - close thread with error
+        logger.log_error(
+            from_agent="Dir-Code",
+            to_agent="Architect",
+            message=f"Error processing thread {thread_id}: {e}",
+            metadata={"thread_id": thread_id, "error": str(e)}
+        )
+
+        try:
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent="Dir-Code",
+                to_agent="Architect",
+                message_type="error",
+                content=f"Fatal error: {str(e)}",
+                metadata={"error": str(e)}
+            )
+
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="failed",
+                result=f"Fatal error: {str(e)}",
+                error=str(e)
+            )
+        except Exception as close_error:
+            logger.log_error(
+                from_agent="Dir-Code",
+                to_agent="Architect",
+                message=f"Failed to close thread {thread_id}: {close_error}",
+                metadata={"thread_id": thread_id, "error": str(close_error)}
+            )
+
+
+async def wait_for_parent_answer(thread_id: str, timeout_s: int = 30):
+    """
+    Poll thread for parent answer
+
+    Waits up to timeout_s for Architect to answer a question.
+    This is a simple polling implementation - could be replaced with SSE/websockets.
+    """
+    start_time = time.time()
+    while time.time() - start_time < timeout_s:
+        thread = await agent_chat.get_thread(thread_id)
+        latest_msg = thread.messages[-1] if thread.messages else None
+
+        if latest_msg and latest_msg.message_type == "answer":
+            return  # Answer received
+
+        # Wait 1 second before polling again
+        await asyncio.sleep(1)
+
+    # Timeout - no answer received
+    logger.log_response(
+        from_agent="Dir-Code",
+        to_agent="Architect",
+        message=f"Timeout waiting for answer on thread {thread_id}",
+        run_id=thread_id,
+        status="timeout",
+        metadata={"timeout_s": timeout_s}
+    )
 
 
 async def decompose_job_card(job_card_dict: Dict[str, Any]) -> Dict[str, Any]:
