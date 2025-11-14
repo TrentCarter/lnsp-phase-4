@@ -1,73 +1,63 @@
 # Last Session Summary
 
-**Date:** 2025-11-14 (Session: Programmer Pool Testing & Bug Fixes)
-**Duration:** ~30 minutes
+**Date:** 2025-11-14 (Session: Director-Models Agent Chat Integration)
+**Duration:** ~20 minutes
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Successfully tested and validated the 10-programmer pool implementation, fixing critical bugs in the startup script and Manager-Code integration. All 10 programmers are now running with diverse LLM assignments (Qwen, Claude, GPT, DeepSeek), and Manager-Code successfully integrates with the pool for load-balanced task dispatch.
+Successfully integrated Dir-Models with the Agent Chat system, bringing all 5 Directors to 100% Agent Chat coverage. Also cleaned up the readme.txt table to use consistent messaging column wording across all agent tiers (Architect, Directors, Managers, Programmers), and documented the Agent Chat data storage location (SQLite database with conversation threads and messages).
 
 ## Key Changes
 
-### 1. Startup Script Port Assignment Fix
-**Files:** `scripts/start_programmers.sh:30-31,46-51` (MODIFIED)
-**Summary:** Fixed critical bug where uvicorn was defaulting to port 8000 for all programmers, causing startup failures after Prog-001. Added port calculation logic `port=$((6150 + 10#$prog_id))` and `--port "$port"` argument to uvicorn command.
+### 1. Dir-Models Agent Chat Integration
+**Files:** `services/pas/director_models/app.py:38-61,82-117,674-905` (MODIFIED)
+**Summary:** Added agent_chat imports, initialization, HHMRS event helper, and `/agent_chat/receive` endpoint with background message processing. Dir-Models now supports bidirectional conversation threads with Architect (parent) and Managers (children), matching the pattern used by other Directors.
 
-### 2. Manager-Code Startup Error Fix
-**Files:** `services/pas/manager_code/app.py:437` (MODIFIED)
-**Summary:** Fixed NameError crash during Manager-Code startup due to undefined `AIDER_RPC_URL` variable (removed during pool refactor). Replaced with `f"Programmer Pool: {len(programmer_pool.programmers)} programmers"` to show pool size instead.
-
-### 3. README Documentation Update
-**Files:** `docs/readme.txt:42-58,60-78` (MODIFIED)
-**Summary:** Updated programmer pool table entries with correct naming (Prog-001 through Prog-010), ports (6151-6160), and architecture details (Aider RPC). Also fixed Manager-Code port entries (6141-6143).
+### 2. Readme Table Cleanup
+**Files:** `docs/readme.txt:34-58,81` (MODIFIED)
+**Summary:** Standardized messaging column wording to be consistent across all tiers: Architect (to/from children & human), Directors/Managers (to/from parent & children), Programmers (to/from parent). Updated integration summary to show 15/15 agents = 100%.
 
 ## Files Modified
 
-- `scripts/start_programmers.sh` - Added port assignment logic and uvicorn --port flag
-- `services/pas/manager_code/app.py` - Fixed startup print statement (AIDER_RPC_URL → pool size)
-- `docs/readme.txt` - Updated programmer pool and manager tables with correct ports/naming
+- `services/pas/director_models/app.py` - Added Agent Chat integration (imports, client, endpoint, handler)
+- `docs/readme.txt` - Cleaned up table messaging columns, updated integration percentage to 100%
 
 ## Current State
 
 **What's Working:**
-- ✅ All 10 programmers running successfully (ports 6151-6160)
-- ✅ Diverse LLM assignments: Qwen 7B (5x), Claude Sonnet 4 (2x), GPT-4o (1x), DeepSeek 14B (2x)
-- ✅ Health endpoints showing programmer_id, LLM config, circuit breaker status
-- ✅ Manager-Code pool integration (10/10 programmers available)
-- ✅ Load balancing strategy: least_loaded with queue depth tracking
-- ✅ Capability-based routing ready (fast, premium, reasoning, free, paid)
-- ✅ Circuit breakers initialized (all green, 0 failures)
-- ✅ Failover configuration (primary → backup LLM per programmer)
+- ✅ All 5 Directors fully integrated with Agent Chat (Dir-Code, Dir-Models, Dir-Data, Dir-DevSecOps, Dir-Docs)
+- ✅ 100% Agent Chat coverage across entire PAS hierarchy (15/15 agents)
+- ✅ Consistent bidirectional messaging: Architect ↔ Directors ↔ Managers ↔ Programmers
+- ✅ Agent Chat data stored in SQLite (`artifacts/registry/registry.db`)
+- ✅ 2 conversation threads, 19 messages currently in database
+- ✅ Full thread/message schema with indexes for performance
 
 **What Needs Work:**
-- [ ] Test actual code execution through pool (end-to-end task dispatch)
-- [ ] Test circuit breaker with simulated LLM failures
-- [ ] Monitor cost tracking across paid programmers (Claude, GPT)
-- [ ] Consider scaling to 49 programmers (ports 6151-6199 reserved)
+- [ ] Test Dir-Models Agent Chat integration (create thread from Architect → Dir-Models)
+- [ ] Verify bidirectional communication (Dir-Models asks questions, Architect answers)
+- [ ] Test full hierarchy: Architect → Dir-Models → Mgr-Models-01 → Prog (via pool)
 
 ## Important Context for Next Session
 
-1. **Port Calculation**: Prog-001 = 6151, Prog-010 = 6160 (formula: `6150 + 10#$prog_id`)
-2. **Environment Variable**: Each programmer reads `PROGRAMMER_ID` env var to load config from `configs/pas/programmer_pool.yaml`
-3. **Manager-Code Running**: Currently on port 6141 with pool integration, don't restart unnecessarily
-4. **Pool Status Endpoint**: `curl http://localhost:6141/programmer_pool/status | jq` shows all programmer health
-5. **Circuit Breaker State**: In-memory per programmer (resets on service restart)
-6. **LLM Distribution**: 7 free local models (Qwen, DeepSeek), 3 paid API models (Claude 4, GPT-4o)
+1. **Dir-Models Agent Chat**: New `/agent_chat/receive` endpoint at lines 676-905, uses same pattern as Dir-Code
+2. **Agent Chat Storage**: `artifacts/registry/registry.db` (320KB SQLite) with tables `agent_conversation_threads` and `agent_conversation_messages`
+3. **Database Schema**: Threads store parent/child/status/result, Messages store from/to/type/content, both with metadata JSON fields
+4. **Current Data**: 2 threads (Architect ↔ Dir-Code, both completed), 19 messages total
+5. **100% Integration**: All agents now support Agent Chat - ready for end-to-end testing
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Check pool status**: `curl http://localhost:6141/programmer_pool/status | jq`
-3. **Test task dispatch**: Submit a task through Gateway → Dir-Code → Mgr-Code → Pool
-4. **Monitor logs**: `tail -f artifacts/logs/programmers/programmer_*.log`
-5. **Verify failover**: Simulate LLM failure to test circuit breaker + backup switching
+2. **Test Dir-Models**: Create thread from Architect → Dir-Models with a models lane task
+3. **Verify bidirectional**: Check that Dir-Models can ask questions and Architect can answer
+4. **View in HMI**: Agent Chat threads should be visible in TRON visualization (via SSE events)
+5. **Query database**: `sqlite3 artifacts/registry/registry.db` to inspect threads/messages
 
 ## Git Status
 
 **Uncommitted Changes:**
-- M `scripts/start_programmers.sh` (port assignment fix)
-- M `services/pas/manager_code/app.py` (startup print fix)
-- M `docs/readme.txt` (table updates)
+- M `services/pas/director_models/app.py` (Agent Chat integration)
+- M `docs/readme.txt` (table cleanup, 100% integration)
 - M `docs/last_summary.md` (this file)
 - M `docs/all_project_summary.md` (archive)

@@ -31,31 +31,31 @@ claude --dangerously-skip-permissions
 
   Coverage Status
 
-  | Agent Tier  | Agent Name       | Port    | Agent Chat Integrated | Can Send Messages                     | Can Receive Messages            | SSE Events Emitted |
-  |-------------|------------------|---------|-----------------------|---------------------------------------|---------------------------------|--------------------|
-  | Architect   | Architect        | 6110    | ✅ YES                 | ✅ Yes (answers to children)           | ✅ Yes (questions from children) | ✅ Yes              |
-  | Directors   | Dir-Code         | 6111    | ✅ YES                 | ✅ Yes (questions, status, completion) | ✅ Yes (delegation, answers)     | ✅ Yes              |
-  |             | Dir-Models       | 6112    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
-  |             | Dir-Data         | 6113    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
-  |             | Dir-DevSecOps    | 6114    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
-  |             | Dir-Docs         | 6115    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
-  | Managers    | Mgr-Code-01      | 6141    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
-  |             | Mgr-Code-02      | 6142    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
-  |             | Mgr-Code-03      | 6143    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
-  |             | Mgr-Models-01    | 6144    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
-  |             | Mgr-Data-01      | 6145    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
-  |             | Mgr-DevSecOps-01 | 6146    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
-  |             | Mgr-Docs-01      | 6147    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
-  | Programmers | Prog-001         | 6151    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
-  |             | Prog-002         | 6152    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
-  |             | Prog-003         | 6153    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
-  |             | Prog-004         | 6154    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
-  |             | Prog-005         | 6155    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
-  |             | Prog-006         | 6156    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
-  |             | Prog-007         | 6157    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
-  |             | Prog-008         | 6158    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
-  |             | Prog-009         | 6159    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
-  |             | Prog-010         | 6160    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
+  | Agent Tier  | Agent Name       | Port    | Agent Chat Integrated | Can Send Messages                     | Can Receive Messages                  | SSE Events Emitted |
+  |-------------|------------------|---------|-----------------------|---------------------------------------|---------------------------------------|--------------------|
+  | Architect   | Architect        | 6110    | ✅ YES                 | ✅ Yes (to children & human)           | ✅ Yes (from children & human)         | ✅ Yes              |
+  | Directors   | Dir-Code         | 6111    | ✅ YES                 | ✅ Yes (to parent & children)          | ✅ Yes (from parent & children)        | ✅ Yes              |
+  |             | Dir-Models       | 6112    | ✅ YES                 | ✅ Yes (to parent & children)          | ✅ Yes (from parent & children)        | ✅ Yes              |
+  |             | Dir-Data         | 6113    | ✅ YES                 | ✅ Yes (to parent & children)          | ✅ Yes (from parent & children)        | ✅ Yes              |
+  |             | Dir-DevSecOps    | 6114    | ✅ YES                 | ✅ Yes (to parent & children)          | ✅ Yes (from parent & children)        | ✅ Yes              |
+  |             | Dir-Docs         | 6115    | ✅ YES                 | ✅ Yes (to parent & children)          | ✅ Yes (from parent & children)        | ✅ Yes              |
+  | Managers    | Mgr-Code-01      | 6141    | ✅ YES                 | ✅ Yes (to parent & children)          | ✅ Yes (from parent & children)        | ✅ Yes              |
+  |             | Mgr-Code-02      | 6142    | ✅ YES                 | ✅ Yes (to parent & children)          | ✅ Yes (from parent & children)        | ✅ Yes              |
+  |             | Mgr-Code-03      | 6143    | ✅ YES                 | ✅ Yes (to parent & children)          | ✅ Yes (from parent & children)        | ✅ Yes              |
+  |             | Mgr-Models-01    | 6144    | ✅ YES                 | ✅ Yes (to parent & children)          | ✅ Yes (from parent & children)        | ✅ Yes              |
+  |             | Mgr-Data-01      | 6145    | ✅ YES                 | ✅ Yes (to parent & children)          | ✅ Yes (from parent & children)        | ✅ Yes              |
+  |             | Mgr-DevSecOps-01 | 6146    | ✅ YES                 | ✅ Yes (to parent & children)          | ✅ Yes (from parent & children)        | ✅ Yes              |
+  |             | Mgr-Docs-01      | 6147    | ✅ YES                 | ✅ Yes (to parent & children)          | ✅ Yes (from parent & children)        | ✅ Yes              |
+  | Programmers | Prog-001         | 6151    | ✅ YES                 | ✅ Yes (to parent)                     | ✅ Yes (from parent)                   | ✅ Yes              |
+  |             | Prog-002         | 6152    | ✅ YES                 | ✅ Yes (to parent)                     | ✅ Yes (from parent)                   | ✅ Yes              |
+  |             | Prog-003         | 6153    | ✅ YES                 | ✅ Yes (to parent)                     | ✅ Yes (from parent)                   | ✅ Yes              |
+  |             | Prog-004         | 6154    | ✅ YES                 | ✅ Yes (to parent)                     | ✅ Yes (from parent)                   | ✅ Yes              |
+  |             | Prog-005         | 6155    | ✅ YES                 | ✅ Yes (to parent)                     | ✅ Yes (from parent)                   | ✅ Yes              |
+  |             | Prog-006         | 6156    | ✅ YES                 | ✅ Yes (to parent)                     | ✅ Yes (from parent)                   | ✅ Yes              |
+  |             | Prog-007         | 6157    | ✅ YES                 | ✅ Yes (to parent)                     | ✅ Yes (from parent)                   | ✅ Yes              |
+  |             | Prog-008         | 6158    | ✅ YES                 | ✅ Yes (to parent)                     | ✅ Yes (from parent)                   | ✅ Yes              |
+  |             | Prog-009         | 6159    | ✅ YES                 | ✅ Yes (to parent)                     | ✅ Yes (from parent)                   | ✅ Yes              |
+  |             | Prog-010         | 6160    | ✅ YES                 | ✅ Yes (to parent)                     | ✅ Yes (from parent)                   | ✅ Yes              |
   
        66 +  | Agent             | Port    | Architecture | Chat Enabled | Can Send | Can Receive | SSE Events | Implementation Location |
        67 +  |-------------------|---------|--------------|--------------|----------|-------------|------------|-------------------------|
@@ -78,7 +78,7 @@ claude --dangerously-skip-permissions
        84 +  | Prog-010          | 6160    | Aider RPC    | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
   Integration Summary
 
-  ✅ Fully Integrated (2/15 agents = 13.3%)
+  ✅ Fully Integrated (15/15 agents = 100%)
   - Architect (services/pas/architect/app.py:48-63)
     - Creates threads for delegation
     - Answers questions from Directors using LLM

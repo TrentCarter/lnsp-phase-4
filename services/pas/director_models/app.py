@@ -35,8 +35,17 @@ from services.common.heartbeat import get_monitor, AgentState
 from services.common.job_queue import get_queue, JobCard, Lane, Role, Priority
 from services.common.comms_logger import get_logger, MessageType
 
-# Director-Code specific imports
+# Director-Models specific imports
 from services.pas.director_models.decomposer import ManagerTaskDecomposer
+from services.common.manager_executor import get_manager_executor
+from services.common.manager_pool.manager_factory import get_manager_factory
+
+# Agent chat for Parent-Child communication
+from services.common.agent_chat import get_agent_chat_client, AgentChatMessage
+
+# LLM with tool support (Phase 3)
+from services.common.llm_tool_caller import call_llm_with_tools, LLMResponse
+from services.common.llm_tools import get_ask_parent_tool, validate_ask_parent_args, get_system_prompt_with_ask_parent
 
 
 app = FastAPI(title="Director-Models", version="1.0.0")
@@ -45,6 +54,11 @@ app = FastAPI(title="Director-Models", version="1.0.0")
 heartbeat_monitor = get_monitor()
 job_queue = get_queue()
 logger = get_logger()
+agent_chat = get_agent_chat_client()
+
+# Manager executor and factory
+manager_executor = get_manager_executor()
+manager_factory = get_manager_factory()
 
 # Register Director-Code agent
 heartbeat_monitor.register_agent(
@@ -63,6 +77,43 @@ MANAGER_ENDPOINTS: Dict[str, str] = {}
 
 # In-memory job tracking (will move to DB in Phase 2)
 JOBS: Dict[str, Dict[str, Any]] = {}
+
+
+# === HHMRS Event Emission Helper ===
+
+def _emit_hhmrs_event(event_type: str, data: Dict[str, Any]) -> None:
+    """
+    Emit HHMRS event to Event Stream for HMI chimes and TRON visualization
+
+    Args:
+        event_type: One of: 'hhmrs_timeout', 'hhmrs_restart', 'hhmrs_escalation', 'hhmrs_failure'
+        data: Event data containing agent_id, message, etc.
+    """
+    try:
+        import requests
+        from datetime import datetime
+
+        if 'timestamp' not in data:
+            data['timestamp'] = datetime.now().isoformat()
+
+        payload = {
+            "event_type": event_type,
+            "data": data
+        }
+
+        response = requests.post(
+            "http://localhost:6102/broadcast",
+            json=payload,
+            timeout=1.0
+        )
+
+        if response.status_code != 200:
+            print(f"Warning: Failed to emit HHMRS event {event_type}, status={response.status_code}")
+
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+        print(f"Warning: Event Stream not available for HHMRS event {event_type}")
+    except Exception as e:
+        print(f"Error emitting HHMRS event {event_type}: {e}")
 
 
 # === Pydantic Models ===
@@ -618,6 +669,239 @@ async def register_manager(manager_id: str, endpoint: str):
         "message": f"Manager {manager_id} registered",
         "endpoint": endpoint
     }
+
+
+# === Agent Chat Endpoint ===
+
+@app.post("/agent_chat/receive")
+async def receive_agent_chat_message(
+    message: AgentChatMessage,
+    background_tasks: BackgroundTasks
+):
+    """
+    Receive agent chat message from Architect
+
+    This endpoint handles Parent-Child communication via conversation threads.
+    When Architect delegates a task via agent chat, this endpoint:
+    1. Loads full thread history
+    2. Processes with LLM (with ask_parent tool available)
+    3. Executes task in background
+    4. Sends status updates and asks questions as needed
+
+    Different from /submit which uses traditional job cards.
+
+    Flow:
+    - Architect creates thread with delegation message
+    - Dir-Models receives via this endpoint
+    - Dir-Models can ask questions using agent_chat.send_message()
+    - Dir-Models sends status updates during execution
+    - Dir-Models closes thread on completion/error
+    """
+    thread_id = message.thread_id
+
+    # Load full thread history for context
+    try:
+        thread = await agent_chat.get_thread(thread_id)
+    except Exception as e:
+        logger.log_status(
+            from_agent="Dir-Models",
+            to_agent="Architect",
+            message=f"Error loading thread {thread_id}: {str(e)}",
+            run_id=thread_id,
+            status="error"
+        )
+        raise HTTPException(status_code=500, detail=f"Error loading thread: {str(e)}")
+
+    # Log receipt
+    logger.log_cmd(
+        from_agent="Architect",
+        to_agent="Dir-Models",
+        message=f"Agent chat message received (thread={thread_id})",
+        run_id=thread_id,
+        metadata={"thread_id": thread_id, "message_content": message.content[:100]}
+    )
+
+    # Process in background
+    background_tasks.add_task(process_agent_chat_message, message)
+
+    return {"status": "ok", "thread_id": thread_id}
+
+
+async def process_agent_chat_message(request: AgentChatMessage):
+    """
+    Process agent chat message in background
+
+    Steps:
+    1. Load thread history
+    2. Determine task from thread
+    3. Execute task (decompose → delegate → monitor)
+    4. Send status updates
+    5. Close thread on completion
+    """
+    thread_id = request.thread_id
+
+    try:
+        # Load thread
+        thread = await agent_chat.get_thread(thread_id)
+
+        # Extract task from latest message
+        task_description = request.content
+
+        # Send acknowledgment
+        thread = await agent_chat.get_thread(thread_id)
+
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent="Dir-Models",
+            to_agent="Architect",
+            content=f"Task received: {task_description[:100]}... Starting decomposition.",
+            parent_message_id=request.message_id
+        )
+
+        # Create synthetic job card for execution
+        job_card_dict = {
+            "id": f"agent-chat-{thread_id}",
+            "parent_id": thread_id,
+            "task": task_description,
+            "inputs": [],
+            "expected_artifacts": [],
+            "acceptance": [],
+            "risks": [],
+            "budget": {}
+        }
+
+        # Execute job card logic
+        run_id = thread_id
+
+        # Step 1: Decompose
+        heartbeat_monitor.heartbeat(
+            agent="Dir-Models",
+            run_id=run_id,
+            state=AgentState.PLANNING,
+            message="Decomposing task with LLM",
+            progress=0.2
+        )
+
+        manager_plan = await decompose_job_card(job_card_dict)
+
+        # Send status update
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent="Dir-Models",
+            to_agent="Architect",
+            content=f"Decomposition complete. Identified {len(manager_plan['manager_tasks'])} manager tasks."
+        )
+
+        # Step 2: Delegate
+        heartbeat_monitor.heartbeat(
+            agent="Dir-Models",
+            run_id=run_id,
+            state=AgentState.DELEGATING,
+            message="Delegating to Managers",
+            progress=0.4
+        )
+
+        # Register temporary job for tracking
+        JOBS[job_card_dict["id"]] = {
+            "state": "delegating",
+            "started_at": time.time(),
+            "managers": {},
+            "job_card": job_card_dict
+        }
+
+        await delegate_to_managers(job_card_dict["id"], run_id, manager_plan)
+
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent="Dir-Models",
+            to_agent="Architect",
+            content="Tasks delegated to Managers. Monitoring execution..."
+        )
+
+        # Step 3: Monitor
+        heartbeat_monitor.heartbeat(
+            agent="Dir-Models",
+            run_id=run_id,
+            state=AgentState.MONITORING,
+            message="Monitoring Managers",
+            progress=0.6
+        )
+
+        await monitor_managers(job_card_dict["id"], run_id, manager_plan)
+
+        # Step 4: Validate
+        validation_results = await validate_acceptance(job_card_dict["id"], run_id, manager_plan)
+
+        # Step 5: Complete
+        if all(validation_results.values()):
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent="Dir-Models",
+                to_agent="Architect",
+                content=f"✅ Task completed successfully. All {len(manager_plan['manager_tasks'])} manager tasks passed validation."
+            )
+
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                closed_by="Dir-Models",
+                reason="Task completed successfully"
+            )
+
+            heartbeat_monitor.heartbeat(
+                agent="Dir-Models",
+                run_id=run_id,
+                state=AgentState.COMPLETED,
+                message="Task completed",
+                progress=1.0
+            )
+
+        else:
+            # Some managers failed
+            failed_managers = [mgr for mgr, passed in validation_results.items() if not passed]
+
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent="Dir-Models",
+                to_agent="Architect",
+                content=f"❌ Task failed. Managers that failed: {', '.join(failed_managers)}"
+            )
+
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                closed_by="Dir-Models",
+                reason=f"Task failed: {', '.join(failed_managers)}"
+            )
+
+            heartbeat_monitor.heartbeat(
+                agent="Dir-Models",
+                run_id=run_id,
+                state=AgentState.FAILED,
+                message=f"Failed: {', '.join(failed_managers)}",
+                progress=1.0
+            )
+
+    except Exception as e:
+        # Error during execution
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent="Dir-Models",
+            to_agent="Architect",
+            content=f"❌ Error during execution: {str(e)}"
+        )
+
+        await agent_chat.close_thread(
+            thread_id=thread_id,
+            closed_by="Dir-Models",
+            reason=f"Error: {str(e)}"
+        )
+
+        logger.log_status(
+            from_agent="Dir-Models",
+            to_agent="Architect",
+            message=f"Error processing agent chat message: {str(e)}",
+            run_id=thread_id,
+            status="error"
+        )
 
 
 # === Startup ===

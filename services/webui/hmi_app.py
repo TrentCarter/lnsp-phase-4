@@ -55,9 +55,46 @@ TOKEN_GOVERNOR_URL = 'http://localhost:6105'
 EVENT_STREAM_URL = 'http://localhost:6102'
 PROVIDER_ROUTER_URL = 'http://localhost:6103'
 GATEWAY_URL = 'http://localhost:6120'
+AGENT_STATUS_FILE = Path('configs/pas/agent_status.json')
 
 # Track server start time for uptime calculation
 SERVER_START_TIME = time.time()
+
+
+def load_agent_status_data() -> Dict[str, Any]:
+    """Load agent coverage metadata for the Agent Status tab."""
+    if not AGENT_STATUS_FILE.exists():
+        logger.warning("Agent status file missing at %s", AGENT_STATUS_FILE)
+        return {
+            'last_updated': None,
+            'coverage': {},
+            'tiers': [],
+            'agents': [],
+        }
+
+    try:
+        with open(AGENT_STATUS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except Exception as exc:
+        logger.error("Failed to load agent status file: %s", exc)
+        return {
+            'last_updated': None,
+            'coverage': {},
+            'tiers': [],
+            'agents': [],
+            'error': str(exc),
+        }
+
+    flattened: List[Dict[str, Any]] = []
+    for tier in data.get('tiers', []):
+        for agent in tier.get('agents', []):
+            flattened.append({
+                **agent,
+                'tier': tier.get('name'),
+            })
+
+    data['agents'] = flattened
+    return data
 
 
 @app.route('/')
