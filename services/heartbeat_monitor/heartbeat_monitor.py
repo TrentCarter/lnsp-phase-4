@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from contextlib import contextmanager
 
@@ -249,17 +250,47 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Add CORS middleware to allow browser requests from HMI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins (HMI at port 6101)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Background task handle
 monitor_task = None
 
 
 @app.on_event("startup")
 async def startup_event():
-    """Start background heartbeat checking task"""
+    """Start background heartbeat checking task and register with Registry"""
     global monitor_task
 
     # Ensure event log directory exists
     EVENTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Register with Registry Service and start sending heartbeats
+    try:
+        import sys
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from common.registry_heartbeat import start_registry_heartbeat
+
+        await start_registry_heartbeat(
+            service_id="tron-heartbeat-monitor",
+            name="TRON Heartbeat Monitor",
+            type="agent",
+            role="production",
+            url="http://localhost:6109",
+            caps=["health_monitoring", "timeout_detection", "service_alerts"],
+            labels={"tier": "core", "category": "infrastructure", "port": 6109, "agent_role": "infrastructure"},
+            heartbeat_interval_s=30,
+            ttl_s=90
+        )
+    except Exception as e:
+        print(f"⚠️  Failed to register with Registry Service: {e}")
+        print(f"⚠️  TRON will run but won't be visible in System Status")
 
     # Start background task
     monitor_task = asyncio.create_task(check_heartbeats())
@@ -268,11 +299,20 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Stop background task on shutdown"""
+    """Stop background task and Registry heartbeat on shutdown"""
     global monitor_task
     if monitor_task:
         monitor_task.cancel()
         print("✓ Heartbeat Monitor stopped")
+
+    # Stop Registry heartbeat
+    try:
+        import sys
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from common.registry_heartbeat import stop_registry_heartbeat
+        await stop_registry_heartbeat()
+    except Exception as e:
+        print(f"⚠️  Failed to stop Registry heartbeat: {e}")
 
 
 @app.get("/")

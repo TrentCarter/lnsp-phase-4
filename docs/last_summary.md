@@ -1,76 +1,121 @@
 # Last Session Summary
 
-**Date:** 2025-11-14 (Session: Resource Management Tests)
-**Duration:** ~1 hour
+**Date:** 2025-11-14 (Session: TRON System Status Integration)
+**Duration:** ~45 minutes
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Added 3 new system tests to the Agent Family Test suite to verify resource management and health monitoring. These tests expose missing features in the P0 stack: programmer busy state tracking, manager fallback routing, and TRON timeout detection integration.
+Implemented complete Registry Service integration for TRON Heartbeat Monitor, enabling automatic registration and persistent visibility in HMI System Status dashboard. Created reusable heartbeat utility for all PAS services and fixed multiple API/UI integration issues.
 
 ## Key Changes
 
-### 1. Agent Family Test - Resource Management Tests
-**Files:**
-- `services/webui/templates/model_pool_enhanced.html:567-580` (buttons)
-- `services/webui/templates/model_pool_enhanced.html:2016-2179` (implementations)
+### 1. Registry Heartbeat Utility (NEW)
+**Files:** `services/common/registry_heartbeat.py` (NEW, 280 lines)
+**Summary:** Created reusable utility for automatic service registration and heartbeat transmission. Handles background heartbeat loop (30s intervals), graceful shutdown, and error recovery. Uses HTTP PUT (not POST) for Registry `/heartbeat` endpoint.
 
-**Summary:** Added three production-ready diagnostic tests to reveal missing resource management features. Test 11 (Resource Pool Exhaustion) tests manager behavior when all programmers are busy. Test 12 (Programmer Busy State) tests concurrent access and busy rejection. Test 13 (TRON Timeout Detection) verifies health monitoring infrastructure.
+### 2. TRON Heartbeat Integration
+**Files:** `services/heartbeat_monitor/heartbeat_monitor.py:266-315`
+**Summary:** Integrated `registry_heartbeat.py` into TRON startup/shutdown events. TRON now automatically registers with Registry Service on startup and sends heartbeats every 30 seconds to maintain "ok" status.
 
-### 2. Documentation - Resource Management Test Guide
-**Files:**
-- `docs/AGENT_FAMILY_TESTS_RESOURCE_MANAGEMENT.md` (NEW, 7.2KB)
+### 3. HMI API Format Fix
+**Files:** `services/webui/hmi_app.py:216-219`
+**Summary:** Fixed Registry API response parsing - HMI was expecting `{"services": {...}}` but Registry returns `{"items": [...]}`. Services now display correctly in dashboard.
 
-**Summary:** Comprehensive documentation of the new tests including purpose, scenarios, expected behaviors, integration with TRON/Resource Manager, test results summary, and detailed TODO list for implementing missing features.
+### 4. Dashboard Core Services Grouping
+**Files:** `services/webui/templates/dashboard.html:1244-1246`
+**Summary:** Expanded JavaScript grouping logic to include services with "heartbeat", "tron", "webui", "events", "router", "aider" in Core Services section. TRON now appears in correct group.
+
+### 5. Service Registration Tool (NEW)
+**Files:** `tools/register_core_services.py` (NEW, 244 lines)
+**Summary:** Created manual registration utility for core infrastructure services (TRON, Resource Manager, Token Governor, Events, Router, Aider-LCO). Fallback for services without integrated heartbeat startup.
+
+### 6. Technical Documentation (NEW)
+**Files:** `docs/TRON_SYSTEM_STATUS_INTEGRATION.md` (NEW, 8KB)
+**Summary:** Comprehensive documentation covering problem analysis, solution implementation, verification results, and integration patterns for other services. Includes code examples and troubleshooting guide.
 
 ## Files Modified
 
-- `services/webui/templates/model_pool_enhanced.html` - Added 3 test buttons and implementations (163 lines added)
-- `docs/AGENT_FAMILY_TESTS_RESOURCE_MANAGEMENT.md` - Created complete test documentation
+- `services/common/registry_heartbeat.py` (NEW) - Automatic registration & heartbeat utility
+- `services/heartbeat_monitor/heartbeat_monitor.py` - Added startup/shutdown heartbeat integration
+- `services/webui/hmi_app.py` - Fixed Registry API response format parsing
+- `services/webui/templates/dashboard.html` - Expanded Core Services grouping logic
+- `tools/register_core_services.py` (NEW) - Manual service registration tool
+- `docs/TRON_SYSTEM_STATUS_INTEGRATION.md` (NEW) - Complete technical documentation
 
 ## Current State
 
 **What's Working:**
-- ✅ All 13 Agent Family Tests implemented (10 existing + 3 new)
-- ✅ HMI running on port 6101
-- ✅ Tests are diagnostic - reveal missing features without breaking
-- ✅ TRON infrastructure exists (port 6109)
-- ✅ Resource Manager exists (port 6104)
+- ✅ TRON automatically registers with Registry Service on startup (service_id: "tron-heartbeat-monitor")
+- ✅ Heartbeat updates every 30 seconds via PUT /heartbeat (verified: 18:49:49 → 18:50:19)
+- ✅ TRON visible in HMI System Status dashboard under "Core Services" with status "ok"
+- ✅ No TTL expiration - service maintains persistent registration
+- ✅ Reusable `registry_heartbeat.py` utility ready for other services
 
 **What Needs Work:**
-- [ ] **Programmer busy state tracking** - Return HTTP 503 when busy
-- [ ] **Manager fallback routing** - Try Prog-01 → Prog-02 → Prog-03
-- [ ] **Manager escalation to Director** - When all programmers busy
-- [ ] **TRON full test** - Agent crash simulation with timeout detection
-- [ ] **TRON parent alerting** - RPC call to `/handle_child_timeout`
+- [ ] **Integrate heartbeat into other core services** - Resource Manager (6104), Token Governor (6105), Event Stream (6102), Router (6103) need same integration pattern
+- [ ] **Integrate heartbeat into PAS agents** - Gateway, PAS Root, Architect, Directors, Managers, Programmers need registration
+- [ ] **Complete Test 13 (TRON Timeout Detection)** - Phase 1 passing, phases 2-4 need implementation (timeout simulation, detection, parent alerting)
+- [ ] **Registry Service self-registration** - Registry (6121) should register itself
 
 ## Important Context for Next Session
 
-1. **Test Purpose**: These tests are **diagnostic**, not validation. They're designed to expose missing features in resource management and health monitoring systems.
+1. **Two Heartbeat Systems Exist**: (1) In-memory `HeartbeatMonitor` singleton in `services/common/heartbeat.py` used by agents locally, (2) Centralized TRON service monitoring via Registry Service. Integration pattern now available for connecting both systems.
 
-2. **TRON System**: HeartbeatMonitor (port 6109) exists but needs parent alerting implementation. Full PRD at `docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md`.
+2. **HTTP Method Critical**: Registry `/heartbeat` endpoint requires HTTP PUT, not POST. Using POST results in "405 Method Not Allowed". The `registry_heartbeat.py` utility uses correct PUT method (line 122).
 
-3. **Two Distinct Systems Tested**:
-   - **Manager Fallback Logic** (local decisions): Try programmers sequentially, escalate to Director
-   - **TRON/Resource Manager** (global state): Centralized health monitoring and resource tracking
+3. **Service TTL Management**: Default TTL is 90s (3x heartbeat interval of 30s). Services not sending heartbeats will be marked "down" after 60s and de-registered after 90s. TRON checks every 30s and escalates after 2-3 missed beats.
 
-4. **Expected Test Results**:
-   - Test 11 (Pool Exhaustion): 🟡 Partial - Reveals Manager routing logic needed
-   - Test 12 (Busy State): 🔴 Fail - Reveals busy state tracking needed
-   - Test 13 (TRON): 🟢 Pass - Infrastructure verified, full test TODO
+4. **Integration Pattern**: For any FastAPI service, add to startup event:
+   ```python
+   from services.common.registry_heartbeat import start_registry_heartbeat
+
+   @app.on_event("startup")
+   async def startup_event():
+       await start_registry_heartbeat(
+           service_id="unique-id",
+           name="Display Name",
+           type="agent",
+           role="production",
+           url="http://localhost:PORT",
+           caps=["capability1"],
+           labels={"tier": "core", "agent_role": "infrastructure"}
+       )
+   ```
+
+5. **Dashboard Grouping Logic**: Services are grouped by name patterns in `dashboard.html:1232-1249`. To appear in Core Services, service name must contain: gateway, pas root, registry, heartbeat, tron, webui, events, router, or aider.
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Test the new buttons**: Open http://localhost:6101 → Agent Family Test tab → Try bottom 3 tests
-3. **Implement busy state tracking**: Add to Programmer services (return HTTP 503 when executing)
-4. **Implement Manager fallback**: Add routing logic to try programmers sequentially
-5. **Review TRON PRD**: `docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md` for full implementation plan
+2. **Verify TRON still visible**: Visit http://localhost:6101 → System Status → Core Services
+3. **Next priority**: Integrate `registry_heartbeat.py` into Resource Manager (`services/resource_manager/resource_manager.py`) using same pattern as TRON
+4. **Alternative**: Complete Test 13 phases 2-4 (timeout detection now that heartbeat system is working)
+5. **Check heartbeat status**: `curl http://localhost:6121/services | python3 -m json.tool | grep -A 5 "TRON"`
+
+## Verification Commands
+
+```bash
+# Check TRON registration
+curl -s http://localhost:6121/services | python3 -m json.tool | grep -i tron -A 8
+
+# Check TRON in HMI API
+curl -s http://localhost:6101/api/services | python3 -m json.tool
+
+# View TRON logs
+tail -50 artifacts/logs/tron.log
+
+# Re-register services manually (if needed)
+python tools/register_core_services.py
+
+# Check TRON health
+curl http://localhost:6109/health
+```
 
 ## Related Documentation
 
-- `docs/AGENT_FAMILY_TESTS_RESOURCE_MANAGEMENT.md` - Complete test guide
-- `docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md` - TRON system PRD (1420 lines)
-- `docs/SERVICE_PORTS.md` - Port 6109 (TRON), 6104 (Resource Manager)
-- `services/common/heartbeat.py` - TRON HeartbeatMonitor implementation
-- `services/resource_manager/resource_manager.py` - Resource quota tracking
+- `docs/TRON_SYSTEM_STATUS_INTEGRATION.md` - Complete technical documentation (this session)
+- `docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md` - TRON system PRD
+- `docs/AGENT_FAMILY_TESTS_RESOURCE_MANAGEMENT.md` - Test 13 specifications
+- `docs/SERVICE_PORTS.md` - Complete port mapping
+- `services/common/registry_heartbeat.py` - Heartbeat utility API reference

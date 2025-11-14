@@ -1241,7 +1241,9 @@
                         grouped.managers.push(agent);
                     } else if (role === 'programmer' || name.includes('programmer') || name.includes('prog-')) {
                         grouped.programmers.push(agent);
-                    } else if (name.includes('gateway') || name.includes('pas root') || name.includes('registry')) {
+                    } else if (name.includes('gateway') || name.includes('pas root') || name.includes('registry') ||
+                               name.includes('heartbeat') || name.includes('tron') || name.includes('webui') ||
+                               name.includes('events') || name.includes('router') || name.includes('aider')) {
                         grouped.core.push(agent);
                     } else {
                         grouped.other.push(agent);

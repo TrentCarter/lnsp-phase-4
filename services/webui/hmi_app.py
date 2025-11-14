@@ -213,9 +213,10 @@ def get_services():
         response.raise_for_status()
         data = response.json()
 
-        # Registry returns {"services": {...}} - convert dict to list
-        services_dict = data.get('services', {})
-        services_list = list(services_dict.values()) if isinstance(services_dict, dict) else []
+        # Registry returns {"items": [...]} - extract list
+        services_list = data.get('items', [])
+        if not isinstance(services_list, list):
+            services_list = []
 
         # If no services registered, fetch agents from action_logs
         if not services_list:
@@ -3696,6 +3697,7 @@ def get_system_status():
         required_ports = [
             # Core Services
             6120, 6100, 6121, 6101, 6102, 6103,  # Gateway, PAS Root, Registry, HMI, Events, Router
+            6104, 6109,  # Resource Manager, TRON (HeartbeatMonitor)
             # PAS Agent Tiers
             6110,  # Architect
             6111, 6112, 6113, 6114, 6115,  # Directors (Code, Models, Data, DevSecOps, Docs)
