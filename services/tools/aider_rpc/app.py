@@ -38,6 +38,13 @@ from common.agent_chat import get_agent_chat_client, AgentChatMessage
 # Get programmer ID from environment (001-010)
 PROGRAMMER_ID = os.getenv("PROGRAMMER_ID", "001")
 
+from services.common.agent_chat import get_agent_chat_client, AgentChatMessage
+from services.common.agent_chat_mixin import (
+    add_agent_chat_routes,
+    start_message_poller,
+    send_message_to_parent,
+    send_message_to_child
+)
 app = FastAPI(title=f"Programmer-{PROGRAMMER_ID} RPC", version="2.0")
 
 # Initialize systems
@@ -257,6 +264,40 @@ def _record_llm_success(llm: str):
         # Reset failure counter on success
         FAILOVER_STATE["primary_failures"] = max(0, FAILOVER_STATE["primary_failures"] - 1)
 
+
+
+
+# === Agent Chat Message Handler ===
+
+async def handle_incoming_message(message: AgentChatMessage):
+    """
+    Handle incoming messages from parent (Manager) or children.
+
+    Called automatically by the message poller when new messages arrive.
+    """
+    print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Prog-ALL'}}] Received {{message.message_type}} from {{message.from_agent}}")
+
+    if message.message_type == "delegation":
+        # Handle delegation from parent
+        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Prog-ALL'}}] Delegation: {{message.content}}")
+        # TODO: Process delegation
+
+    elif message.message_type == "question":
+        # Handle question from child
+        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Prog-ALL'}}] Question: {{message.content}}")
+        # TODO: Answer question
+
+    elif message.message_type == "status":
+        # Handle status update
+        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Prog-ALL'}}] Status: {{message.content}}")
+
+    elif message.message_type == "completion":
+        # Handle completion
+        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Prog-ALL'}}] Completion: {{message.content}}")
+
+    elif message.message_type == "error":
+        # Handle error
+        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Prog-ALL'}}] Error: {{message.content}}")
 
 @app.get("/health")
 def health():
@@ -873,6 +914,39 @@ def aider_edit(req: EditRequest):
         "llm_provider": llm_provider
     }
 
+
+
+
+# === Startup - Initialize Agent Chat ===
+
+@app.on_event("startup")
+async def startup():
+    """Initialize agent and start message poller"""
+    agent_id_val = get_agent_id()
+    print(f"[{agent_id_val}] Starting up...")
+
+    # Start message poller
+    await start_message_poller(
+        agent_id=agent_id_val,
+        agent_chat=agent_chat,
+        poll_interval=2.0
+    )
+
+    print(f"[{agent_id_val}] Startup complete - Agent Chat enabled")
+
+
+
+# === Add Agent Chat Routes ===
+
+_agent_id_for_chat = get_agent_id()
+add_agent_chat_routes(
+    app=app,
+    agent_id=_agent_id_for_chat,
+    agent_chat=agent_chat,
+    on_message_received=handle_incoming_message
+)
+
+print(f"[{_agent_id_for_chat}] Agent Chat routes added")
 
 if __name__ == "__main__":
     import uvicorn

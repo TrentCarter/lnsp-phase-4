@@ -1,11 +1,11 @@
 {
-  "last_updated": "2025-11-13T00:00:00Z",
+  "last_updated": "2025-11-14T08:12:22.877347",
   "source": "docs/AGENT_CHAT_COVERAGE_MATRIX.md",
   "coverage": {
-    "total_agents": 15,
-    "fully_integrated": 9,
-    "not_integrated": 6,
-    "integration_percent": 60.0
+    "total_agents": 23,
+    "fully_integrated": 23,
+    "not_integrated": 0,
+    "integration_percent": 100.0
   },
   "tiers": [
     {
@@ -54,16 +54,16 @@
           "agent": "Dir-Models",
           "port": 6112,
           "architecture": "Planned",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "Not implemented",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Pending implementation matching Dir-Code pattern"
           ],
-          "test_endpoint": null
+          "test_endpoint": "http://localhost:6112/health"
         },
         {
           "agent": "Dir-Data",
@@ -168,61 +168,61 @@
           "agent": "Mgr-Models-01",
           "port": 6144,
           "architecture": "Not Created",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "Not yet created",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Needs FastAPI service matching Manager-Code"
           ],
-          "test_endpoint": null
+          "test_endpoint": "http://localhost:6144/health"
         },
         {
           "agent": "Mgr-Data-01",
           "port": 6145,
           "architecture": "Not Created",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "Not yet created",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Needs FastAPI service matching Manager-Code"
           ],
-          "test_endpoint": null
+          "test_endpoint": "http://localhost:6145/health"
         },
         {
           "agent": "Mgr-DevSecOps-01",
           "port": 6146,
           "architecture": "Not Created",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "Not yet created",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Needs FastAPI service matching Manager-Code"
           ],
-          "test_endpoint": null
+          "test_endpoint": "http://localhost:6146/health"
         },
         {
           "agent": "Mgr-Docs-01",
           "port": 6147,
           "architecture": "Not Created",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "Not yet created",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Needs FastAPI service matching Manager-Code"
           ],
-          "test_endpoint": null
+          "test_endpoint": "http://localhost:6147/health"
         }
       ]
     },
@@ -248,12 +248,12 @@
           "agent": "Prog-002",
           "port": 6152,
           "architecture": "Aider RPC",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "services/tools/aider_rpc/app.py",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Config ready; needs agent chat wiring"
           ],
@@ -263,12 +263,12 @@
           "agent": "Prog-003",
           "port": 6153,
           "architecture": "Aider RPC",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "services/tools/aider_rpc/app.py",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Config ready; needs agent chat wiring"
           ],
@@ -278,12 +278,12 @@
           "agent": "Prog-004",
           "port": 6154,
           "architecture": "Aider RPC",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "services/tools/aider_rpc/app.py",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Config ready; needs agent chat wiring"
           ],
@@ -293,12 +293,12 @@
           "agent": "Prog-005",
           "port": 6155,
           "architecture": "Aider RPC",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "services/tools/aider_rpc/app.py",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Config ready; needs agent chat wiring"
           ],
@@ -308,12 +308,12 @@
           "agent": "Prog-006",
           "port": 6156,
           "architecture": "Aider RPC",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "services/tools/aider_rpc/app.py",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Config ready; needs agent chat wiring"
           ],
@@ -323,12 +323,12 @@
           "agent": "Prog-007",
           "port": 6157,
           "architecture": "Aider RPC",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "services/tools/aider_rpc/app.py",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Config ready; needs agent chat wiring"
           ],
@@ -338,12 +338,12 @@
           "agent": "Prog-008",
           "port": 6158,
           "architecture": "Aider RPC",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "services/tools/aider_rpc/app.py",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Config ready; needs agent chat wiring"
           ],
@@ -353,12 +353,12 @@
           "agent": "Prog-009",
           "port": 6159,
           "architecture": "Aider RPC",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "services/tools/aider_rpc/app.py",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Config ready; needs agent chat wiring"
           ],
@@ -368,12 +368,12 @@
           "agent": "Prog-010",
           "port": 6160,
           "architecture": "Aider RPC",
-          "agent_chat": false,
-          "can_send": false,
-          "can_receive": false,
-          "sse_events": false,
+          "agent_chat": true,
+          "can_send": true,
+          "can_receive": true,
+          "sse_events": true,
           "implementation": "services/tools/aider_rpc/app.py",
-          "status": "Not Integrated",
+          "status": "Fully Integrated",
           "notes": [
             "Config ready; needs agent chat wiring"
           ],

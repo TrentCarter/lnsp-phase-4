@@ -44,6 +44,13 @@ from services.common.job_queue import get_queue, JobCard, Lane, Role, Priority
 from services.common.comms_logger import get_logger, MessageType
 from services.common.programmer_pool import get_programmer_pool
 from services.common.llm_task_decomposer import get_task_decomposer
+from services.common.agent_chat import get_agent_chat_client, AgentChatMessage
+from services.common.agent_chat_mixin import (
+    add_agent_chat_routes,
+    start_message_poller,
+    send_message_to_parent,
+    send_message_to_child
+)
 
 app = FastAPI(title="Manager-Docs-01", version="1.0.0")
 
@@ -51,6 +58,7 @@ app = FastAPI(title="Manager-Docs-01", version="1.0.0")
 heartbeat_monitor = get_monitor()
 job_queue = get_queue()
 logger = get_logger()
+agent_chat = get_agent_chat_client()
 programmer_pool = get_programmer_pool()
 task_decomposer = get_task_decomposer()
 
@@ -112,6 +120,40 @@ class ManagerReport(BaseModel):
 
 
 # === Health & Status Endpoints ===
+
+
+
+# === Agent Chat Message Handler ===
+
+async def handle_incoming_message(message: AgentChatMessage):
+    """
+    Handle incoming messages from parent (Dir-Docs) or children.
+
+    Called automatically by the message poller when new messages arrive.
+    """
+    print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Mgr-Docs-01'}}] Received {{message.message_type}} from {{message.from_agent}}")
+
+    if message.message_type == "delegation":
+        # Handle delegation from parent
+        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Mgr-Docs-01'}}] Delegation: {{message.content}}")
+        # TODO: Process delegation
+
+    elif message.message_type == "question":
+        # Handle question from child
+        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Mgr-Docs-01'}}] Question: {{message.content}}")
+        # TODO: Answer question
+
+    elif message.message_type == "status":
+        # Handle status update
+        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Mgr-Docs-01'}}] Status: {{message.content}}")
+
+    elif message.message_type == "completion":
+        # Handle completion
+        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Mgr-Docs-01'}}] Completion: {{message.content}}")
+
+    elif message.message_type == "error":
+        # Handle error
+        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Mgr-Docs-01'}}] Error: {{message.content}}")
 
 @app.get("/health")
 async def health():
@@ -532,6 +574,20 @@ async def shutdown_event():
         status="shutdown"
     )
 
+
+
+
+# === Add Agent Chat Routes ===
+
+_agent_id_for_chat = "Mgr-Docs-01"
+add_agent_chat_routes(
+    app=app,
+    agent_id=_agent_id_for_chat,
+    agent_chat=agent_chat,
+    on_message_received=handle_incoming_message
+)
+
+print(f"[{_agent_id_for_chat}] Agent Chat routes added")
 
 if __name__ == "__main__":
     import uvicorn
