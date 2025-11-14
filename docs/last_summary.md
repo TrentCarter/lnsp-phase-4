@@ -1,97 +1,73 @@
 # Last Session Summary
 
-**Date:** 2025-11-13 (Session: Programmer Pool Implementation)
-**Duration:** ~2 hours
+**Date:** 2025-11-14 (Session: Programmer Pool Testing & Bug Fixes)
+**Duration:** ~30 minutes
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Scaled the system from a single hardcoded programmer (Prog-Qwen-001) to a production-ready pool of 10 programmers with configurable LLM assignments, automatic failover, load balancing, and cost optimization. Implemented circuit breaker pattern, capability-based routing, and comprehensive monitoring.
+Successfully tested and validated the 10-programmer pool implementation, fixing critical bugs in the startup script and Manager-Code integration. All 10 programmers are now running with diverse LLM assignments (Qwen, Claude, GPT, DeepSeek), and Manager-Code successfully integrates with the pool for load-balanced task dispatch.
 
 ## Key Changes
 
-### 1. Programmer Pool Configuration System
-**Files:** `configs/pas/programmer_pool.yaml` (NEW, 250 lines)
-**Summary:** Created comprehensive configuration for 10 programmers (Prog-001 through Prog-010) with diverse LLM assignments: Qwen 7B/14B (Prog-001-005), Claude Sonnet 4/3.7 (Prog-006-007), GPT-4o/mini (Prog-008), DeepSeek V3 14B/7B (Prog-009-010). Includes load balancing strategies (least_loaded, round_robin, capability_match), circuit breaker settings (3 failures = 5-min cooldown), and cost optimization ($50/day budget).
+### 1. Startup Script Port Assignment Fix
+**Files:** `scripts/start_programmers.sh:30-31,46-51` (MODIFIED)
+**Summary:** Fixed critical bug where uvicorn was defaulting to port 8000 for all programmers, causing startup failures after Prog-001. Added port calculation logic `port=$((6150 + 10#$prog_id))` and `--port "$port"` argument to uvicorn command.
 
-### 2. Aider RPC Multi-Instance Refactor
-**Files:** `services/tools/aider_rpc/app.py:1-869` (MODIFIED)
-**Summary:** Refactored from single instance to multi-instance architecture. Now reads PROGRAMMER_ID env var (001-010), loads LLM config from programmer_pool.yaml, implements automatic failover (primary → backup with retry), circuit breaker pattern, and dynamic port assignment. Health endpoint now shows current LLM, failover state, and circuit breaker status.
+### 2. Manager-Code Startup Error Fix
+**Files:** `services/pas/manager_code/app.py:437` (MODIFIED)
+**Summary:** Fixed NameError crash during Manager-Code startup due to undefined `AIDER_RPC_URL` variable (removed during pool refactor). Replaced with `f"Programmer Pool: {len(programmer_pool.programmers)} programmers"` to show pool size instead.
 
-### 3. Programmer Pool Load Balancer
-**Files:** `services/common/programmer_pool.py` (NEW, 330 lines)
-**Summary:** Created ProgrammerPool class with singleton pattern for managing 10 programmers. Features include: health tracking with 30s cache TTL, capability-based routing (fast, premium, reasoning, free, paid), queue depth tracking for least-loaded strategy, automatic programmer selection via dispatch_task(), and comprehensive pool status monitoring via get_pool_status().
-
-### 4. Manager-Code Pool Integration
-**Files:** `services/pas/manager_code/app.py:45-290` (MODIFIED)
-**Summary:** Integrated ProgrammerPool into Manager-Code service. Replaced hardcoded AIDER_RPC_URL with dynamic pool dispatch. Tasks now automatically route to best available programmer based on capabilities and load. Added /programmer_pool/status endpoint for detailed metrics. Health endpoint includes pool availability summary.
-
-### 5. Programmer Startup Scripts
-**Files:** `scripts/start_programmers.sh` (NEW, 175 lines)
-**Summary:** Created comprehensive startup/stop/status/restart script for all 10 programmers. Manages PID files in artifacts/pids/programmers/, logs in artifacts/logs/programmers/, includes health checks with port verification, and provides clear status reporting for each programmer instance.
-
-### 6. Architecture Documentation
-**Files:** `docs/PROGRAMMER_POOL_ARCHITECTURE.md` (NEW, 350 lines), `docs/SERVICE_PORTS.md:46-196` (MODIFIED)
-**Summary:** Created comprehensive architecture guide covering pool design, LLM failover flow, circuit breaker logic, load balancing strategies, monitoring, and usage examples. Updated SERVICE_PORTS.md with programmer pool section including health check scripts and detailed port mapping.
-
-### 7. Unit Tests
-**Files:** `tests/test_programmer_pool.py` (NEW, 130 lines)
-**Summary:** Created comprehensive test suite for programmer pool functionality: pool initialization (10 programmers), capability routing, load balancing strategies, programmer selection, and pool status. All 5 tests passing ✅.
+### 3. README Documentation Update
+**Files:** `docs/readme.txt:42-58,60-78` (MODIFIED)
+**Summary:** Updated programmer pool table entries with correct naming (Prog-001 through Prog-010), ports (6151-6160), and architecture details (Aider RPC). Also fixed Manager-Code port entries (6141-6143).
 
 ## Files Modified
 
-- `configs/pas/programmer_pool.yaml` - Pool configuration (10 programmers, LLM assignments, failover settings)
-- `services/tools/aider_rpc/app.py` - Multi-instance support, LLM failover, circuit breaker
-- `services/common/programmer_pool.py` - Load balancer and pool manager
-- `services/pas/manager_code/app.py` - Pool integration and routing
-- `scripts/start_programmers.sh` - Startup/management script
-- `docs/PROGRAMMER_POOL_ARCHITECTURE.md` - Architecture guide
-- `docs/SERVICE_PORTS.md` - Updated port mapping and health checks
-- `tests/test_programmer_pool.py` - Unit tests (all passing)
+- `scripts/start_programmers.sh` - Added port assignment logic and uvicorn --port flag
+- `services/pas/manager_code/app.py` - Fixed startup print statement (AIDER_RPC_URL → pool size)
+- `docs/readme.txt` - Updated programmer pool and manager tables with correct ports/naming
 
 ## Current State
 
 **What's Working:**
-- ✅ 10-programmer pool with diverse LLM assignments (Qwen, Claude, GPT, DeepSeek)
-- ✅ Automatic LLM failover (primary → backup with circuit breaker)
-- ✅ Load balancing (least_loaded strategy with queue depth tracking)
-- ✅ Capability-based routing (fast, premium, reasoning, free, paid)
-- ✅ Cost optimization (prefer free local models, $50/day budget)
-- ✅ Health monitoring (real-time status, circuit breaker alerts)
-- ✅ Manager-Code auto-dispatch to pool
-- ✅ All unit tests passing (5/5)
-- ✅ Comprehensive documentation
-- ✅ Startup/management scripts
+- ✅ All 10 programmers running successfully (ports 6151-6160)
+- ✅ Diverse LLM assignments: Qwen 7B (5x), Claude Sonnet 4 (2x), GPT-4o (1x), DeepSeek 14B (2x)
+- ✅ Health endpoints showing programmer_id, LLM config, circuit breaker status
+- ✅ Manager-Code pool integration (10/10 programmers available)
+- ✅ Load balancing strategy: least_loaded with queue depth tracking
+- ✅ Capability-based routing ready (fast, premium, reasoning, free, paid)
+- ✅ Circuit breakers initialized (all green, 0 failures)
+- ✅ Failover configuration (primary → backup LLM per programmer)
 
 **What Needs Work:**
-- [ ] Start programmer pool services and test end-to-end flow
-- [ ] Verify all 10 programmers can run concurrently
-- [ ] Test circuit breaker with actual LLM failures
-- [ ] Monitor cost tracking in production
-- [ ] Add performance profiling (task duration by LLM)
+- [ ] Test actual code execution through pool (end-to-end task dispatch)
+- [ ] Test circuit breaker with simulated LLM failures
+- [ ] Monitor cost tracking across paid programmers (Claude, GPT)
 - [ ] Consider scaling to 49 programmers (ports 6151-6199 reserved)
 
 ## Important Context for Next Session
 
-1. **Programmer Naming Changed**: No longer "Prog-Qwen-001", now just "Prog-001" (LLM extracted from config)
-2. **Environment Variable Required**: Each programmer needs PROGRAMMER_ID env var (001-010)
-3. **Port Range**: Programmers use 6151-6160 (legacy port 6130 deprecated)
-4. **Config Location**: All LLM assignments in `configs/pas/programmer_pool.yaml`
+1. **Port Calculation**: Prog-001 = 6151, Prog-010 = 6160 (formula: `6150 + 10#$prog_id`)
+2. **Environment Variable**: Each programmer reads `PROGRAMMER_ID` env var to load config from `configs/pas/programmer_pool.yaml`
+3. **Manager-Code Running**: Currently on port 6141 with pool integration, don't restart unnecessarily
+4. **Pool Status Endpoint**: `curl http://localhost:6141/programmer_pool/status | jq` shows all programmer health
 5. **Circuit Breaker State**: In-memory per programmer (resets on service restart)
-6. **Load Balancing**: Default is "least_loaded" (can change to "round_robin" or "capability_match")
-7. **Health Cache**: 30-second TTL (configurable in pool config)
+6. **LLM Distribution**: 7 free local models (Qwen, DeepSeek), 3 paid API models (Claude 4, GPT-4o)
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Start programmer pool**: `./scripts/start_programmers.sh start`
-3. **Check pool status**: `curl http://localhost:6141/programmer_pool/status | jq`
-4. **Test end-to-end**: Submit task via Gateway → PAS → Dir-Code → Mgr-Code → Pool → Programmer
-5. **Monitor failover**: Check `/health` endpoints for circuit breaker status
-6. **Cost tracking**: Review daily spend across all programmers
+2. **Check pool status**: `curl http://localhost:6141/programmer_pool/status | jq`
+3. **Test task dispatch**: Submit a task through Gateway → Dir-Code → Mgr-Code → Pool
+4. **Monitor logs**: `tail -f artifacts/logs/programmers/programmer_*.log`
+5. **Verify failover**: Simulate LLM failure to test circuit breaker + backup switching
 
 ## Git Status
 
-**Commit:** eb42a95 - "feat: implement 10-programmer pool with LLM failover"
-**Pushed to:** feature/aider-lco-p0
-**Stats:** 35 files changed, 8,589 insertions, 436 deletions
+**Uncommitted Changes:**
+- M `scripts/start_programmers.sh` (port assignment fix)
+- M `services/pas/manager_code/app.py` (startup print fix)
+- M `docs/readme.txt` (table updates)
+- M `docs/last_summary.md` (this file)
+- M `docs/all_project_summary.md` (archive)

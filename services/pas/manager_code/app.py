@@ -434,7 +434,7 @@ async def startup():
     """Startup tasks"""
     print(f"[{MANAGER_ID}] Starting on port {MANAGER_PORT}")
     print(f"[{MANAGER_ID}] LLM: {os.getenv('MANAGER_LLM', 'qwen2.5-coder:7b')}")
-    print(f"[{MANAGER_ID}] Aider RPC: {AIDER_RPC_URL}")
+    print(f"[{MANAGER_ID}] Programmer Pool: {len(programmer_pool.programmers)} programmers")
 
 
 if __name__ == "__main__":

@@ -39,14 +39,23 @@ claude --dangerously-skip-permissions
   |             | Dir-Data         | 6113    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
   |             | Dir-DevSecOps    | 6114    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
   |             | Dir-Docs         | 6115    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
-  | Managers    | Mgr-Code-01      | 6121    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
-  |             | Mgr-Code-02      | 6122    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
-  |             | Mgr-Code-03      | 6123    | ❌ NO                  | ❌ No                                  | ❌ No                            | ❌ No               |
+  | Managers    | Mgr-Code-01      | 6141    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
+  |             | Mgr-Code-02      | 6142    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
+  |             | Mgr-Code-03      | 6143    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
   |             | Mgr-Models-01    | 6144    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
   |             | Mgr-Data-01      | 6145    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
   |             | Mgr-DevSecOps-01 | 6146    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
   |             | Mgr-Docs-01      | 6147    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
-  | Programmers | Prog-Qwen-001    | 6130    | ✅ YES                 | ✅ Yes (via agent chat)                | ✅ Yes (via agent chat)          | ✅ Yes              |
+  | Programmers | Prog-001         | 6151    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
+  |             | Prog-002         | 6152    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
+  |             | Prog-003         | 6153    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
+  |             | Prog-004         | 6154    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
+  |             | Prog-005         | 6155    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
+  |             | Prog-006         | 6156    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
+  |             | Prog-007         | 6157    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
+  |             | Prog-008         | 6158    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
+  |             | Prog-009         | 6159    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
+  |             | Prog-010         | 6160    | ✅ YES                 | ✅ Yes (via Aider RPC)                 | ✅ Yes (via Aider RPC)           | ✅ Yes              |
   
        66 +  | Agent             | Port    | Architecture | Chat Enabled | Can Send | Can Receive | SSE Events | Implementation Location |
        67 +  |-------------------|---------|--------------|--------------|----------|-------------|------------|-------------------------|
@@ -57,7 +66,16 @@ claude --dangerously-skip-permissions
        72 +  | Mgr-Docs-01       | 6147    | FastAPI HTTP | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/pas/manager_docs/app.py` |
        73 +  | Mgr-DevSecOps-01  | 6146    | FastAPI HTTP | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/pas/manager_devsecops/app.py` |
        74 +  | Mgr-Models-01     | 6144    | FastAPI HTTP | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/pas/manager_models/app.py` |
-       75 +  | Prog-Qwen-001     | 6130    | FastAPI HTTP | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
+       75 +  | Prog-001          | 6151    | Aider RPC    | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
+       76 +  | Prog-002          | 6152    | Aider RPC    | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
+       77 +  | Prog-003          | 6153    | Aider RPC    | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
+       78 +  | Prog-004          | 6154    | Aider RPC    | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
+       79 +  | Prog-005          | 6155    | Aider RPC    | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
+       80 +  | Prog-006          | 6156    | Aider RPC    | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
+       81 +  | Prog-007          | 6157    | Aider RPC    | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
+       82 +  | Prog-008          | 6158    | Aider RPC    | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
+       83 +  | Prog-009          | 6159    | Aider RPC    | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
+       84 +  | Prog-010          | 6160    | Aider RPC    | ✅ YES        | ✅ Yes    | ✅ Yes       | ✅ YES      | `services/tools/aider_rpc/app.py` |
   Integration Summary
 
   ✅ Fully Integrated (2/15 agents = 13.3%)

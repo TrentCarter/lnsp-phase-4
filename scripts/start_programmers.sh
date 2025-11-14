@@ -27,6 +27,9 @@ start_programmer() {
     local pid_file="$PID_DIR/programmer_${prog_id}.pid"
     local log_file="$LOG_DIR/programmer_${prog_id}.log"
 
+    # Calculate port: 6150 + prog_id (001 -> 6151, 010 -> 6160)
+    local port=$((6150 + 10#$prog_id))
+
     # Check if already running
     if [ -f "$pid_file" ]; then
         local pid=$(cat "$pid_file")
@@ -40,9 +43,10 @@ start_programmer() {
     fi
 
     # Start programmer with PROGRAMMER_ID environment variable
-    echo "🚀 Starting Programmer-$prog_id..."
+    echo "🚀 Starting Programmer-$prog_id on port $port..."
     PROGRAMMER_ID="$prog_id" nohup "$UVICORN" "$APP_MODULE" \
         --host 127.0.0.1 \
+        --port "$port" \
         --log-level info \
         > "$log_file" 2>&1 &
 
