@@ -38,6 +38,13 @@ from services.common.comms_logger import get_logger, MessageType
 # Director-Code specific imports
 from services.pas.director_devsecops.decomposer import ManagerTaskDecomposer
 
+# Agent chat for Parent-Child communication
+from services.common.agent_chat import get_agent_chat_client, AgentChatMessage
+
+# LLM with tool support (Phase 3)
+from services.common.llm_tool_caller import call_llm_with_tools, LLMResponse
+from services.common.llm_tools import get_ask_parent_tool, validate_ask_parent_args, get_system_prompt_with_ask_parent
+
 
 app = FastAPI(title="Director-DevSecOps", version="1.0.0")
 
@@ -45,6 +52,7 @@ app = FastAPI(title="Director-DevSecOps", version="1.0.0")
 heartbeat_monitor = get_monitor()
 job_queue = get_queue()
 logger = get_logger()
+agent_chat = get_agent_chat_client()
 
 # Register Director-Code agent
 heartbeat_monitor.register_agent(
@@ -591,6 +599,334 @@ async def report_to_architect(run_id: str, lane_report: LaneReport):
             status=lane_report.state,
             metadata={"lane": "DevSecOps", "rpc_error": str(e)}
         )
+
+
+# === Agent Chat Endpoint (Parent ↔ Child Communication) ===
+
+@app.post("/agent_chat/receive")
+async def receive_agent_message(
+    request: AgentChatMessage,
+    background_tasks: BackgroundTasks
+):
+    """
+    Receive message from Architect via Agent Chat thread.
+
+    This is the RECOMMENDED way for Architect to communicate with Dir-DevSecOps.
+    Enables bidirectional Q&A, status updates, and context preservation.
+
+    Flow:
+    - Architect creates thread with delegation message
+    - Dir-DevSecOps receives via this endpoint
+    - Dir-DevSecOps can ask questions using agent_chat.send_message()
+    - Dir-DevSecOps sends status updates during execution
+    - Dir-DevSecOps closes thread on completion/error
+
+    Alternative: /submit endpoint (job card only, no conversation)
+    """
+    thread_id = request.thread_id
+
+    # Load thread to get run_id
+    try:
+        thread = await agent_chat.get_thread(thread_id)
+        run_id = thread.run_id
+    except Exception:
+        run_id = "unknown"
+
+    logger.log_cmd(
+        from_agent="Architect",
+        to_agent="Dir-DevSecOps",
+        message=f"Agent chat message received: {request.message_type}",
+        run_id=run_id,
+        metadata={
+            "thread_id": thread_id,
+            "message_type": request.message_type,
+            "from_agent": request.from_agent
+        }
+    )
+
+    # Delegate to background task for LLM processing
+    background_tasks.add_task(process_agent_chat_message, request)
+
+    return {
+        "status": "ok",
+        "thread_id": thread_id,
+        "message": "Agent chat message received, processing with LLM"
+    }
+
+
+async def process_agent_chat_message(request: AgentChatMessage):
+    """
+    Process agent chat message with LLM (background task).
+
+    Uses LLM with ask_parent tool to enable bidirectional communication.
+    """
+    thread_id = request.thread_id
+
+    # Load thread to get run_id
+    try:
+        thread = await agent_chat.get_thread(thread_id)
+        run_id = thread.run_id
+    except Exception:
+        run_id = "unknown"
+
+    try:
+        # Load full thread history for context
+        thread = await agent_chat.get_thread(thread_id)
+
+        # Send initial status
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent="Dir-DevSecOps",
+            to_agent="Architect",
+            message_type="status",
+            content="Received task, analyzing with LLM..."
+        )
+
+        # Build LLM context from thread history
+        llm_messages = []
+        for msg in thread.messages:
+            role = "user" if msg["from_agent"] == "Architect" else "assistant"
+            llm_messages.append({
+                "role": role,
+                "content": msg["content"]
+            })
+
+        # Add system prompt with ask_parent tool
+        system_prompt = get_system_prompt_with_ask_parent(
+            agent_name="Dir-DevSecOps",
+            parent_name="Architect",
+            role_description="DevSecOps Lane Director responsible for security scans, SBOM, and CI/CD gates"
+        )
+
+        # Call LLM with tools
+        llm_response = await call_llm_with_tools(
+            messages=llm_messages,
+            system_prompt=system_prompt,
+            tools=[get_ask_parent_tool()],
+            model=os.getenv("DIR_DEVSECOPS_LLM", "google/gemini-2.5-flash")
+        )
+
+        # Handle tool calls (ask_parent)
+        if llm_response.tool_calls:
+            for tool_call in llm_response.tool_calls:
+                if tool_call["name"] == "ask_parent":
+                    args = tool_call["args"]
+                    validation_error = validate_ask_parent_args(args)
+
+                    if validation_error:
+                        # Invalid args - log error
+                        logger.log_status(
+                            from_agent="Dir-DevSecOps",
+                            to_agent="Architect",
+                            message=f"LLM generated invalid ask_parent call: {validation_error}",
+                            run_id=run_id,
+                            status="failed"
+                        )
+                        continue
+
+                    # Send question to Architect
+                    await agent_chat.send_message(
+                        thread_id=thread_id,
+                        from_agent="Dir-DevSecOps",
+                        to_agent="Architect",
+                        message_type="question",
+                        content=args["question"],
+                        metadata={"urgency": args.get("urgency", "normal")}
+                    )
+
+                    logger.log_cmd(
+                        from_agent="Dir-DevSecOps",
+                        to_agent="Architect",
+                        message=f"Question: {args['question'][:100]}...",
+                        run_id=run_id,
+                        metadata={"thread_id": thread_id, "urgency": args.get("urgency")}
+                    )
+
+                    # Wait for answer (Architect will call this endpoint again with answer)
+                    # Don't proceed with job card creation yet
+                    return
+
+        # No questions asked - proceed with decomposition
+        # Extract task from initial delegation message
+        task_content = thread.messages[0]["content"]
+
+        # Create job card from LLM analysis
+        job_card_id = f"job-{run_id}-devsecops-{uuid.uuid4().hex[:8]}"
+
+        # TODO: Use LLM to extract entry_files, acceptance criteria, etc.
+        # For now, use defaults
+        entry_files = llm_response.data.get("entry_files", [])
+
+        # Step 4: Send progress update
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent="Dir-DevSecOps",
+            to_agent="Architect",
+            message_type="status",
+            content=f"Starting task execution (Job ID: {job_card_id})"
+        )
+
+        # Create job card
+        job_card_dict = {
+            "id": job_card_id,
+            "parent_id": run_id,
+            "role": "director",
+            "lane": "devsecops",
+            "task": task_content,
+            "inputs": [],
+            "expected_artifacts": [],
+            "acceptance": [],
+            "risks": [],
+            "budget": {},
+            "metadata": {"entry_files": entry_files, "thread_id": thread_id},
+            "submitted_by": "Architect"
+        }
+
+        # Register job
+        JOBS[job_card_id] = {
+            "state": "planning",
+            "message": "Decomposing into Manager tasks",
+            "started_at": time.time(),
+            "managers": {},
+            "job_card": job_card_dict,
+            "thread_id": thread_id
+        }
+
+        # Execute job card (same as /submit flow)
+        await execute_job_card_with_chat(job_card_dict, thread_id)
+
+    except Exception as e:
+        # Send error message to Architect
+        try:
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent="Dir-DevSecOps",
+                to_agent="Architect",
+                message_type="error",
+                content=f"Error processing task: {str(e)}"
+            )
+        except:
+            pass
+
+        logger.log_status(
+            from_agent="Dir-DevSecOps",
+            to_agent="Architect",
+            message=f"Error processing agent chat message: {str(e)}",
+            run_id=run_id,
+            status="failed",
+            metadata={"thread_id": thread_id, "error": str(e)}
+        )
+
+
+async def execute_job_card_with_chat(job_card_dict: Dict[str, Any], thread_id: str):
+    """
+    Execute job card with agent chat status updates.
+
+    Same as execute_job_card() but sends status updates via agent chat.
+    """
+    job_card_id = job_card_dict["id"]
+    run_id = job_card_dict.get("parent_id", "unknown")
+
+    try:
+        # Step 1: Decompose job card
+        heartbeat_monitor.heartbeat(
+            agent="Dir-DevSecOps",
+            run_id=run_id,
+            state=AgentState.PLANNING,
+            message="Decomposing job card with LLM",
+            progress=0.2
+        )
+
+        manager_plan = await decompose_job_card(job_card_dict)
+
+        # Send status update via agent chat
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent="Dir-DevSecOps",
+            to_agent="Architect",
+            message_type="status",
+            content=f"Decomposed into {len(manager_plan['manager_tasks'])} Manager tasks"
+        )
+
+        # Step 2: Submit tasks to Managers
+        JOBS[job_card_id]["state"] = "delegating"
+        await delegate_to_managers(job_card_id, run_id, manager_plan)
+
+        await agent_chat.send_message(
+            thread_id=thread_id,
+            from_agent="Dir-DevSecOps",
+            to_agent="Architect",
+            message_type="status",
+            content="Delegated tasks to Managers, monitoring execution..."
+        )
+
+        # Step 3: Monitor execution
+        JOBS[job_card_id]["state"] = "executing"
+        await monitor_managers(job_card_id, run_id, manager_plan)
+
+        # Step 4: Validate acceptance
+        JOBS[job_card_id]["state"] = "validating"
+        validation_results = await validate_acceptance(job_card_id, run_id, manager_plan)
+
+        # Step 5: Complete
+        if all(validation_results.values()):
+            JOBS[job_card_id]["state"] = "completed"
+            JOBS[job_card_id]["completed_at"] = time.time()
+
+            # Send completion message
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent="Dir-DevSecOps",
+                to_agent="Architect",
+                message_type="completion",
+                content=f"✅ DevSecOps lane tasks completed successfully. All Manager tasks passed validation."
+            )
+
+            # Close thread
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="completed",
+                result="All Manager tasks completed successfully"
+            )
+
+        else:
+            # Some managers failed
+            failed_managers = [mgr for mgr, passed in validation_results.items() if not passed]
+            JOBS[job_card_id]["state"] = "failed"
+
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent="Dir-DevSecOps",
+                to_agent="Architect",
+                message_type="error",
+                content=f"❌ DevSecOps lane tasks failed. Failed managers: {', '.join(failed_managers)}"
+            )
+
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="failed",
+                error=f"Managers failed: {', '.join(failed_managers)}"
+            )
+
+    except Exception as e:
+        JOBS[job_card_id]["state"] = "failed"
+
+        try:
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent="Dir-DevSecOps",
+                to_agent="Architect",
+                message_type="error",
+                content=f"Error executing job card: {str(e)}"
+            )
+
+            await agent_chat.close_thread(
+                thread_id=thread_id,
+                status="failed",
+                error=str(e)
+            )
+        except:
+            pass
 
 
 # === Manager Registration Endpoint ===

@@ -1,356 +1,301 @@
 #!/usr/bin/env python3
 """
-Programmer Pool - Load Balancing for Programmer Services
+Programmer Pool Load Balancer
 
-Responsibilities:
-- Discover available Programmer services
-- Load balance task assignments across Programmers
-- Track Programmer state (idle, busy, failed)
-- Provide routing logic for Managers
-- Support runtime LLM selection (LLM-agnostic Programmers)
+Manages 10 programmers with:
+- Load balancing (least_loaded, round_robin, capability_match)
+- Health tracking
+- Capability-based routing
+- Cost optimization
 
-Load Balancing Strategy:
-1. Round-robin among idle Programmers
-2. Fallback to least-busy if all occupied
-3. Remove failed Programmers from pool
-4. Re-add Programmers when they recover
-
-Integration:
-- Managers call ProgrammerPool.assign_task() to get Programmer endpoint
-- Managers send HTTP POST to Programmer's /execute endpoint
-- Programmer Pool tracks state based on /health and /status checks
+Used by Manager-Code to dispatch tasks to the programmer pool.
 """
-import httpx
-import time
-from typing import List, Dict, Optional, Any
-from dataclasses import dataclass, field
-from enum import Enum
 import asyncio
-from collections import defaultdict
-
-
-class ProgrammerState(str, Enum):
-    """Programmer service states"""
-    IDLE = "idle"
-    BUSY = "busy"
-    FAILED = "failed"
-    UNKNOWN = "unknown"
-
-
-@dataclass
-class ProgrammerInfo:
-    """Programmer service information"""
-    agent_id: str
-    port: int
-    endpoint: str
-    state: ProgrammerState = ProgrammerState.UNKNOWN
-    current_tasks: int = 0
-    max_tasks: int = 1  # Programmers are single-threaded
-    total_tasks_completed: int = 0
-    total_failures: int = 0
-    last_health_check: float = 0.0
-    last_assigned: float = 0.0
-    avg_task_duration_s: float = 0.0
-
-    def is_available(self) -> bool:
-        """Check if Programmer can accept new tasks"""
-        return (
-            self.state in [ProgrammerState.IDLE, ProgrammerState.BUSY]
-            and self.current_tasks < self.max_tasks
-        )
+import httpx
+import yaml
+from typing import List, Dict, Optional, Any
+from datetime import datetime, timedelta
+from pathlib import Path
 
 
 class ProgrammerPool:
     """
-    Programmer Pool with Load Balancing
-
-    Singleton pattern for global access across Manager services.
+    Manages pool of 10 programmers with load balancing and failover.
     """
 
-    _instance: Optional["ProgrammerPool"] = None
+    def __init__(self, config_path: str = "configs/pas/programmer_pool.yaml"):
+        """Initialize programmer pool from config"""
+        # Resolve config path relative to project root
+        if not Path(config_path).is_absolute():
+            config_path = Path.cwd() / config_path
+            
+        with open(config_path) as f:
+            self.config = yaml.safe_load(f)
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
+        self.programmers = self.config["programmers"]
+        self.load_balancing = self.config.get("load_balancing", {})
+        self.failover = self.config.get("failover", {})
 
-    def __init__(self):
-        """Initialize Programmer Pool (singleton)"""
-        if self._initialized:
-            return
+        # Track programmer state
+        self.health_cache: Dict[str, Dict[str, Any]] = {}
+        self.last_health_check: Dict[str, datetime] = {}
+        self.queue_depth: Dict[str, int] = {p["id"]: 0 for p in self.programmers}
 
-        self.programmers: Dict[str, ProgrammerInfo] = {}
-        self.round_robin_index: int = 0
-        self.health_check_interval_s: float = 30.0
-        self.last_discovery: float = 0.0
-        self.discovery_interval_s: float = 60.0
+        # Round-robin counter
+        self.round_robin_index = 0
 
-        # HTTP client for health checks and task submission
-        self.client = httpx.AsyncClient(timeout=5.0)
+    def _get_programmer_by_id(self, prog_id: str) -> Optional[Dict[str, Any]]:
+        """Get programmer config by ID"""
+        for prog in self.programmers:
+            if prog["id"] == prog_id:
+                return prog
+        return None
 
-        self._initialized = True
+    def _get_programmer_url(self, prog_id: str) -> str:
+        """Get programmer RPC URL"""
+        prog = self._get_programmer_by_id(prog_id)
+        if not prog:
+            raise ValueError(f"Programmer {prog_id} not found")
+        port = prog["port"]
+        return f"http://127.0.0.1:{port}"
 
-    def register_programmer(
+    async def _check_programmer_health(self, prog_id: str) -> Dict[str, Any]:
+        """Check programmer health via /health endpoint"""
+        url = self._get_programmer_url(prog_id)
+
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(f"{url}/health")
+                response.raise_for_status()
+                health = response.json()
+
+                # Cache health status
+                self.health_cache[prog_id] = health
+                self.last_health_check[prog_id] = datetime.now()
+
+                return health
+        except Exception as e:
+            # Mark as unhealthy
+            self.health_cache[prog_id] = {"status": "error", "error": str(e)}
+            self.last_health_check[prog_id] = datetime.now()
+            return {"status": "error", "error": str(e)}
+
+    async def _get_cached_health(self, prog_id: str) -> Dict[str, Any]:
+        """Get cached health or refresh if stale"""
+        cache_ttl = self.load_balancing.get("health_check_interval_s", 30)
+
+        # Check if cache is stale
+        last_check = self.last_health_check.get(prog_id)
+        if not last_check or (datetime.now() - last_check) > timedelta(seconds=cache_ttl):
+            # Refresh cache
+            return await self._check_programmer_health(prog_id)
+
+        # Return cached
+        return self.health_cache.get(prog_id, {"status": "unknown"})
+
+    async def get_available_programmers(
         self,
-        agent_id: str,
-        port: int,
-        endpoint: Optional[str] = None
-    ):
+        capabilities: Optional[List[str]] = None,
+        prefer_free: bool = True
+    ) -> List[str]:
         """
-        Register a Programmer service with the pool.
+        Get list of available programmer IDs matching criteria.
 
         Args:
-            agent_id: Programmer agent ID (e.g., "Prog-001")
-            port: Service port (e.g., 6151)
-            endpoint: Optional custom endpoint (default: http://localhost:{port})
+            capabilities: Required capabilities (e.g., ["fast", "free"])
+            prefer_free: Prefer free models over paid
+
+        Returns:
+            List of programmer IDs sorted by preference
         """
-        if endpoint is None:
-            endpoint = f"http://localhost:{port}"
+        available = []
 
-        self.programmers[agent_id] = ProgrammerInfo(
-            agent_id=agent_id,
-            port=port,
-            endpoint=endpoint,
-            state=ProgrammerState.UNKNOWN
-        )
-
-    def discover_programmers(self, port_range: range = range(6151, 6161)):
-        """
-        Auto-discover Programmer services by checking port range.
-
-        Args:
-            port_range: Port range to scan (default: 6151-6160)
-        """
-        for port in port_range:
-            endpoint = f"http://localhost:{port}"
-            try:
-                response = httpx.get(f"{endpoint}/health", timeout=1.0)
-                if response.status_code == 200:
-                    data = response.json()
-                    agent_id = data.get("agent", f"Prog-{port-6150:03d}")
-
-                    if agent_id not in self.programmers:
-                        self.programmers[agent_id] = ProgrammerInfo(
-                            agent_id=agent_id,
-                            port=port,
-                            endpoint=endpoint,
-                            state=ProgrammerState.IDLE,
-                            last_health_check=time.time()
-                        )
-            except Exception:
-                # Port not responding, skip
-                continue
-
-        self.last_discovery = time.time()
-
-    async def health_check_all(self):
-        """
-        Perform health checks on all registered Programmers.
-
-        Updates state based on /health endpoint response.
-        """
-        now = time.time()
-
-        for agent_id, info in self.programmers.items():
-            # Skip if recently checked
-            if now - info.last_health_check < self.health_check_interval_s:
-                continue
-
-            try:
-                response = await self.client.get(f"{info.endpoint}/health")
-                if response.status_code == 200:
-                    data = response.json()
-
-                    # Update state based on health response
-                    if data.get("status") == "ok":
-                        # Check if busy by querying current tasks
-                        # For now, assume IDLE if health check passes
-                        if info.current_tasks == 0:
-                            info.state = ProgrammerState.IDLE
-                        else:
-                            info.state = ProgrammerState.BUSY
-
-                        info.last_health_check = now
-                    else:
-                        info.state = ProgrammerState.FAILED
+        # Filter by capabilities
+        if capabilities:
+            # Get all programmers matching ALL capabilities
+            capability_routing = self.config.get("capability_routing", {})
+            candidates = None
+            for cap in capabilities:
+                cap_progs = set(capability_routing.get(cap, []))
+                if candidates is None:
+                    candidates = cap_progs
                 else:
-                    info.state = ProgrammerState.FAILED
+                    candidates = candidates.intersection(cap_progs)
 
-            except Exception:
-                # Health check failed
-                info.state = ProgrammerState.FAILED
+            if not candidates:
+                # No programmers match all capabilities - fall back to any programmer
+                candidates = {p["id"] for p in self.programmers}
+        else:
+            # No capability filter - all programmers
+            candidates = {p["id"] for p in self.programmers}
 
-    def get_available_programmers(self) -> List[ProgrammerInfo]:
-        """
-        Get list of available Programmers (can accept tasks).
+        # Check health for candidates
+        for prog_id in candidates:
+            health = await self._get_cached_health(prog_id)
+            if health.get("status") == "ok":
+                available.append(prog_id)
 
-        Returns:
-            List of available ProgrammerInfo objects
-        """
-        return [
-            info for info in self.programmers.values()
-            if info.is_available()
-        ]
+        # Sort by preference
+        if prefer_free and self.load_balancing.get("prefer_free_models", True):
+            # Prefer free local models
+            free_progs = set(self.config.get("capability_routing", {}).get("free", []))
+            available.sort(key=lambda p: 0 if p in free_progs else 1)
 
-    def assign_task(
+        return available
+
+    async def select_programmer(
         self,
-        task_description: str = "",
-        preferred_llm: Optional[str] = None
-    ) -> Optional[ProgrammerInfo]:
+        capabilities: Optional[List[str]] = None,
+        prefer_free: bool = True
+    ) -> Optional[str]:
         """
-        Assign task to next available Programmer using round-robin.
+        Select best programmer for task using load balancing strategy.
 
         Args:
-            task_description: Task description (for logging)
-            preferred_llm: Optional preferred LLM (ignored for now, all Programmers are LLM-agnostic)
+            capabilities: Required capabilities
+            prefer_free: Prefer free models over paid
 
         Returns:
-            ProgrammerInfo if available, None if all busy/failed
+            Programmer ID or None if none available
         """
-        available = self.get_available_programmers()
+        available = await self.get_available_programmers(capabilities, prefer_free)
 
         if not available:
             return None
 
-        # Round-robin selection
-        selected = available[self.round_robin_index % len(available)]
-        self.round_robin_index += 1
+        strategy = self.load_balancing.get("strategy", "least_loaded")
 
-        # Mark as busy
-        selected.current_tasks += 1
-        selected.state = ProgrammerState.BUSY
-        selected.last_assigned = time.time()
+        if strategy == "least_loaded":
+            # Select programmer with lowest queue depth
+            available.sort(key=lambda p: self.queue_depth.get(p, 0))
+            return available[0]
 
-        return selected
+        elif strategy == "round_robin":
+            # Round-robin selection
+            selected = available[self.round_robin_index % len(available)]
+            self.round_robin_index += 1
+            return selected
 
-    def release_task(self, agent_id: str, success: bool = True):
+        elif strategy == "capability_match":
+            # Already filtered by capabilities - just take first
+            return available[0]
+
+        else:
+            # Default: first available
+            return available[0]
+
+    async def dispatch_task(
+        self,
+        task_description: str,
+        files: List[str],
+        run_id: str,
+        capabilities: Optional[List[str]] = None,
+        prefer_free: bool = True
+    ) -> Dict[str, Any]:
         """
-        Release task from Programmer (mark as idle).
+        Dispatch task to best available programmer.
 
         Args:
-            agent_id: Programmer agent ID
-            success: Whether task completed successfully
-        """
-        if agent_id not in self.programmers:
-            return
-
-        info = self.programmers[agent_id]
-        info.current_tasks = max(0, info.current_tasks - 1)
-
-        if success:
-            info.total_tasks_completed += 1
-        else:
-            info.total_failures += 1
-
-        # Update state
-        if info.current_tasks == 0:
-            info.state = ProgrammerState.IDLE
-        else:
-            info.state = ProgrammerState.BUSY
-
-    def get_stats(self) -> Dict[str, Any]:
-        """
-        Get pool statistics.
+            task_description: Task description for Aider
+            files: Files to edit
+            run_id: Run ID for tracking
+            capabilities: Required capabilities
+            prefer_free: Prefer free models
 
         Returns:
-            Dictionary with pool metrics
+            Result dict with status, programmer_id, and response
+
+        Raises:
+            Exception if no programmers available or task fails
         """
-        total = len(self.programmers)
-        idle = sum(1 for p in self.programmers.values() if p.state == ProgrammerState.IDLE)
-        busy = sum(1 for p in self.programmers.values() if p.state == ProgrammerState.BUSY)
-        failed = sum(1 for p in self.programmers.values() if p.state == ProgrammerState.FAILED)
-        total_tasks = sum(p.total_tasks_completed for p in self.programmers.values())
-        total_failures = sum(p.total_failures for p in self.programmers.values())
+        # Select programmer
+        prog_id = await self.select_programmer(capabilities, prefer_free)
+
+        if not prog_id:
+            raise Exception("No programmers available matching criteria")
+
+        # Increment queue depth
+        self.queue_depth[prog_id] = self.queue_depth.get(prog_id, 0) + 1
+
+        try:
+            # Dispatch to programmer
+            url = self._get_programmer_url(prog_id)
+
+            async with httpx.AsyncClient(timeout=1800.0) as client:
+                response = await client.post(
+                    f"{url}/aider/edit",
+                    json={
+                        "message": task_description,
+                        "files": files,
+                        "dry_run": False,
+                        "run_id": run_id
+                    }
+                )
+                response.raise_for_status()
+                result = response.json()
+
+            return {
+                "status": "ok" if result.get("ok") else "error",
+                "programmer_id": prog_id,
+                "programmer_url": url,
+                "result": result
+            }
+
+        finally:
+            # Decrement queue depth
+            self.queue_depth[prog_id] = max(0, self.queue_depth.get(prog_id, 0) - 1)
+
+    async def get_pool_status(self) -> Dict[str, Any]:
+        """
+        Get status of entire programmer pool.
+
+        Returns:
+            Dict with health, queue depths, and availability
+        """
+        # Refresh all health checks
+        health_tasks = [self._check_programmer_health(p["id"]) for p in self.programmers]
+        await asyncio.gather(*health_tasks, return_exceptions=True)
+
+        # Build status
+        programmers_status = []
+        for prog in self.programmers:
+            prog_id = prog["id"]
+            health = self.health_cache.get(prog_id, {})
+
+            programmers_status.append({
+                "id": prog_id,
+                "port": prog["port"],
+                "primary_llm": prog["primary_llm"],
+                "backup_llm": prog["backup_llm"],
+                "capabilities": prog.get("capabilities", []),
+                "health": health.get("status", "unknown"),
+                "using_backup": health.get("llm", {}).get("using_backup", False),
+                "current_llm": health.get("llm", {}).get("current", "unknown"),
+                "queue_depth": self.queue_depth.get(prog_id, 0)
+            })
+
+        # Count availability
+        available = sum(1 for p in programmers_status if p["health"] == "ok")
+        using_backup = sum(1 for p in programmers_status if p["using_backup"])
 
         return {
-            "total_programmers": total,
-            "idle": idle,
-            "busy": busy,
-            "failed": failed,
-            "available": idle + busy,  # Both can accept tasks if under max_tasks
-            "total_tasks_completed": total_tasks,
-            "total_failures": total_failures,
-            "success_rate": (total_tasks / (total_tasks + total_failures))
-                if (total_tasks + total_failures) > 0 else 0.0
+            "pool_size": len(self.programmers),
+            "available": available,
+            "unavailable": len(self.programmers) - available,
+            "using_backup": using_backup,
+            "programmers": programmers_status,
+            "load_balancing": self.load_balancing,
+            "total_queue_depth": sum(self.queue_depth.values())
         }
 
-    def get_programmer(self, agent_id: str) -> Optional[ProgrammerInfo]:
-        """Get Programmer info by agent ID"""
-        return self.programmers.get(agent_id)
 
-    def list_programmers(self) -> List[Dict[str, Any]]:
-        """
-        List all Programmers with their status.
-
-        Returns:
-            List of Programmer info dictionaries
-        """
-        return [
-            {
-                "agent_id": info.agent_id,
-                "port": info.port,
-                "endpoint": info.endpoint,
-                "state": info.state,
-                "current_tasks": info.current_tasks,
-                "total_completed": info.total_tasks_completed,
-                "total_failures": info.total_failures
-            }
-            for info in self.programmers.values()
-        ]
-
-
-# Global instance getter
-_pool_instance: Optional[ProgrammerPool] = None
+# Global pool instance (singleton)
+_pool_instance = None
 
 
 def get_programmer_pool() -> ProgrammerPool:
-    """
-    Get global ProgrammerPool instance (singleton).
-
-    Returns:
-        ProgrammerPool instance
-    """
+    """Get global programmer pool instance (singleton)"""
     global _pool_instance
     if _pool_instance is None:
         _pool_instance = ProgrammerPool()
     return _pool_instance
-
-
-# Auto-discovery on import (if this is the main process)
-def init_pool():
-    """Initialize pool with auto-discovery"""
-    pool = get_programmer_pool()
-    pool.discover_programmers()
-    return pool
-
-
-if __name__ == "__main__":
-    # Self-test: discover and list Programmers
-    print("Programmer Pool Self-Test\n")
-
-    pool = init_pool()
-
-    print(f"Discovered Programmers: {len(pool.programmers)}")
-    for info in pool.list_programmers():
-        print(f"  {info['agent_id']:<15} Port {info['port']}  State: {info['state']}")
-
-    print(f"\nPool Stats:")
-    stats = pool.get_stats()
-    for key, value in stats.items():
-        print(f"  {key}: {value}")
-
-    # Test assignment
-    print(f"\nAssignment Test:")
-    for i in range(5):
-        programmer = pool.assign_task(f"Test task {i+1}")
-        if programmer:
-            print(f"  Task {i+1} → {programmer.agent_id} (Port {programmer.port})")
-            pool.release_task(programmer.agent_id, success=True)
-        else:
-            print(f"  Task {i+1} → No available Programmer")
-
-    print(f"\nPool Stats After Assignment:")
-    stats = pool.get_stats()
-    for key, value in stats.items():
-        print(f"  {key}: {value}")

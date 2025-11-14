@@ -4,10 +4,19 @@
 **Priority:** P0 (Critical for LLM Chat UI functionality)
 **Created:** 2025-11-13
 **Owner:** TBD
+**Related:** `PRD_Parent_Child_Chat_Communications.md` (Agent ↔ Agent chat)
+
+---
+
+**Note:** This PRD covers **Human ↔ Agent** chat (LLM Chat UI). For **Agent ↔ Agent** communication (Parent-Child with context preservation), see `PRD_Parent_Child_Chat_Communications.md`.
 
 ---
 
 ## Problem Statement
+
+### Scope: Human ↔ Agent Communication
+
+This PRD covers **user-initiated chat** with PAS agents through the LLM Chat UI. For **agent-to-agent** communication (Parent ↔ Child), see `PRD_Parent_Child_Chat_Communications.md`.
 
 PAS agents (Architect, Directors) currently only accept structured job cards via `/job_card` endpoint. Users cannot have conversational interactions with these agents through the LLM Chat UI, even though the agents have Aider RPC integration for filesystem access.
 

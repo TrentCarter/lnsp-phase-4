@@ -1,0 +1,135 @@
+# Programmer Pool Configuration
+# 10 programmers with primary/backup LLM assignments
+# Used by Manager-Code for task dispatch and load balancing
+
+pool_size: 10
+
+# Default settings for all programmers (can be overridden per instance)
+defaults:
+  timeout_s: 900
+  max_tokens_per_job: 80000
+  max_cost_per_job_usd: 2.50
+  max_duration_per_job_s: 600
+  context_limit: 131072
+  auto_commit: true
+  max_fix_iterations: 3
+
+# Programmer instance configurations
+# Each programmer has:
+#   - id: Unique programmer ID (001-010)
+#   - port: Service port (6151-6160)
+#   - primary_llm: Primary LLM for code generation
+#   - backup_llm: Fallback LLM if primary fails
+#   - capabilities: Special capabilities (optional)
+programmers:
+  # Fast local models (Qwen 2.5 Coder 7B) - Primary workhorses
+  - id: "001"
+    port: 6151
+    primary_llm: "ollama/qwen2.5-coder:7b-instruct"
+    backup_llm: "ollama/qwen2.5-coder:14b-instruct"
+    capabilities: ["fast", "local", "free"]
+
+  - id: "002"
+    port: 6152
+    primary_llm: "ollama/qwen2.5-coder:7b-instruct"
+    backup_llm: "ollama/qwen2.5-coder:14b-instruct"
+    capabilities: ["fast", "local", "free"]
+
+  - id: "003"
+    port: 6153
+    primary_llm: "ollama/qwen2.5-coder:7b-instruct"
+    backup_llm: "ollama/qwen2.5-coder:14b-instruct"
+    capabilities: ["fast", "local", "free"]
+
+  - id: "004"
+    port: 6154
+    primary_llm: "ollama/qwen2.5-coder:7b-instruct"
+    backup_llm: "ollama/qwen2.5-coder:14b-instruct"
+    capabilities: ["fast", "local", "free"]
+
+  - id: "005"
+    port: 6155
+    primary_llm: "ollama/qwen2.5-coder:7b-instruct"
+    backup_llm: "ollama/qwen2.5-coder:14b-instruct"
+    capabilities: ["fast", "local", "free"]
+
+  # Premium models (Claude Sonnet 4) - High-quality for complex tasks
+  - id: "006"
+    port: 6156
+    primary_llm: "anthropic/claude-sonnet-4-20250514"
+    backup_llm: "anthropic/claude-3-7-sonnet-20250219"
+    capabilities: ["premium", "reasoning", "paid"]
+    max_cost_per_job_usd: 5.00  # Higher budget for premium
+
+  - id: "007"
+    port: 6157
+    primary_llm: "anthropic/claude-sonnet-4-20250514"
+    backup_llm: "anthropic/claude-3-7-sonnet-20250219"
+    capabilities: ["premium", "reasoning", "paid"]
+    max_cost_per_job_usd: 5.00
+
+  # OpenAI GPT-4 - Alternative premium option
+  - id: "008"
+    port: 6158
+    primary_llm: "openai/gpt-4o"
+    backup_llm: "openai/gpt-4o-mini"
+    capabilities: ["premium", "openai", "paid"]
+    max_cost_per_job_usd: 5.00
+
+  # DeepSeek Coder V3 - Best quality/cost ratio
+  - id: "009"
+    port: 6159
+    primary_llm: "ollama/deepseek-coder-v3:14b"
+    backup_llm: "ollama/deepseek-coder-v3:7b"
+    capabilities: ["deepseek", "local", "free"]
+
+  - id: "010"
+    port: 6160
+    primary_llm: "ollama/deepseek-coder-v3:14b"
+    backup_llm: "ollama/deepseek-coder-v3:7b"
+    capabilities: ["deepseek", "local", "free"]
+
+# Load balancing strategy
+load_balancing:
+  strategy: "least_loaded"  # least_loaded | round_robin | capability_match
+  prefer_free_models: true  # Prefer free local models over paid APIs
+  max_queue_per_programmer: 5
+  health_check_interval_s: 30
+
+# LLM failover configuration
+failover:
+  enabled: true
+  max_retries: 2  # Try primary, then backup, then fail
+  retry_delay_s: 5
+  failure_conditions:
+    - "timeout"
+    - "api_error"
+    - "rate_limit"
+    - "model_unavailable"
+
+  # When to use backup vs fail completely
+  always_failover: true  # Always try backup before failing
+
+  # Circuit breaker: disable primary if it fails N times in M minutes
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 3  # Failures before opening circuit
+    window_minutes: 10     # Time window for counting failures
+    cooldown_minutes: 5    # Time before retrying primary
+
+# Capability-based routing
+# Manager-Code can request specific capabilities
+capability_routing:
+  fast: ["001", "002", "003", "004", "005"]  # Local Qwen
+  premium: ["006", "007", "008"]              # Claude/GPT
+  reasoning: ["006", "007", "008"]            # Models with extended thinking
+  free: ["001", "002", "003", "004", "005", "009", "010"]
+  local: ["001", "002", "003", "004", "005", "009", "010"]
+  paid: ["006", "007", "008"]
+
+# Cost optimization
+cost_optimization:
+  enabled: true
+  prefer_free_over_paid: true
+  max_daily_spend_usd: 50.00  # Across all programmers
+  alert_threshold_usd: 40.00  # Alert at 80% of daily budget

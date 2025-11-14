@@ -996,6 +996,11 @@
             projectTaskId = taskId;
             projectName = data.project_name || data.task_name || (taskId ? `Task ${taskId}` : 'Project Timeline');
 
+            // 🆕 PHASE 4: Connect to real-time agent chat SSE stream
+            if (taskId) {
+                connectAgentChatSSE(taskId);
+            }
+
             // Auto-play if this is a current running task at 1x speed
             // Otherwise start at beginning (playhead at 0, stopped)
             if (isCurrentTask && !isPlaying) {
@@ -2985,6 +2990,159 @@
     function getTaskIdFromUrl() {
         const params = new URLSearchParams(window.location.search);
         return params.get('task_id') || params.get('source') === 'actions' ? params.get('task_id') : null;
+    }
+
+    // ============================================================
+    // PHASE 4: Real-Time Agent Chat Updates via SSE
+    // ============================================================
+
+    let agentChatSSE = null;
+    let currentRunId = null;
+
+    /**
+     * Connect to SSE stream for real-time agent chat updates.
+     * Called when a task is loaded to subscribe to its agent chat messages.
+     */
+    function connectAgentChatSSE(runId) {
+        // Close existing connection if any
+        if (agentChatSSE) {
+            console.log('[SSE] Closing existing agent chat connection');
+            agentChatSSE.close();
+            agentChatSSE = null;
+        }
+
+        if (!runId) {
+            console.log('[SSE] No run_id provided, agent chat SSE disabled');
+            return;
+        }
+
+        currentRunId = runId;
+        console.log(`[SSE] Connecting to agent chat stream for run: ${runId}`);
+
+        // Connect to SSE endpoint
+        agentChatSSE = new EventSource(`/api/stream/agent_chat/${runId}`);
+
+        agentChatSSE.addEventListener('connected', (e) => {
+            const data = JSON.parse(e.data);
+            console.log('[SSE] Agent chat connected:', data);
+        });
+
+        agentChatSSE.addEventListener('agent_chat_message_sent', (e) => {
+            const messageData = JSON.parse(e.data);
+            console.log('[SSE] New agent chat message:', messageData);
+            handleNewAgentChatMessage(messageData);
+        });
+
+        agentChatSSE.addEventListener('agent_chat_thread_created', (e) => {
+            const threadData = JSON.parse(e.data);
+            console.log('[SSE] New agent chat thread:', threadData);
+            // Thread creation doesn't add visible content yet
+        });
+
+        agentChatSSE.addEventListener('agent_chat_thread_closed', (e) => {
+            const threadData = JSON.parse(e.data);
+            console.log('[SSE] Agent chat thread closed:', threadData);
+            // Could add a visual indicator that thread is complete
+        });
+
+        agentChatSSE.addEventListener('ping', (e) => {
+            // Keep-alive ping, ignore (prevents timeout)
+        });
+
+        agentChatSSE.onerror = (error) => {
+            console.error('[SSE] Agent chat connection error:', error);
+            // Will auto-reconnect
+        };
+    }
+
+    /**
+     * Handle new agent chat message from SSE stream.
+     * Converts message to timeline task and adds to display.
+     */
+    function handleNewAgentChatMessage(messageData) {
+        const {
+            thread_id,
+            message_id,
+            from_agent,
+            to_agent,
+            message_type,
+            content,
+            created_at,
+            metadata
+        } = messageData;
+
+        // Convert ISO timestamp to Unix timestamp (seconds)
+        const timestamp = new Date(created_at).getTime() / 1000;
+
+        // Map message type to icon and color
+        const messageTypeMap = {
+            'delegation': { icon: '💬', color: '#3b82f6', label: 'Delegated' },
+            'question': { icon: '❓', color: '#f59e0b', label: 'Question' },
+            'answer': { icon: '💡', color: '#10b981', label: 'Answer' },
+            'status': { icon: '📊', color: '#6b7280', label: 'Status' },
+            'completion': { icon: '✅', color: '#10b981', label: 'Completion' },
+            'error': { icon: '❌', color: '#ef4444', label: 'Error' }
+        };
+
+        const typeInfo = messageTypeMap[message_type] || { icon: '📝', color: '#9ca3af', label: 'Message' };
+
+        // Add urgency indicator for questions
+        let icon = typeInfo.icon;
+        if (message_type === 'question' && metadata.urgency) {
+            const urgencyIcons = {
+                'blocking': '🔴',
+                'important': '🟡',
+                'informational': '⚪'
+            };
+            icon = `${urgencyIcons[metadata.urgency] || ''} ${typeInfo.icon}`;
+        }
+
+        // Format message content
+        let displayContent = content;
+        if (metadata.progress !== undefined) {
+            displayContent += ` (${metadata.progress}%)`;
+        }
+
+        // Create timeline task entry
+        const timelineTask = {
+            task_id: message_id,
+            action_id: message_id,
+            action_type: `agent_chat_${message_type}`,
+            action_name: `${icon} ${typeInfo.label}: ${displayContent.substring(0, 80)}${displayContent.length > 80 ? '...' : ''}`,
+            from_agent: from_agent,
+            to_agent: to_agent,
+            start_time: timestamp,
+            end_time: timestamp + 0.1, // 100ms duration for visual representation
+            status: 'completed',
+            color: typeInfo.color, // Custom color for agent chat messages
+            metadata: {
+                message_type: message_type,
+                full_content: content,
+                thread_id: thread_id,
+                urgency: metadata.urgency,
+                reasoning: metadata.reasoning,
+                context: metadata.context
+            }
+        };
+
+        // Add to tasks array if not already present (deduplicate)
+        const existingIndex = tasks.findIndex(t => t.action_id === message_id);
+        if (existingIndex === -1) {
+            tasks.push(timelineTask);
+            console.log(`[SSE] Added agent chat message to timeline: ${message_type} from ${from_agent} to ${to_agent}`);
+
+            // Reallocate lanes and redraw
+            allocateLanes();
+            resizeCanvas();
+            drawSequencer();
+
+            // Play sound for new message (optional)
+            if (window.sequencerSettings?.soundEnabled) {
+                playTaskStartSound();
+            }
+        } else {
+            console.log(`[SSE] Agent chat message already in timeline: ${message_id}`);
+        }
     }
 
     // Initialize on page load

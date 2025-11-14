@@ -43,16 +43,16 @@
 | **Manager-Data-01** | 6145 | http://127.0.0.1:6145 | Data lane task breakdown | 4 |
 | **Manager-DevSecOps-01** | 6146 | http://127.0.0.1:6146 | DevSecOps lane task breakdown | 4 |
 | **Manager-Docs-01** | 6147 | http://127.0.0.1:6147 | Docs lane task breakdown | 4 |
-| **Programmer-Qwen-001** | 6151 | http://127.0.0.1:6151 | Code execution (Qwen 2.5 Coder 7B) | 5 |
-| **Programmer-Qwen-002** | 6152 | http://127.0.0.1:6152 | Code execution (Qwen 2.5 Coder 7B) | 5 |
-| **Programmer-Qwen-003** | 6153 | http://127.0.0.1:6153 | Code execution (Qwen 2.5 Coder 7B) | 5 |
-| **Programmer-Qwen-004** | 6154 | http://127.0.0.1:6154 | Code execution (Qwen 2.5 Coder 7B) | 5 |
-| **Programmer-Qwen-005** | 6155 | http://127.0.0.1:6155 | Code execution (Qwen 2.5 Coder 7B) | 5 |
-| **Programmer-Claude-001** | 6156 | http://127.0.0.1:6156 | Code execution (Claude Sonnet 4) | 5 |
-| **Programmer-Claude-002** | 6157 | http://127.0.0.1:6157 | Code execution (Claude Sonnet 4) | 5 |
-| **Programmer-GPT-001** | 6158 | http://127.0.0.1:6158 | Code execution (GPT-4) | 5 |
-| **Programmer-DeepSeek-001** | 6159 | http://127.0.0.1:6159 | Code execution (DeepSeek Coder V3) | 5 |
-| **Programmer-DeepSeek-002** | 6160 | http://127.0.0.1:6160 | Code execution (DeepSeek Coder V3) | 5 |
+| **Prog-001** | 6151 | http://127.0.0.1:6151 | Code execution (Primary: Qwen 7B, Backup: Qwen 14B) | 5 |
+| **Prog-002** | 6152 | http://127.0.0.1:6152 | Code execution (Primary: Qwen 7B, Backup: Qwen 14B) | 5 |
+| **Prog-003** | 6153 | http://127.0.0.1:6153 | Code execution (Primary: Qwen 7B, Backup: Qwen 14B) | 5 |
+| **Prog-004** | 6154 | http://127.0.0.1:6154 | Code execution (Primary: Qwen 7B, Backup: Qwen 14B) | 5 |
+| **Prog-005** | 6155 | http://127.0.0.1:6155 | Code execution (Primary: Qwen 7B, Backup: Qwen 14B) | 5 |
+| **Prog-006** | 6156 | http://127.0.0.1:6156 | Code execution (Primary: Claude Sonnet 4, Backup: Claude 3.7) | 5 |
+| **Prog-007** | 6157 | http://127.0.0.1:6157 | Code execution (Primary: Claude Sonnet 4, Backup: Claude 3.7) | 5 |
+| **Prog-008** | 6158 | http://127.0.0.1:6158 | Code execution (Primary: GPT-4o, Backup: GPT-4o-mini) | 5 |
+| **Prog-009** | 6159 | http://127.0.0.1:6159 | Code execution (Primary: DeepSeek V3 14B, Backup: DeepSeek V3 7B) | 5 |
+| **Prog-010** | 6160 | http://127.0.0.1:6160 | Code execution (Primary: DeepSeek V3 14B, Backup: DeepSeek V3 7B) | 5 |
 
 ## Core Infrastructure Services
 
@@ -124,16 +124,71 @@ REGISTRY_URL=http://127.0.0.1:6121
 AIDER_RPC_URL=http://127.0.0.1:6130
 ```
 
+## Programmer Pool Architecture
+
+**10 Programmers** with configurable primary/backup LLM assignments:
+
+- **Programmers 001-005**: Fast local models (Qwen 2.5 Coder 7B → 14B backup)
+- **Programmers 006-007**: Premium Claude (Sonnet 4 → 3.7 backup)
+- **Programmer 008**: Premium OpenAI (GPT-4o → GPT-4o-mini backup)
+- **Programmers 009-010**: DeepSeek Coder V3 (14B → 7B backup)
+
+**Features:**
+- Automatic LLM failover (primary → backup on error)
+- Circuit breaker (3 failures opens circuit for 5 minutes)
+- Load balancing by Manager-Code
+- Capability-based routing (fast, premium, reasoning, free, paid)
+- Cost optimization (prefer free local models)
+
+**Configuration:** `configs/pas/programmer_pool.yaml`
+
+**Startup:**
+```bash
+# Start all 10 programmers
+./scripts/start_programmers.sh start
+
+# Check status
+./scripts/start_programmers.sh status
+
+# Stop all
+./scripts/start_programmers.sh stop
+
+# Restart all
+./scripts/start_programmers.sh restart
+```
+
 ## Quick Health Check Script
 
 ```bash
 #!/bin/bash
 echo "=== PAS Service Health Check ==="
-for port in 6110 6111 6112 6113 6114 6115 6100 6120 6121 6130; do
+
+# Core services
+for port in 6110 6111 6112 6113 6114 6115 6100 6120 6121; do
     response=$(curl -s http://127.0.0.1:$port/health 2>/dev/null)
     if [ $? -eq 0 ]; then
         service=$(echo $response | jq -r '.service' 2>/dev/null || echo "Unknown")
         echo "✓ Port $port: $service"
+    else
+        echo "✗ Port $port: Not responding"
+    fi
+done
+
+# Programmer pool
+echo ""
+echo "=== Programmer Pool ==="
+for port in {6151..6160}; do
+    response=$(curl -s http://127.0.0.1:$port/health 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        prog_id=$(echo $response | jq -r '.programmer_id' 2>/dev/null || echo "?")
+        current_llm=$(echo $response | jq -r '.llm.current' 2>/dev/null || echo "?")
+        using_backup=$(echo $response | jq -r '.llm.using_backup' 2>/dev/null || echo "false")
+
+        if [ "$using_backup" = "true" ]; then
+            echo "⚠️  Port $port: Prog-$prog_id (USING BACKUP: $current_llm)"
+        else
+            echo "✓ Port $port: Prog-$prog_id ($current_llm)"
+        fi
     else
         echo "✗ Port $port: Not responding"
     fi

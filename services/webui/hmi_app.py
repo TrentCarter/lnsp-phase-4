@@ -2761,6 +2761,168 @@ def stream_tree_updates(task_id):
     )
 
 
+# Agent Chat SSE subscriber tracking
+agent_chat_lock = threading.Lock()
+agent_chat_subscribers = []  # List of queues for SSE clients
+
+
+def poll_agent_chat_events():
+    """
+    Background thread that polls Event Stream WebSocket for agent chat events.
+    Forwards events to all SSE subscribers.
+    """
+    import socketio as socketio_client
+
+    logger.info("Starting agent chat event polling thread...")
+
+    # Connect to Event Stream WebSocket (port 6102)
+    sio = socketio_client.Client()
+
+    try:
+        sio.connect(EVENT_STREAM_URL)
+        logger.info("Connected to Event Stream WebSocket for agent chat events")
+
+        @sio.on('event')
+        def on_event(data):
+            """Handle incoming events from Event Stream"""
+            event_type = data.get('event_type', '')
+
+            # Only forward agent_chat_* events
+            if event_type.startswith('agent_chat_'):
+                event_data = data.get('data', {})
+
+                # Notify all subscribers
+                with agent_chat_lock:
+                    for subscriber_queue in agent_chat_subscribers[:]:
+                        try:
+                            subscriber_queue.put({
+                                'type': event_type,
+                                'data': event_data
+                            })
+                        except:
+                            # Remove dead subscribers
+                            agent_chat_subscribers.remove(subscriber_queue)
+
+        # Keep connection alive
+        sio.wait()
+
+    except Exception as e:
+        logger.error(f"Error connecting to Event Stream for agent chat: {e}")
+        logger.info("Agent chat SSE will rely on polling fallback")
+
+
+# Start agent chat event polling thread
+agent_chat_polling_thread = threading.Thread(target=poll_agent_chat_events, daemon=True)
+agent_chat_polling_thread.start()
+
+
+@app.route('/api/stream/agent_chat/<run_id>', methods=['GET'])
+def stream_agent_chat(run_id):
+    """
+    SSE endpoint for real-time agent chat updates for a specific run.
+
+    Event types:
+        - agent_chat_message_sent: New message in conversation
+        - agent_chat_thread_created: New thread started
+        - agent_chat_thread_closed: Thread completed/failed
+
+    Example:
+        event: agent_chat_message_sent
+        data: {"thread_id": "...", "message_id": "...", "message_type": "question", ...}
+    """
+    def generate():
+        """SSE generator function"""
+        import queue
+
+        # Create a queue for this client
+        subscriber_queue = queue.Queue(maxsize=100)
+
+        # Register subscriber
+        with agent_chat_lock:
+            agent_chat_subscribers.append(subscriber_queue)
+
+        try:
+            # Send initial connection event
+            yield f"event: connected\ndata: {json.dumps({'status': 'ok', 'run_id': run_id})}\n\n"
+
+            # Send existing messages for this run (initial state)
+            try:
+                chat_client = AgentChatClient()
+
+                # Query all threads for this run
+                conn = sqlite3.connect(chat_client.db_path)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT thread_id FROM agent_conversation_threads
+                    WHERE run_id = ?
+                    ORDER BY created_at ASC
+                """, (run_id,))
+
+                thread_ids = [row[0] for row in cursor.fetchall()]
+                conn.close()
+
+                # Send all existing messages
+                for thread_id in thread_ids:
+                    import asyncio
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    thread = loop.run_until_complete(chat_client.get_thread(thread_id))
+                    loop.close()
+
+                    for msg in thread.messages:
+                        # Messages are AgentChatMessage Pydantic objects
+                        yield f"event: agent_chat_message_sent\ndata: {json.dumps({
+                            'run_id': run_id,
+                            'thread_id': thread_id,
+                            'message_id': msg.message_id,
+                            'from_agent': msg.from_agent,
+                            'to_agent': msg.to_agent,
+                            'message_type': msg.message_type,
+                            'content': msg.content,
+                            'created_at': msg.created_at,
+                            'metadata': msg.metadata
+                        })}\n\n"
+
+            except Exception as e:
+                logger.error(f"Error loading initial agent chat messages: {e}")
+
+            # Stream new messages
+            while True:
+                try:
+                    # Wait for new data
+                    try:
+                        message = subscriber_queue.get(timeout=15)
+                    except queue.Empty:
+                        # Send keep-alive
+                        yield f"event: ping\ndata: {json.dumps({'timestamp': datetime.now().isoformat()})}\n\n"
+                        continue
+
+                    event_type = message['type']
+                    event_data = message['data']
+
+                    # Filter by run_id
+                    if event_data.get('run_id') == run_id:
+                        yield f"event: {event_type}\ndata: {json.dumps(event_data)}\n\n"
+
+                except GeneratorExit:
+                    break
+
+        finally:
+            # Unregister subscriber
+            with agent_chat_lock:
+                if subscriber_queue in agent_chat_subscribers:
+                    agent_chat_subscribers.remove(subscriber_queue)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+
 # Model configuration paths
 MODEL_PREFERENCES_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'configs', 'pas', 'model_preferences.json')
 ENV_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '.env')

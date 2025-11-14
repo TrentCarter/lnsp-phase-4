@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Aider-LCO RPC Server (P0 Production Scaffold)
+Aider-LCO RPC Server (Programmer Pool Instance)
 FastAPI service that wraps Aider CLI with guardrails for PAS integration.
 
 Features:
@@ -10,8 +10,10 @@ Features:
 - Timeout enforcement
 - Subprocess isolation
 - Agent chat integration for Parent-Child communication
+- LLM failover (primary → backup)
+- Part of 10-programmer pool
 
-Port: 6130
+Port: Configured via PROGRAMMER_ID env var (default: 001 → 6151)
 """
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
@@ -33,7 +35,10 @@ from common.comms_logger import get_logger, MessageType
 from common.heartbeat import get_monitor, AgentState
 from common.agent_chat import get_agent_chat_client, AgentChatMessage
 
-app = FastAPI(title="Aider-LCO RPC", version="1.0")
+# Get programmer ID from environment (001-010)
+PROGRAMMER_ID = os.getenv("PROGRAMMER_ID", "001")
+
+app = FastAPI(title=f"Programmer-{PROGRAMMER_ID} RPC", version="2.0")
 
 # Initialize systems
 logger = get_logger()
@@ -43,55 +48,79 @@ agent_chat = get_agent_chat_client()
 # Load configurations
 FS_ALLOW = yaml.safe_load(open("configs/pas/fs_allowlist.yaml"))
 CMD_ALLOW = yaml.safe_load(open("configs/pas/cmd_allowlist.yaml"))
-AIDER_CFG = yaml.safe_load(open("configs/pas/aider.yaml"))
+POOL_CFG = yaml.safe_load(open("configs/pas/programmer_pool.yaml"))
 
 ROOTS = [pathlib.Path(p).resolve() for p in FS_ALLOW["roots"]]
 DENY_PATTERNS = FS_ALLOW.get("deny", [])
 ALLOW_PATTERNS = FS_ALLOW.get("allow", [])
 
-# Agent name and metadata from config (PAS instance-based naming)
-# Build agent name: Prog-{LLM}-{Counter}
+# Find this programmer's configuration in the pool
+def _get_programmer_config():
+    """Get configuration for this programmer instance from pool config"""
+    for prog in POOL_CFG["programmers"]:
+        if prog["id"] == PROGRAMMER_ID:
+            return prog
+    raise RuntimeError(f"Programmer {PROGRAMMER_ID} not found in pool config")
+
+PROG_CFG = _get_programmer_config()
+
+# Extract LLM configuration
+PRIMARY_LLM = PROG_CFG["primary_llm"]
+BACKUP_LLM = PROG_CFG["backup_llm"]
+PROGRAMMER_PORT = PROG_CFG["port"]
+CAPABILITIES = PROG_CFG.get("capabilities", [])
+
+# Build agent name: Prog-{Counter} (LLM extracted from primary_llm)
 def _build_agent_name():
-    """Build agent name from model config: Prog-{LLM}-{Counter}"""
-    model = AIDER_CFG.get("model", {}).get("primary", "unknown")
-    instance = AIDER_CFG.get("agent_instance", 1)
+    """Build agent name from programmer ID: Prog-{Counter}"""
+    return f"Prog-{PROGRAMMER_ID}"
 
-    # Extract LLM short name from model string
-    # Examples: "ollama/qwen2.5-coder:7b-instruct" -> "Qwen"
-    #           "anthropic/claude-3-7-sonnet" -> "Claude"
-    #           "openai/gpt-4" -> "GPT"
-    if "qwen" in model.lower():
-        llm_name = "Qwen"
-    elif "claude" in model.lower():
-        llm_name = "Claude"
-    elif "gpt" in model.lower() or "openai" in model.lower():
-        llm_name = "GPT"
-    elif "gemini" in model.lower():
-        llm_name = "Gemini"
-    elif "deepseek" in model.lower():
-        llm_name = "Deepseek"
-    elif "llama" in model.lower():
-        llm_name = "Llama"
+def _extract_llm_short_name(model_string: str) -> str:
+    """Extract short LLM name from model string"""
+    model_lower = model_string.lower()
+    if "qwen" in model_lower:
+        return "Qwen"
+    elif "claude" in model_lower:
+        return "Claude"
+    elif "gpt" in model_lower or "openai" in model_lower:
+        return "GPT"
+    elif "gemini" in model_lower:
+        return "Gemini"
+    elif "deepseek" in model_lower:
+        return "DeepSeek"
+    elif "llama" in model_lower:
+        return "Llama"
     else:
-        llm_name = "Unknown"
-
-    return f"Prog-{llm_name}-{instance:03d}"
+        return "Unknown"
 
 AGENT_NAME = _build_agent_name()
-AGENT_METADATA = AIDER_CFG.get("agent_metadata", {
+AGENT_METADATA = {
     "role": "exec",
-    "parent": "Mgr-Code-01",
+    "parent": "Mgr-Code-01",  # Will be assigned dynamically by Manager
     "grandparent": "Dir-Code",
     "tool": "aider",
-    "tier": "programmer"
-})
-PARENT_AGENT = AGENT_METADATA.get("parent", "Mgr-Code-01")  # Report to parent manager
+    "tier": "programmer",
+    "programmer_id": PROGRAMMER_ID,
+    "primary_llm": PRIMARY_LLM,
+    "backup_llm": BACKUP_LLM,
+    "capabilities": CAPABILITIES
+}
+PARENT_AGENT = AGENT_METADATA.get("parent", "Mgr-Code-01")
+
+# Failover state tracking
+FAILOVER_STATE = {
+    "primary_failures": 0,
+    "circuit_open": False,
+    "circuit_open_until": None,
+    "using_backup": False,
+    "current_llm": PRIMARY_LLM
+}
 
 # Register agent with heartbeat monitor
 heartbeat_monitor.register_agent(
     agent=AGENT_NAME,
     parent=PARENT_AGENT,
-    llm_model=AIDER_CFG.get("model", {}).get("primary", "claude-3-5-sonnet-20241022"),
+    llm_model=PRIMARY_LLM,
     role="programmer",
     tier="executor"
 )
@@ -153,16 +182,103 @@ class EditRequest(BaseModel):
     parent_log_id: Optional[int] = Field(None, description="Parent log ID for hierarchical tracking")
 
 
+def _get_current_llm() -> str:
+    """
+    Get current LLM to use (with circuit breaker logic).
+
+    Returns primary LLM unless circuit is open, then returns backup.
+    """
+    # Check if circuit breaker is open
+    if FAILOVER_STATE["circuit_open"]:
+        if FAILOVER_STATE["circuit_open_until"] and time.time() < FAILOVER_STATE["circuit_open_until"]:
+            # Still in cooldown - use backup
+            return BACKUP_LLM
+        else:
+            # Cooldown expired - reset circuit
+            FAILOVER_STATE["circuit_open"] = False
+            FAILOVER_STATE["circuit_open_until"] = None
+            FAILOVER_STATE["primary_failures"] = 0
+            FAILOVER_STATE["using_backup"] = False
+            FAILOVER_STATE["current_llm"] = PRIMARY_LLM
+            return PRIMARY_LLM
+
+    return FAILOVER_STATE["current_llm"]
+
+
+def _record_llm_failure(llm: str, error_type: str):
+    """
+    Record LLM failure and update circuit breaker state.
+
+    Args:
+        llm: LLM that failed
+        error_type: Type of failure (timeout, api_error, etc.)
+    """
+    failover_cfg = POOL_CFG.get("failover", {})
+    circuit_cfg = failover_cfg.get("circuit_breaker", {})
+
+    if not circuit_cfg.get("enabled", True):
+        return
+
+    # Only track primary failures
+    if llm != PRIMARY_LLM:
+        return
+
+    FAILOVER_STATE["primary_failures"] += 1
+
+    # Check if we should open circuit
+    threshold = circuit_cfg.get("failure_threshold", 3)
+    if FAILOVER_STATE["primary_failures"] >= threshold:
+        # Open circuit - switch to backup
+        FAILOVER_STATE["circuit_open"] = True
+        cooldown_minutes = circuit_cfg.get("cooldown_minutes", 5)
+        FAILOVER_STATE["circuit_open_until"] = time.time() + (cooldown_minutes * 60)
+        FAILOVER_STATE["using_backup"] = True
+        FAILOVER_STATE["current_llm"] = BACKUP_LLM
+
+        logger.log(
+            from_agent=AGENT_NAME,
+            to_agent=PARENT_AGENT,
+            msg_type=MessageType.CMD,
+            message=f"⚠️ Circuit breaker OPEN - Switching to backup LLM: {BACKUP_LLM}",
+            run_id="system",
+            status="warning",
+            metadata={
+                "primary_llm": PRIMARY_LLM,
+                "backup_llm": BACKUP_LLM,
+                "failures": FAILOVER_STATE["primary_failures"],
+                "cooldown_until": FAILOVER_STATE["circuit_open_until"]
+            }
+        )
+
+
+def _record_llm_success(llm: str):
+    """Record successful LLM execution (resets failure counter)"""
+    if llm == PRIMARY_LLM:
+        # Reset failure counter on success
+        FAILOVER_STATE["primary_failures"] = max(0, FAILOVER_STATE["primary_failures"] - 1)
+
+
 @app.get("/health")
 def health():
     """Health check endpoint"""
+    current_llm = _get_current_llm()
+
     return {
         "status": "ok",
         "service": f"{AGENT_NAME} RPC",
         "agent": AGENT_NAME,
+        "programmer_id": PROGRAMMER_ID,
         "agent_metadata": AGENT_METADATA,
-        "port": 6130,
-        "aider_model": AIDER_CFG.get("model", {}).get("primary", "unknown")
+        "port": PROGRAMMER_PORT,
+        "llm": {
+            "current": current_llm,
+            "primary": PRIMARY_LLM,
+            "backup": BACKUP_LLM,
+            "using_backup": FAILOVER_STATE["using_backup"],
+            "circuit_open": FAILOVER_STATE["circuit_open"],
+            "failures": FAILOVER_STATE["primary_failures"]
+        },
+        "capabilities": CAPABILITIES
     }
 
 
@@ -341,9 +457,9 @@ async def execute_aider_with_chat(
                 raise HTTPException(status_code=403, detail=error_msg)
 
         # Step 3: Build aider command
-        model = AIDER_CFG.get("model", {}).get("primary", "claude-3-5-sonnet-20241022")
-        aider_bin = AIDER_CFG.get("aider_bin", "aider")
-        timeout_s = int(AIDER_CFG.get("timeout_s", 900))
+        model = _get_current_llm()  # Use current LLM (with circuit breaker)
+        aider_bin = "aider"  # Always use aider binary
+        timeout_s = int(POOL_CFG.get("defaults", {}).get("timeout_s", 900))
 
         cmd = [aider_bin, "--yes", "--no-show-model-warnings"]
         if model:
@@ -354,17 +470,16 @@ async def execute_aider_with_chat(
 
         # Step 4: Redact environment variables
         env = os.environ.copy()
-        for k in AIDER_CFG.get("redact_env", []):
-            env.pop(k, None)
+        # No redaction needed from old config - handled by aider itself
 
-        # Step 5: Execute aider with progress updates
+        # Step 5: Execute aider with progress updates and failover retry
         await agent_chat.send_message(
             thread_id=thread_id,
             from_agent=AGENT_NAME,
             to_agent=PARENT_AGENT,
             message_type="status",
-            content="Executing Aider CLI...",
-            metadata={"progress": 40}
+            content=f"Executing Aider CLI with {_extract_llm_short_name(model)}...",
+            metadata={"progress": 40, "llm": model}
         )
 
         heartbeat_monitor.heartbeat(
@@ -375,61 +490,116 @@ async def execute_aider_with_chat(
             progress=0.5
         )
 
-        start = time.time()
-        try:
-            proc = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=timeout_s,
-                cwd=ROOTS[0]  # Execute in project root
-            )
-        except subprocess.TimeoutExpired:
-            error_msg = f"Aider timed out after {timeout_s}s"
-            await agent_chat.send_message(
-                thread_id=thread_id,
-                from_agent=AGENT_NAME,
-                to_agent=PARENT_AGENT,
-                message_type="error",
-                content=error_msg
-            )
-            await agent_chat.close_thread(
-                thread_id=thread_id,
-                status="failed",
-                error=error_msg
-            )
-            raise HTTPException(status_code=504, detail=error_msg)
-        except FileNotFoundError:
-            error_msg = f"Aider binary not found: {aider_bin}"
-            await agent_chat.send_message(
-                thread_id=thread_id,
-                from_agent=AGENT_NAME,
-                to_agent=PARENT_AGENT,
-                message_type="error",
-                content=error_msg
-            )
-            await agent_chat.close_thread(
-                thread_id=thread_id,
-                status="failed",
-                error=error_msg
-            )
-            raise HTTPException(status_code=500, detail=f"{error_msg}. Install with: pipx install aider-chat")
-        except Exception as e:
-            error_msg = f"Execution error: {str(e)}"
-            await agent_chat.send_message(
-                thread_id=thread_id,
-                from_agent=AGENT_NAME,
-                to_agent=PARENT_AGENT,
-                message_type="error",
-                content=error_msg
-            )
-            await agent_chat.close_thread(
-                thread_id=thread_id,
-                status="failed",
-                error=error_msg
-            )
-            raise HTTPException(status_code=500, detail=error_msg)
+        # Retry loop: try primary, then backup if enabled
+        failover_cfg = POOL_CFG.get("failover", {})
+        max_retries = failover_cfg.get("max_retries", 2)
+        retry_delay = failover_cfg.get("retry_delay_s", 5)
+
+        last_error = None
+        for attempt in range(max_retries):
+            current_model = _get_current_llm()
+
+            # Update command with current model
+            cmd_with_model = [aider_bin, "--yes", "--no-show-model-warnings"]
+            cmd_with_model += ["--model", current_model]
+            for f in files:
+                cmd_with_model += [f]
+            cmd_with_model += ["--message", message]
+
+            start = time.time()
+            try:
+                proc = subprocess.run(
+                    cmd_with_model,
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                    timeout=timeout_s,
+                    cwd=ROOTS[0]  # Execute in project root
+                )
+
+                # Success - record and break retry loop
+                _record_llm_success(current_model)
+                break
+
+            except subprocess.TimeoutExpired:
+                last_error = f"Aider timed out after {timeout_s}s"
+                _record_llm_failure(current_model, "timeout")
+
+                # Check if we should retry with backup
+                if attempt < max_retries - 1 and failover_cfg.get("always_failover", True):
+                    await agent_chat.send_message(
+                        thread_id=thread_id,
+                        from_agent=AGENT_NAME,
+                        to_agent=PARENT_AGENT,
+                        message_type="status",
+                        content=f"⚠️ Timeout with {_extract_llm_short_name(current_model)}, retrying with backup in {retry_delay}s..."
+                    )
+                    await asyncio.sleep(retry_delay)
+                    continue
+                else:
+                    # Final failure
+                    await agent_chat.send_message(
+                        thread_id=thread_id,
+                        from_agent=AGENT_NAME,
+                        to_agent=PARENT_AGENT,
+                        message_type="error",
+                        content=last_error
+                    )
+                    await agent_chat.close_thread(
+                        thread_id=thread_id,
+                        status="failed",
+                        error=last_error
+                    )
+                    raise HTTPException(status_code=504, detail=last_error)
+
+            except FileNotFoundError:
+                error_msg = f"Aider binary not found: {aider_bin}"
+                _record_llm_failure(current_model, "binary_not_found")
+                await agent_chat.send_message(
+                    thread_id=thread_id,
+                    from_agent=AGENT_NAME,
+                    to_agent=PARENT_AGENT,
+                    message_type="error",
+                    content=error_msg
+                )
+                await agent_chat.close_thread(
+                    thread_id=thread_id,
+                    status="failed",
+                    error=error_msg
+                )
+                raise HTTPException(status_code=500, detail=f"{error_msg}. Install with: pipx install aider-chat")
+
+            except Exception as e:
+                error_msg = f"Execution error: {str(e)}"
+                _record_llm_failure(current_model, "execution_error")
+                last_error = error_msg
+
+                # Check if we should retry with backup
+                if attempt < max_retries - 1 and failover_cfg.get("always_failover", True):
+                    await agent_chat.send_message(
+                        thread_id=thread_id,
+                        from_agent=AGENT_NAME,
+                        to_agent=PARENT_AGENT,
+                        message_type="status",
+                        content=f"⚠️ Error with {_extract_llm_short_name(current_model)}, retrying with backup in {retry_delay}s..."
+                    )
+                    await asyncio.sleep(retry_delay)
+                    continue
+                else:
+                    # Final failure
+                    await agent_chat.send_message(
+                        thread_id=thread_id,
+                        from_agent=AGENT_NAME,
+                        to_agent=PARENT_AGENT,
+                        message_type="error",
+                        content=error_msg
+                    )
+                    await agent_chat.close_thread(
+                        thread_id=thread_id,
+                        status="failed",
+                        error=error_msg
+                    )
+                    raise HTTPException(status_code=500, detail=error_msg)
 
         duration = round(time.time() - start, 2)
         rc = proc.returncode
@@ -528,8 +698,8 @@ def aider_edit(req: EditRequest):
     run_id = req.run_id
     parent_log_id = req.parent_log_id
 
-    # Get LLM model config
-    model = AIDER_CFG.get("model", {}).get("primary", "claude-3-5-sonnet-20241022")
+    # Get LLM model config (with circuit breaker)
+    model = _get_current_llm()
     llm_provider = model.split("/")[0] if "/" in model else "unknown"
 
     # Log incoming command - link to parent (from PAS Root)
@@ -572,14 +742,8 @@ def aider_edit(req: EditRequest):
         raise HTTPException(status_code=403, detail="Command not allowed: git checkout -b ...")
 
     # Step 3: Build aider command
-    aider_bin = AIDER_CFG["model"].get("primary", "aider")  # Use model.primary or fallback
-    if "aider_bin" in AIDER_CFG:
-        aider_bin = AIDER_CFG["aider_bin"]
-    else:
-        # Default to "aider" binary
-        aider_bin = "aider"
-
-    timeout_s = int(AIDER_CFG.get("timeout_s", 900))
+    aider_bin = "aider"  # Always use aider binary
+    timeout_s = int(POOL_CFG.get("defaults", {}).get("timeout_s", 900))
 
     cmd = [aider_bin, "--yes", "--no-show-model-warnings"]
     if model:
@@ -590,8 +754,7 @@ def aider_edit(req: EditRequest):
 
     # Step 4: Redact environment variables
     env = os.environ.copy()
-    for k in AIDER_CFG.get("redact_env", []):
-        env.pop(k, None)
+    # No redaction needed - aider handles this
 
     # Dry run mode (return command without executing)
     if req.dry_run:
@@ -713,4 +876,5 @@ def aider_edit(req: EditRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=6130)
+    # Port is configured via programmer pool config
+    uvicorn.run(app, host="127.0.0.1", port=PROGRAMMER_PORT)

@@ -45,6 +45,10 @@ from services.common.heartbeat import get_monitor, AgentState
 from services.common.job_queue import get_queue, JobCard, Lane, Role, Priority
 from services.common.comms_logger import get_logger, MessageType
 from services.common.title_generator import generate_short_title_async
+from services.common.agent_chat import get_agent_chat_client, AgentChatThread
+
+# LLM with tool support (Phase 3)
+from services.common.llm_tool_caller import call_llm, LLMResponse
 
 # Architect-specific imports
 from services.pas.architect.decomposer import TaskDecomposer
@@ -56,6 +60,7 @@ app = FastAPI(title="Architect", version="1.0.0")
 heartbeat_monitor = get_monitor()
 job_queue = get_queue()
 logger = get_logger()
+agent_chat = get_agent_chat_client()
 
 # Register Architect agent
 heartbeat_monitor.register_agent(
@@ -981,15 +986,31 @@ async def delegate_to_directors(run_id: str, plan: ArchitectPlan):
     """
     Submit job cards to Directors
 
+    NEW: Creates agent conversation threads for bidirectional communication.
+    If task is complex/ambiguous, use thread instead of job card.
+
     For each lane in plan.lane_allocations:
-    1. Create JobCard
-    2. Submit to Director via RPC (or queue fallback)
-    3. Log delegation
+    1. Determine if task needs conversation (complex/ambiguous)
+    2a. If yes: Create agent chat thread
+    2b. If no: Create traditional JobCard
+    3. Submit to Director
+    4. Log delegation
     """
     for lane_name, allocation in plan.lane_allocations.items():
         director = f"Dir-{lane_name}"
 
-        # Create job card
+        # Determine if task is complex/ambiguous (needs conversation)
+        # TODO: Use LLM to determine complexity, for now use simple heuristic
+        task_text = allocation["task"]
+        needs_conversation = (
+            len(task_text) > 100 or  # Long tasks likely complex
+            "?" in task_text or      # Contains questions
+            "refactor" in task_text.lower() or  # Refactoring often ambiguous
+            "improve" in task_text.lower() or   # Subjective tasks
+            len(allocation.get("inputs", [])) == 0  # No clear inputs
+        )
+
+        # Create job card (always create for backwards compatibility)
         job_card = JobCard(
             id=f"jc-{run_id}-{lane_name.lower()}-001",
             parent_id=run_id,
@@ -1004,6 +1025,44 @@ async def delegate_to_directors(run_id: str, plan: ArchitectPlan):
             metadata=allocation.get("metadata", {}),
             submitted_by="Architect"
         )
+
+        # Create agent chat thread if task is complex
+        thread = None
+        if needs_conversation:
+            try:
+                thread = await agent_chat.create_thread(
+                    run_id=run_id,
+                    parent_agent_id="Architect",
+                    child_agent_id=director,
+                    initial_message=task_text,
+                    metadata={
+                        "entry_files": plan.lane_allocations[lane_name].get("inputs", []),
+                        "budget_tokens": allocation.get("budget", {}).get("tokens_max", 10000),
+                        "expected_artifacts": allocation.get("expected_artifacts", []),
+                        "lane": lane_name,
+                        "job_card_id": job_card.id  # Link to job card
+                    }
+                )
+
+                logger.log_cmd(
+                    from_agent="Architect",
+                    to_agent=director,
+                    message=f"Agent chat thread created (complex task): {task_text[:50]}...",
+                    run_id=run_id,
+                    metadata={
+                        "thread_id": thread.thread_id,
+                        "job_card_id": job_card.id,
+                        "reason": "complex/ambiguous task"
+                    }
+                )
+            except Exception as e:
+                logger.log_status(
+                    from_agent="Architect",
+                    to_agent=director,
+                    message=f"Failed to create chat thread: {e}. Falling back to job card.",
+                    run_id=run_id,
+                    metadata={"error": str(e)}
+                )
 
         # Try RPC first
         try:
@@ -1027,7 +1086,9 @@ async def delegate_to_directors(run_id: str, plan: ArchitectPlan):
                     "run_id": run_id,
                     "endpoint": endpoint,
                     "lane_name": lane_name,
-                    "submitted_at": time.time()
+                    "submitted_at": time.time(),
+                    "thread_id": thread.thread_id if thread else None,  # Track conversation thread
+                    "has_conversation": thread is not None
                 }
             else:
                 # Fallback to queue
@@ -1049,16 +1110,228 @@ async def delegate_to_directors(run_id: str, plan: ArchitectPlan):
         RUNS[run_id]["lanes"][lane_name] = {
             "state": "delegated",
             "job_card_id": job_card.id,
-            "director": director
+            "director": director,
+            "thread_id": thread.thread_id if thread else None,
+            "has_conversation": thread is not None
         }
+
+
+async def monitor_conversation_threads():
+    """
+    Monitor all active conversation threads for pending questions.
+    If a Director asks a question, generate answer using LLM.
+
+    This function is called periodically by monitor_directors().
+    """
+    # Get all pending questions for Architect
+    questions = await agent_chat.get_pending_questions("Architect")
+
+    for question in questions:
+        thread_id = question["thread_id"]
+        child_agent = question["from_agent"]
+        question_content = question["content"]
+
+        # Get full thread history for context
+        try:
+            thread = await agent_chat.get_thread(thread_id)
+
+            # Build conversation context for LLM
+            conversation_history = "\n".join([
+                f"{msg.from_agent} → {msg.to_agent} ({msg.message_type}): {msg.content}"
+                for msg in thread.messages
+            ])
+
+            # Generate answer using LLM (simple implementation for now)
+            # TODO: Use actual LLM (Claude, Gemini, etc.) for intelligent answers
+            # For now, use a simple heuristic-based answer
+            answer = await generate_answer_to_question(
+                question=question_content,
+                conversation_history=conversation_history,
+                thread_metadata=thread.metadata
+            )
+
+            # Send answer back to child
+            await agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent="Architect",
+                to_agent=child_agent,
+                message_type="answer",
+                content=answer
+            )
+
+            logger.log_response(
+                from_agent="Architect",
+                to_agent=child_agent,
+                message=f"Answered question: {question_content[:50]}...",
+                run_id=thread.run_id,
+                metadata={
+                    "thread_id": thread_id,
+                    "question": question_content,
+                    "answer": answer
+                }
+            )
+
+        except Exception as e:
+            logger.log_status(
+                from_agent="Architect",
+                to_agent=child_agent,
+                message=f"Failed to answer question: {e}",
+                run_id=thread.run_id,
+                metadata={
+                    "thread_id": thread_id,
+                    "error": str(e)
+                }
+            )
+
+
+async def generate_answer_to_question(
+    question: str,
+    conversation_history: str,
+    thread_metadata: Dict[str, Any]
+) -> str:
+    """
+    Generate answer to Director's question using LLM (Phase 3)
+
+    Uses Claude Sonnet 4.5 or Gemini 2.5 Pro with full conversation context
+    to provide intelligent, context-aware answers.
+
+    Args:
+        question: The question from the Director
+        conversation_history: Full conversation thread history
+        thread_metadata: Thread metadata (entry_files, budget, etc.)
+
+    Returns:
+        Answer string
+    """
+    # Get LLM model from environment
+    model = os.getenv("ARCHITECT_LLM", "claude-sonnet-4-5-20250929")
+
+    # Get original PRD if available (from RUNS)
+    run_id = thread_metadata.get("run_id")
+    original_prd = ""
+    if run_id and run_id in RUNS:
+        original_prd = RUNS[run_id].get("prd", "")
+
+    # Build system prompt for Architect
+    system_prompt = """You are the Architect, the top-level coordinator in a Polyglot Agent Swarm (PAS).
+
+**Your Role:**
+- You decompose user requirements (PRDs) into lane-specific job cards
+- You coordinate 5 Directors: Code, Models, Data, DevSecOps, Docs
+- You have full visibility into project constraints, budget, and policy
+- You answer Directors' clarifying questions to help them succeed
+
+**When Answering Questions:**
+1. Consider the full conversation context - what have we discussed so far?
+2. Reference the original PRD - what did the user actually ask for?
+3. Consider project constraints (budget, timeline, policy)
+4. Be specific and actionable - avoid vague guidance
+5. If the question reveals a gap in requirements, acknowledge it and provide your best interpretation
+6. Trust your Directors - they're experts in their lanes, just need clarity on intent/constraints
+
+**Guidelines:**
+- Be concise but complete (2-3 sentences ideal)
+- Provide reasoning when making recommendations
+- If multiple valid approaches exist, explain trade-offs and recommend one
+- If you don't have enough information, say so explicitly
+- Always align your answer with the user's original intent (PRD)"""
+
+    # Build user prompt
+    user_prompt = f"""**Director's Question:**
+{question}
+
+**Full Conversation History:**
+{conversation_history}
+
+**Thread Metadata:**
+Entry Files: {thread_metadata.get('entry_files', [])}
+Budget: {thread_metadata.get('budget_tokens', 'Not specified')} tokens
+Policy: {json.dumps(thread_metadata.get('policy', {}), indent=2) if thread_metadata.get('policy') else 'None'}
+Urgency: {thread_metadata.get('urgency', 'Not specified')}
+
+**Original PRD (User Requirements):**
+{original_prd[:1500] if original_prd else "Not available"}
+
+**Your Task:**
+Answer the Director's question clearly and specifically. Consider:
+1. What does the original PRD say (if anything) about this?
+2. What project constraints apply (budget, policy, timeline)?
+3. What's the most practical approach given the context?
+
+Provide a direct answer in 2-4 sentences. Be actionable."""
+
+    try:
+        # Call LLM (no tools needed for answers)
+        llm_response = await call_llm(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            model=model,
+            temperature=0.5,  # Balanced between creativity and consistency
+            max_tokens=500
+        )
+
+        return llm_response.content
+
+    except Exception as e:
+        logger.log_error(
+            from_agent="Architect",
+            to_agent="Architect",
+            message=f"LLM answer generation failed: {e}",
+            metadata={"question": question, "error": str(e)}
+        )
+
+        # Fallback to heuristic answer
+        return _generate_heuristic_answer(question, thread_metadata)
+
+
+def _generate_heuristic_answer(question: str, thread_metadata: Dict[str, Any]) -> str:
+    """
+    Fallback heuristic answer generation (used when LLM fails)
+
+    This is the old Phase 2 logic, kept as a safety net.
+    """
+    question_lower = question.lower()
+
+    # Library choice questions
+    if "library" in question_lower or "which" in question_lower:
+        if "auth" in question_lower:
+            return "Use authlib - it's more actively maintained, has better documentation, and supports OAuth2/OIDC out of the box."
+        elif "test" in question_lower:
+            return "Use pytest - it's the industry standard with excellent plugin ecosystem."
+        else:
+            return "Please evaluate both options and choose the one with better documentation, active maintenance, and community support."
+
+    # File/scope questions
+    if "which file" in question_lower or "all" in question_lower or "focus" in question_lower:
+        entry_files = thread_metadata.get("entry_files", [])
+        if entry_files:
+            return f"Focus on {', '.join(entry_files[:3])} first. We can expand scope if needed."
+        else:
+            return "Start with the main entry point, then expand to related modules as needed."
+
+    # Test failure questions
+    if "test" in question_lower and ("fail" in question_lower or "error" in question_lower):
+        return "Fix the test failures before proceeding. Tests must pass for acceptance. If you need guidance on specific failures, share the error messages."
+
+    # Budget/scope questions
+    if "budget" in question_lower or "time" in question_lower:
+        budget = thread_metadata.get("budget_tokens", 10000)
+        return f"You have {budget} tokens budgeted. Prioritize core functionality first, optimizations second."
+
+    # Default: Ask for more context
+    return f"Good question. Please provide more context: What are the specific options you're considering, and what are the trade-offs you see?"
 
 
 async def monitor_directors(run_id: str, plan: ArchitectPlan):
     """
     Monitor Directors until all complete or timeout
 
+    NEW: Also monitors agent chat threads for pending questions.
+    If a Director asks a question, generates answer using LLM.
+
     Polls Director status every 10 seconds
     Checks heartbeats for liveness
+    Checks for pending questions in conversation threads
     Escalates on 2 missed heartbeats
     """
     lanes = list(plan.lane_allocations.keys())
@@ -1077,6 +1350,9 @@ async def monitor_directors(run_id: str, plan: ArchitectPlan):
                 # Don't check health aggressively - Directors report back via /lane_report
                 # when they complete or fail. Just wait for their reports.
                 # Only fail on actual timeout (handled below).
+
+        # NEW: Check for pending questions in conversation threads
+        await monitor_conversation_threads()
 
         if all_complete:
             break

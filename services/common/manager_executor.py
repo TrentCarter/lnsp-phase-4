@@ -18,6 +18,7 @@ import json
 from services.common.manager_pool.manager_factory import get_manager_factory
 from services.common.heartbeat import get_monitor, AgentState
 from services.common.comms_logger import get_logger, MessageType
+from services.common.agent_chat import get_agent_chat_client
 
 
 class ManagerExecutor:
@@ -40,6 +41,7 @@ class ManagerExecutor:
         self.manager_factory = get_manager_factory()
         self.heartbeat_monitor = get_monitor()
         self.logger = get_logger()
+        self.agent_chat = get_agent_chat_client()
 
     async def execute_manager_task(
         self,
@@ -50,7 +52,8 @@ class ManagerExecutor:
         director: str,
         acceptance: List[Dict[str, Any]] = None,
         budget: Dict[str, Any] = None,
-        programmers: List[str] = None
+        programmers: List[str] = None,
+        thread_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Execute Manager task via Aider RPC
@@ -64,6 +67,7 @@ class ManagerExecutor:
             acceptance: Acceptance criteria (tests, lint, coverage)
             budget: Budget constraints
             programmers: LLM models to use (e.g., ["Prog-Qwen-001"])
+            thread_id: Agent chat thread ID (optional, for bidirectional communication)
 
         Returns:
             Dict with:
@@ -85,6 +89,17 @@ class ManagerExecutor:
             message=f"Executing: {task[:50]}...",
             progress=0.1
         )
+
+        # Send agent chat status (if thread_id provided)
+        if thread_id:
+            await self.agent_chat.send_message(
+                thread_id=thread_id,
+                from_agent=manager_id,
+                to_agent=director,
+                message_type="status",
+                content=f"Starting code execution: {task[:100]}...",
+                metadata={"progress": 10, "files": files}
+            )
 
         # Log command
         self.logger.log_cmd(
