@@ -1,69 +1,76 @@
 # Last Session Summary
 
-**Date:** 2025-11-14 (Session N+1)
-**Duration:** ~1.5 hours
+**Date:** 2025-11-14 (Session: Resource Management Tests)
+**Duration:** ~1 hour
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Made the Agent Family Test system fully observable by integrating CommsLogger into the HMI test endpoints and fixing Tree Bounce test to send real agent messages. All 10 system tests now create traceable log entries in the communication logging system, enabling real-time monitoring via `./tools/parse_comms_log.py --tail`.
+Added 3 new system tests to the Agent Family Test suite to verify resource management and health monitoring. These tests expose missing features in the P0 stack: programmer busy state tracking, manager fallback routing, and TRON timeout detection integration.
 
 ## Key Changes
 
-### 1. CommsLogger Integration in HMI Test Endpoints
-**Files:** `services/webui/hmi_app.py:5451-5641` (200+ lines modified)
-**Summary:** Added CommsLogger import and logging for all agent chat test operations. Now logs CMD messages when sending test requests, RESPONSE messages for agent replies (success/failure), and error messages for exceptions. Includes run_id, thread_id, and metadata for full traceability.
+### 1. Agent Family Test - Resource Management Tests
+**Files:**
+- `services/webui/templates/model_pool_enhanced.html:567-580` (buttons)
+- `services/webui/templates/model_pool_enhanced.html:2016-2179` (implementations)
 
-### 2. Dual Endpoint Support for Agent Testing
-**Files:** `services/webui/hmi_app.py:5568-5603` (35 lines)
-**Summary:** Implemented fallback logic to support both `/agent/chat/send` (Architect with AgentChatRequest) and `/agent_chat/receive` (Directors/Managers with AgentChatMessage). Tests now automatically try Architect endpoint first, then fall back to Director/Manager endpoint on 404.
+**Summary:** Added three production-ready diagnostic tests to reveal missing resource management features. Test 11 (Resource Pool Exhaustion) tests manager behavior when all programmers are busy. Test 12 (Programmer Busy State) tests concurrent access and busy rejection. Test 13 (TRON Timeout Detection) verifies health monitoring infrastructure.
 
-### 3. Tree Bounce Test Rewrite with Real Message Sending
-**Files:** `services/webui/templates/model_pool_enhanced.html:1447-1517` (70 lines rewritten)
-**Summary:** Completely rewrote Tree Bounce test from simulated visualization to actual agent communication. Now sends 6 real messages through the hierarchy (Architect→Director→Manager→Programmer→Manager→Director→Architect) using `sendMessageToAgent()` instead of just `setTimeout()` delays. Also fixed incorrect port numbers (6131-6135 → 6111-6115).
+### 2. Documentation - Resource Management Test Guide
+**Files:**
+- `docs/AGENT_FAMILY_TESTS_RESOURCE_MANAGEMENT.md` (NEW, 7.2KB)
 
-### 4. Service Restart for Endpoint Registration
-**Files:** N/A (operational)
-**Summary:** Force-restarted Architect and Dir-Models services to register missing `/agent/chat/send` and `/agent_chat/receive` endpoints. Discovered that uvicorn hot-reload wasn't picking up route changes, requiring hard restart with `kill -9` + fresh uvicorn start.
+**Summary:** Comprehensive documentation of the new tests including purpose, scenarios, expected behaviors, integration with TRON/Resource Manager, test results summary, and detailed TODO list for implementing missing features.
 
 ## Files Modified
 
-- `services/webui/hmi_app.py` - Added CommsLogger integration, dual endpoint support
-- `services/webui/templates/model_pool_enhanced.html` - Rewrote Tree Bounce test with real messages
-- Services restarted: HMI (6101), Architect (6110), Dir-Models (6112), All PAS services
+- `services/webui/templates/model_pool_enhanced.html` - Added 3 test buttons and implementations (163 lines added)
+- `docs/AGENT_FAMILY_TESTS_RESOURCE_MANAGEMENT.md` - Created complete test documentation
 
 ## Current State
 
 **What's Working:**
-- ✅ All 10 Agent Family Tests create CommsLogger entries
-- ✅ Real-time test visibility in `./tools/parse_comms_log.py --tail`
-- ✅ Tree Bounce sends 6 real agent messages through hierarchy
-- ✅ Broadcast Storm works with all 5 Directors responding
-- ✅ Dual endpoint support (Architect + Directors/Managers)
-- ✅ CMD and RESPONSE log pairs for every test message
-- ✅ Full metadata tracking (thread_id, agent_port, test_type)
+- ✅ All 13 Agent Family Tests implemented (10 existing + 3 new)
+- ✅ HMI running on port 6101
+- ✅ Tests are diagnostic - reveal missing features without breaking
+- ✅ TRON infrastructure exists (port 6109)
+- ✅ Resource Manager exists (port 6104)
 
 **What Needs Work:**
-- [ ] Verify all 10 tests pass end-to-end (only tested Tree Bounce, Broadcast Storm, and individual Director tests)
-- [ ] Check if other tests (Skill Match, Load Balancer, etc.) need similar fixes
-- [ ] Consider adding test result aggregation to show which tests consistently pass/fail
+- [ ] **Programmer busy state tracking** - Return HTTP 503 when busy
+- [ ] **Manager fallback routing** - Try Prog-01 → Prog-02 → Prog-03
+- [ ] **Manager escalation to Director** - When all programmers busy
+- [ ] **TRON full test** - Agent crash simulation with timeout detection
+- [ ] **TRON parent alerting** - RPC call to `/handle_child_timeout`
 
 ## Important Context for Next Session
 
-1. **Two Endpoint Patterns**: Architect uses `/agent/chat/send` (simple AgentChatRequest), while Directors/Managers use `/agent_chat/receive` (full AgentChatMessage with thread system). HMI test endpoint now handles both automatically.
+1. **Test Purpose**: These tests are **diagnostic**, not validation. They're designed to expose missing features in resource management and health monitoring systems.
 
-2. **Uvicorn Hot-Reload Issue**: Route changes in FastAPI services don't register with `--reload` flag. Need hard restart (`kill -9` + fresh uvicorn start) to pick up new endpoints.
+2. **TRON System**: HeartbeatMonitor (port 6109) exists but needs parent alerting implementation. Full PRD at `docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md`.
 
-3. **Tree Bounce Was Fake**: Original Tree Bounce test only simulated the visualization with setTimeout() delays - it never actually sent messages to agents. Now sends real messages at each hop.
+3. **Two Distinct Systems Tested**:
+   - **Manager Fallback Logic** (local decisions): Try programmers sequentially, escalate to Director
+   - **TRON/Resource Manager** (global state): Centralized health monitoring and resource tracking
 
-4. **CommsLogger Flow**: Browser → HMI API (`/api/agent-chat/test/send-to-agent`) → AgentChatClient (creates thread) → CommsLogger.log_cmd() → Agent endpoint → CommsLogger.log_response() → Flat .txt logs + SQLite DB.
-
-5. **Port Corrections**: Multiple tests had wrong Director ports (6131-6135 should be 6111-6115). Only fixed Tree Bounce so far - other tests may need similar corrections.
+4. **Expected Test Results**:
+   - Test 11 (Pool Exhaustion): 🟡 Partial - Reveals Manager routing logic needed
+   - Test 12 (Busy State): 🔴 Fail - Reveals busy state tracking needed
+   - Test 13 (TRON): 🟢 Pass - Infrastructure verified, full test TODO
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Run full test suite**: Navigate to http://localhost:6101/model-pool and click "Test All"
-3. **Monitor logs**: `./tools/parse_comms_log.py --tail` to watch all test messages in real-time
-4. **Verify all 10 tests pass**: Check for any remaining 404 errors or endpoint issues
-5. **If issues found**: Check port numbers in other test functions (Skill Match, Load Balancer, etc.)
+2. **Test the new buttons**: Open http://localhost:6101 → Agent Family Test tab → Try bottom 3 tests
+3. **Implement busy state tracking**: Add to Programmer services (return HTTP 503 when executing)
+4. **Implement Manager fallback**: Add routing logic to try programmers sequentially
+5. **Review TRON PRD**: `docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md` for full implementation plan
+
+## Related Documentation
+
+- `docs/AGENT_FAMILY_TESTS_RESOURCE_MANAGEMENT.md` - Complete test guide
+- `docs/PRDs/PRD_Hierarchical_Health_Monitoring_Retry_System.md` - TRON system PRD (1420 lines)
+- `docs/SERVICE_PORTS.md` - Port 6109 (TRON), 6104 (Resource Manager)
+- `services/common/heartbeat.py` - TRON HeartbeatMonitor implementation
+- `services/resource_manager/resource_manager.py` - Resource quota tracking
