@@ -1,104 +1,83 @@
 # Last Session Summary
 
-**Date:** 2025-11-14 (Session: Agent Chat Universal Integration + Test All Button)
-**Duration:** ~90 minutes
+**Date:** 2025-11-14 (Session: Agent Status Dashboard Improvements + Manager Services Fix)
+**Duration:** ~45 minutes
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Successfully implemented a **centralized Agent Chat framework** that integrates ALL 23 PAS agents with bidirectional messaging, SSE events, and thread management. Created a universal mixin that eliminates code duplication and provides a single source of truth for Agent Chat functionality. Added "Test All" button to Model Pool dashboard for bulk agent health testing.
+Made the Agent Status dashboard title bar significantly more compact while adding additional health statistics (Healthy/Failed/Untested counts). Added a "Copy Agent Status to Clipboard" button that generates structured JSON for reporting. Fixed 4 failed manager services by starting them and updating automation scripts to include all managers in the Multi-Tier PAS startup sequence.
 
 ## Key Changes
 
-### 1. Agent Chat Universal Framework
+### 1. Compact Agent Status Title Bar
+**Files:** `services/webui/templates/model_pool_enhanced.html:339-393`
+**Summary:** Reduced title bar from large tiles (4-column grid, 2rem padding) to compact inline stats (single row, 1rem padding). Font sizes reduced 40%, margins reduced 25%. Changed from 3-4 row layout to 2 compact rows while adding 3 new stats (Healthy/Failed/Untested agent counts).
+
+### 2. Copy Agent Status to Clipboard Feature
+**Files:** `services/webui/templates/model_pool_enhanced.html:1020-1088`
+**Summary:** Added "Copy Agent Status" button with `copyAgentStatusToClipboard()` function. Generates compact JSON with timestamp, summary stats (total/coverage/healthy/failed/untested), and array of all agents with test results. Includes visual feedback ("✓ Copied to clipboard!" for 2 seconds).
+
+### 3. Dynamic Health Stats Calculation
+**Files:** `services/webui/templates/model_pool_enhanced.html:773-813`
+**Summary:** Updated `renderAgentStatus()` to calculate and display real-time health statistics from test results. Counts healthy (status=ok), failed (status=error), and untested agents, updating dashboard stats automatically as tests run.
+
+### 4. Fixed 4 Failed Manager Services
 **Files:**
-- `services/common/agent_chat_mixin.py` (NEW, 384 lines)
-- `tools/add_agent_chat_to_all.py` (NEW, 303 lines)
-- `docs/AGENT_CHAT_UNIVERSAL_FRAMEWORK.md` (NEW, comprehensive documentation)
+- Started manually: Mgr-Models-01 (6144), Mgr-Data-01 (6145), Mgr-DevSecOps-01 (6146), Mgr-Docs-01 (6147)
+**Summary:** All 4 manager services were missing from startup automation. Started them manually with proper PYTHONPATH and verified health endpoints returning HTTP 200. All agents now report healthy with Agent Chat integration enabled.
 
-**Summary:** Created centralized Agent Chat framework with universal mixin that provides instant integration for any agent. Includes automatic route injection, message polling, helper functions, and SSE support. All 23 agents now use the SAME code - future changes to Agent Chat behavior require updating only 1 file.
+### 5. Updated Multi-Tier PAS Startup Script
+**Files:** `scripts/start_multitier_pas.sh:44,137-191,240-248,262-268`
+**Summary:** Added 7 manager services to startup sequence (Code-01/02/03, Models-01, Data-01, DevSecOps-01, Docs-01). Updated service count from 8 to 15, added health checks for all managers, and updated success message to display all manager URLs. Services now start in proper dependency order.
 
-### 2. Automated Agent Integration (14 Agents)
-**Files:**
-- `services/pas/director_models/app.py` - Dir-Models integration
-- `services/pas/manager_models_01/app.py` - Mgr-Models-01 integration
-- `services/pas/manager_data_01/app.py` - Mgr-Data-01 integration
-- `services/pas/manager_devsecops_01/app.py` - Mgr-DevSecOps-01 integration
-- `services/pas/manager_docs_01/app.py` - Mgr-Docs-01 integration
-- `services/tools/aider_rpc/app.py` - Prog-002 → Prog-010 (9 agents via shared file)
-
-**Summary:** Used automation script to add Agent Chat integration to 6 files, which covers 14 agents total (Dir-Models + 4 Managers + 9 Programmers). All agents now have bidirectional messaging, SSE events, background message polling, and standardized API endpoints.
-
-### 3. Configuration Updates
-**Files:**
-- `configs/pas/agent_status.json` - Updated to show 100% coverage (23/23 agents)
-- `docs/readme.txt` - Changed all ❌ NO to ✅ YES in Agent Coverage Status Table
-
-**Summary:** Updated configuration files to reflect 100% Agent Chat integration across all agents. Coverage increased from 9/23 (39%) to 23/23 (100%).
-
-### 4. Test All Button (Model Pool HMI)
-**Files:**
-- `services/webui/templates/model_pool_enhanced.html:358-366` (button UI)
-- `services/webui/templates/model_pool_enhanced.html:883-971` (testAllAgents function)
-
-**Summary:** Added "Test All Agents" button to Agent Status tab with real-time progress indicator. Tests all 23 agents sequentially with 100ms delays, shows incremental results, and auto-hides after completion. Provides operators with one-click health verification of entire PAS hierarchy.
+### 6. Updated Multi-Tier PAS Stop Script
+**Files:** `scripts/stop_multitier_pas.sh:19-20`
+**Summary:** Added manager ports (6141-6147) to shutdown sequence. Services stop in reverse order: Gateway → PAS Root → Managers → Directors → Architect. Prevents orphaned processes.
 
 ## Files Modified
 
-- `services/common/agent_chat_mixin.py` - NEW universal Agent Chat mixin framework
-- `tools/add_agent_chat_to_all.py` - NEW automation script for Agent Chat integration
-- `docs/AGENT_CHAT_UNIVERSAL_FRAMEWORK.md` - NEW complete documentation
-- `services/pas/director_models/app.py` - Added Agent Chat integration
-- `services/pas/manager_models_01/app.py` - Added Agent Chat integration
-- `services/pas/manager_data_01/app.py` - Added Agent Chat integration
-- `services/pas/manager_devsecops_01/app.py` - Added Agent Chat integration
-- `services/pas/manager_docs_01/app.py` - Added Agent Chat integration
-- `services/tools/aider_rpc/app.py` - Added Agent Chat (serves Prog-002 → Prog-010)
-- `configs/pas/agent_status.json` - Updated to 100% coverage
-- `docs/readme.txt` - Updated Agent Coverage Status Table (all ✅)
-- `services/webui/templates/model_pool_enhanced.html` - Added Test All button
+- `services/webui/templates/model_pool_enhanced.html` - Compact title bar, new stats, copy button
+- `scripts/start_multitier_pas.sh` - Added 7 manager services to startup
+- `scripts/stop_multitier_pas.sh` - Added 7 manager services to shutdown
 
 ## Current State
 
 **What's Working:**
-- ✅ All 23 agents have Agent Chat integration (100% coverage)
-- ✅ Single source of truth: `services/common/agent_chat_mixin.py`
-- ✅ Universal API endpoints on all agents (send, create-thread, events, etc.)
-- ✅ Background message polling for bidirectional communication
-- ✅ Test All button on Model Pool dashboard with real-time progress
-- ✅ Dynamic agent ID support (Programmers use `get_agent_id()`)
-- ✅ Backward compatible with existing agents
-- ✅ Comprehensive documentation
+- ✅ Agent Status dashboard with compact title bar (60% less vertical space)
+- ✅ Additional stats: Healthy/Failed/Untested counts update in real-time
+- ✅ Copy Agent Status button generates structured JSON with test results
+- ✅ All 23 PAS agents running and healthy (0 failed, 23/23 passing health checks)
+- ✅ Managers included in automated startup/shutdown scripts
+- ✅ HMI service running on http://localhost:6101
 
 **What Needs Work:**
-- [ ] Test Agent Chat messaging in live system (send delegation, questions, answers)
+- [ ] Test Agent Chat messaging between agents (send delegation, questions, answers)
 - [ ] Verify SSE events work correctly for HMI visualization
-- [ ] Consider adding parallel testing option for "Test All" (currently sequential)
 - [ ] Thread/message count integration with registry database for Agent Status tab
+- [ ] Consider adding parallel testing option for "Test All" (currently sequential)
 
 ## Important Context for Next Session
 
-1. **Clever Design Principle**: User asked to make Agent Chat "clever" - avoid changing code in 50 different places. Solution: Created `agent_chat_mixin.py` as single source of truth. Future changes to Agent Chat behavior now require editing only 1 file, which automatically affects all 23 agents.
+1. **Title Bar Compactness**: User requested "MUCH more compact" title bar. Reduced from large 4-tile grid (2rem font, 2rem padding) to single-row inline stats (1.25rem font, 1rem padding). Reduced vertical space by ~60%.
 
-2. **Programmer Magic**: Single file (`services/tools/aider_rpc/app.py`) serves 10 Programmer instances (Prog-001 through Prog-010) via `PROGRAMMER_ID` env var. Agent Chat integration uses `get_agent_id()` for dynamic runtime identification.
+2. **JSON Format**: Copy button generates JSON with summary (total/coverage/healthy/failed/untested) and per-agent details (tier/name/port/architecture/agent_chat/test_status/test_message). Uses navigator.clipboard API with error handling.
 
-3. **Automation Script**: `tools/add_agent_chat_to_all.py` can be used to add Agent Chat to future agents. Just add agent to AGENTS_TO_UPDATE list and run script.
+3. **Manager Services**: The 4 manager services (Models-01, Data-01, DevSecOps-01, Docs-01) were created during Agent Chat integration but never added to startup scripts. Now included in `start_multitier_pas.sh` for automated startup.
 
-4. **Coverage Transformation**: Started at 9/23 agents (39%), ended at 23/23 agents (100%). Added 14 agents by modifying only 6 files.
+4. **Health Stats**: Dashboard now shows 7 stats instead of 4: Coverage, Total, Healthy, Failed, Untested, Threads (N/A), Messages (N/A). Stats recalculate automatically during "Test All" execution.
 
-5. **Test All Flow**: Sequential testing with 100ms delays prevents overwhelming the system. Shows real-time progress ("Testing {agent}... X/23") and incremental table updates. Completion message auto-hides after 3 seconds.
-
-6. **Delta Fixed**: User noticed discrepancy between readme.txt and agent_status.json. Now both sources match and show 100% coverage with all green checkmarks.
+5. **Script Updates**: Both startup and shutdown scripts now handle all 15 services (1 Architect + 5 Directors + 7 Managers + PAS Root + Gateway). Future additions should update both scripts.
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Test Agent Chat**: Try sending messages between agents (parent ↔ child delegation/questions)
-3. **Verify Test All**: Open http://localhost:6101/model-pool → Agent Status → Click "Test All Agents"
-4. **Optional**: Test SSE events by monitoring `/agent-chat/events` endpoint on any agent
-5. **Optional**: Integrate thread/message counts from registry database into Agent Status tab summary tiles
+2. **Verify all services**: Run "Test All Agents" on http://localhost:6101/model-pool → Agent Status tab (should show 23/23 healthy)
+3. **Test copy feature**: Click "Copy Agent Status" button and verify JSON is copied to clipboard
+4. **Optional**: Test Agent Chat messaging between agents (e.g., Dir-Models ↔ Mgr-Models-01)
+5. **Optional**: Integrate thread/message counts from registry database into Agent Status summary tiles
 
 ## Git Status
 
-**Modified Files**: 11 files (3 new, 8 modified)
+**Modified Files**: 3 files (all committed ready)
 **Ready to commit**: Yes

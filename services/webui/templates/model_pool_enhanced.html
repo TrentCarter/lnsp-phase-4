@@ -336,36 +336,59 @@
             </div>
 
             <!-- Summary Tiles -->
-            <div style="background: #1a1f3a; border: 1px solid #3a4568; border-radius: 12px; padding: 2rem; margin-bottom: 2rem;">
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem;">
-                    <div>
-                        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">Coverage</div>
-                        <div id="agent-coverage-pct" style="font-size: 2rem; font-weight: 700; color: #3b82f6;">--</div>
+            <div style="background: #1a1f3a; border: 1px solid #3a4568; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                <!-- Compact Stats Row -->
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 2rem; margin-bottom: 1rem;">
+                    <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                        <div>
+                            <span style="font-size: 0.75rem; color: #9ca3af;">Coverage:</span>
+                            <span id="agent-coverage-pct" style="font-size: 1.25rem; font-weight: 700; color: #3b82f6; margin-left: 0.5rem;">--</span>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.75rem; color: #9ca3af;">Total:</span>
+                            <span id="agent-total-count" style="font-size: 1.25rem; font-weight: 700; color: #22c55e; margin-left: 0.5rem;">--</span>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.75rem; color: #9ca3af;">Healthy:</span>
+                            <span id="agent-healthy-count" style="font-size: 1.25rem; font-weight: 700; color: #22c55e; margin-left: 0.5rem;">--</span>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.75rem; color: #9ca3af;">Failed:</span>
+                            <span id="agent-failed-count" style="font-size: 1.25rem; font-weight: 700; color: #ef4444; margin-left: 0.5rem;">--</span>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.75rem; color: #9ca3af;">Untested:</span>
+                            <span id="agent-untested-count" style="font-size: 1.25rem; font-weight: 700; color: #6b7280; margin-left: 0.5rem;">--</span>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.75rem; color: #9ca3af;">Threads:</span>
+                            <span id="agent-thread-count" style="font-size: 1.25rem; font-weight: 700; color: #f59e0b; margin-left: 0.5rem;">--</span>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.75rem; color: #9ca3af;">Messages:</span>
+                            <span id="agent-message-count" style="font-size: 1.25rem; font-weight: 700; color: #a855f7; margin-left: 0.5rem;">--</span>
+                        </div>
                     </div>
-                    <div>
-                        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">Total Agents</div>
-                        <div id="agent-total-count" style="font-size: 2rem; font-weight: 700; color: #22c55e;">--</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">Conversation Threads</div>
-                        <div id="agent-thread-count" style="font-size: 2rem; font-weight: 700; color: #f59e0b;">--</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.875rem; color: #9ca3af; margin-bottom: 0.5rem;">Messages Exchanged</div>
-                        <div id="agent-message-count" style="font-size: 2rem; font-weight: 700; color: #a855f7;">--</div>
+                    <div id="agent-last-updated" style="font-size: 0.75rem; color: #6b7280; white-space: nowrap;">
+                        Last Updated: --
                     </div>
                 </div>
-                <div style="margin-top: 1.5rem; display: flex; justify-content: center; align-items: center; gap: 1rem;">
-                    <button class="refresh-btn" onclick="testAllAgents()" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 0.75rem 2rem; font-size: 1rem; font-weight: 600;">
+
+                <!-- Action Buttons Row -->
+                <div style="display: flex; justify-content: center; align-items: center; gap: 1rem;">
+                    <button class="refresh-btn" onclick="testAllAgents()" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 0.5rem 1.5rem; font-size: 0.875rem; font-weight: 600;">
                         🧪 Test All Agents
                     </button>
-                    <div id="test-all-progress" style="display: none; font-size: 0.875rem; color: #9ca3af;">
+                    <button class="refresh-btn" onclick="copyAgentStatusToClipboard()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 0.5rem 1.5rem; font-size: 0.875rem; font-weight: 600;">
+                        📋 Copy Agent Status
+                    </button>
+                    <div id="test-all-progress" style="display: none; font-size: 0.75rem; color: #9ca3af;">
                         <span id="test-progress-text">Testing...</span>
                         <span id="test-progress-count" style="color: #3b82f6; font-weight: 600; margin-left: 0.5rem;">0/23</span>
                     </div>
-                </div>
-                <div id="agent-last-updated" style="margin-top: 1rem; font-size: 0.875rem; color: #9ca3af; text-align: center;">
-                    Last Updated: --
+                    <div id="copy-status-feedback" style="display: none; font-size: 0.75rem; color: #22c55e; font-weight: 600;">
+                        ✓ Copied to clipboard!
+                    </div>
                 </div>
             </div>
 
@@ -752,8 +775,33 @@ function renderAgentStatus() {
 
     // Update summary tiles
     const coverage = agentStatusData.coverage || {};
+    const agents = agentStatusData.agents || [];
+
     document.getElementById('agent-coverage-pct').textContent = (coverage.integration_percent || 0) + '%';
     document.getElementById('agent-total-count').textContent = coverage.total_agents || 0;
+
+    // Calculate test result stats
+    let healthyCount = 0;
+    let failedCount = 0;
+    let untestedCount = 0;
+
+    agents.forEach(agent => {
+        const agentName = agent.agent || agent.name || 'Unknown';
+        const testResult = agentTestResults[agentName];
+        if (testResult) {
+            if (testResult.status === 'ok') {
+                healthyCount++;
+            } else if (testResult.status === 'error') {
+                failedCount++;
+            }
+        } else {
+            untestedCount++;
+        }
+    });
+
+    document.getElementById('agent-healthy-count').textContent = healthyCount;
+    document.getElementById('agent-failed-count').textContent = failedCount;
+    document.getElementById('agent-untested-count').textContent = untestedCount;
 
     // Thread/message counts are not in the current API response - show N/A or fetch from registry
     document.getElementById('agent-thread-count').textContent = 'N/A';
@@ -763,7 +811,6 @@ function renderAgentStatus() {
     document.getElementById('agent-last-updated').textContent = `Last Updated: ${lastUpdated}`;
 
     // Render agent table
-    const agents = agentStatusData.agents || [];
 
     if (agents.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10" class="loading">No agents found</td></tr>';
@@ -968,6 +1015,76 @@ async function testAllAgents() {
 
     // Final render
     renderAgentStatus();
+}
+
+async function copyAgentStatusToClipboard() {
+    const agents = agentStatusData.agents || [];
+
+    // Build compact JSON with test results
+    const statusReport = {
+        timestamp: new Date().toISOString(),
+        summary: {
+            total: agents.length,
+            coverage: agentStatusData.coverage?.integration_percent || 0,
+            healthy: 0,
+            failed: 0,
+            untested: 0
+        },
+        agents: []
+    };
+
+    agents.forEach(agent => {
+        const agentName = agent.agent || agent.name || 'Unknown';
+        const testResult = agentTestResults[agentName];
+
+        let status = 'untested';
+        let message = 'Not tested';
+
+        if (testResult) {
+            status = testResult.status;
+            message = testResult.message || '';
+
+            if (status === 'ok') {
+                statusReport.summary.healthy++;
+            } else if (status === 'error') {
+                statusReport.summary.failed++;
+            }
+        } else {
+            statusReport.summary.untested++;
+        }
+
+        statusReport.agents.push({
+            tier: agent.tier,
+            name: agentName,
+            port: agent.port,
+            architecture: agent.architecture,
+            agent_chat: agent.agent_chat || false,
+            test_status: status,
+            test_message: message
+        });
+    });
+
+    // Convert to pretty JSON
+    const jsonOutput = JSON.stringify(statusReport, null, 2);
+
+    // Copy to clipboard
+    try {
+        await navigator.clipboard.writeText(jsonOutput);
+
+        // Show feedback
+        const feedback = document.getElementById('copy-status-feedback');
+        feedback.style.display = 'inline-block';
+
+        // Hide feedback after 2 seconds
+        setTimeout(() => {
+            feedback.style.display = 'none';
+        }, 2000);
+
+        console.log('[Agent Status] Copied to clipboard:', statusReport);
+    } catch (error) {
+        console.error('[Agent Status] Failed to copy to clipboard:', error);
+        alert('Failed to copy to clipboard: ' + error.message);
+    }
 }
 
 // Initialize on page load

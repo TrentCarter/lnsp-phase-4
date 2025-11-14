@@ -15,9 +15,9 @@ NC='\033[0m' # No Color
 echo "=== Stopping Multi-Tier PAS ==="
 echo ""
 
-# Stop services by port
-PORTS=(6120 6100 6115 6114 6113 6112 6111 6110)
-SERVICE_NAMES=("Gateway" "PAS Root" "Director-Docs" "Director-DevSecOps" "Director-Data" "Director-Models" "Director-Code" "Architect")
+# Stop services by port (reverse order from startup)
+PORTS=(6120 6100 6147 6146 6145 6144 6143 6142 6141 6115 6114 6113 6112 6111 6110)
+SERVICE_NAMES=("Gateway" "PAS Root" "Manager-Docs-01" "Manager-DevSecOps-01" "Manager-Data-01" "Manager-Models-01" "Manager-Code-03" "Manager-Code-02" "Manager-Code-01" "Director-Docs" "Director-DevSecOps" "Director-Data" "Director-Models" "Director-Code" "Architect")
 
 for i in "${!PORTS[@]}"; do
     PORT="${PORTS[$i]}"

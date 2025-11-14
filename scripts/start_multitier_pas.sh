@@ -41,7 +41,7 @@ fi
 echo "Checking for running services..."
 RUNNING_PORTS=""
 
-for port in 6110 6111 6112 6113 6114 6115 6100 6120; do
+for port in 6110 6111 6112 6113 6114 6115 6141 6142 6143 6144 6145 6146 6147 6100 6120; do
     if lsof -ti:$port > /dev/null 2>&1; then
         RUNNING_PORTS="$RUNNING_PORTS $port"
     fi
@@ -127,23 +127,79 @@ DIRECTOR_DEVSECOPS_PID=$!
 sleep 1
 
 # 6. Start Director-Docs
-echo -e "${GREEN}[6/8]${NC} Starting Director-Docs (port 6115)..."
+echo -e "${GREEN}[6/15]${NC} Starting Director-Docs (port 6115)..."
 python -m uvicorn services.pas.director_docs.app:app \
     --host 127.0.0.1 --port 6115 \
     > logs/pas/director_docs.log 2>&1 &
 DIRECTOR_DOCS_PID=$!
 sleep 1
 
-# 7. Start PAS Root
-echo -e "${GREEN}[7/8]${NC} Starting PAS Root (port 6100)..."
+# 7. Start Manager-Code-01
+echo -e "${GREEN}[7/15]${NC} Starting Manager-Code-01 (port 6141)..."
+python -m uvicorn services.pas.manager_code_01.app:app \
+    --host 127.0.0.1 --port 6141 \
+    > logs/pas/manager_code_01.log 2>&1 &
+MGR_CODE_01_PID=$!
+sleep 1
+
+# 8. Start Manager-Code-02
+echo -e "${GREEN}[8/15]${NC} Starting Manager-Code-02 (port 6142)..."
+python -m uvicorn services.pas.manager_code_02.app:app \
+    --host 127.0.0.1 --port 6142 \
+    > logs/pas/manager_code_02.log 2>&1 &
+MGR_CODE_02_PID=$!
+sleep 1
+
+# 9. Start Manager-Code-03
+echo -e "${GREEN}[9/15]${NC} Starting Manager-Code-03 (port 6143)..."
+python -m uvicorn services.pas.manager_code_03.app:app \
+    --host 127.0.0.1 --port 6143 \
+    > logs/pas/manager_code_03.log 2>&1 &
+MGR_CODE_03_PID=$!
+sleep 1
+
+# 10. Start Manager-Models-01
+echo -e "${GREEN}[10/15]${NC} Starting Manager-Models-01 (port 6144)..."
+python -m uvicorn services.pas.manager_models_01.app:app \
+    --host 127.0.0.1 --port 6144 \
+    > logs/pas/manager_models_01.log 2>&1 &
+MGR_MODELS_01_PID=$!
+sleep 1
+
+# 11. Start Manager-Data-01
+echo -e "${GREEN}[11/15]${NC} Starting Manager-Data-01 (port 6145)..."
+python -m uvicorn services.pas.manager_data_01.app:app \
+    --host 127.0.0.1 --port 6145 \
+    > logs/pas/manager_data_01.log 2>&1 &
+MGR_DATA_01_PID=$!
+sleep 1
+
+# 12. Start Manager-DevSecOps-01
+echo -e "${GREEN}[12/15]${NC} Starting Manager-DevSecOps-01 (port 6146)..."
+python -m uvicorn services.pas.manager_devsecops_01.app:app \
+    --host 127.0.0.1 --port 6146 \
+    > logs/pas/manager_devsecops_01.log 2>&1 &
+MGR_DEVSECOPS_01_PID=$!
+sleep 1
+
+# 13. Start Manager-Docs-01
+echo -e "${GREEN}[13/15]${NC} Starting Manager-Docs-01 (port 6147)..."
+python -m uvicorn services.pas.manager_docs_01.app:app \
+    --host 127.0.0.1 --port 6147 \
+    > logs/pas/manager_docs_01.log 2>&1 &
+MGR_DOCS_01_PID=$!
+sleep 1
+
+# 14. Start PAS Root
+echo -e "${GREEN}[14/15]${NC} Starting PAS Root (port 6100)..."
 python -m uvicorn services.pas.root.app:app \
     --host 127.0.0.1 --port 6100 \
     > logs/pas/root.log 2>&1 &
 PAS_ROOT_PID=$!
 sleep 2
 
-# 8. Start Gateway
-echo -e "${GREEN}[8/8]${NC} Starting Gateway (port 6120)..."
+# 15. Start Gateway
+echo -e "${GREEN}[15/15]${NC} Starting Gateway (port 6120)..."
 python -m uvicorn services.gateway.app:app \
     --host 127.0.0.1 --port 6120 \
     > logs/pas/gateway.log 2>&1 &
@@ -181,6 +237,13 @@ check_health "Director-Models" 6112 || ALL_HEALTHY=false
 check_health "Director-Data" 6113 || ALL_HEALTHY=false
 check_health "Director-DevSecOps" 6114 || ALL_HEALTHY=false
 check_health "Director-Docs" 6115 || ALL_HEALTHY=false
+check_health "Manager-Code-01" 6141 || ALL_HEALTHY=false
+check_health "Manager-Code-02" 6142 || ALL_HEALTHY=false
+check_health "Manager-Code-03" 6143 || ALL_HEALTHY=false
+check_health "Manager-Models-01" 6144 || ALL_HEALTHY=false
+check_health "Manager-Data-01" 6145 || ALL_HEALTHY=false
+check_health "Manager-DevSecOps-01" 6146 || ALL_HEALTHY=false
+check_health "Manager-Docs-01" 6147 || ALL_HEALTHY=false
 check_health "PAS Root" 6100 || ALL_HEALTHY=false
 check_health "Gateway" 6120 || ALL_HEALTHY=false
 
@@ -190,14 +253,21 @@ if [ "$ALL_HEALTHY" = true ]; then
     echo -e "${GREEN}=== Multi-Tier PAS Started Successfully ===${NC}"
     echo ""
     echo "Services:"
-    echo "  Architect:       http://127.0.0.1:6110"
-    echo "  Director-Code:   http://127.0.0.1:6111"
-    echo "  Director-Models: http://127.0.0.1:6112"
-    echo "  Director-Data:   http://127.0.0.1:6113"
-    echo "  Director-DevSecOps: http://127.0.0.1:6114"
-    echo "  Director-Docs:   http://127.0.0.1:6115"
-    echo "  PAS Root:        http://127.0.0.1:6100"
-    echo "  Gateway:         http://127.0.0.1:6120"
+    echo "  Architect:           http://127.0.0.1:6110"
+    echo "  Director-Code:       http://127.0.0.1:6111"
+    echo "  Director-Models:     http://127.0.0.1:6112"
+    echo "  Director-Data:       http://127.0.0.1:6113"
+    echo "  Director-DevSecOps:  http://127.0.0.1:6114"
+    echo "  Director-Docs:       http://127.0.0.1:6115"
+    echo "  Manager-Code-01:     http://127.0.0.1:6141"
+    echo "  Manager-Code-02:     http://127.0.0.1:6142"
+    echo "  Manager-Code-03:     http://127.0.0.1:6143"
+    echo "  Manager-Models-01:   http://127.0.0.1:6144"
+    echo "  Manager-Data-01:     http://127.0.0.1:6145"
+    echo "  Manager-DevSecOps-01: http://127.0.0.1:6146"
+    echo "  Manager-Docs-01:     http://127.0.0.1:6147"
+    echo "  PAS Root:            http://127.0.0.1:6100"
+    echo "  Gateway:             http://127.0.0.1:6120"
     echo ""
     echo "Logs: logs/pas/"
     echo ""
