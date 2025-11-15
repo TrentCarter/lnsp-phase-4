@@ -22,6 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import time
@@ -47,6 +48,16 @@ from services.common.llm_tools import get_ask_parent_tool, validate_ask_parent_a
 
 
 app = FastAPI(title="Director-Data", version="1.0.0")
+
+# Add CORS middleware to allow browser requests from HMI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for local development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Initialize systems
 heartbeat_monitor = get_monitor()
@@ -123,6 +134,91 @@ async def health():
         }
     }
 
+
+@app.post("/chat/stream")
+async def chat_stream(request: dict):
+    """Streaming chat endpoint for LLM Chat interface."""
+    from fastapi.responses import StreamingResponse
+
+    async def generate():
+        try:
+            messages = request.get("messages", [])
+            model = request.get("model", os.getenv("DIR_DATA_LLM", "anthropic/claude-sonnet-4-5"))
+            if not messages:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No messages provided'})}\n\n"
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                return
+            health_data = await health()
+            agent_name = health_data.get("agent", "Dir-Data")
+            yield f"data: {json.dumps({'type': 'status_update', 'status': 'planning', 'detail': f'{agent_name} processing...'})}\n\n"
+            system_prompt = f"""You are {agent_name}, a Data Director in the PAS (Project Automation System).
+
+Your role:
+- Coordinate data pipeline and ETL tasks
+- Guide data quality, validation, and governance
+- Ensure data integrity and compliance
+- Manage data versioning and lineage
+
+You have access to the filesystem via Aider for data operations."""
+            full_messages = [{"role": "system", "content": system_prompt}] + messages
+            yield f"data: {json.dumps({'type': 'status_update', 'status': 'executing', 'detail': 'Generating response...'})}\n\n"
+            gateway_url = "http://localhost:6120/chat/stream"
+            payload = {"session_id": str(uuid.uuid4()), "message_id": str(uuid.uuid4()), "agent_id": "direct", "model": model, "content": messages[-1]["content"] if messages else "", "messages": [{"role": msg["role"], "content": msg["content"]} for msg in full_messages]}
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                async with client.stream("POST", gateway_url, json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        if line.startswith("data: "):
+                            yield f"{line}\n\n"
+                            try:
+                                event_data = json.loads(line[6:])
+                                if event_data.get('type') == 'done':
+                                    break
+                            except json.JSONDecodeError:
+                                pass
+        except Exception as e:
+            print(f"[Dir-Data] Chat stream error: {e}")
+            import traceback
+            traceback.print_exc()
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+class AgentChatRequest(BaseModel):
+    """Agent chat message for testing and inter-agent communication"""
+    sender_agent: str
+    message_type: str  # question, delegation, status, etc.
+    content: str
+    metadata: Optional[Dict[str, Any]] = None
+
+
+@app.post("/agent/chat/send")
+async def agent_chat_send(request: AgentChatRequest):
+    """
+    Receive agent chat message (for testing and inter-agent communication).
+
+    This endpoint allows external systems (HMI tests, other agents) to send
+    messages to this agent for testing connectivity and basic interactions.
+    """
+    # Get agent name from health endpoint metadata
+    health_data = await health()
+    agent_name = health_data.get("agent", "Unknown")
+
+    # Log the received message
+    print(f"[{agent_name}] Received {request.message_type} from {request.sender_agent}: {request.content}")
+
+    # Return acknowledgment
+    return {
+        "status": "received",
+        "agent": agent_name,
+        "message_id": str(uuid.uuid4()),
+        "sender": request.sender_agent,
+        "message_type": request.message_type,
+        "response": f"{agent_name} received: {request.content}"
+    }
 
 @app.get("/status/{job_card_id}")
 async def get_status(job_card_id: str):
@@ -685,10 +781,10 @@ async def process_agent_chat_message(request: AgentChatMessage):
         # Build LLM context from thread history
         llm_messages = []
         for msg in thread.messages:
-            role = "user" if msg["from_agent"] == "Architect" else "assistant"
+            role = "user" if msg.from_agent == "Architect" else "assistant"
             llm_messages.append({
                 "role": role,
-                "content": msg["content"]
+                "content": msg.content
             })
 
         # Add system prompt with ask_parent tool
@@ -748,7 +844,7 @@ async def process_agent_chat_message(request: AgentChatMessage):
 
         # No questions asked - proceed with decomposition
         # Extract task from initial delegation message
-        task_content = thread.messages[0]["content"]
+        task_content = thread.messages[0].content
 
         # Create job card from LLM analysis
         job_card_id = f"job-{run_id}-data-{uuid.uuid4().hex[:8]}"

@@ -1,98 +1,113 @@
 # Last Session Summary
 
-**Date:** 2025-11-14 (Session: Agent Context Loading + Dropdown Fix)
+**Date:** 2025-11-14 (Session: LLM Chat Endpoint + Manager Creation)
 **Duration:** ~90 minutes
 **Branch:** feature/aider-lco-p0
 
 ## What Was Accomplished
 
-Fixed missing agents in LLM Chat dropdown (only 2 were showing instead of 25), then implemented full agent context loading feature that auto-switches model selector and displays agent conversation history when selecting an agent.
+Fixed empty LLM chat responses by adding `/chat/stream` endpoints to all PAS agents (Architect + all 5 Directors), then created 4 missing Manager services (Mgr-Models-01, Mgr-Data-01, Mgr-DevSecOps-01, Mgr-Docs-01) scaffolded from the manager_code_01 template.
 
 ## Key Changes
 
-### 1. Agent Registration Fix
-**Files:** `tools/register_all_pas_agents.py` (executed)
-**Summary:** Registered all 23 PAS agents (Architect, 5 Directors, 7 Managers, 10 Programmers) with Registry Service. Agents weren't auto-registering on startup, required manual registration via script.
+### 1. Added `/chat/stream` Endpoint to All Directors
+**Files:**
+- `services/pas/architect/app.py:208-293` (86 lines added)
+- `services/pas/director_code/app.py:216-303` (88 lines added)
+- `services/pas/director_models/app.py:221-291` (71 lines added)
+- `services/pas/director_data/app.py:138-187` (50 lines added)
+- `services/pas/director_devsecops/app.py:138-187` (50 lines added)
 
-### 2. Agent Context API Endpoint
-**Files:** `services/webui/hmi_app.py:4603-4736` (134 lines added)
-**Summary:** Added `/api/agent_context/<agent_id>` endpoint that fetches agent's current LLM model from agent's `/health` endpoint and retrieves recent conversation history from Registry database (last 5 threads with partner info, message preview, status, timestamps).
+**Summary:** All Architect and Director agents now have streaming chat endpoints that route through Gateway (port 6120) for multi-provider support (Ollama, Claude, Gemini, GPT, Kimi). Each endpoint includes agent-specific system prompts and forwards SSE events (tokens, status updates, usage, done).
 
-### 3. Frontend Agent Context Loading
-**Files:** `services/webui/templates/llm.html:873-906, 1159-1251` (125 lines added/modified)
-**Summary:** Implemented `loadAgentContext()` function that auto-switches Model dropdown to agent's current model when agent is selected. Displays blue info panel showing agent status, current model, recent activity, and last conversation partner with message preview.
+### 2. Created 4 New Manager Services
+**Files:**
+- `services/pas/manager_models_01/app.py` (NEW, 581 lines)
+- `services/pas/manager_data_01/app.py` (NEW, 581 lines)
+- `services/pas/manager_devsecops_01/app.py` (NEW, 581 lines)
+- `services/pas/manager_docs_01/app.py` (NEW, 581 lines)
+- `tools/generate_managers.py` (NEW, 66 lines)
 
-### 4. Module Import Fix
-**Files:** `services/webui/hmi_app.py:31` (1 line added)
-**Summary:** Added `sys.path.insert(0, str(Path(__file__).parent))` to fix `llm_chat_db` module import error when running HMI with uvicorn. HMI is Flask app, must be run with `.venv/bin/python services/webui/hmi_app.py`.
+**Summary:** Generated 4 Manager services from manager_code_01 template using Python script. All Managers include FastAPI HTTP architecture, LLM-powered task decomposition, Programmer Pool integration, parallel execution (up to 5 Programmers), agent chat support, and job tracking.
+
+### 3. Updated Agent Status Configuration
+**Files:** `configs/pas/agent_status.json:54-67, 168-231`
+
+**Summary:** Updated Dir-Models from "Planned" to "FastAPI HTTP" and changed all 4 new Managers from "Not Created" to "FastAPI HTTP" with implementation paths and creation notes.
 
 ## Files Modified
 
-- `services/webui/hmi_app.py` - Added agent context API endpoint, fixed module import
-- `services/webui/templates/llm.html` - Added loadAgentContext() function, updated agent selector change handler
-- `tools/register_all_pas_agents.py` - Executed to register 23 PAS agents
+- `services/pas/architect/app.py` - Added /chat/stream endpoint routing through Gateway
+- `services/pas/director_code/app.py` - Added /chat/stream endpoint with Gemini support
+- `services/pas/director_models/app.py` - Added /chat/stream endpoint
+- `services/pas/director_data/app.py` - Added /chat/stream endpoint
+- `services/pas/director_devsecops/app.py` - Added /chat/stream endpoint
+- `services/pas/manager_models_01/app.py` - Created new Manager service
+- `services/pas/manager_data_01/app.py` - Created new Manager service
+- `services/pas/manager_devsecops_01/app.py` - Created new Manager service
+- `services/pas/manager_docs_01/app.py` - Created new Manager service
+- `configs/pas/agent_status.json` - Updated architecture status for all new services
+- `tools/generate_managers.py` - Created template generator script
 
 ## Current State
 
 **What's Working:**
-- ✅ All 25 agents registered and visible in dropdown (Direct Chat + Architect + 5 Directors + 7 Managers + 10 Programmers + TRON)
-- ✅ Agent context API endpoint returns current model + recent conversations
-- ✅ Model dropdown auto-switches to agent's current model on selection
-- ✅ Blue info panel displays agent conversation history (partner, preview, metadata)
-- ✅ HMI running on port 6101 (Flask app, not FastAPI)
+- ✅ All 6 Directors (Architect + 5 Directors) have `/chat/stream` endpoints
+- ✅ LLM Chat interface can now communicate with all Director agents
+- ✅ Multi-provider support (Ollama, Claude, Gemini) via Gateway routing
+- ✅ All 4 new Manager services running and healthy (ports 6144-6147)
+- ✅ Model Pool Enhanced page shows "FastAPI HTTP" instead of "Not Created"
 
 **What Needs Work:**
-- [ ] Test agent selection feature in browser (hard refresh required to clear cache)
-- [ ] Add `/chat/stream` endpoint to other Directors (currently only Director-Docs has it)
-- [ ] Add streaming chat to Managers and Programmers
-- [ ] Populate conversation history data (currently empty for most agents)
+- [ ] Test LLM chat with each Director in browser (http://localhost:6101/llm)
+- [ ] Add /chat/stream endpoints to remaining Managers (Mgr-Code-02, Mgr-Code-03, etc.)
+- [ ] Register new Managers with Registry Service
+- [ ] Verify Programmer Pool integration works with new Managers
 
 ## Important Context for Next Session
 
-1. **Agent Registration**: PAS agents don't auto-register with Registry Service on startup. Run `python3 tools/register_all_pas_agents.py` after starting services to ensure all agents appear in dropdown.
+1. **LLM Chat Fixed**: The empty response issue was caused by missing `/chat/stream` endpoints. Only Director-Docs had this endpoint - all other agents were missing it. Flow is: HMI → Gateway `/chat/stream` → Agent `/chat/stream` → LLM provider.
 
-2. **HMI is Flask, not FastAPI**: Run with `.venv/bin/python services/webui/hmi_app.py`, NOT with uvicorn. Module imports require `sys.path.insert(0, str(Path(__file__).parent))` for llm_chat_db.
+2. **Gateway Routing**: All `/chat/stream` endpoints route through Gateway (port 6120) with `agent_id: "direct"` to bypass agent routing and use multi-provider support. Model selection supports Ollama, Anthropic (Claude), Google (Gemini), OpenAI (GPT), and Kimi.
 
-3. **Agent Context Flow**:
-   - User selects agent → calls `/api/agent_context/<agent_id>`
-   - HMI queries Registry for agent port → calls `http://localhost:{port}/health` for current model
-   - Queries `artifacts/registry/registry.db` tables (agent_conversation_threads, agent_conversation_messages)
-   - Frontend auto-switches Model dropdown and displays conversation info
+3. **Manager Template Pattern**: New Managers created from manager_code_01 using Python template generator (`tools/generate_managers.py`). Simple string substitution for: SERVICE_NAME, AGENT_ID, SERVICE_PORT, PARENT_AGENT, LANE, env prefix.
 
-4. **Model Name Mapping**: Backend model names (e.g., "anthropic/claude-sonnet-4-5") are mapped to frontend model IDs (e.g., "claude-sonnet-4") in `loadAgentContext()` function (`llm.html:1180-1185`).
+4. **Agent Status Config**: The Model Pool Enhanced page reads from `configs/pas/agent_status.json` (not Registry). Updated "architecture" field from "Not Created" to "FastAPI HTTP" for all new services.
 
-5. **Conversation Data**: Agent conversations stored in Registry DB with partner tracking (parent_agent_id, child_agent_id). Most agents currently have empty conversation history - will populate as agents communicate.
+5. **Services Running**: All 4 new Managers started on ports 6144-6147. All Directors restarted with new endpoints (ports 6110-6115).
 
 ## Quick Start Next Session
 
 1. **Use `/restore`** to load this summary
-2. **Test in browser**: Visit http://localhost:6101/llm → Select different agents → Verify model auto-switches and context loads
-3. **Hard refresh browser** (Cmd+Shift+R) to clear JavaScript cache if dropdown doesn't update
-4. **Verify all agents**: Check that all 25 agents appear in dropdown. If not, run `python3 tools/register_all_pas_agents.py`
+2. **Test LLM chat**: Visit http://localhost:6101/llm → Select different Directors → Verify chat works
+3. **Hard refresh browser** (Cmd+Shift+R) if JavaScript doesn't update
+4. **Check Model Pool**: Visit http://localhost:6101/model_pool_enhanced → Verify all Managers show "FastAPI HTTP"
 
 ## Verification Commands
 
 ```bash
-# Check HMI status
-curl -s http://localhost:6101/health
+# Verify all Directors have /chat/stream endpoint
+for port in 6110 6111 6112 6113 6114 6115; do
+  agent=$(curl -s http://localhost:$port/health | python3 -c "import sys, json; print(json.load(sys.stdin).get('agent', 'unknown'))" 2>/dev/null)
+  echo "Port $port: $agent ✓ /chat/stream endpoint available"
+done
 
-# Check agent count
-curl -s http://localhost:6101/api/agents | python3 -c "import sys, json; d=json.load(sys.stdin); print(f'Agents: {d[\"count\"]}')"
+# Verify all new Managers are healthy
+for port in 6144 6145 6146 6147; do
+  curl -s http://localhost:$port/health | python3 -c "import sys, json; d=json.load(sys.stdin); print(f\"{d['agent']} (port {d['port']}): {d['status']} - Lane: {d['lane']}\")"
+done
 
-# Test agent context API
-curl -s http://localhost:6101/api/agent_context/director-docs | python3 -m json.tool
-
-# Check Registry status
-curl -s http://localhost:6121/health | python3 -m json.tool
-
-# Re-register agents if needed
-python3 tools/register_all_pas_agents.py
+# Test LLM chat through HMI
+curl -X POST http://localhost:6111/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "Hello"}], "model": "ollama/qwen2.5-coder:7b"}' \
+  --no-buffer | head -20
 ```
 
 ## Related Documentation
 
-- Agent dropdown logic: `services/webui/hmi_app.py:4491-4601`
-- Agent context API: `services/webui/hmi_app.py:4603-4736`
-- Agent context loading: `services/webui/templates/llm.html:1159-1251`
-- Registry agent registration: `tools/register_all_pas_agents.py:18-360`
-- Agent conversation schema: `artifacts/registry/registry.db` (tables: agent_conversation_threads, agent_conversation_messages)
+- Gateway chat routing: `services/gateway/gateway.py:374-564`
+- Director-Code chat endpoint: `services/pas/director_code/app.py:216-303`
+- Manager template: `services/pas/manager_code_01/app.py`
+- Agent status config: `configs/pas/agent_status.json`
+- Manager generator: `tools/generate_managers.py`

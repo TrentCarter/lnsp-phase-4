@@ -53,15 +53,16 @@
         {
           "agent": "Dir-Models",
           "port": 6112,
-          "architecture": "Planned",
+          "architecture": "FastAPI HTTP",
           "agent_chat": true,
           "can_send": true,
           "can_receive": true,
           "sse_events": true,
-          "implementation": "Not implemented",
+          "implementation": "services/pas/director_models/app.py",
           "status": "Fully Integrated",
           "notes": [
-            "Pending implementation matching Dir-Code pattern"
+            "/chat/stream endpoint added (2025-11-14)",
+            "Routes through Gateway for multi-provider support"
           ],
           "test_endpoint": "http://localhost:6112/health"
         },
@@ -167,60 +168,64 @@
         {
           "agent": "Mgr-Models-01",
           "port": 6144,
-          "architecture": "Not Created",
+          "architecture": "FastAPI HTTP",
           "agent_chat": true,
           "can_send": true,
           "can_receive": true,
           "sse_events": true,
-          "implementation": "Not yet created",
+          "implementation": "services/pas/manager_models_01/app.py",
           "status": "Fully Integrated",
           "notes": [
-            "Needs FastAPI service matching Manager-Code"
+            "Created 2025-11-14 from manager_code_01 template",
+            "Models lane task execution"
           ],
           "test_endpoint": "http://localhost:6144/health"
         },
         {
           "agent": "Mgr-Data-01",
           "port": 6145,
-          "architecture": "Not Created",
+          "architecture": "FastAPI HTTP",
           "agent_chat": true,
           "can_send": true,
           "can_receive": true,
           "sse_events": true,
-          "implementation": "Not yet created",
+          "implementation": "services/pas/manager_data_01/app.py",
           "status": "Fully Integrated",
           "notes": [
-            "Needs FastAPI service matching Manager-Code"
+            "Created 2025-11-14 from manager_code_01 template",
+            "Data lane task execution"
           ],
           "test_endpoint": "http://localhost:6145/health"
         },
         {
           "agent": "Mgr-DevSecOps-01",
           "port": 6146,
-          "architecture": "Not Created",
+          "architecture": "FastAPI HTTP",
           "agent_chat": true,
           "can_send": true,
           "can_receive": true,
           "sse_events": true,
-          "implementation": "Not yet created",
+          "implementation": "services/pas/manager_devsecops_01/app.py",
           "status": "Fully Integrated",
           "notes": [
-            "Needs FastAPI service matching Manager-Code"
+            "Created 2025-11-14 from manager_code_01 template",
+            "DevSecOps lane task execution"
           ],
           "test_endpoint": "http://localhost:6146/health"
         },
         {
           "agent": "Mgr-Docs-01",
           "port": 6147,
-          "architecture": "Not Created",
+          "architecture": "FastAPI HTTP",
           "agent_chat": true,
           "can_send": true,
           "can_receive": true,
           "sse_events": true,
-          "implementation": "Not yet created",
+          "implementation": "services/pas/manager_docs_01/app.py",
           "status": "Fully Integrated",
           "notes": [
-            "Needs FastAPI service matching Manager-Code"
+            "Created 2025-11-14 from manager_code_01 template",
+            "Docs lane task execution"
           ],
           "test_endpoint": "http://localhost:6147/health"
         }

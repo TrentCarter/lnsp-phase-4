@@ -2,7 +2,7 @@
 """
 Manager-Data-01 Service - Code Lane Task Breakdown
 
-Port: 6141
+Port: 6145
 Tier: 4 (Manager)
 LLM: Gemini 2.5 Flash (primary), Claude Haiku 4 (fallback)
 
@@ -28,6 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import time
@@ -44,21 +45,23 @@ from services.common.job_queue import get_queue, JobCard, Lane, Role, Priority
 from services.common.comms_logger import get_logger, MessageType
 from services.common.programmer_pool import get_programmer_pool
 from services.common.llm_task_decomposer import get_task_decomposer
-from services.common.agent_chat import get_agent_chat_client, AgentChatMessage
-from services.common.agent_chat_mixin import (
-    add_agent_chat_routes,
-    start_message_poller,
-    send_message_to_parent,
-    send_message_to_child
-)
 
 app = FastAPI(title="Manager-Data-01", version="1.0.0")
+
+# Add CORS middleware to allow browser requests from HMI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for local development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Initialize systems
 heartbeat_monitor = get_monitor()
 job_queue = get_queue()
 logger = get_logger()
-agent_chat = get_agent_chat_client()
 programmer_pool = get_programmer_pool()
 task_decomposer = get_task_decomposer()
 
@@ -121,40 +124,6 @@ class ManagerReport(BaseModel):
 
 # === Health & Status Endpoints ===
 
-
-
-# === Agent Chat Message Handler ===
-
-async def handle_incoming_message(message: AgentChatMessage):
-    """
-    Handle incoming messages from parent (Dir-Data) or children.
-
-    Called automatically by the message poller when new messages arrive.
-    """
-    print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Mgr-Data-01'}}] Received {{message.message_type}} from {{message.from_agent}}")
-
-    if message.message_type == "delegation":
-        # Handle delegation from parent
-        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Mgr-Data-01'}}] Delegation: {{message.content}}")
-        # TODO: Process delegation
-
-    elif message.message_type == "question":
-        # Handle question from child
-        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Mgr-Data-01'}}] Question: {{message.content}}")
-        # TODO: Answer question
-
-    elif message.message_type == "status":
-        # Handle status update
-        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Mgr-Data-01'}}] Status: {{message.content}}")
-
-    elif message.message_type == "completion":
-        # Handle completion
-        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Mgr-Data-01'}}] Completion: {{message.content}}")
-
-    elif message.message_type == "error":
-        # Handle error
-        print(f"[{{get_agent_id() if 'get_agent_id' in dir() else 'Mgr-Data-01'}}] Error: {{message.content}}")
-
 @app.get("/health")
 async def health():
     """Health check endpoint"""
@@ -177,6 +146,41 @@ async def health():
         }
     }
 
+
+
+
+class AgentChatRequest(BaseModel):
+    """Agent chat message for testing and inter-agent communication"""
+    sender_agent: str
+    message_type: str  # question, delegation, status, etc.
+    content: str
+    metadata: Optional[Dict[str, Any]] = None
+
+
+@app.post("/agent/chat/send")
+async def agent_chat_send(request: AgentChatRequest):
+    """
+    Receive agent chat message (for testing and inter-agent communication).
+
+    This endpoint allows external systems (HMI tests, other agents) to send
+    messages to this agent for testing connectivity and basic interactions.
+    """
+    # Get agent name from health endpoint metadata
+    health_data = await health()
+    agent_name = health_data.get("agent", "Unknown")
+
+    # Log the received message
+    print(f"[{agent_name}] Received {request.message_type} from {request.sender_agent}: {request.content}")
+
+    # Return acknowledgment
+    return {
+        "status": "received",
+        "agent": agent_name,
+        "message_id": str(uuid.uuid4()),
+        "sender": request.sender_agent,
+        "message_type": request.message_type,
+        "response": f"{agent_name} received: {request.content}"
+    }
 
 @app.get("/status/{job_card_id}")
 async def get_status(job_card_id: str):
@@ -426,8 +430,6 @@ async def decompose_into_programmer_tasks(job_card: Dict[str, Any]) -> List[Dict
     return programmer_tasks
 
 
-
-
 async def delegate_to_programmers(job_card_id: str, programmer_tasks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Delegate tasks to Programmers in parallel using Programmer Pool
@@ -533,8 +535,6 @@ async def delegate_to_programmers(job_card_id: str, programmer_tasks: List[Dict[
     return list(results)
 
 
-
-
 # === Startup Event ===
 
 @app.on_event("startup")
@@ -574,20 +574,6 @@ async def shutdown_event():
         status="shutdown"
     )
 
-
-
-
-# === Add Agent Chat Routes ===
-
-_agent_id_for_chat = "Mgr-Data-01"
-add_agent_chat_routes(
-    app=app,
-    agent_id=_agent_id_for_chat,
-    agent_chat=agent_chat,
-    on_message_received=handle_incoming_message
-)
-
-print(f"[{_agent_id_for_chat}] Agent Chat routes added")
 
 if __name__ == "__main__":
     import uvicorn
